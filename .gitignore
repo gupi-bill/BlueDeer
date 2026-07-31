@@ -1,0 +1,33 @@
+# ── Python ──────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# ── 环境与密钥 ──────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── BlueDeer 运行时数据（自动生成，不提交） ─────────────
+data/
+logs/
+*.log
+*.db
+*.sqlite
+*.sqlite3
+chroma/
+*.cache
+
+# ── IDE / 编辑器 ────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── OS ──────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
