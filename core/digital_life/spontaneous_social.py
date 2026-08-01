@@ -491,6 +491,7 @@ class SpontaneousSocialSystem:
     def _archive_interaction(self, d: dict) -> None:
         """归档互动记录 + 生成记忆碎片。"""
         a, b = d["a"], d["b"]
+        archive_entry = {
             "a": a._name_obj,
             "a_species": a.species,
             "b": b._name_obj,
