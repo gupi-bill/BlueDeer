@@ -21,6 +21,8 @@ from typing import Any
 
 logger = logging.getLogger("bluedeer.notifier")
 
+__all__ = ["NotificationChannel", "EmailConfig", "EmailChannel", "DingTalkChannel", "FeishuChannel", "SlackChannel", "Notif", "NotificationDispatcher", "Notifier"]
+
 
 class NotificationChannel(ABC):
     """通知渠道基类。"""
@@ -189,24 +191,17 @@ class Notif:
     kwargs: dict = field(default_factory=dict)
 
 
-class Notifier:
-    """统一通知调度器。"""
+class NotificationDispatcher:
+    """通知分发器：统一接口，封装去重、批量发送、广播逻辑。
 
-    def __init__(self, dedup_ttl: float = 60.0, batch_gap: float = 0.5) -> None:
-        self._channels: dict[str, NotificationChannel] = {}
+    与 Notifier（渠道注册表）分离，专注发送策略与并发控制。
+    """
+
+    def __init__(self, channels: dict[str, NotificationChannel], dedup_ttl: float = 60.0, batch_gap: float = 0.5) -> None:
+        self._channels = channels
         self._dedup_ttl = dedup_ttl
         self._batch_gap = batch_gap
         self._seen: OrderedDict[str, float] = OrderedDict()
-
-    def register(self, name: str, channel: NotificationChannel) -> None:
-        self._channels[name] = channel
-        logger.info("通知渠道已注册: %s (%s)", name, type(channel).__name__)
-
-    def unregister(self, name: str) -> bool:
-        return self._channels.pop(name, None) is not None
-
-    def list_channels(self) -> dict[str, str]:
-        return {n: type(c).__name__ for n, c in self._channels.items()}
 
     def _digest(self, title: str, body: str) -> str:
         return hashlib.md5(f"{title}|{body}".encode()).hexdigest()
@@ -221,9 +216,7 @@ class Notifier:
             del self._seen[k]
         return d in self._seen and (self._seen[d] != now)
 
-    async def send(
-        self, channel: str, title: str, body: str, dedup: bool = False, **kwargs: Any
-    ) -> bool:
+    async def send(self, channel: str, title: str, body: str, dedup: bool = False, **kwargs) -> bool:
         if dedup and self.is_dup(title, body):
             logger.debug("去重跳过: [%s] %s", channel, title)
             return True
@@ -244,13 +237,57 @@ class Notifier:
 
         return await asyncio.gather(*[_one(n) for n in notifs])
 
-    async def broadcast(
-        self, title: str, body: str, dedup: bool = False, **kwargs: Any
-    ) -> dict[str, bool]:
+    async def broadcast(self, title: str, body: str, dedup: bool = False, **kwargs) -> dict[str, bool]:
         if dedup and self.is_dup(title, body):
             logger.debug("去重跳过广播: %s", title)
-            return {n: True for n in self._channels}
+            return {n: False for n in self._channels}
         results: dict[str, bool] = {}
         for name, ch in self._channels.items():
             results[name] = await ch.send(title, body, **kwargs)
         return results
+
+
+class Notifier:
+    """统一通知调度器（渠道注册表）。"""
+
+    def __init__(self, dedup_ttl: float = 60.0, batch_gap: float = 0.5) -> None:
+        self._channels: dict[str, NotificationChannel] = {}
+        self._dedup_ttl = dedup_ttl
+        self._batch_gap = batch_gap
+        self._dispatcher: NotificationDispatcher | None = None
+
+    def _invalidate_dispatcher(self) -> None:
+        self._dispatcher = None
+
+    def register(self, name: str, channel: NotificationChannel) -> None:
+        self._channels[name] = channel
+        self._invalidate_dispatcher()
+        logger.info("通知渠道已注册: %s (%s)", name, type(channel).__name__)
+
+    def unregister(self, name: str) -> bool:
+        result = self._channels.pop(name, None) is not None
+        self._invalidate_dispatcher()
+        return result
+
+    def list_channels(self) -> dict[str, str]:
+        return {n: type(c).__name__ for n, c in self._channels.items()}
+
+    def _get_dispatcher(self) -> NotificationDispatcher:
+        if self._dispatcher is None:
+            self._dispatcher = NotificationDispatcher(
+                self._channels, dedup_ttl=self._dedup_ttl, batch_gap=self._batch_gap
+            )
+        return self._dispatcher
+
+    async def send(
+        self, channel: str, title: str, body: str, dedup: bool = False, **kwargs: Any
+    ) -> bool:
+        return await self._get_dispatcher().send(channel, title, body, dedup=dedup, **kwargs)
+
+    async def send_batch(self, notifs: list[Notif], concurrency: int = 5) -> list[bool]:
+        return await self._get_dispatcher().send_batch(notifs, concurrency=concurrency)
+
+    async def broadcast(
+        self, title: str, body: str, dedup: bool = False, **kwargs: Any
+    ) -> dict[str, bool]:
+        return await self._get_dispatcher().broadcast(title, body, dedup=dedup, **kwargs)

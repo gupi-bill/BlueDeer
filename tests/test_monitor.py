@@ -49,18 +49,18 @@ class TestSystemMonitor:
 
     def test_evaluate_alerts_high_cpu(self, monitor):
         usage = {"cpu_percent": 95, "memory_percent": 50, "disk": {"percent": 50}}
-        alerts = monitor.evaluate_alerts(usage)
+        alerts = monitor._alert_evaluator.evaluate(usage)
         assert len(alerts) == 1
         assert alerts[0]["metric"] == "cpu"
 
     def test_evaluate_alerts_high_memory(self, monitor):
         usage = {"cpu_percent": 50, "memory_percent": 90, "disk": {"percent": 50}}
-        alerts = monitor.evaluate_alerts(usage)
+        alerts = monitor._alert_evaluator.evaluate(usage)
         assert len(alerts) == 1
         assert alerts[0]["metric"] == "memory"
 
     def test_evaluate_alerts_high_disk(self, monitor):
         usage = {"cpu_percent": 50, "memory_percent": 50, "disk": {"percent": 95}}
-        alerts = monitor.evaluate_alerts(usage)
+        alerts = monitor._alert_evaluator.evaluate(usage)
         assert len(alerts) == 1
         assert alerts[0]["metric"] == "disk"
