@@ -4,23 +4,25 @@ Extracted from tool_implementations.py as part of slice 1 (#4082/#4071).
 Holds the manage_notes tool (notes + checklists CRUD).
 ``src.tool_implementations`` re-exports these for backward compatibility.
 """
+
 import json
 import logging
 import re
-from typing import Dict, Optional
 
-from src.tools._common import _parse_tool_args
 from src.tool_utils import get_upload_handler
+from src.tools._common import _parse_tool_args
 from src.upload_handler import reserve_upload_references
 
 logger = logging.getLogger(__name__)
 
 
-async def do_manage_notes(content: str, owner: Optional[str] = None) -> Dict:
+async def do_manage_notes(content: str, owner: str | None = None) -> dict:
     """Handle manage_notes tool calls: CRUD on notes and checklists."""
     import uuid as _uuid
-    from core.database import SessionLocal, Note
+
     from sqlalchemy.orm.attributes import flag_modified
+
+    from core.database import Note, SessionLocal
 
     try:
         args = _parse_tool_args(content)
@@ -47,7 +49,7 @@ async def do_manage_notes(content: str, owner: Optional[str] = None) -> Dict:
         text = re.sub(r"^\s*reminder\s*:\s*", "", text)
         return re.sub(r"\s+", " ", text)
 
-    def _note_visible_to_owner(note, owner_value: Optional[str]) -> bool:
+    def _note_visible_to_owner(note, owner_value: str | None) -> bool:
         # Empty owner_value is single-user / auth-disabled mode. A real
         # authenticated owner must match exactly; null/empty legacy rows are not
         # shared between accounts.
@@ -96,13 +98,17 @@ async def do_manage_notes(content: str, owner: Optional[str] = None) -> Dict:
             q = q.filter(Note.archived == show_archived)
             notes = q.order_by(Note.pinned.desc(), Note.updated_at.desc()).all()
             if action in ("search", "find"):
-                query = str(
-                    args.get("query")
-                    or args.get("text")
-                    or args.get("title")
-                    or args.get("content")
-                    or ""
-                ).strip().lower()
+                query = (
+                    str(
+                        args.get("query")
+                        or args.get("text")
+                        or args.get("title")
+                        or args.get("content")
+                        or ""
+                    )
+                    .strip()
+                    .lower()
+                )
                 if query:
                     filtered = []
                     for n in notes:
@@ -156,13 +162,11 @@ async def do_manage_notes(content: str, owner: Optional[str] = None) -> Dict:
             due_raw = args.get("due_date")
             if not due_raw:
                 combined_text = " ".join(
-                    str(v or "")
-                    for v in (title, content_raw, text_raw)
+                    str(v or "") for v in (title, content_raw, text_raw)
                 ).strip()
                 lower_combined = combined_text.lower()
-                looks_like_reminder = (
-                    raw_action in {"remind", "reminder"}
-                    or re.search(r"\bremind(?:er)?\b", lower_combined)
+                looks_like_reminder = raw_action in {"remind", "reminder"} or re.search(
+                    r"\bremind(?:er)?\b", lower_combined
                 )
                 if looks_like_reminder:
                     temporal = re.search(
@@ -177,6 +181,7 @@ async def do_manage_notes(content: str, owner: Optional[str] = None) -> Dict:
             if due_raw:
                 try:
                     from routes.calendar_routes import parse_due_for_user as _pdt_user
+
                     due_iso = _pdt_user(due_raw)
                 except Exception:
                     due_iso = due_raw  # fall through; trust the model
@@ -186,7 +191,7 @@ async def do_manage_notes(content: str, owner: Optional[str] = None) -> Dict:
                 # also creates a separate note reminder for the same title/time,
                 # keep the existing note so the user gets only one dispatch.
                 existing_q = db.query(Note).filter(
-                    Note.archived == False,  # noqa: E712
+                    Note.archived == False,
                     Note.due_date == due_iso,
                 )
                 if owner is not None:
@@ -195,7 +200,7 @@ async def do_manage_notes(content: str, owner: Optional[str] = None) -> Dict:
                 for existing in existing_q.limit(25).all():
                     if _norm_note_title(existing.title or "") == target_title:
                         return {
-                            "response": f"Reminder already exists: \"{existing.title or title}\" (id: {existing.id[:8]})",
+                            "response": f'Reminder already exists: "{existing.title or title}" (id: {existing.id[:8]})',
                             "note_id": existing.id,
                             "duplicate": True,
                             "exit_code": 0,
@@ -275,6 +280,7 @@ async def do_manage_notes(content: str, owner: Optional[str] = None) -> Dict:
                 due_raw = args["due_date"]
                 try:
                     from routes.calendar_routes import parse_due_for_user as _pdt_user
+
                     note.due_date = _pdt_user(due_raw)
                 except Exception:
                     note.due_date = due_raw  # fall through; trust the model
@@ -289,7 +295,10 @@ async def do_manage_notes(content: str, owner: Optional[str] = None) -> Dict:
             if "archived" in args:
                 note.archived = args["archived"]
             db.commit()
-            return {"response": f"Note updated: \"{note.title or '(untitled)'}\"", "exit_code": 0}
+            return {
+                "response": f"Note updated: \"{note.title or '(untitled)'}\"",
+                "exit_code": 0,
+            }
 
         elif action == "delete":
             note_id = args.get("id", "")
@@ -301,7 +310,10 @@ async def do_manage_notes(content: str, owner: Optional[str] = None) -> Dict:
             title = note.title
             db.delete(note)
             db.commit()
-            return {"response": f"Deleted note: \"{title or '(untitled)'}\"", "exit_code": 0}
+            return {
+                "response": f"Deleted note: \"{title or '(untitled)'}\"",
+                "exit_code": 0,
+            }
 
         elif action == "toggle_item":
             note_id = args.get("id", "")
@@ -315,16 +327,25 @@ async def do_manage_notes(content: str, owner: Optional[str] = None) -> Dict:
                 return {"error": "Note has no checklist items", "exit_code": 1}
             items = json.loads(note.items)
             if index < 0 or index >= len(items):
-                return {"error": f"Item index {index} out of range (0-{len(items)-1})", "exit_code": 1}
+                return {
+                    "error": f"Item index {index} out of range (0-{len(items)-1})",
+                    "exit_code": 1,
+                }
             items[index]["done"] = not items[index].get("done", False)
             note.items = json.dumps(items)
             flag_modified(note, "items")
             db.commit()
             mark = "done" if items[index]["done"] else "undone"
-            return {"response": f"Item '{items[index].get('text', '')}' marked {mark}", "exit_code": 0}
+            return {
+                "response": f"Item '{items[index].get('text', '')}' marked {mark}",
+                "exit_code": 0,
+            }
 
         else:
-            return {"error": f"Unknown action: {action}. Use list/search/view/add/update/delete/toggle_item", "exit_code": 1}
+            return {
+                "error": f"Unknown action: {action}. Use list/search/view/add/update/delete/toggle_item",
+                "exit_code": 1,
+            }
     except Exception as e:
         logger.error(f"manage_notes error: {e}")
         return {"error": str(e), "exit_code": 1}

@@ -23,6 +23,7 @@ class TransitionEffect(Enum):
     FADE = "fade"
     SLIDE = "slide"
 
+
 logger = logging.getLogger("bluedeer.scene")
 
 
@@ -78,7 +79,11 @@ class CEOOffice:
         """切换到下一个场景。"""
         self._scene_stack.append(self._current_scene)
         self._current_scene = next_scene
-        return {"from": self._scene_stack[-2] if len(self._scene_stack) > 1 else None, "to": next_scene, "effect": effect}
+        return {
+            "from": self._scene_stack[-2] if len(self._scene_stack) > 1 else None,
+            "to": next_scene,
+            "effect": effect,
+        }
 
     def get_current_scene(self) -> str:
         """获取当前场景名。"""
@@ -102,7 +107,9 @@ class CEOOffice:
     def hold_meeting(self, topic: str, participants: list[str]) -> dict[str, Any]:
         """召开会议。"""
         meeting_id = f"mtg_{int(__import__('time').time() * 1000)}"
-        announcement = f"📍 会议开始 [{meeting_id[:8]}]: {topic}，参会: {', '.join(participants)}"
+        announcement = (
+            f"📍 会议开始 [{meeting_id[:8]}]: {topic}，参会: {', '.join(participants)}"
+        )
         msg_id = self.breakroom.announce(announcement)
         return {
             "meeting_id": meeting_id,

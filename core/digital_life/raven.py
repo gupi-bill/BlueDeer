@@ -3,6 +3,7 @@
 特殊行为：跨代记忆，die 时把记忆写入 raven_archive 全局列表。
 commit 28：行为池——梳羽 / 摆弄闪亮物 / 讲古 / 高飞眺望
 """
+
 from __future__ import annotations
 
 import random
@@ -41,14 +42,14 @@ class Raven(DigitalLifeForm):
             "name": "groom_feathers",
             "label": "梳理羽毛",
             "trigger": {
-                "time_range": [6, 9],   # 早晨 6-9 点
+                "time_range": [6, 9],  # 早晨 6-9 点
                 "energy_min": 40,
                 "hunger_max": 70,
                 "life_stages": ["JUVENILE", "ADULT", "MIDDLE", "ELDERLY"],
                 "probability": 0.06,
             },
-            "duration_sec": 300,       # 5 分钟
-            "cooldown_sec": 7200,      # 2 小时一次（早晚各一次靠时间范围）
+            "duration_sec": 300,  # 5 分钟
+            "cooldown_sec": 7200,  # 2 小时一次（早晚各一次靠时间范围）
             "animation": "idle",
             "particles": "feather_shine",
         },
@@ -76,8 +77,8 @@ class Raven(DigitalLifeForm):
                 "life_stages": ["ADULT", "MIDDLE", "ELDERLY"],
                 "probability": 0.01,
             },
-            "duration_sec": 180,       # 3 分钟
-            "cooldown_sec": 1800,      # 30 分钟一次
+            "duration_sec": 180,  # 3 分钟
+            "cooldown_sec": 1800,  # 30 分钟一次
             "animation": "work",
             "particles": "sparkle",
         },
@@ -85,14 +86,14 @@ class Raven(DigitalLifeForm):
             "name": "tell_story",
             "label": "讲古",
             "trigger": {
-                "time_range": [20, 24], # 夜晚 20-24 点
+                "time_range": [20, 24],  # 夜晚 20-24 点
                 "energy_min": 30,
                 "hunger_max": 70,
                 "life_stages": ["MIDDLE", "ELDERLY"],
                 "probability": 0.025,
             },
-            "duration_sec": 300,       # 5 分钟
-            "cooldown_sec": 3600,      # 1 小时一次
+            "duration_sec": 300,  # 5 分钟
+            "cooldown_sec": 3600,  # 1 小时一次
             "animation": "idle",
             "particles": "story_bubble",
         },
@@ -105,18 +106,30 @@ class Raven(DigitalLifeForm):
                 "life_stages": ["ADULT", "MIDDLE"],
                 "probability": 0.008,
             },
-            "duration_sec": 120,       # 2 分钟
-            "cooldown_sec": 7200,      # 2 小时一次
+            "duration_sec": 120,  # 2 分钟
+            "cooldown_sec": 7200,  # 2 小时一次
             "animation": "work",
             "particles": "feather_drop",
         },
     ]
 
-    def __init__(self, name="渡鸦", gender="female", environment=None,
-                 birth_time=None, genome_override=None):
+    def __init__(
+        self,
+        name="渡鸦",
+        gender="female",
+        environment=None,
+        birth_time=None,
+        genome_override=None,
+    ):
         genome = self._build_genome(genome_override)
-        super().__init__(name=name, species="raven", gender=gender,
-                         genome=genome, environment=environment, birth_time=birth_time)
+        super().__init__(
+            name=name,
+            species="raven",
+            gender=gender,
+            genome=genome,
+            environment=environment,
+            birth_time=birth_time,
+        )
         # 继承档案
         self._inherit_archive()
 
@@ -137,7 +150,9 @@ class Raven(DigitalLifeForm):
         archive_entry = {
             "name": self._name_obj,
             "memory_count": len(self.memory_long_term),
-            "last_memory": (self.memory_long_term[-1] if self.memory_long_term else None),
+            "last_memory": (
+                self.memory_long_term[-1] if self.memory_long_term else None
+            ),
         }
         raven_archive.append(archive_entry)
         super()._die(reason)
@@ -161,7 +176,8 @@ class Raven(DigitalLifeForm):
         elif bname == "play_shiny":
             # 随机挑一个闪亮物
             self._shiny_object = random.choice(
-                ["钥匙", "硬币", "USB 接口头", "螺丝", "回形针", "纽扣电池"])
+                ["钥匙", "硬币", "USB 接口头", "螺丝", "回形针", "纽扣电池"]
+            )
 
     def _on_behavior_tick(self, cfg: dict) -> None:
         """行为持续时：每秒效果。"""
@@ -176,16 +192,21 @@ class Raven(DigitalLifeForm):
             # 讲古：每 30 秒写入一条听众记忆
             if int(time.time()) % 30 == 0 and self._environment is not None:
                 # 找同 zone 的听众
-                listeners = [lf for lf in self._environment.population
-                             if lf is not self and getattr(lf, "_alive", False)
-                             and getattr(lf, "current_zone_id", "") == self.current_zone_id]
+                listeners = [
+                    lf
+                    for lf in self._environment.population
+                    if lf is not self
+                    and getattr(lf, "_alive", False)
+                    and getattr(lf, "current_zone_id", "") == self.current_zone_id
+                ]
                 subject = getattr(self, "_story_subject", None) or "前代渡鸦"
                 for listener in listeners[:3]:  # 最多 3 个听众
                     try:
                         with listener._lock:
                             listener._remember(
                                 f"听 {self._name_obj} 讲述了 {subject} 的往事",
-                                importance="normal")
+                                importance="normal",
+                            )
                     except Exception:
                         pass
         elif bname == "fly_high":
@@ -214,6 +235,7 @@ class Raven(DigitalLifeForm):
         return Raven(
             name=f"{self._name_obj}的幼崽",
             gender=random.choice(["male", "female"]),
-            environment=environment, birth_time=birth_time,
+            environment=environment,
+            birth_time=birth_time,
             genome_override=genome,
         )

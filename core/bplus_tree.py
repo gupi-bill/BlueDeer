@@ -7,14 +7,17 @@ evolution（数据维度 - R193）：
 - 与跳表互补：跳表用概率平衡，B+树用节点分裂
 - 适合磁盘存储（节点大小可对齐页）
 """
+
 from __future__ import annotations
+
 import pickle
 import threading
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 
 class _Leaf:
-    __slots__ = ("keys", "values", "next", "prev")
+    __slots__ = ("keys", "next", "prev", "values")
 
     def __init__(self):
         self.keys: list = []
@@ -24,7 +27,7 @@ class _Leaf:
 
 
 class _Internal:
-    __slots__ = ("keys", "children")
+    __slots__ = ("children", "keys")
 
     def __init__(self):
         self.keys: list = []
@@ -71,7 +74,7 @@ class BPlusTree:
         nid = id(node)
         self._cache[nid] = node
         if len(self._cache) > self._cache_max:
-            for k in list(self._cache.keys())[:len(self._cache) - self._cache_max]:
+            for k in list(self._cache.keys())[: len(self._cache) - self._cache_max]:
                 del self._cache[k]
 
     def _cache_clear(self) -> None:
@@ -87,7 +90,7 @@ class BPlusTree:
             node = self._cache_get(child)
         return node
 
-    def insert(self, key, value) -> None:
+    def insert(self, key: Any, value) -> None:
         with self._lock:
             leaf = self._find_leaf(key)
             for i, k in enumerate(leaf.keys):
@@ -144,10 +147,10 @@ class BPlusTree:
         mid = len(node.keys) // 2
         up_key = node.keys[mid]
         new_node = _Internal()
-        new_node.keys = node.keys[mid + 1:]
-        new_node.children = node.children[mid + 1:]
+        new_node.keys = node.keys[mid + 1 :]
+        new_node.children = node.children[mid + 1 :]
         node.keys = node.keys[:mid]
-        node.children = node.children[:mid + 1]
+        node.children = node.children[: mid + 1]
         self._cache_put(node)
         self._cache_put(new_node)
         self._insert_into_parent(node, up_key, new_node)
@@ -190,7 +193,7 @@ class BPlusTree:
                     return True
             return False
 
-    def range(self, lo=None, hi=None) -> list[tuple[Any, Any]]:
+    def range(self, lo: Any = None, hi: Any = None) -> list[tuple[Any, Any]]:
         result = []
         with self._lock:
             if lo is None:
@@ -271,7 +274,7 @@ class BPlusTree:
             leaf_count = 0
             depth = 0
 
-            def walk(n, d):
+            def walk(n: Any, d) -> None:
                 nonlocal internal_count, leaf_count, depth
                 depth = max(depth, d)
                 if isinstance(n, _Internal):

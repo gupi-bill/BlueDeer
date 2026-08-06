@@ -9,32 +9,33 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
 
 from modules.soft_rabbit.pixel_render import PALETTE_16, Color
 
-
 # ============== 文字样式分级 ==============
+
 
 class TextStyle(Enum):
     """文字样式（3 级基础 + 7 类专用）。"""
+
     # 基础三级
-    TITLE = "title"          # 标题：粗像素字符
-    BODY = "body"            # 正文：常规
-    DIM = "dim"              # 备注：浅灰小字
+    TITLE = "title"  # 标题：粗像素字符
+    BODY = "body"  # 正文：常规
+    DIM = "dim"  # 备注：浅灰小字
     # 7 类专用样式
-    CODE = "code"            # 代码高亮
-    LOG = "log"              # 日志告警
+    CODE = "code"  # 代码高亮
+    LOG = "log"  # 日志告警
     ACHIEVEMENT = "achievement"  # 成就金色文本
-    COIN = "coin"            # 金币数值
-    SECURITY = "security"    # 安全风险红字
-    GIT = "git"              # Git 提交注释
-    DREAM = "dream"          # 梦境总结文案
+    COIN = "coin"  # 金币数值
+    SECURITY = "security"  # 安全风险红字
+    GIT = "git"  # Git 提交注释
+    DREAM = "dream"  # 梦境总结文案
 
 
 @dataclass
 class TextStyleDef:
     """样式定义：颜色 + 装饰前缀/后缀。"""
+
     color: Color
     prefix: str = ""
     suffix: str = ""
@@ -42,16 +43,16 @@ class TextStyleDef:
 
 # 10 个样式映射（颜色取自 16 色主色板）
 _TEXT_STYLES: dict[TextStyle, TextStyleDef] = {
-    TextStyle.TITLE:       TextStyleDef(PALETTE_16["title"], "╔═", "═╗"),
-    TextStyle.BODY:        TextStyleDef(PALETTE_16["text"]),
-    TextStyle.DIM:         TextStyleDef(PALETTE_16["text_dim"]),
-    TextStyle.CODE:        TextStyleDef(PALETTE_16["code"], "[", "]"),
-    TextStyle.LOG:         TextStyleDef(PALETTE_16["info"], "▸ "),
+    TextStyle.TITLE: TextStyleDef(PALETTE_16["title"], "╔═", "═╗"),
+    TextStyle.BODY: TextStyleDef(PALETTE_16["text"]),
+    TextStyle.DIM: TextStyleDef(PALETTE_16["text_dim"]),
+    TextStyle.CODE: TextStyleDef(PALETTE_16["code"], "[", "]"),
+    TextStyle.LOG: TextStyleDef(PALETTE_16["info"], "▸ "),
     TextStyle.ACHIEVEMENT: TextStyleDef(PALETTE_16["title"], "★ "),
-    TextStyle.COIN:        TextStyleDef(PALETTE_16["coin"], "◉ "),
-    TextStyle.SECURITY:    TextStyleDef(PALETTE_16["security"], "⚠ "),
-    TextStyle.GIT:         TextStyleDef(PALETTE_16["text_dim"], "⌥ "),
-    TextStyle.DREAM:       TextStyleDef(PALETTE_16["dream"], "☁ "),
+    TextStyle.COIN: TextStyleDef(PALETTE_16["coin"], "◉ "),
+    TextStyle.SECURITY: TextStyleDef(PALETTE_16["security"], "⚠ "),
+    TextStyle.GIT: TextStyleDef(PALETTE_16["text_dim"], "⌥ "),
+    TextStyle.DREAM: TextStyleDef(PALETTE_16["dream"], "☁ "),
 }
 
 
@@ -87,6 +88,7 @@ DEFAULT_TYPOGRAPHY = TypographyEngine()
 
 # ============== 通用像素图标矢量库 ==============
 
+
 @dataclass
 class PixelIcon:
     """16×16 通用像素符号（用单字符 + 颜色简化表示）。
@@ -94,8 +96,9 @@ class PixelIcon:
     全平台统一像素图标，替代纯文字状态。
     可扩展：基础 24 个 → 128 个细分图标。
     """
+
     name: str
-    glyph: str   # 字符表示
+    glyph: str  # 字符表示
     color: Color
 
 
@@ -115,33 +118,33 @@ class IconRegistry:
         P = PALETTE_16
         return {
             # 状态图标（6）
-            "run":         PixelIcon("run", "▶", P["success"]),
-            "done":        PixelIcon("done", "✓", P["success"]),
-            "error":       PixelIcon("error", "✗", P["error"]),
-            "sleep":       PixelIcon("sleep", "z", P["dream"]),
-            "lock":        PixelIcon("lock", "⚿", P["text_dim"]),
-            "alert":       PixelIcon("alert", "▲", P["warning"]),
+            "run": PixelIcon("run", "▶", P["success"]),
+            "done": PixelIcon("done", "✓", P["success"]),
+            "error": PixelIcon("error", "✗", P["error"]),
+            "sleep": PixelIcon("sleep", "z", P["dream"]),
+            "lock": PixelIcon("lock", "⚿", P["text_dim"]),
+            "alert": PixelIcon("alert", "▲", P["warning"]),
             # 数值图标（3）
-            "coin":        PixelIcon("coin", "●", P["coin"]),
+            "coin": PixelIcon("coin", "●", P["coin"]),
             "achievement": PixelIcon("achievement", "★", P["title"]),
-            "token":       PixelIcon("token", "◇", P["coin"]),
+            "token": PixelIcon("token", "◇", P["coin"]),
             # 岗位/功能图标（10）
-            "code":        PixelIcon("code", "{ }", P["code"]),
-            "art":         PixelIcon("art", "◆", P["accent"]),
-            "test":        PixelIcon("test", "✓", P["info"]),
-            "repo":        PixelIcon("repo", "▣", P["text_dim"]),
-            "security":    PixelIcon("security", "⚠", P["security"]),
-            "schedule":    PixelIcon("schedule", "◷", P["info"]),
-            "dream":       PixelIcon("dream", "☁", P["dream"]),
-            "branch":      PixelIcon("branch", "⌥", P["text_dim"]),
-            "commit":      PixelIcon("commit", "●", P["text"]),
-            "bug":         PixelIcon("bug", "✗", P["error"]),
+            "code": PixelIcon("code", "{ }", P["code"]),
+            "art": PixelIcon("art", "◆", P["accent"]),
+            "test": PixelIcon("test", "✓", P["info"]),
+            "repo": PixelIcon("repo", "▣", P["text_dim"]),
+            "security": PixelIcon("security", "⚠", P["security"]),
+            "schedule": PixelIcon("schedule", "◷", P["info"]),
+            "dream": PixelIcon("dream", "☁", P["dream"]),
+            "branch": PixelIcon("branch", "⌥", P["text_dim"]),
+            "commit": PixelIcon("commit", "●", P["text"]),
+            "bug": PixelIcon("bug", "✗", P["error"]),
             # 装饰图标（5）
-            "shield":      PixelIcon("shield", "⛨", P["security"]),
-            "bolt":        PixelIcon("bolt", "⚡", P["warning"]),
-            "heart":       PixelIcon("heart", "♥", P["error"]),
-            "star":        PixelIcon("star", "★", P["title"]),
-            "cog":         PixelIcon("cog", "⚙", P["text_dim"]),
+            "shield": PixelIcon("shield", "⛨", P["security"]),
+            "bolt": PixelIcon("bolt", "⚡", P["warning"]),
+            "heart": PixelIcon("heart", "♥", P["error"]),
+            "star": PixelIcon("star", "★", P["title"]),
+            "cog": PixelIcon("cog", "⚙", P["text_dim"]),
         }
 
     def get(self, name: str) -> PixelIcon | None:
@@ -192,4 +195,4 @@ def truncate(text: str, max_width: int, ellipsis: str = "…") -> str:
     """截断文本到指定字符宽度，超出加省略号。"""
     if len(text) <= max_width:
         return text
-    return text[:max_width - len(ellipsis)] + ellipsis
+    return text[: max_width - len(ellipsis)] + ellipsis

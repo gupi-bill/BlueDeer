@@ -41,6 +41,6 @@ def test_string_targeted_monkeypatch_reaches_canonical(monkeypatch):
 
     sentinel = object()
     monkeypatch.setattr("routes.contacts_routes.setup_contacts_routes", sentinel)
-    assert canonical.setup_contacts_routes is sentinel, (
-        "string-targeted monkeypatch via legacy path did not reach the canonical module"
-    )
+    assert (
+        canonical.setup_contacts_routes is sentinel
+    ), "string-targeted monkeypatch via legacy path did not reach the canonical module"

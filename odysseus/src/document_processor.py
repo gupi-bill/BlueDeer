@@ -1,12 +1,12 @@
 # src/document_processor.py
 """Document processing: PDF/OCR extraction, text file handling, image VL analysis, user content building."""
 
-import os
+import base64
 import logging
 import mimetypes
-import base64
+import os
 import tempfile
-from typing import List, Dict, Any
+from typing import Any
 
 from src.llm_core import llm_call
 
@@ -20,20 +20,50 @@ def _is_text_file(path: str) -> bool:
     """Check if file has text extension."""
     return any(
         path.lower().endswith(ext)
-        for ext in (".txt", ".py", ".html", ".htm", ".md", ".json", ".csv", ".log", ".js", ".nix")
+        for ext in (
+            ".txt",
+            ".py",
+            ".html",
+            ".htm",
+            ".md",
+            ".json",
+            ".csv",
+            ".log",
+            ".js",
+            ".nix",
+        )
     )
 
 
 def _process_text_file(path: str) -> str:
     """Process text file with enhanced formatting and metadata."""
     language_map = {
-        ".py": "python", ".js": "javascript", ".html": "html", ".css": "css",
-        ".json": "json", ".md": "markdown", ".txt": "text", ".csv": "csv",
-        ".log": "log", ".sh": "bash", ".bash": "bash", ".nix": "nix",
-        ".yml": "yaml", ".yaml": "yaml",
-        ".xml": "xml", ".sql": "sql", ".cpp": "cpp", ".c": "c",
-        ".java": "java", ".go": "go", ".rs": "rust", ".php": "php",
-        ".rb": "ruby", ".ts": "typescript", ".jsx": "javascript", ".tsx": "typescript",
+        ".py": "python",
+        ".js": "javascript",
+        ".html": "html",
+        ".css": "css",
+        ".json": "json",
+        ".md": "markdown",
+        ".txt": "text",
+        ".csv": "csv",
+        ".log": "log",
+        ".sh": "bash",
+        ".bash": "bash",
+        ".nix": "nix",
+        ".yml": "yaml",
+        ".yaml": "yaml",
+        ".xml": "xml",
+        ".sql": "sql",
+        ".cpp": "cpp",
+        ".c": "c",
+        ".java": "java",
+        ".go": "go",
+        ".rs": "rust",
+        ".php": "php",
+        ".rb": "ruby",
+        ".ts": "typescript",
+        ".jsx": "javascript",
+        ".tsx": "typescript",
     }
 
     filename = os.path.basename(path)
@@ -43,6 +73,7 @@ def _process_text_file(path: str) -> str:
 
     try:
         from src.personal_docs import read_text_file
+
         content = read_text_file(path)
     except Exception:
         try:
@@ -52,6 +83,7 @@ def _process_text_file(path: str) -> str:
                 content = raw_data.decode("utf-8")
             except UnicodeDecodeError:
                 from charset_normalizer import detect
+
                 encoding = (detect(raw_data) or {}).get("encoding") or "utf-8"
                 content = raw_data.decode(encoding, errors="replace")
         except Exception as e:
@@ -92,9 +124,29 @@ def _process_text_file(path: str) -> str:
     header += f"[Type: {language}, Lines: {line_count}, Size: {size_str} bytes]"
 
     code_extensions = {
-        ".py", ".js", ".html", ".css", ".json", ".md", ".sh", ".bash", ".nix",
-        ".yml", ".yaml", ".xml", ".sql", ".cpp", ".c", ".java", ".go", ".rs", ".php", ".rb",
-        ".ts", ".jsx", ".tsx",
+        ".py",
+        ".js",
+        ".html",
+        ".css",
+        ".json",
+        ".md",
+        ".sh",
+        ".bash",
+        ".nix",
+        ".yml",
+        ".yaml",
+        ".xml",
+        ".sql",
+        ".cpp",
+        ".c",
+        ".java",
+        ".go",
+        ".rs",
+        ".php",
+        ".rb",
+        ".ts",
+        ".jsx",
+        ".tsx",
     }
     if ext in code_extensions:
         code_block = f"```{language}\n{content}"
@@ -113,6 +165,7 @@ def _process_pdf(path: str, owner: str | None = None) -> str:
     """Process PDF file with text extraction (pypdf). Uses VL model for image-heavy pages."""
     try:
         from pypdf import PdfReader
+
         pdf_text = ""
         reader = PdfReader(path)
 
@@ -129,7 +182,9 @@ def _process_pdf(path: str, owner: str | None = None) -> str:
             if images and len(page_text) < 50:
                 for img_index, img in enumerate(images[:3]):  # cap at 3 images per page
                     try:
-                        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+                        with tempfile.NamedTemporaryFile(
+                            suffix=".png", delete=False
+                        ) as tmp:
                             temp_img_path = tmp.name
                         try:
                             img.image.save(temp_img_path, "PNG")  # pypdf -> PIL image
@@ -153,7 +208,7 @@ def _process_pdf(path: str, owner: str | None = None) -> str:
             return "\n\n[PDF processed but no readable content found]"
 
     except Exception as e:
-        return f"\n\n[PDF processing failed: {str(e)}]"
+        return f"\n\n[PDF processing failed: {e!s}]"
 
 
 def _truncate_inline(text: str, limit: int = 15000) -> tuple[str, str]:
@@ -203,7 +258,7 @@ def _process_office_document(
     path: str,
     display_name: str,
     session_id: str | None = None,
-    auto_opened_docs: list[Dict[str, Any]] | None = None,
+    auto_opened_docs: list[dict[str, Any]] | None = None,
     owner: str | None = None,
 ) -> str:
     """Extract an Office/EPUB document to Markdown via the optional markitdown dep.
@@ -215,8 +270,8 @@ def _process_office_document(
     `manage_documents action=read offset=…` after the inline copy is capped.
     """
     from src.markitdown_runtime import (
-        is_markitdown_format,
         convert_to_markdown,
+        is_markitdown_format,
         load_markitdown,
     )
 
@@ -234,6 +289,7 @@ def _process_office_document(
         if session_id:
             try:
                 from src.office_doc import create_office_document
+
                 doc_id = create_office_document(
                     session_id=session_id,
                     upload_id=os.path.basename(path),
@@ -241,18 +297,21 @@ def _process_office_document(
                     body_text=markdown,
                 )
                 if doc_id and auto_opened_docs is not None:
-                    from src.database import SessionLocal, Document
+                    from src.database import Document, SessionLocal
+
                     _db = SessionLocal()
                     try:
                         _d = _db.query(Document).filter(Document.id == doc_id).first()
                         if _d:
-                            auto_opened_docs.append({
-                                "doc_id": _d.id,
-                                "title": _d.title,
-                                "language": _d.language,
-                                "content": _d.current_content,
-                                "version": _d.version_count,
-                            })
+                            auto_opened_docs.append(
+                                {
+                                    "doc_id": _d.id,
+                                    "title": _d.title,
+                                    "language": _d.language,
+                                    "content": _d.current_content,
+                                    "version": _d.version_count,
+                                }
+                            )
                     finally:
                         _db.close()
             except Exception as e:
@@ -298,6 +357,7 @@ def _load_vl_settings() -> dict:
     """Load admin settings from disk."""
     try:
         from src.settings import load_settings
+
         return load_settings()
     except Exception:
         return {}
@@ -316,10 +376,17 @@ def _resolve_vl_model(configured: str, owner: str | None = None) -> tuple:
 
     # Auto-detect: try known vision-capable models in priority order
     candidates = [
-        "gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini",
-        "claude-sonnet-4-5-20250929", "claude-opus-4-20250514",
-        "gemini-2.0-flash", "gemini-2.5-pro",
-        "llava", "pixtral", "qwen2-vl",
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gpt-4.1",
+        "gpt-4.1-mini",
+        "claude-sonnet-4-5-20250929",
+        "claude-opus-4-20250514",
+        "gemini-2.0-flash",
+        "gemini-2.5-pro",
+        "llava",
+        "pixtral",
+        "qwen2-vl",
     ]
     for candidate in candidates:
         try:
@@ -336,19 +403,31 @@ def analyze_image_with_vl_result(image_path: str, owner: str | None = None) -> d
     try:
         settings = _load_vl_settings()
         if not settings.get("vision_enabled", True):
-            return {"text": "[Vision is disabled — enable it in Settings → Vision]", "model": ""}
+            return {
+                "text": "[Vision is disabled — enable it in Settings → Vision]",
+                "model": "",
+            }
         vl_model = settings.get("vision_model", "")
 
         try:
             url, model_id, headers = _resolve_vl_model(vl_model, owner=owner)
         except ValueError:
-            return {"text": "[No vision model configured — set one in Settings → Vision]", "model": vl_model or ""}
+            return {
+                "text": "[No vision model configured — set one in Settings → Vision]",
+                "model": vl_model or "",
+            }
 
         with open(image_path, "rb") as f:
             img_data = base64.b64encode(f.read()).decode("utf-8")
 
         ext = os.path.splitext(image_path)[1].lower()
-        mime_map = {".jpg": "jpeg", ".jpeg": "jpeg", ".png": "png", ".gif": "gif", ".webp": "webp"}
+        mime_map = {
+            ".jpg": "jpeg",
+            ".jpeg": "jpeg",
+            ".png": "png",
+            ".gif": "gif",
+            ".webp": "webp",
+        }
         img_format = mime_map.get(ext, "jpeg")
 
         vl_messages = [
@@ -356,7 +435,12 @@ def analyze_image_with_vl_result(image_path: str, owner: str | None = None) -> d
                 "role": "user",
                 "content": [
                     {"type": "text", "text": "Describe this image in detail"},
-                    {"type": "image_url", "image_url": {"url": f"data:image/{img_format};base64,{img_data}"}},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/{img_format};base64,{img_data}"
+                        },
+                    },
                 ],
             }
         ]
@@ -365,22 +449,35 @@ def analyze_image_with_vl_result(image_path: str, owner: str | None = None) -> d
         # — same shape as task/chat but its own list (`vision_model_fallbacks`).
         try:
             from src.endpoint_resolver import resolve_vision_fallback_candidates
-            _vl_candidates = [(url, model_id, headers)] + resolve_vision_fallback_candidates(owner=owner)
+
+            _vl_candidates = [
+                (url, model_id, headers)
+            ] + resolve_vision_fallback_candidates(owner=owner)
         except Exception:
             _vl_candidates = [(url, model_id, headers)]
 
         last_err = None
-        for i, (_url, _model, _headers) in enumerate([c for c in _vl_candidates if c and c[0] and c[1]]):
+        for i, (_url, _model, _headers) in enumerate(
+            [c for c in _vl_candidates if c and c[0] and c[1]]
+        ):
             try:
-                description = llm_call(_url, _model, vl_messages, headers=_headers, timeout=120)
+                description = llm_call(
+                    _url, _model, vl_messages, headers=_headers, timeout=120
+                )
                 logger.info("VL analysis complete with model %s", _model)
                 return {"text": description, "model": _model}
             except Exception as e:
                 last_err = e
                 tag = "primary" if i == 0 else "candidate"
-                logger.warning(f"[vision fallback] {tag} {_model} failed ({type(e).__name__}); trying next")
+                logger.warning(
+                    f"[vision fallback] {tag} {_model} failed ({type(e).__name__}); trying next"
+                )
                 continue
-        raise last_err if last_err else RuntimeError("No vision model endpoint configured")
+        raise (
+            last_err
+            if last_err
+            else RuntimeError("No vision model endpoint configured")
+        )
 
     except Exception as e:
         logger.error(f"VL model unavailable: {e}")
@@ -398,10 +495,10 @@ def build_user_content(
     upload_dir: str,
     upload_handler,
     session_id: str | None = None,
-    auto_opened_docs: list[Dict[str, Any]] | None = None,
+    auto_opened_docs: list[dict[str, Any]] | None = None,
     owner: str | None = None,
-    resolved_uploads: dict[str, Dict[str, Any]] | None = None,
-) -> str | List[Dict[str, Any]]:
+    resolved_uploads: dict[str, dict[str, Any]] | None = None,
+) -> str | list[dict[str, Any]]:
     """Build user content with attachments (text, images, audio, documents).
 
     If session_id is provided and an attached PDF contains AcroForm fields,
@@ -425,16 +522,26 @@ def build_user_content(
         if not path or not os.path.exists(path):
             logger.warning(f"Attachment {fid} path is missing")
             continue
-        if hasattr(upload_handler, "_inside_upload_dir") and not upload_handler._inside_upload_dir(path):
+        if hasattr(
+            upload_handler, "_inside_upload_dir"
+        ) and not upload_handler._inside_upload_dir(path):
             logger.warning(f"Attachment {fid} path is outside upload directory: {path}")
             continue
-        if not hasattr(upload_handler, "_inside_upload_dir") and not upload_handler.inside_base_dir(path):
+        if not hasattr(
+            upload_handler, "_inside_upload_dir"
+        ) and not upload_handler.inside_base_dir(path):
             logger.warning(f"Attachment {fid} path is outside base directory: {path}")
             continue
 
         _, ext = os.path.splitext(path.lower())
-        mime = upload_info.get("mime") or mimetypes.guess_type(path)[0] or "application/octet-stream"
-        display_name = upload_info.get("name") or upload_info.get("original_name") or path
+        mime = (
+            upload_info.get("mime")
+            or mimetypes.guess_type(path)[0]
+            or "application/octet-stream"
+        )
+        display_name = (
+            upload_info.get("name") or upload_info.get("original_name") or path
+        )
 
         if upload_handler.is_image_file(display_name, mime):
             try:
@@ -443,50 +550,81 @@ def build_user_content(
                 # Extensionless uploads (e.g. a pasted screenshot) have no ext,
                 # so fall back to the resolved MIME subtype rather than emitting
                 # an invalid "data:image/;base64," with an empty subtype.
-                image_format = ext[1:] or (mime.split("/", 1)[1] if mime.startswith("image/") else "png")
-                content.append({
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/{image_format};base64,{encoded_string}"},
-                })
+                image_format = ext[1:] or (
+                    mime.split("/", 1)[1] if mime.startswith("image/") else "png"
+                )
+                content.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/{image_format};base64,{encoded_string}"
+                        },
+                    }
+                )
             except Exception as e:
                 logger.error(f"Failed to encode image {fid}: {e}")
                 if content and content[0]["type"] == "text":
-                    content[0]["text"] += "\n\n[Image attached but could not be processed]"
+                    content[0][
+                        "text"
+                    ] += "\n\n[Image attached but could not be processed]"
                 else:
-                    content.insert(0, {"type": "text", "text": "[Image attached but could not be processed]"})
+                    content.insert(
+                        0,
+                        {
+                            "type": "text",
+                            "text": "[Image attached but could not be processed]",
+                        },
+                    )
 
         elif upload_handler.is_audio_file(display_name, mime):
             try:
                 with open(path, "rb") as audio_file:
                     encoded_string = base64.b64encode(audio_file.read()).decode("utf-8")
-                audio_format = ext[1:] or (mime.split("/", 1)[1] if mime.startswith("audio/") else "mpeg")
-                content.append({
-                    "type": "audio",
-                    "audio": {"url": f"data:audio/{audio_format};base64,{encoded_string}"},
-                })
+                audio_format = ext[1:] or (
+                    mime.split("/", 1)[1] if mime.startswith("audio/") else "mpeg"
+                )
+                content.append(
+                    {
+                        "type": "audio",
+                        "audio": {
+                            "url": f"data:audio/{audio_format};base64,{encoded_string}"
+                        },
+                    }
+                )
             except Exception as e:
                 logger.error(f"Failed to encode audio {fid}: {e}")
                 if content and content[0]["type"] == "text":
-                    content[0]["text"] += "\n\n[Audio attached but could not be processed]"
+                    content[0][
+                        "text"
+                    ] += "\n\n[Audio attached but could not be processed]"
                 else:
-                    content.insert(0, {"type": "text", "text": "[Audio attached but could not be processed]"})
+                    content.insert(
+                        0,
+                        {
+                            "type": "text",
+                            "text": "[Audio attached but could not be processed]",
+                        },
+                    )
 
         elif upload_handler.is_document_file(display_name, mime):
             if mime == "application/pdf":
                 extracted_text = None
                 if session_id:
                     try:
-                        from src.pdf_forms import has_form_fields, extract_fields
                         from src.pdf_form_doc import (
-                            save_field_sidecar,
                             create_form_markdown_document,
                             create_plain_pdf_document,
+                            save_field_sidecar,
                         )
+                        from src.pdf_forms import extract_fields, has_form_fields
+
                         title = os.path.splitext(os.path.basename(display_name))[0]
                         # Pull the PDF prose once — used as either intro_text
                         # (form path) or the doc body (plain path).
                         try:
-                            pdf_body_text = strip_pdf_content_marker(_process_pdf(path, owner=owner))
+                            pdf_body_text = strip_pdf_content_marker(
+                                _process_pdf(path, owner=owner)
+                            )
                         except Exception:
                             pdf_body_text = None
 
@@ -530,9 +668,7 @@ def build_user_content(
                                     f"the Export PDF button when done.]"
                                 )
                                 if body_for_chat:
-                                    extracted_text += (
-                                        f"\n\n[PDF content — {title}]:\n{body_for_chat}{truncated_marker}"
-                                    )
+                                    extracted_text += f"\n\n[PDF content — {title}]:\n{body_for_chat}{truncated_marker}"
                         else:
                             doc_id = create_plain_pdf_document(
                                 session_id=session_id,
@@ -541,29 +677,30 @@ def build_user_content(
                                 body_text=pdf_body_text,
                             )
                             if doc_id:
-                                extracted_text = (
-                                    f"\n\n[PDF attached: {title} — opened in document viewer.]"
-                                )
+                                extracted_text = f"\n\n[PDF attached: {title} — opened in document viewer.]"
                                 if body_for_chat:
-                                    extracted_text += (
-                                        f"\n\n[PDF content — {title}]:\n{body_for_chat}{truncated_marker}"
-                                    )
+                                    extracted_text += f"\n\n[PDF content — {title}]:\n{body_for_chat}{truncated_marker}"
 
                         if doc_id and auto_opened_docs is not None:
-                            from src.database import SessionLocal, Document
+                            from src.database import Document, SessionLocal
+
                             _db = SessionLocal()
                             try:
-                                _d = _db.query(Document).filter(
-                                    Document.id == doc_id
-                                ).first()
+                                _d = (
+                                    _db.query(Document)
+                                    .filter(Document.id == doc_id)
+                                    .first()
+                                )
                                 if _d:
-                                    auto_opened_docs.append({
-                                        "doc_id": _d.id,
-                                        "title": _d.title,
-                                        "language": _d.language,
-                                        "content": _d.current_content,
-                                        "version": _d.version_count,
-                                    })
+                                    auto_opened_docs.append(
+                                        {
+                                            "doc_id": _d.id,
+                                            "title": _d.title,
+                                            "language": _d.language,
+                                            "content": _d.current_content,
+                                            "version": _d.version_count,
+                                        }
+                                    )
                             finally:
                                 _db.close()
                     except Exception as e:
@@ -596,7 +733,11 @@ def build_user_content(
             else:
                 content.insert(0, {"type": "text", "text": "[Attached non-text file]"})
 
-    has_media = any(item.get("type") in ["image_url", "audio"] for item in content if isinstance(item, dict))
+    has_media = any(
+        item.get("type") in ["image_url", "audio"]
+        for item in content
+        if isinstance(item, dict)
+    )
     if not has_media and content:
         combined_text = ""
         for item in content:

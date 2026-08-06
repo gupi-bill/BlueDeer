@@ -1,7 +1,6 @@
 import re
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -14,7 +13,7 @@ def test_html_code_runner_detaches_opener_before_document_write():
     match = re.search(
         r"export function runHTML\(code, panel\) \{(?P<body>.*?)showOutput\(panel, 'Opened in new window'",
         src,
-        re.S,
+        re.DOTALL,
     )
 
     assert match
@@ -28,7 +27,7 @@ def test_compare_print_popup_detaches_opener_before_document_write():
     match = re.search(
         r"function _exportPrint\(\) \{(?P<body>.*?)w\.document\.close\(\);",
         src,
-        re.S,
+        re.DOTALL,
     )
 
     assert match

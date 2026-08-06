@@ -7,14 +7,20 @@ UI chatter the user never meant as conversation, so ``get_context_messages``
 display. See issue #2634.
 """
 
-from core.models import Session, ChatMessage
+from core.models import ChatMessage, Session
 
 
 def _session_with_slash():
     s = Session(id="s1", name="t", endpoint_url="http://x/v1", model="m")
     s.add_message(ChatMessage("user", "hi, give me a recipe"))
     s.add_message(ChatMessage("user", "/setup copilot", metadata={"source": "slash"}))
-    s.add_message(ChatMessage("assistant", "Starting GitHub Copilot sign-in...", metadata={"source": "slash"}))
+    s.add_message(
+        ChatMessage(
+            "assistant",
+            "Starting GitHub Copilot sign-in...",
+            metadata={"source": "slash"},
+        )
+    )
     s.add_message(ChatMessage("assistant", "Here is a recipe", metadata={"model": "m"}))
     return s
 

@@ -7,8 +7,8 @@ from typing import Any
 
 from src import model_capabilities as mc
 from src.model_capability_readers.base import (
-    ModelCapabilityRecord,
     VENDOR_OLLAMA,
+    ModelCapabilityRecord,
     as_list,
     as_mapping,
     build_capability,
@@ -18,7 +18,6 @@ from src.model_capability_readers.base import (
     model_id_from,
     stable_model_id_for,
 )
-
 
 vendor = VENDOR_OLLAMA
 
@@ -53,7 +52,18 @@ def _family_from_ollama_capabilities(values: Any) -> str:
         return mc.FAMILY_EMBEDDING
     if "embedding" in tokens or "embeddings" in tokens:
         return mc.FAMILY_EMBEDDING
-    if tokens.intersection({"completion", "completions", "chat", "thinking", "reasoning", "tools", "tool", "vision"}):
+    if tokens.intersection(
+        {
+            "completion",
+            "completions",
+            "chat",
+            "thinking",
+            "reasoning",
+            "tools",
+            "tool",
+            "vision",
+        }
+    ):
         return mc.FAMILY_CHAT
     return mc.FAMILY_UNKNOWN
 
@@ -72,7 +82,9 @@ def _parameters_mapping(value: Any) -> Mapping[str, Any]:
     return parsed
 
 
-def _modalities_for_family(family: str, capabilities: tuple[str, ...]) -> tuple[tuple[str, ...], tuple[str, ...]]:
+def _modalities_for_family(
+    family: str, capabilities: tuple[str, ...]
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
     if family == mc.FAMILY_EMBEDDING:
         return (mc.MODALITY_TEXT,), (mc.MODALITY_EMBEDDING,)
     if family == mc.FAMILY_CHAT and mc.CAP_VISION in capabilities:
@@ -82,7 +94,9 @@ def _modalities_for_family(family: str, capabilities: tuple[str, ...]) -> tuple[
     return (), ()
 
 
-def _first_int_by_key_shape(*mappings: Mapping[str, Any], exact_keys: tuple[str, ...] = ()) -> int | None:
+def _first_int_by_key_shape(
+    *mappings: Mapping[str, Any], exact_keys: tuple[str, ...] = ()
+) -> int | None:
     for key in exact_keys:
         for mapping in mappings:
             value = int_limit(mapping.get(key))
@@ -134,7 +148,9 @@ def record_from_show_payload(
             confidence=mc.CONFIDENCE_UNKNOWN,
         )
     else:
-        input_modalities, output_modalities = _modalities_for_family(family, capabilities)
+        input_modalities, output_modalities = _modalities_for_family(
+            family, capabilities
+        )
         capability = build_capability(
             family=family,
             input_modalities=input_modalities,
@@ -145,7 +161,9 @@ def record_from_show_payload(
     return ModelCapabilityRecord(
         vendor=VENDOR_OLLAMA,
         model_id=model_id,
-        stable_model_id=stable_model_id_for(VENDOR_OLLAMA, model_id, endpoint_id=endpoint_id, base_url=base_url),
+        stable_model_id=stable_model_id_for(
+            VENDOR_OLLAMA, model_id, endpoint_id=endpoint_id, base_url=base_url
+        ),
         display_name=model_id,
         capability=capability,
         raw=payload,
@@ -194,7 +212,9 @@ def records_from_payload(
 ) -> tuple[ModelCapabilityRecord, ...]:
     payload = as_mapping(payload)
     if "models" in payload:
-        return records_from_tags_payload(payload, endpoint_id=endpoint_id, base_url=base_url)
+        return records_from_tags_payload(
+            payload, endpoint_id=endpoint_id, base_url=base_url
+        )
     record = record_from_show_payload(
         model_id_from(payload, "model", "name"),
         payload,

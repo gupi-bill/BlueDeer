@@ -14,6 +14,7 @@
 - 可以把某个员工标"重点关注"。
 - 员工的所有大事都记进档案。
 """
+
 from __future__ import annotations
 
 import threading
@@ -22,17 +23,17 @@ from collections import defaultdict
 
 # 物种 → 中文姓氏
 SPECIES_SURNAME = {
-    "deer":      "鹿",
-    "squirrel":  "鼠",
+    "deer": "鹿",
+    "squirrel": "鼠",
     "butterfly": "蝶",
-    "fox":       "狐",
-    "hedgehog":  "猬",
-    "beaver":    "狸",
-    "raven":     "鸦",
-    "hare":      "兔",
-    "badger":    "獾",
-    "lark":      "雀",
-    "kite":      "鸢",
+    "fox": "狐",
+    "hedgehog": "猬",
+    "beaver": "狸",
+    "raven": "鸦",
+    "hare": "兔",
+    "badger": "獾",
+    "lark": "雀",
+    "kite": "鸢",
 }
 
 # 世代 → 中文
@@ -46,17 +47,17 @@ GENERATION_CN = {
 
 # 备用名字池（按物种）
 NAME_POOL = {
-    "deer":      ["墨角", "忧郁", "霜枝", "晨曦"],
-    "squirrel":  ["栗壳", "坚果", "橡子", "枫叶"],
+    "deer": ["墨角", "忧郁", "霜枝", "晨曦"],
+    "squirrel": ["栗壳", "坚果", "橡子", "枫叶"],
     "butterfly": ["绘羽", "彩翅", "粉鳞", "虹影"],
-    "fox":       ["赤谋", "狡黠", "红尾", "智狐"],
-    "hedgehog":  ["针客", "戒备", "刺甲", "蜷球"],
-    "beaver":    ["大坝", "勤恳", "木工", "齿刃"],
-    "raven":     ["黑卷", "夜羽", "墨眼", "古记"],
-    "hare":      ["霜耳", "雪跃", "白足", "冰窟"],
-    "badger":    ["土工", "地道", "掘洞", "暗行"],
-    "lark":      ["清音", "晨歌", "羽铃", "鸣枝"],
-    "kite":      ["天瞰", "盘旋", "云翼", "高空"],
+    "fox": ["赤谋", "狡黠", "红尾", "智狐"],
+    "hedgehog": ["针客", "戒备", "刺甲", "蜷球"],
+    "beaver": ["大坝", "勤恳", "木工", "齿刃"],
+    "raven": ["黑卷", "夜羽", "墨眼", "古记"],
+    "hare": ["霜耳", "雪跃", "白足", "冰窟"],
+    "badger": ["土工", "地道", "掘洞", "暗行"],
+    "lark": ["清音", "晨歌", "羽铃", "鸣枝"],
+    "kite": ["天瞰", "盘旋", "云翼", "高空"],
 }
 
 
@@ -65,12 +66,12 @@ class NamingSystem:
 
     def __init__(self):
         self._lock = threading.RLock()
-        self._registry = {}                # life_id -> name
-        self._counter = defaultdict(int)   # species -> count
-        self._marked = set()               # 标记为重要的 life_id
+        self._registry = {}  # life_id -> name
+        self._counter = defaultdict(int)  # species -> count
+        self._marked = set()  # 标记为重要的 life_id
         self._life_history = defaultdict(list)  # life_id -> [event dict]
-        self._life_forms = {}              # life_id -> life_form 引用
-        self._id_index = {}                # id(life_form) -> life_id（快速反查）
+        self._life_forms = {}  # life_id -> life_form 引用
+        self._id_index = {}  # id(life_form) -> life_id（快速反查）
 
     # ------------------------------------------------------------------
     # 注册
@@ -90,11 +91,13 @@ class NamingSystem:
             life_id = f"{species}-{self._counter[species]:03d}"
             self._id_index[oid] = life_id
             self._life_forms[life_id] = life_form
-            self._life_history[life_id].append({
-                "time": time.time(),
-                "event": "registered",
-                "data": {"species": species},
-            })
+            self._life_history[life_id].append(
+                {
+                    "time": time.time(),
+                    "event": "registered",
+                    "data": {"species": species},
+                }
+            )
             return life_id
 
     # ------------------------------------------------------------------
@@ -139,11 +142,13 @@ class NamingSystem:
                 life_form._name_obj = final_name
             except (AttributeError, TypeError):
                 pass
-            self._life_history[life_id].append({
-                "time": time.time(),
-                "event": "named",
-                "data": {"name": final_name},
-            })
+            self._life_history[life_id].append(
+                {
+                    "time": time.time(),
+                    "event": "named",
+                    "data": {"name": final_name},
+                }
+            )
             return final_name
 
     # ------------------------------------------------------------------
@@ -154,11 +159,13 @@ class NamingSystem:
         """标记为重要个体。"""
         with self._lock:
             self._marked.add(life_id)
-            self._life_history[life_id].append({
-                "time": time.time(),
-                "event": "marked",
-                "data": {},
-            })
+            self._life_history[life_id].append(
+                {
+                    "time": time.time(),
+                    "event": "marked",
+                    "data": {},
+                }
+            )
 
     def unmark(self, life_id: str) -> None:
         """取消标记。"""
@@ -177,11 +184,13 @@ class NamingSystem:
     def record_event(self, life_id: str, event: str, data: dict | None = None) -> None:
         """记录生命事件到档案。"""
         with self._lock:
-            self._life_history[life_id].append({
-                "time": time.time(),
-                "event": event,
-                "data": dict(data) if data else {},
-            })
+            self._life_history[life_id].append(
+                {
+                    "time": time.time(),
+                    "event": event,
+                    "data": dict(data) if data else {},
+                }
+            )
 
     # ------------------------------------------------------------------
     # 查询

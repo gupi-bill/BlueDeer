@@ -9,7 +9,6 @@ import json
 import logging
 import os
 import time
-from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -47,16 +46,18 @@ class GanttData:
 
     def add_milestone(self, name: str, date: float) -> None:
         """添加里程碑节点。"""
-        self.entries.append(GanttEntry(
-            id=f"ms_{name}",
-            label=f"◆ {name}",
-            start=date,
-            end=date,
-            duration_sec=0,
-            status="milestone",
-            agent="",
-            layer=len(self.entries),
-        ))
+        self.entries.append(
+            GanttEntry(
+                id=f"ms_{name}",
+                label=f"◆ {name}",
+                start=date,
+                end=date,
+                duration_sec=0,
+                status="milestone",
+                agent="",
+                layer=len(self.entries),
+            )
+        )
 
     def critical_path(self) -> list[GanttEntry]:
         """计算关键路径（最长路径）。返回关键路径上的条目列表。"""
@@ -66,6 +67,7 @@ class GanttData:
         durations = {e.id: e.duration_sec for e in self.entries}
         visited = set()
         topo = []
+
         def _dfs(n):
             if n in visited:
                 return
@@ -74,6 +76,7 @@ class GanttData:
                 if d in deps:
                     _dfs(d)
             topo.append(n)
+
         for eid in deps:
             _dfs(eid)
         dist = {eid: 0 for eid in deps}
@@ -142,24 +145,41 @@ class GanttGenerator:
                     task_id = record.get("task_id", "")
                     duration = float(record.get("duration_ms", 0)) / 1000.0
 
-                    if action in ("handle_start", "task_start", "handle_success", "handle_failed") and task_id:
-                        status = "running" if "start" in action else ("success" if "success" in action else "failed")
+                    if (
+                        action
+                        in (
+                            "handle_start",
+                            "task_start",
+                            "handle_success",
+                            "handle_failed",
+                        )
+                        and task_id
+                    ):
+                        status = (
+                            "running"
+                            if "start" in action
+                            else ("success" if "success" in action else "failed")
+                        )
 
                         if task_id not in seen:
                             seen.add(task_id)
                             tid_counter += 1
-                            entries.append(GanttEntry(
-                                id=task_id,
-                                label=f"{comp}/{task_id[:8]}",
-                                start=ts,
-                                end=ts + max(duration, 1),
-                                duration_sec=max(duration, 1),
-                                status=status,
-                                agent=comp,
-                                layer=tid_counter,
-                            ))
+                            entries.append(
+                                GanttEntry(
+                                    id=task_id,
+                                    label=f"{comp}/{task_id[:8]}",
+                                    start=ts,
+                                    end=ts + max(duration, 1),
+                                    duration_sec=max(duration, 1),
+                                    status=status,
+                                    agent=comp,
+                                    layer=tid_counter,
+                                )
+                            )
                         else:
-                            existing = next((e for e in entries if e.id == task_id), None)
+                            existing = next(
+                                (e for e in entries if e.id == task_id), None
+                            )
                             if existing:
                                 if "start" in action:
                                     existing.start = ts
@@ -169,16 +189,18 @@ class GanttGenerator:
 
                     elif action == "model_complete" and comp and not task_id:
                         model_key = f"model_{comp}_{ts}"
-                        entries.append(GanttEntry(
-                            id=model_key,
-                            label=f"{comp} ML",
-                            start=ts,
-                            end=ts + max(duration, 1),
-                            duration_sec=max(duration, 1),
-                            status="success",
-                            agent=comp,
-                            layer=len(entries) + 1,
-                        ))
+                        entries.append(
+                            GanttEntry(
+                                id=model_key,
+                                label=f"{comp} ML",
+                                start=ts,
+                                end=ts + max(duration, 1),
+                                duration_sec=max(duration, 1),
+                                status="success",
+                                agent=comp,
+                                layer=len(entries) + 1,
+                            )
+                        )
 
         except (OSError, json.JSONDecodeError) as e:
             logger.warning("读取 trace 日志失败: %s", e)
@@ -188,30 +210,38 @@ class GanttGenerator:
             for tid, tdata in tasks.items():
                 if tid not in seen:
                     seen.add(tid)
-                    entries.append(GanttEntry(
-                        id=tid,
-                        label=f"任务/{tid[:8]}",
-                        start=time.time() - 60,
-                        end=time.time(),
-                        duration_sec=60,
-                        status=tdata.get("status", "unknown"),
-                        agent=tdata.get("agent_id", "?"),
-                        layer=len(entries) + 1,
-                    ))
+                    entries.append(
+                        GanttEntry(
+                            id=tid,
+                            label=f"任务/{tid[:8]}",
+                            start=time.time() - 60,
+                            end=time.time(),
+                            duration_sec=60,
+                            status=tdata.get("status", "unknown"),
+                            agent=tdata.get("agent_id", "?"),
+                            layer=len(entries) + 1,
+                        )
+                    )
 
         if scheduler_jobs:
             for jid, jdata in scheduler_jobs.items():
-                entries.append(GanttEntry(
-                    id=f"sched_{jid}",
-                    label=f"⏰ {jid}",
-                    start=time.time(),
-                    end=time.time() + 10,
-                    duration_sec=10,
-                    status="scheduled",
-                    agent="Scheduler",
-                    layer=len(entries) + 1,
-                    dependencies=[f"dag_{d}" for d in jdata.get("depends_on", [])] if isinstance(jdata, dict) else [],
-                ))
+                entries.append(
+                    GanttEntry(
+                        id=f"sched_{jid}",
+                        label=f"⏰ {jid}",
+                        start=time.time(),
+                        end=time.time() + 10,
+                        duration_sec=10,
+                        status="scheduled",
+                        agent="Scheduler",
+                        layer=len(entries) + 1,
+                        dependencies=(
+                            [f"dag_{d}" for d in jdata.get("depends_on", [])]
+                            if isinstance(jdata, dict)
+                            else []
+                        ),
+                    )
+                )
 
         if not entries:
             return GanttData()

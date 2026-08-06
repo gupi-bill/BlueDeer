@@ -8,6 +8,7 @@
 
 持久化：data/evolution_system.json
 """
+
 from __future__ import annotations
 
 import json
@@ -19,18 +20,19 @@ from typing import Any
 
 _EVOLUTION_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "data", "evolution_system.json",
+    "data",
+    "evolution_system.json",
 )
 
 # 突变触发条件
-MIN_AGE_DAYS = 180          # 至少存活 6 个月（现实时间）
-MUTATION_PROB = 0.05        # 满足条件时 5% 概率触发
+MIN_AGE_DAYS = 180  # 至少存活 6 个月（现实时间）
+MUTATION_PROB = 0.05  # 满足条件时 5% 概率触发
 CHECK_INTERVAL = 30 * 86400  # 每现实月检查一次
 
 # 突变维度
 DIM_APPEARANCE = "appearance"  # 外观突变（30%）
-DIM_BEHAVIOR = "behavior"      # 行为突变（40%）
-DIM_SKILL = "skill"            # 技能突变（30%）
+DIM_BEHAVIOR = "behavior"  # 行为突变（40%）
+DIM_SKILL = "skill"  # 技能突变（30%）
 
 # 传说级突变（1% 概率）
 LEGENDARY_MUTATIONS = [
@@ -76,40 +78,95 @@ APPEARANCE_MUTATIONS = [
     {"key": "fur_shift", "name_zh": "毛色微变", "description": "主色偏移 5-10 个色值"},
     {"key": "eye_color", "name_zh": "眼睛变色", "description": "虹膜变为稀有颜色"},
     {"key": "decoration", "name_zh": "装饰出现", "description": "出现独特外观标记"},
-    {"key": "size_change", "name_zh": "体型微调", "description": "稍微变大或变小 1-2px"},
+    {
+        "key": "size_change",
+        "name_zh": "体型微调",
+        "description": "稍微变大或变小 1-2px",
+    },
 ]
 
 # 普通行为突变池
 BEHAVIOR_MUTATIONS = [
-    {"key": "quirk_left_foot", "name_zh": "新怪癖·先迈左脚", "description": "获得终身行为习惯"},
-    {"key": "quirk_pause_door", "name_zh": "新怪癖·进门停 3 秒", "description": "获得终身行为习惯"},
-    {"key": "quirk_tea_time", "name_zh": "新怪癖·下午 3 点茶水间", "description": "获得终身行为习惯"},
-    {"key": "social_clingy", "name_zh": "社交偏好·更粘人", "description": "社交意愿 +50%"},
-    {"key": "social_solitary", "name_zh": "社交偏好·更独居", "description": "社交意愿 -50%"},
-    {"key": "work_hard_first", "name_zh": "工作风格·先做最难的", "description": "工作优先级调整"},
-    {"key": "work_easy_first", "name_zh": "工作风格·先做简单的", "description": "工作优先级调整"},
-    {"key": "food_preference", "name_zh": "食物偏好变化", "description": "最喜欢的食物类型改变"},
+    {
+        "key": "quirk_left_foot",
+        "name_zh": "新怪癖·先迈左脚",
+        "description": "获得终身行为习惯",
+    },
+    {
+        "key": "quirk_pause_door",
+        "name_zh": "新怪癖·进门停 3 秒",
+        "description": "获得终身行为习惯",
+    },
+    {
+        "key": "quirk_tea_time",
+        "name_zh": "新怪癖·下午 3 点茶水间",
+        "description": "获得终身行为习惯",
+    },
+    {
+        "key": "social_clingy",
+        "name_zh": "社交偏好·更粘人",
+        "description": "社交意愿 +50%",
+    },
+    {
+        "key": "social_solitary",
+        "name_zh": "社交偏好·更独居",
+        "description": "社交意愿 -50%",
+    },
+    {
+        "key": "work_hard_first",
+        "name_zh": "工作风格·先做最难的",
+        "description": "工作优先级调整",
+    },
+    {
+        "key": "work_easy_first",
+        "name_zh": "工作风格·先做简单的",
+        "description": "工作优先级调整",
+    },
+    {
+        "key": "food_preference",
+        "name_zh": "食物偏好变化",
+        "description": "最喜欢的食物类型改变",
+    },
 ]
 
 # 普通技能突变池
 SKILL_MUTATIONS = [
-    {"key": "talent_unlock", "name_zh": "天赋解锁", "description": "获得一个新技能天赋"},
-    {"key": "learning_boost", "name_zh": "学习加速", "description": "学习特定技能的速度翻倍"},
-    {"key": "inspiration_burst", "name_zh": "灵感爆发", "description": "未来 7 天工作效率 +10%"},
-    {"key": "cross_species_skill", "name_zh": "跨物种技能", "description": "学到通常不属于本物种的技能"},
+    {
+        "key": "talent_unlock",
+        "name_zh": "天赋解锁",
+        "description": "获得一个新技能天赋",
+    },
+    {
+        "key": "learning_boost",
+        "name_zh": "学习加速",
+        "description": "学习特定技能的速度翻倍",
+    },
+    {
+        "key": "inspiration_burst",
+        "name_zh": "灵感爆发",
+        "description": "未来 7 天工作效率 +10%",
+    },
+    {
+        "key": "cross_species_skill",
+        "name_zh": "跨物种技能",
+        "description": "学到通常不属于本物种的技能",
+    },
 ]
 
 
 class EvolutionSystem:
     """进化突变系统（单例）。"""
+
     _instance: EvolutionSystem | None = None
     _instance_lock = threading.Lock()
 
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._biosphere_ref: Any = None
-        self._mutation_log: list[dict] = []        # 所有突变历史
-        self._genetic_traits: dict[str, dict] = {}  # 遗传特征 {species: {trait_key: generation_count}}
+        self._mutation_log: list[dict] = []  # 所有突变历史
+        self._genetic_traits: dict[str, dict] = (
+            {}
+        )  # 遗传特征 {species: {trait_key: generation_count}}
         self._last_check_ts: float = 0.0
         self._check_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
@@ -161,7 +218,8 @@ class EvolutionSystem:
             return
         self._stop_event.clear()
         self._check_thread = threading.Thread(
-            target=self._check_loop, daemon=True, name="evolution-check")
+            target=self._check_loop, daemon=True, name="evolution-check"
+        )
         self._check_thread.start()
 
     def stop(self) -> None:
@@ -234,8 +292,8 @@ class EvolutionSystem:
 
         # 普通突变：随机选维度
         dim = random.choices(
-            [DIM_APPEARANCE, DIM_BEHAVIOR, DIM_SKILL],
-            weights=[30, 40, 30])[0]
+            [DIM_APPEARANCE, DIM_BEHAVIOR, DIM_SKILL], weights=[30, 40, 30]
+        )[0]
         if dim == DIM_APPEARANCE:
             pool = APPEARANCE_MUTATIONS
         elif dim == DIM_BEHAVIOR:
@@ -245,8 +303,9 @@ class EvolutionSystem:
         chosen = random.choice(pool)
         return self._apply_mutation(lf, chosen, legendary=False, dimension=dim)
 
-    def _apply_mutation(self, lf: Any, mutation: dict,
-                        legendary: bool = False, dimension: str = "") -> dict:
+    def _apply_mutation(
+        self, lf: Any, mutation: dict, legendary: bool = False, dimension: str = ""
+    ) -> dict:
         """应用一次突变到智能体，返回记录 dict。"""
         # 写入智能体的 mutations 列表
         if not hasattr(lf, "mutations"):
@@ -272,7 +331,9 @@ class EvolutionSystem:
             lf.appearance_modifiers["color_override"] = effect["appearance_override"]
         if "max_age_multiplier" in effect:
             try:
-                lf.max_age = float(getattr(lf, "max_age", 100)) * effect["max_age_multiplier"]
+                lf.max_age = (
+                    float(getattr(lf, "max_age", 100)) * effect["max_age_multiplier"]
+                )
             except Exception:
                 pass
         if "skill_bonus" in effect:
@@ -338,8 +399,12 @@ class EvolutionSystem:
             lf.mutations = []
         for t in traits:
             # 找到对应的突变定义
-            all_mutations = (APPEARANCE_MUTATIONS + BEHAVIOR_MUTATIONS +
-                             SKILL_MUTATIONS + LEGENDARY_MUTATIONS)
+            all_mutations = (
+                APPEARANCE_MUTATIONS
+                + BEHAVIOR_MUTATIONS
+                + SKILL_MUTATIONS
+                + LEGENDARY_MUTATIONS
+            )
             for m in all_mutations:
                 if m["key"] == t["key"]:
                     record = {
@@ -364,7 +429,7 @@ class EvolutionSystem:
         """返回最近的突变历史。"""
         with self._lock:
             if len(self._mutation_log) > self._MUTATION_LOG_MAX:
-                self._mutation_log = self._mutation_log[-self._MUTATION_LOG_MAX:]
+                self._mutation_log = self._mutation_log[-self._MUTATION_LOG_MAX :]
             return list(self._mutation_log[-limit:])
 
     def get_mutation_stats(self) -> dict:

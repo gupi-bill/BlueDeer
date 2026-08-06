@@ -7,6 +7,7 @@ silently dropped from query enhancement. Detection is now Unicode-aware;
 ASCII behaviour (including camelCase mid-word capitals not counting as names)
 is preserved.
 """
+
 from services.search.query import _extract_entities
 
 
@@ -27,5 +28,5 @@ def test_ascii_names_unchanged():
 
 def test_lowercase_camelcase_and_numbers_are_not_names():
     assert _names("the iphone price") == []
-    assert _names("iPhone price") == []       # mid-word capital is not a name
+    assert _names("iPhone price") == []  # mid-word capital is not a name
     assert _names("top 50 albums") == []

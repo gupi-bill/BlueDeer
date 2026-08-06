@@ -13,15 +13,15 @@ from __future__ import annotations
 import importlib
 import inspect
 import logging
-import os
 import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core.base_agent import BaseAgent
+from typing import Any
 
 logger = logging.getLogger("bluedeer.agent_registry")
 
@@ -74,7 +74,11 @@ class AgentRegistry:
 
         caps = []
         if hasattr(agent_cls, "capabilities"):
-            caps = list(agent_cls.capabilities) if isinstance(agent_cls.capabilities, (list, set)) else []
+            caps = (
+                list(agent_cls.capabilities)
+                if isinstance(agent_cls.capabilities, (list, set))
+                else []
+            )
 
         base_cls = agent_cls.__bases__[0].__name__ if agent_cls.__bases__ else ""
 
@@ -114,18 +118,23 @@ class AgentRegistry:
         results = []
         for info in self._agents.values():
             if q in info.name.lower():
-                results.append(info); continue
+                results.append(info)
+                continue
             if q in info.description.lower():
-                results.append(info); continue
+                results.append(info)
+                continue
             if q in info.role.lower():
-                results.append(info); continue
+                results.append(info)
+                continue
             for cap in info.capabilities:
                 if q in cap.lower():
-                    results.append(info); break
+                    results.append(info)
+                    break
                 continue
             for tag in info.tags:
                 if q in tag.lower():
-                    results.append(info); break
+                    results.append(info)
+                    break
         return results
 
     def get_by_module(self, module_name: str) -> list[AgentInfo]:
@@ -178,7 +187,9 @@ class AgentRegistry:
                     importlib.import_module(mod_name)
                     for _, cls in inspect.getmembers(
                         sys.modules[mod_name],
-                        lambda o: inspect.isclass(o) and "BaseAgent" in [b.__name__ for b in getattr(o, "__mro__", [])],
+                        lambda o: inspect.isclass(o)
+                        and "BaseAgent"
+                        in [b.__name__ for b in getattr(o, "__mro__", [])],
                     ):
                         name = cls.__name__
                         if name not in self._agents:
@@ -191,7 +202,9 @@ class AgentRegistry:
         logger.info("auto_register: 新注册 %d 个 Agent", count)
         return count
 
-    def watch(self, plugin_dir: str = "plugins", interval: float = 5.0, stop_event=None) -> None:
+    def watch(
+        self, plugin_dir: str = "plugins", interval: float = 5.0, stop_event: Any = None
+    ) -> None:
         """热加载守护：轮询 plugin_dir，自动注册新 Agent。
 
         Args:
@@ -199,7 +212,9 @@ class AgentRegistry:
             interval: 轮询间隔（秒）。
             stop_event: threading.Event，设置后停止。
         """
-        logger.info("热加载监视启动: plugin_dir=%s, interval=%.1fs", plugin_dir, interval)
+        logger.info(
+            "热加载监视启动: plugin_dir=%s, interval=%.1fs", plugin_dir, interval
+        )
         while not (stop_event and stop_event.is_set()):
             try:
                 self.auto_register(plugin_dir)

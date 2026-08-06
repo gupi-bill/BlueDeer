@@ -8,14 +8,13 @@ Proves the two properties the review asked for:
 Follows the direct-helper + mocked-DB style of tests/test_null_owner_gates.py.
 """
 
+import importlib
 import os
 import sys
-import importlib
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-
 from tests.helpers.import_state import clear_module, preserve_import_state
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -61,10 +60,10 @@ with preserve_import_state(*_MANAGED):
     clear_module("core.session_manager")
     clear_module("routes.session_routes")
     importlib.import_module("core.session_manager")
-    import routes.session_routes as SR  # noqa: E402
+    import routes.session_routes as SR
 
-from fastapi import HTTPException  # noqa: E402
-from src.auth_helpers import effective_user  # noqa: E402
+from fastapi import HTTPException
+from src.auth_helpers import effective_user
 
 
 def _req(**state):
@@ -73,6 +72,7 @@ def _req(**state):
 
 # --- effective_user: who a request is attributed to ------------------------
 
+
 def test_cookie_user_is_unchanged():
     # The whole point: browser/cookie callers behave exactly as before.
     assert effective_user(_req(api_token=False, current_user="alice")) == "alice"
@@ -80,15 +80,24 @@ def test_cookie_user_is_unchanged():
 
 def test_bearer_token_attributes_to_its_owner():
     # A paired phone runs as the "api" pseudo-user but must act as the token owner.
-    assert effective_user(_req(api_token=True, api_token_owner="alice", current_user="api")) == "alice"
+    assert (
+        effective_user(
+            _req(api_token=True, api_token_owner="alice", current_user="api")
+        )
+        == "alice"
+    )
 
 
 def test_bearer_token_without_owner_does_not_escalate():
     # No owner on the token -> falls back to current_user ("api"), never another user.
-    assert effective_user(_req(api_token=True, api_token_owner=None, current_user="api")) == "api"
+    assert (
+        effective_user(_req(api_token=True, api_token_owner=None, current_user="api"))
+        == "api"
+    )
 
 
 # --- _verify_session_owner: bearer tokens cannot cross owners ---------------
+
 
 def _session_local_returning(owner_value):
     """Mock SessionLocal whose query(...).filter(...).first() yields a row with

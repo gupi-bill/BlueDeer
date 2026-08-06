@@ -14,6 +14,7 @@
 4. 失败降级：LLM 不可用时，按"关键词匹配"挑工具
 5. 工具调用结果自动写入智能体短期记忆
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -28,28 +29,101 @@ MAX_TOOL_ROUNDS = 5
 
 # 物种擅长领域的关键词映射（用于 LLM 不可用时的降级路由）
 SPECIES_KEYWORDS: dict[str, list[str]] = {
-    "squirrel": ["代码", "函数", "实现", "补全", "code", "python", "写一个",
-                  "排序", "查找", "算法", "树"],
-    "butterfly": ["ui", "界面", "页面", "设计", "颜色", "布局", "图标",
-                   "css", "html", "样式"],
-    "fox": ["测试", "fuzz", "覆盖", "用例", "bug", "review", "审计",
-             "test", "hypothesis"],
-    "hedgehog": ["安全", "漏洞", "加密", "证书", "扫描", "sandbox",
-                  "cipher", "vulnerability", "security"],
-    "beaver": ["文件", "存储", "部署", "事务", "txn", "kv", "bitcask",
-                "lsm", "mvcc", "buffer"],
-    "raven": ["检索", "向量", "索引", "rag", "embedding", "搜索",
-               "inverted", "recall"],
-    "hare": ["统计", "回归", "分布", "均值", "方差", "异常", "bootstrap",
-              "stats", "regression", "t-digest"],
-    "badger": ["http", "grpc", "dns", "websocket", "mq", "网络",
-                "请求", "接口"],
-    "lark": ["监控", "告警", "metric", "仪表盘", "日志", "dashboard",
-              "alert", "log"],
-    "kite": ["调度", "拓扑", "约束", "规划", "critical", "path",
-              "schedule", "csp", "linear"],
-    "deer": ["编排", "拆解", "汇总", "协调", "consensus", "event",
-              "pipeline", "orchestrate"],
+    "squirrel": [
+        "代码",
+        "函数",
+        "实现",
+        "补全",
+        "code",
+        "python",
+        "写一个",
+        "排序",
+        "查找",
+        "算法",
+        "树",
+    ],
+    "butterfly": [
+        "ui",
+        "界面",
+        "页面",
+        "设计",
+        "颜色",
+        "布局",
+        "图标",
+        "css",
+        "html",
+        "样式",
+    ],
+    "fox": [
+        "测试",
+        "fuzz",
+        "覆盖",
+        "用例",
+        "bug",
+        "review",
+        "审计",
+        "test",
+        "hypothesis",
+    ],
+    "hedgehog": [
+        "安全",
+        "漏洞",
+        "加密",
+        "证书",
+        "扫描",
+        "sandbox",
+        "cipher",
+        "vulnerability",
+        "security",
+    ],
+    "beaver": [
+        "文件",
+        "存储",
+        "部署",
+        "事务",
+        "txn",
+        "kv",
+        "bitcask",
+        "lsm",
+        "mvcc",
+        "buffer",
+    ],
+    "raven": ["检索", "向量", "索引", "rag", "embedding", "搜索", "inverted", "recall"],
+    "hare": [
+        "统计",
+        "回归",
+        "分布",
+        "均值",
+        "方差",
+        "异常",
+        "bootstrap",
+        "stats",
+        "regression",
+        "t-digest",
+    ],
+    "badger": ["http", "grpc", "dns", "websocket", "mq", "网络", "请求", "接口"],
+    "lark": ["监控", "告警", "metric", "仪表盘", "日志", "dashboard", "alert", "log"],
+    "kite": [
+        "调度",
+        "拓扑",
+        "约束",
+        "规划",
+        "critical",
+        "path",
+        "schedule",
+        "csp",
+        "linear",
+    ],
+    "deer": [
+        "编排",
+        "拆解",
+        "汇总",
+        "协调",
+        "consensus",
+        "event",
+        "pipeline",
+        "orchestrate",
+    ],
 }
 
 
@@ -82,6 +156,7 @@ SYSTEM_PROMPT_TEMPLATE = """你是 BlueDeer 森林公司的{role_name}（{specie
 # 核心：Function Calling 封装
 # ----------------------------------------------------------------------
 
+
 class FunctionCaller:
     """LLM Function Calling 封装（每个智能体一个实例）。
 
@@ -103,8 +178,10 @@ class FunctionCaller:
 
         # 懒加载
         from core.digital_life.tool_registry import get_tool_registry
+
         self._registry = get_tool_registry()
         from core.digital_life.tool_executor import get_tool_executor
+
         self._executor = get_tool_executor()
 
         # 物种中文名（用于 prompt）
@@ -113,13 +190,20 @@ class FunctionCaller:
         self.role_name = _SPECIES_ROLE.get(self.species, "员工")
 
         # 本物种可用工具
-        self.bound_tools: list[str] = self._registry.list_tool_names_for_species(
-            self.species) if self.species else []
+        self.bound_tools: list[str] = (
+            self._registry.list_tool_names_for_species(self.species)
+            if self.species
+            else []
+        )
 
     # ---------------- 主入口 ----------------
 
-    def run_task(self, task: str, max_rounds: int = MAX_TOOL_ROUNDS,
-                 enable_retrospect: bool = True) -> dict:
+    def run_task(
+        self,
+        task: str,
+        max_rounds: int = MAX_TOOL_ROUNDS,
+        enable_retrospect: bool = True,
+    ) -> dict:
         """执行一个任务，可能多轮调用工具。
 
         返回：
@@ -140,16 +224,15 @@ class FunctionCaller:
             from core.digital_life.experience_library import (
                 get_experience_library,
             )
+
             lib = get_experience_library()
-            experiences = lib.search_by_task(task, agent_species=self.species,
-                                              limit=3)
+            experiences = lib.search_by_task(task, agent_species=self.species, limit=3)
             if experiences:
                 adopted_exp_strs = [
                     f"[{e.get('task_type','')}] {e.get('lesson','')}"
                     for e in experiences
                 ]
-                adopted_exp_ids = [e.get("id", "") for e in experiences
-                                    if e.get("id")]
+                adopted_exp_ids = [e.get("id", "") for e in experiences if e.get("id")]
         except Exception:
             pass
 
@@ -158,11 +241,11 @@ class FunctionCaller:
         # 路径 1：尝试 LLM 路由
         try:
             result = self._run_with_llm(
-                task, max_rounds, adopted_exp_strs=adopted_exp_strs)
+                task, max_rounds, adopted_exp_strs=adopted_exp_strs
+            )
         except Exception as e:
             # 路径 2：降级到关键词路由
-            result = self._run_fallback(
-                task, str(e), adopted_exp_strs=adopted_exp_strs)
+            result = self._run_fallback(task, str(e), adopted_exp_strs=adopted_exp_strs)
         duration_sec = time.time() - start_ts
 
         # commit 38：执行后触发复盘
@@ -170,6 +253,7 @@ class FunctionCaller:
         if enable_retrospect:
             try:
                 from core.digital_life import retrospect
+
                 router = self._get_router()
                 retro = retrospect.generate_retrospect(
                     agent_species=self.species,
@@ -192,8 +276,10 @@ class FunctionCaller:
                             from core.digital_life.experience_library import (
                                 get_experience_library,
                             )
+
                             get_experience_library().adopt_experience(
-                                eid, self.species, better)
+                                eid, self.species, better
+                            )
                         except Exception:
                             pass
             except Exception:
@@ -205,8 +291,9 @@ class FunctionCaller:
 
     # ---------------- LLM 路径 ----------------
 
-    def _run_with_llm(self, task: str, max_rounds: int,
-                       adopted_exp_strs: list = None) -> dict:
+    def _run_with_llm(
+        self, task: str, max_rounds: int, adopted_exp_strs: list = None
+    ) -> dict:
         router = self._get_router()
         if router is None:
             raise RuntimeError("no llm router available")
@@ -222,7 +309,8 @@ class FunctionCaller:
         user_content = task
         if adopted_exp_strs:
             exp_block = "\n\n【历史经验】\n" + "\n".join(
-                f"- {s}" for s in adopted_exp_strs)
+                f"- {s}" for s in adopted_exp_strs
+            )
             user_content = task + exp_block
 
         # 多轮对话历史
@@ -262,17 +350,21 @@ class FunctionCaller:
                 tool_result_str = f"错误：工具 {tool_name} 不在你的可用工具列表中。"
             else:
                 result = self._executor.execute(self.agent, tool_name, params)
-                tool_calls.append({
-                    "round": round_idx,
-                    "tool": tool_name,
-                    "params": params,
-                    "result": result.to_dict(),
-                })
+                tool_calls.append(
+                    {
+                        "round": round_idx,
+                        "tool": tool_name,
+                        "params": params,
+                        "result": result.to_dict(),
+                    }
+                )
                 # 写入智能体短期记忆
                 self._memorize_tool_call(tool_name, params, result)
                 tool_result_str = self._format_tool_result(result)
 
-            messages.append({"role": "user", "content": "工具结果：\n" + tool_result_str})
+            messages.append(
+                {"role": "user", "content": "工具结果：\n" + tool_result_str}
+            )
 
         # 达到最大轮数仍未完成
         return {
@@ -285,8 +377,9 @@ class FunctionCaller:
 
     # ---------------- 降级路径（LLM 不可用时） ----------------
 
-    def _run_fallback(self, task: str, reason: str,
-                       adopted_exp_strs: list = None) -> dict:
+    def _run_fallback(
+        self, task: str, reason: str, adopted_exp_strs: list = None
+    ) -> dict:
         """LLM 不可用时，按关键词匹配挑一个工具调用一次。"""
         tool_calls: list[dict] = []
         answer_parts: list[str] = [f"（LLM 不可用，走降级路由：{reason}）"]
@@ -323,12 +416,14 @@ class FunctionCaller:
         # 构造调用参数：从 task 文本里抽取关键信息 + 用工具默认值兜底
         params = self._build_fallback_params(picked, picked_desc, task)
         result = self._executor.execute(self.agent, picked, params)
-        tool_calls.append({
-            "round": 1,
-            "tool": picked,
-            "params": params,
-            "result": result.to_dict(),
-        })
+        tool_calls.append(
+            {
+                "round": 1,
+                "tool": picked,
+                "params": params,
+                "result": result.to_dict(),
+            }
+        )
         self._memorize_tool_call(picked, params, result)
 
         if result.ok:
@@ -344,24 +439,25 @@ class FunctionCaller:
             "fallback": True,
         }
 
-    def _score_tool_match(self, task: str, tool_name: str,
-                            tool_desc: dict) -> int:
+    def _score_tool_match(self, task: str, tool_name: str, tool_desc: dict) -> int:
         """给任务-工具匹配打分。0 表示不匹配。"""
         # LLM 不可用时，必须用有真实实现的工具（fallback 或真实模块）
         # 没有 fallback 的工具直接 0 分（避免选到无法执行的工具）
         from core.digital_life.tool_registry import FALLBACK_IMPLEMENTATIONS
-        has_impl = (
-            tool_name in FALLBACK_IMPLEMENTATIONS
-            or bool(tool_desc.get("module_path"))
+
+        has_impl = tool_name in FALLBACK_IMPLEMENTATIONS or bool(
+            tool_desc.get("module_path")
         )
         if not has_impl:
             return 0
         task_lower = task.lower()
         # 工具描述池：工具名 + description + 模块路径
         pool = (
-            tool_name + " " +
-            tool_desc.get("description", "") + " " +
-            tool_desc.get("module_path", "")
+            tool_name
+            + " "
+            + tool_desc.get("description", "")
+            + " "
+            + tool_desc.get("module_path", "")
         ).lower()
         score = 0
         # 1. 工具名直接出现在任务里（最高分）
@@ -385,8 +481,9 @@ class FunctionCaller:
                 score += 3
         return score
 
-    def _build_fallback_params(self, tool_name: str, tool_desc: dict,
-                                 task: str) -> dict:
+    def _build_fallback_params(
+        self, tool_name: str, tool_desc: dict, task: str
+    ) -> dict:
         """从任务文本里抽参 + 用工具参数默认值兜底。
 
         优先级：
@@ -436,7 +533,10 @@ class FunctionCaller:
             if m:
                 return m.group(1).strip()
             # 找任务中形如 def xxx / class xxx / func xxx 的代码片段
-            m = re.search(r"((?:def|class|func|fn|function|public|private|void)\s+\w+.*?)(?:[\s。，,]|$)", task)
+            m = re.search(
+                r"((?:def|class|func|fn|function|public|private|void)\s+\w+.*?)(?:[\s。，,]|$)",
+                task,
+            )
             if m:
                 return m.group(1).strip()
             # 找引号里的代码
@@ -446,17 +546,42 @@ class FunctionCaller:
             return None
         # 编程语言
         if "language" in n or "lang" in n:
-            for lang in ("python", "java", "javascript", "js", "go",
-                         "rust", "c++", "cpp", "ruby", "php", "kotlin",
-                         "swift", "typescript", "ts"):
+            for lang in (
+                "python",
+                "java",
+                "javascript",
+                "js",
+                "go",
+                "rust",
+                "c++",
+                "cpp",
+                "ruby",
+                "php",
+                "kotlin",
+                "swift",
+                "typescript",
+                "ts",
+            ):
                 if re.search(rf"\b{re.escape(lang)}\b", task, re.IGNORECASE):
-                    return "javascript" if lang.lower() == "js" else (
-                        "typescript" if lang.lower() == "ts" else
-                        "cpp" if lang.lower() in ("c++", "cpp") else lang.lower())
+                    return (
+                        "javascript"
+                        if lang.lower() == "js"
+                        else (
+                            "typescript"
+                            if lang.lower() == "ts"
+                            else (
+                                "cpp"
+                                if lang.lower() in ("c++", "cpp")
+                                else lang.lower()
+                            )
+                        )
+                    )
             return None
         # 名称：从 "叫 XXX" / "名为 XXX" / "name XXX" 抽
         if "name" in n and "user" not in n:
-            m = re.search(r"(?:叫|名为|名字|name[：:\s]+)([A-Za-z_][\w\u4e00-\u9fa5]{1,40})", task)
+            m = re.search(
+                r"(?:叫|名为|名字|name[：:\s]+)([A-Za-z_][\w\u4e00-\u9fa5]{1,40})", task
+            )
             if m:
                 return m.group(1)
             return None
@@ -494,13 +619,17 @@ class FunctionCaller:
             if loop.is_running():
                 # 我们已经在事件循环里（不应该发生，但兜底）
                 import concurrent.futures
+
                 with concurrent.futures.ThreadPoolExecutor() as pool:
                     future = pool.submit(
-                        lambda: asyncio.run(router.complete_with_failover(
-                            task_type="reasoning",
-                            prompt=prompt,
-                            agent_id=self.agent_id,
-                        )))
+                        lambda: asyncio.run(
+                            router.complete_with_failover(
+                                task_type="reasoning",
+                                prompt=prompt,
+                                agent_id=self.agent_id,
+                            )
+                        )
+                    )
                     resp = future.result(timeout=60)
             else:
                 resp = loop.run_until_complete(
@@ -644,8 +773,7 @@ def get_function_caller(agent: Any) -> FunctionCaller:
     try:
         agent_id = agent.get_agent_id()
     except Exception:
-        agent_id = (getattr(agent, "species", "") + "-"
-                    + getattr(agent, "_name_obj", ""))
+        agent_id = getattr(agent, "species", "") + "-" + getattr(agent, "_name_obj", "")
 
     with _FUNCTION_CALLERS_LOCK:
         fc = _FUNCTION_CALLERS.get(agent_id)
@@ -667,8 +795,11 @@ def cleanup_function_callers(max_age: float = 3600) -> int:
     now = time.time()
     removed = 0
     with _FUNCTION_CALLERS_LOCK:
-        stale = [k for k in list(_FUNCTION_CALLERS.keys())
-                 if hasattr(_FUNCTION_CALLERS[k], "_last_used")]
+        stale = [
+            k
+            for k in list(_FUNCTION_CALLERS.keys())
+            if hasattr(_FUNCTION_CALLERS[k], "_last_used")
+        ]
         # 简单清理：保留最近 50 个，超出删除最早的
         if len(_FUNCTION_CALLERS) > 50:
             excess = len(_FUNCTION_CALLERS) - 50
@@ -681,6 +812,7 @@ def cleanup_function_callers(max_age: float = 3600) -> int:
 # ----------------------------------------------------------------------
 # 便捷入口：给一个智能体下任务
 # ----------------------------------------------------------------------
+
 
 def dispatch_task_to_agent(agent: Any, task: str) -> dict:
     """把任务派给指定智能体处理。
@@ -695,6 +827,7 @@ def dispatch_task_to_agent(agent: Any, task: str) -> dict:
 # ----------------------------------------------------------------------
 # 路由：把自然语言任务派给最合适的物种
 # ----------------------------------------------------------------------
+
 
 def route_task_to_species(task: str) -> str:
     """根据任务文本关键词，路由到最合适的物种。
@@ -723,12 +856,15 @@ _FUNCTION_REGISTRY: dict[str, dict] = {}
 
 
 def function_registry() -> dict[str, dict]:
-    return {k: {"name": k, "doc": v.get("doc", ""), "params": v.get("params", [])}
-            for k, v in _FUNCTION_REGISTRY.items()}
+    return {
+        k: {"name": k, "doc": v.get("doc", ""), "params": v.get("params", [])}
+        for k, v in _FUNCTION_REGISTRY.items()
+    }
 
 
-def register_function(name: str, fn: callable, doc: str = "",
-                      params: list[str] | None = None) -> None:
+def register_function(
+    name: str, fn: callable, doc: str = "", params: list[str] | None = None
+) -> None:
     _FUNCTION_REGISTRY[name] = {"fn": fn, "doc": doc, "params": params or []}
 
 
@@ -745,11 +881,13 @@ def find_agent_by_species(species: str, environment=None) -> Any:
         return None
     try:
         # Environment 类用 population 字段
-        inhabitants = (getattr(environment, "population", None)
-                       or getattr(environment, "inhabitants", None) or [])
+        inhabitants = (
+            getattr(environment, "population", None)
+            or getattr(environment, "inhabitants", None)
+            or []
+        )
         for a in inhabitants:
-            if (getattr(a, "species", "") == species
-                    and getattr(a, "_alive", False)):
+            if getattr(a, "species", "") == species and getattr(a, "_alive", False):
                 return a
     except Exception:
         pass

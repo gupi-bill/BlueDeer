@@ -3,6 +3,7 @@
 特殊行为：count_tokens 数 token，30% 额外产胎概率。
 commit 28：行为池——挖雪洞 / 蹬后腿 / 数数
 """
+
 from __future__ import annotations
 
 import random
@@ -42,7 +43,7 @@ class Hare(DigitalLifeForm):
                 "life_stages": ["ADULT", "MIDDLE"],
                 "probability": 0.02,
             },
-            "duration_sec": 900,       # 15 分钟
+            "duration_sec": 900,  # 15 分钟
             "cooldown_sec": 7200,
             "animation": "idle",
             "particles": "snow_puff",
@@ -56,7 +57,7 @@ class Hare(DigitalLifeForm):
                 "life_stages": ["JUVENILE", "ADULT", "MIDDLE"],
                 "probability": 0.012,
             },
-            "duration_sec": 5,         # 即时动作
+            "duration_sec": 5,  # 即时动作
             "cooldown_sec": 600,
             "animation": "react",
             "particles": "smirk",
@@ -70,18 +71,30 @@ class Hare(DigitalLifeForm):
                 "life_stages": ["ADULT", "MIDDLE", "ELDERLY"],
                 "probability": 0.015,
             },
-            "duration_sec": 180,       # 3 分钟
+            "duration_sec": 180,  # 3 分钟
             "cooldown_sec": 1800,
             "animation": "idle",
             "particles": "story_bubble",
         },
     ]
 
-    def __init__(self, name="雪兔", gender="male", environment=None,
-                 birth_time=None, genome_override=None):
+    def __init__(
+        self,
+        name="雪兔",
+        gender="male",
+        environment=None,
+        birth_time=None,
+        genome_override=None,
+    ):
         genome = self._build_genome(genome_override)
-        super().__init__(name=name, species="hare", gender=gender,
-                         genome=genome, environment=environment, birth_time=birth_time)
+        super().__init__(
+            name=name,
+            species="hare",
+            gender=gender,
+            genome=genome,
+            environment=environment,
+            birth_time=birth_time,
+        )
 
     def reproduce(self, partner):
         """雪兔 30% 额外产胎概率：繁殖出双倍幼崽。
@@ -140,6 +153,7 @@ class Hare(DigitalLifeForm):
         return Hare(
             name=f"{self._name_obj}的幼崽",
             gender=random.choice(["male", "female"]),
-            environment=environment, birth_time=birth_time,
+            environment=environment,
+            birth_time=birth_time,
             genome_override=genome,
         )

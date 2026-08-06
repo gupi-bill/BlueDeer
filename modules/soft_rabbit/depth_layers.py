@@ -12,25 +12,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
 
 from modules.soft_rabbit.pixel_render import (
     PALETTE_16,
     AnsiTerminalBackend,
     Color,
-    PixelRenderEngine,
     RenderRouter,
 )
 
-
 # ============== Z 轴分层定义 ==============
+
 
 class DepthLayer(Enum):
     """Z 轴层级（值越大越靠上）。"""
-    BACKGROUND = 0   # 底层：画布背景、工位区块
-    MIDGROUND = 1    # 中层：角色头像、任务卡片
-    FOREGROUND = 2   # 顶层：弹窗、告警
-    OVERLAY = 3      # 最顶层：悬浮提示、光标
+
+    BACKGROUND = 0  # 底层：画布背景、工位区块
+    MIDGROUND = 1  # 中层：角色头像、任务卡片
+    FOREGROUND = 2  # 顶层：弹窗、告警
+    OVERLAY = 3  # 最顶层：悬浮提示、光标
 
 
 class LayeredCanvas:
@@ -60,15 +59,26 @@ class LayeredCanvas:
             self.clear_layer(layer)
 
     def set_pixel(
-        self, layer: DepthLayer, x: int, y: int, color: Color, char: str = " ",
+        self,
+        layer: DepthLayer,
+        x: int,
+        y: int,
+        color: Color,
+        char: str = " ",
     ) -> None:
         """在指定层设置像素（越界忽略）。"""
         if 0 <= x < self.width and 0 <= y < self.height:
             self._layers[layer][y][x] = (color, char if char else " ")
 
     def draw_rect(
-        self, layer: DepthLayer, x: int, y: int, w: int, h: int,
-        color: Color, char: str = " ",
+        self,
+        layer: DepthLayer,
+        x: int,
+        y: int,
+        w: int,
+        h: int,
+        color: Color,
+        char: str = " ",
     ) -> None:
         """在指定层填充矩形。"""
         for yy in range(y, y + h):
@@ -76,7 +86,12 @@ class LayeredCanvas:
                 self.set_pixel(layer, xx, yy, color, char)
 
     def draw_text(
-        self, layer: DepthLayer, x: int, y: int, text: str, color: Color,
+        self,
+        layer: DepthLayer,
+        x: int,
+        y: int,
+        text: str,
+        color: Color,
     ) -> None:
         """在指定层绘制文本。"""
         for i, ch in enumerate(text):
@@ -95,7 +110,9 @@ class LayeredCanvas:
         return result
 
     def render(
-        self, env: str = "ansi", color_level: str = "256",
+        self,
+        env: str = "ansi",
+        color_level: str = "256",
     ) -> str:
         """合成后用指定后端渲染。"""
         backend = RenderRouter().select(env, self.width, self.height)
@@ -107,15 +124,17 @@ class LayeredCanvas:
 
 # ============== 跨端轻量化微动效 ==============
 
+
 @dataclass
 class MicroAnimation:
     """微动效定义：纯字符/低算力像素帧实现。
 
     所有平台流畅不卡顿，统一动效节奏，无平台间动画割裂。
     """
+
     name: str
     frames: list[str] = field(default_factory=list)
-    duration: float = 0.5       # 单轮时长（秒）
+    duration: float = 0.5  # 单轮时长（秒）
     loop: bool = True
 
     def frame_at(self, t: float) -> str:
@@ -161,7 +180,10 @@ class AnimationRegistry:
             ),
             "error_pulse": MicroAnimation("error_pulse", ["!", " ", "!", " "], 0.4),
             "achievement": MicroAnimation(
-                "achievement", ["✦", "✧", "★", "✧", "✦"], 1.0, loop=False,
+                "achievement",
+                ["✦", "✧", "★", "✧", "✦"],
+                1.0,
+                loop=False,
             ),
             "unlock": MicroAnimation("unlock", ["▣", "▢", "▣"], 0.5),
             "sleep": MicroAnimation("sleep", ["~", "z", "Z", "z"], 1.2),
@@ -193,22 +215,25 @@ DEFAULT_ANIMATIONS = AnimationRegistry()
 
 # ============== 跨设备自适应景深缩放 ==============
 
+
 class LayoutMode(Enum):
     """布局模式（按窗口尺寸自适应）。"""
-    WIDE = "wide"        # 大屏：多列完整面板
-    NORMAL = "normal"    # 常规：标准看板
+
+    WIDE = "wide"  # 大屏：多列完整面板
+    NORMAL = "normal"  # 常规：标准看板
     COMPACT = "compact"  # 紧凑：折叠侧边栏
-    MOBILE = "mobile"    # 手机：竖向单栏
+    MOBILE = "mobile"  # 手机：竖向单栏
 
 
 @dataclass
 class LayoutParams:
     """布局参数（由 AdaptiveScaler 按 LayoutMode 给出）。"""
+
     mode: LayoutMode
-    columns: int = 1              # 主面板列数
+    columns: int = 1  # 主面板列数
     sidebar_visible: bool = True  # 侧边栏可见
     panels_compact: bool = False  # 面板压缩
-    char_width: int = 80          # 字符宽度
+    char_width: int = 80  # 字符宽度
     show_decorations: bool = True  # 装饰元素可见
 
 
@@ -240,27 +265,44 @@ class AdaptiveScaler:
         mode = self.detect(width, height)
         if mode == LayoutMode.WIDE:
             return LayoutParams(
-                mode=mode, columns=3, sidebar_visible=True,
-                panels_compact=False, char_width=width, show_decorations=True,
+                mode=mode,
+                columns=3,
+                sidebar_visible=True,
+                panels_compact=False,
+                char_width=width,
+                show_decorations=True,
             )
         if mode == LayoutMode.NORMAL:
             return LayoutParams(
-                mode=mode, columns=2, sidebar_visible=True,
-                panels_compact=False, char_width=width, show_decorations=True,
+                mode=mode,
+                columns=2,
+                sidebar_visible=True,
+                panels_compact=False,
+                char_width=width,
+                show_decorations=True,
             )
         if mode == LayoutMode.COMPACT:
             return LayoutParams(
-                mode=mode, columns=1, sidebar_visible=False,
-                panels_compact=True, char_width=width, show_decorations=False,
+                mode=mode,
+                columns=1,
+                sidebar_visible=False,
+                panels_compact=True,
+                char_width=width,
+                show_decorations=False,
             )
         # MOBILE
         return LayoutParams(
-            mode=mode, columns=1, sidebar_visible=False,
-            panels_compact=True, char_width=width, show_decorations=False,
+            mode=mode,
+            columns=1,
+            sidebar_visible=False,
+            panels_compact=True,
+            char_width=width,
+            show_decorations=False,
         )
 
 
 # ============== 分层场景渲染器（组合三件套） ==============
+
 
 class LayeredSceneRenderer:
     """分层场景渲染器：组合 Z 轴分层 + 微动效 + 自适应缩放。
@@ -278,7 +320,9 @@ class LayeredSceneRenderer:
         self._canvas = LayeredCanvas(width, height)
         self._anims = AnimationRegistry()
         self._scaler = AdaptiveScaler()
-        self._active_anims: list[tuple[DepthLayer, int, int, MicroAnimation, float]] = []
+        self._active_anims: list[tuple[DepthLayer, int, int, MicroAnimation, float]] = (
+            []
+        )
         # (layer, x, y, animation, start_time)
 
     @property
@@ -302,7 +346,12 @@ class LayeredSceneRenderer:
         self._canvas.draw_text(DepthLayer.OVERLAY, x, y, text, color)
 
     def attach_animation(
-        self, layer: DepthLayer, x: int, y: int, anim_name: str, start: float = 0.0,
+        self,
+        layer: DepthLayer,
+        x: int,
+        y: int,
+        anim_name: str,
+        start: float = 0.0,
     ) -> bool:
         """在指定层附加动效（渲染时按时刻取帧）。"""
         anim = self._anims.get(anim_name)
@@ -312,7 +361,10 @@ class LayeredSceneRenderer:
         return True
 
     def render_frame(
-        self, t: float = 0.0, env: str = "ansi", color_level: str = "256",
+        self,
+        t: float = 0.0,
+        env: str = "ansi",
+        color_level: str = "256",
     ) -> str:
         """渲染时刻 t 的一帧（含动效）。"""
         # 先把动效帧画到对应层
@@ -320,7 +372,11 @@ class LayeredSceneRenderer:
             frame_char = anim.frame_at(max(0.0, t - start))
             if frame_char:
                 self._canvas.set_pixel(
-                    layer, x, y, PALETTE_16["title"], frame_char,
+                    layer,
+                    x,
+                    y,
+                    PALETTE_16["title"],
+                    frame_char,
                 )
         return self._canvas.render(env=env, color_level=color_level)
 

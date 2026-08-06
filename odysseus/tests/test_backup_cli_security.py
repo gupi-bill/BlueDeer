@@ -4,7 +4,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
 from tests.helpers.cli_loader import load_script
 
 
@@ -47,15 +46,23 @@ def test_backup_list_sorts_by_captured_mtime(monkeypatch):
     backup = _load_backup_cli()
     first = SimpleNamespace(name="older.tar.gz")
     second = SimpleNamespace(name="newer.tar.gz")
-    monkeypatch.setattr(backup, "_BACKUP_DIR", SimpleNamespace(
-        is_dir=lambda: True,
-        iterdir=lambda: [first, second],
-    ))
-    monkeypatch.setattr(backup, "_backup_entry", lambda p: {
-        "name": p.name,
-        "modified": "2026-10-25T01:45:00" if p is first else "2026-10-25T01:15:00",
-        "_mtime": 100 if p is first else 200,
-    })
+    monkeypatch.setattr(
+        backup,
+        "_BACKUP_DIR",
+        SimpleNamespace(
+            is_dir=lambda: True,
+            iterdir=lambda: [first, second],
+        ),
+    )
+    monkeypatch.setattr(
+        backup,
+        "_backup_entry",
+        lambda p: {
+            "name": p.name,
+            "modified": "2026-10-25T01:45:00" if p is first else "2026-10-25T01:15:00",
+            "_mtime": 100 if p is first else 200,
+        },
+    )
     seen = []
     monkeypatch.setattr(backup, "emit", lambda payload, args: seen.append(payload))
 

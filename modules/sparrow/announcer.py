@@ -25,11 +25,13 @@ logger = logging.getLogger("bluedeer.sparrow.announcer")
 
 # ============== 告警等级 ==============
 
+
 class AlertLevel(Enum):
     """告警三级。"""
-    LIGHT = "light"      # 轻度：单员工少量报错、Token 小幅上涨
-    MEDIUM = "medium"    # 中度：测试连续失败、梦境产出劣质
-    HEAVY = "heavy"      # 重度：高危安全操作、流水线卡死、模型 API 中断
+
+    LIGHT = "light"  # 轻度：单员工少量报错、Token 小幅上涨
+    MEDIUM = "medium"  # 中度：测试连续失败、梦境产出劣质
+    HEAVY = "heavy"  # 重度：高危安全操作、流水线卡死、模型 API 中断
 
 
 # ============== 播报模板 ==============
@@ -89,13 +91,15 @@ _BROADCAST_TEMPLATES_EXTENDED: dict[str, str] = {
 
 # ============== 巡检记录 ==============
 
+
 @dataclass
 class InspectionRecord:
     """单次巡检记录。"""
+
     timestamp: float
-    kind: str               # light_brief / deep_report / alert / node_broadcast
-    level: str = ""         # 告警等级（仅 alert 类型）
-    content: str = ""       # 巡检内容/告警消息
+    kind: str  # light_brief / deep_report / alert / node_broadcast
+    level: str = ""  # 告警等级（仅 alert 类型）
+    content: str = ""  # 巡检内容/告警消息
     snapshot: dict[str, Any] = field(default_factory=dict)  # 伴随快照
 
     def to_dict(self) -> dict[str, Any]:
@@ -110,6 +114,7 @@ class InspectionRecord:
 
 # ============== 巡检播报器 ==============
 
+
 class SparrowAnnouncer:
     """灵音雀自动巡检播报器。
 
@@ -122,8 +127,8 @@ class SparrowAnnouncer:
     """
 
     # 巡检周期默认值
-    LIGHT_INTERVAL = 300.0   # 5 分钟
-    DEEP_INTERVAL = 1800.0   # 30 分钟
+    LIGHT_INTERVAL = 300.0  # 5 分钟
+    DEEP_INTERVAL = 1800.0  # 30 分钟
 
     def __init__(
         self,
@@ -233,13 +238,15 @@ class SparrowAnnouncer:
                     if not line:
                         continue
                     data = json.loads(line)
-                    self._records.append(InspectionRecord(
-                        timestamp=data["timestamp"],
-                        kind=data["kind"],
-                        level=data.get("level", ""),
-                        content=data.get("content", ""),
-                        snapshot=data.get("snapshot", {}),
-                    ))
+                    self._records.append(
+                        InspectionRecord(
+                            timestamp=data["timestamp"],
+                            kind=data["kind"],
+                            level=data.get("level", ""),
+                            content=data.get("content", ""),
+                            snapshot=data.get("snapshot", {}),
+                        )
+                    )
                     count += 1
         except Exception as e:
             logger.warning("加载巡检历史失败: %s", e)
@@ -298,8 +305,11 @@ class SparrowAnnouncer:
         self._running = True
         self._light_task = asyncio.create_task(self._light_loop())
         self._deep_task = asyncio.create_task(self._deep_loop())
-        logger.info("灵音雀定时巡检已启动 (light=%ds, deep=%ds)",
-                    int(self._light_interval), int(self._deep_interval))
+        logger.info(
+            "灵音雀定时巡检已启动 (light=%ds, deep=%ds)",
+            int(self._light_interval),
+            int(self._deep_interval),
+        )
 
     async def stop_periodic(self) -> None:
         """停止定时巡检。"""
@@ -336,7 +346,9 @@ class SparrowAnnouncer:
                 logger.exception("深度巡检异常: %s", e)
                 await asyncio.sleep(self._deep_interval)
 
-    def set_intervals(self, light: float | None = None, deep: float | None = None) -> None:
+    def set_intervals(
+        self, light: float | None = None, deep: float | None = None
+    ) -> None:
         """调整巡检周期。"""
         if light is not None:
             self._light_interval = light
@@ -380,7 +392,9 @@ class SparrowAnnouncer:
             self._broadcast(content, force=True)
         return record
 
-    def check_and_alert(self, snapshot: SystemSnapshot | None = None) -> list[InspectionRecord]:
+    def check_and_alert(
+        self, snapshot: SystemSnapshot | None = None
+    ) -> list[InspectionRecord]:
         """根据快照自动检测并触发告警。
 
         Returns:
@@ -393,38 +407,69 @@ class SparrowAnnouncer:
 
         # 重度告警
         if alerts.secret_plaintext_risk:
-            records.append(self.trigger_alert(
-                AlertLevel.HEAVY, "密钥明文风险", snapshot,
-            ))
+            records.append(
+                self.trigger_alert(
+                    AlertLevel.HEAVY,
+                    "密钥明文风险",
+                    snapshot,
+                )
+            )
         if alerts.dependency_conflict:
-            records.append(self.trigger_alert(
-                AlertLevel.HEAVY, "依赖版本冲突", snapshot,
-            ))
+            records.append(
+                self.trigger_alert(
+                    AlertLevel.HEAVY,
+                    "依赖版本冲突",
+                    snapshot,
+                )
+            )
 
         # 中度告警
         if alerts.nightmare_dream:
-            records.append(self.trigger_alert(
-                AlertLevel.MEDIUM, "噩梦级低质量梦境", snapshot,
-            ))
+            records.append(
+                self.trigger_alert(
+                    AlertLevel.MEDIUM,
+                    "噩梦级低质量梦境",
+                    snapshot,
+                )
+            )
         # 测试连续失败检测（heal_progress 低 + 有 fix 记录）
-        if snapshot.security.heal_progress > 0 and snapshot.security.heal_progress < 0.3:
-            records.append(self.trigger_alert(
-                AlertLevel.MEDIUM, "测试连续失败，自愈进度低", snapshot,
-            ))
+        if (
+            snapshot.security.heal_progress > 0
+            and snapshot.security.heal_progress < 0.3
+        ):
+            records.append(
+                self.trigger_alert(
+                    AlertLevel.MEDIUM,
+                    "测试连续失败，自愈进度低",
+                    snapshot,
+                )
+            )
 
         # 轻度告警
         if alerts.token_overrun:
-            records.append(self.trigger_alert(
-                AlertLevel.LIGHT, "Token 消耗小幅超限", snapshot,
-            ))
+            records.append(
+                self.trigger_alert(
+                    AlertLevel.LIGHT,
+                    "Token 消耗小幅超限",
+                    snapshot,
+                )
+            )
         if alerts.memory_high:
-            records.append(self.trigger_alert(
-                AlertLevel.LIGHT, "内存占用过高", snapshot,
-            ))
+            records.append(
+                self.trigger_alert(
+                    AlertLevel.LIGHT,
+                    "内存占用过高",
+                    snapshot,
+                )
+            )
         for agent_id in alerts.agent_stuck:
-            records.append(self.trigger_alert(
-                AlertLevel.LIGHT, f"员工 {agent_id} 长时间卡死", snapshot,
-            ))
+            records.append(
+                self.trigger_alert(
+                    AlertLevel.LIGHT,
+                    f"员工 {agent_id} 长时间卡死",
+                    snapshot,
+                )
+            )
 
         return records
 
@@ -441,8 +486,9 @@ class SparrowAnnouncer:
             巡检记录。
         """
         # 优先查扩展模板，再查基础模板
-        template = _BROADCAST_TEMPLATES_EXTENDED.get(node_type) or \
-                   _BROADCAST_TEMPLATES.get(node_type)
+        template = _BROADCAST_TEMPLATES_EXTENDED.get(
+            node_type
+        ) or _BROADCAST_TEMPLATES.get(node_type)
         if template is None:
             content = f"📌 {node_type}: {params}"
         else:
@@ -463,7 +509,9 @@ class SparrowAnnouncer:
 
     def list_node_types(self) -> list[str]:
         """列出所有支持的节点播报类型（基础 6 + 扩展 32 = 38 个）。"""
-        return list(_BROADCAST_TEMPLATES.keys()) + list(_BROADCAST_TEMPLATES_EXTENDED.keys())
+        return list(_BROADCAST_TEMPLATES.keys()) + list(
+            _BROADCAST_TEMPLATES_EXTENDED.keys()
+        )
 
     # ============== 简报格式化 ==============
 
@@ -477,14 +525,16 @@ class SparrowAnnouncer:
             f"高危拦截: {snapshot.system_runtime.hazardous_blocked_count} 次",
         ]
         # 预警简表
-        alert_count = sum([
-            snapshot.alerts.token_overrun,
-            snapshot.alerts.memory_high,
-            snapshot.alerts.nightmare_dream,
-            snapshot.alerts.secret_plaintext_risk,
-            snapshot.alerts.dependency_conflict,
-            bool(snapshot.alerts.agent_stuck),
-        ])
+        alert_count = sum(
+            [
+                snapshot.alerts.token_overrun,
+                snapshot.alerts.memory_high,
+                snapshot.alerts.nightmare_dream,
+                snapshot.alerts.secret_plaintext_risk,
+                snapshot.alerts.dependency_conflict,
+                bool(snapshot.alerts.agent_stuck),
+            ]
+        )
         lines.append(f"活跃预警: {alert_count} 项")
         return "\n".join(lines)
 
@@ -508,10 +558,13 @@ class SparrowAnnouncer:
             await asyncio.sleep(delay)
             if self._broadcast:
                 self._broadcast(f"⏰ 定时播报: {msg}")
-            self._add_record(InspectionRecord(
-                timestamp=time.time(), kind="node_broadcast",
-                content=f"⏰ 定时播报: {msg}",
-            ))
+            self._add_record(
+                InspectionRecord(
+                    timestamp=time.time(),
+                    kind="node_broadcast",
+                    content=f"⏰ 定时播报: {msg}",
+                )
+            )
         except asyncio.CancelledError:
             pass
 
@@ -530,7 +583,9 @@ class SparrowAnnouncer:
 
     def broadcast_priority(self, msg: str, priority: int = 0) -> None:
         """按优先级加入队列（priority 越高越优先）。"""
-        self._priority_queue.append({"msg": msg, "priority": priority, "ts": time.time()})
+        self._priority_queue.append(
+            {"msg": msg, "priority": priority, "ts": time.time()}
+        )
         self._priority_queue.sort(key=lambda x: (-x["priority"], x["ts"]))
 
     def drain_priority_queue(self) -> list[str]:
@@ -570,28 +625,30 @@ class SparrowAnnouncer:
                 f"{a.backlog_count} | {a.affinity} | {a.coins} | {a.recent_errors} | "
                 f"{a.pass_rate:.1%} |"
             )
-        lines.extend([
-            "",
-            "## 3. 底层系统运行",
-            "",
-            f"- 模型路由负载: {snapshot.system_runtime.router_load}",
-            f"- Token 速率: {snapshot.system_runtime.token_rate}",
-            f"- 上下文占用: {snapshot.system_runtime.context_occupancy:.1%}",
-            f"- RAG 吞吐: {snapshot.system_runtime.rag_throughput}",
-            f"- 梦境阶段: {snapshot.system_runtime.dream_stage_progress}",
-            f"- MCP 调用频次: {snapshot.system_runtime.mcp_call_frequency}/s",
-            f"- 高危拦截: {snapshot.system_runtime.hazardous_blocked_count}",
-            "",
-            "## 4. 风控 & 自动化流水线",
-            "",
-            f"- 漏洞拦截: {snapshot.security.blocked_threat_count}",
-            f"- 自愈进度: {snapshot.security.heal_progress:.1%}",
-            f"- 修复记录: {len(snapshot.security.fix_strategy_records)} 条",
-            f"- Git 进度: {snapshot.security.github_push_progress or '(无)'}",
-            "",
-            "## 5. 预警提示",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 3. 底层系统运行",
+                "",
+                f"- 模型路由负载: {snapshot.system_runtime.router_load}",
+                f"- Token 速率: {snapshot.system_runtime.token_rate}",
+                f"- 上下文占用: {snapshot.system_runtime.context_occupancy:.1%}",
+                f"- RAG 吞吐: {snapshot.system_runtime.rag_throughput}",
+                f"- 梦境阶段: {snapshot.system_runtime.dream_stage_progress}",
+                f"- MCP 调用频次: {snapshot.system_runtime.mcp_call_frequency}/s",
+                f"- 高危拦截: {snapshot.system_runtime.hazardous_blocked_count}",
+                "",
+                "## 4. 风控 & 自动化流水线",
+                "",
+                f"- 漏洞拦截: {snapshot.security.blocked_threat_count}",
+                f"- 自愈进度: {snapshot.security.heal_progress:.1%}",
+                f"- 修复记录: {len(snapshot.security.fix_strategy_records)} 条",
+                f"- Git 进度: {snapshot.security.github_push_progress or '(无)'}",
+                "",
+                "## 5. 预警提示",
+                "",
+            ]
+        )
         if snapshot.alerts.token_overrun:
             lines.append("- 🔴 Token 超限")
         if snapshot.alerts.memory_high:
@@ -604,26 +661,33 @@ class SparrowAnnouncer:
             lines.append("- 🔴 密钥明文风险")
         if snapshot.alerts.dependency_conflict:
             lines.append("- 🔴 依赖冲突")
-        if not any([
-            snapshot.alerts.token_overrun, snapshot.alerts.memory_high,
-            snapshot.alerts.agent_stuck, snapshot.alerts.nightmare_dream,
-            snapshot.alerts.secret_plaintext_risk, snapshot.alerts.dependency_conflict,
-        ]):
+        if not any(
+            [
+                snapshot.alerts.token_overrun,
+                snapshot.alerts.memory_high,
+                snapshot.alerts.agent_stuck,
+                snapshot.alerts.nightmare_dream,
+                snapshot.alerts.secret_plaintext_risk,
+                snapshot.alerts.dependency_conflict,
+            ]
+        ):
             lines.append("- ✅ 无活跃预警")
-        lines.extend([
-            "",
-            "## 6. Git 流水线",
-            "",
-            f"- 分支: {snapshot.git.branch}",
-            f"- 未提交文件: {snapshot.git.uncommitted_files}",
-            f"- 最近提交: {snapshot.git.last_commit_hash} {snapshot.git.last_commit_message}",
-            f"- 远程同步: {'是' if snapshot.git.remote_synced else '否'}",
-            "",
-            "## 7. 模型路由",
-            "",
-            f"- 任务类型: {', '.join(snapshot.router.task_types)}",
-            f"- 模型分配: {snapshot.router.model_assignments}",
-            f"- 降级模型: {', '.join(snapshot.router.degraded_models) or '(无)'}",
-            f"- 失败计数: {snapshot.router.failure_counts}",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 6. Git 流水线",
+                "",
+                f"- 分支: {snapshot.git.branch}",
+                f"- 未提交文件: {snapshot.git.uncommitted_files}",
+                f"- 最近提交: {snapshot.git.last_commit_hash} {snapshot.git.last_commit_message}",
+                f"- 远程同步: {'是' if snapshot.git.remote_synced else '否'}",
+                "",
+                "## 7. 模型路由",
+                "",
+                f"- 任务类型: {', '.join(snapshot.router.task_types)}",
+                f"- 模型分配: {snapshot.router.model_assignments}",
+                f"- 降级模型: {', '.join(snapshot.router.degraded_models) or '(无)'}",
+                f"- 失败计数: {snapshot.router.failure_counts}",
+            ]
+        )
         return "\n".join(lines)

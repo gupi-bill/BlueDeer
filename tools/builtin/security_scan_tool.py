@@ -55,14 +55,18 @@ class SecurityScanTool(BaseTool):
         """扫描文件内容。"""
         if not os.path.exists(path):
             return SecurityReport(
-                target=path, threats=[], scanned_at=0.0,
+                target=path,
+                threats=[],
+                scanned_at=0.0,
             ).to_dict()
         try:
             with open(path, "r", encoding="utf-8", errors="replace") as f:
                 content = f.read()
-        except OSError as e:
+        except OSError:
             return SecurityReport(
-                target=path, threats=[], scanned_at=0.0,
+                target=path,
+                threats=[],
+                scanned_at=0.0,
             ).to_dict()
         report = self._scanner.scan_all(content, target=f"file:{path}")
         return report.to_dict()

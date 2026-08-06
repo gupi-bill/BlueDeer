@@ -1,5 +1,4 @@
 from bs4 import BeautifulSoup
-
 from src.visual_report import generate_visual_report
 
 

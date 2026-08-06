@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
-import time
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
+
+from core.config import get_config
+from core.retry import compute_backoff_delay
 
 logger = logging.getLogger("bluedeer.model_client")
 
@@ -15,6 +18,7 @@ logger = logging.getLogger("bluedeer.model_client")
 @dataclass
 class ModelResponse:
     """模型响应。"""
+
     content: str
     tokens_in: int = 0
     tokens_out: int = 0
@@ -62,21 +66,30 @@ async def request_with_retry(
     data: bytes | None = None,
 ) -> Any:
     import urllib.request
+
     last_error: Exception | None = None
     for attempt in range(1, retries + 1):
         try:
-            req = urllib.request.Request(url, data=data, headers=headers or {}, method=method)
+            req = urllib.request.Request(
+                url, data=data, headers=headers or {}, method=method
+            )
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 return json.loads(resp.read().decode("utf-8"))
         except Exception as e:
             last_error = e
-            logger.warning("请求失败（第 %d/%d 次）: %s %s - %s", attempt, retries, method, url, e)
+            logger.warning(
+                "请求失败（第 %d/%d 次）: %s %s - %s", attempt, retries, method, url, e
+            )
             if attempt < retries:
-                await asyncio.sleep(2 ** attempt)
+                cfg = get_config().task
+                delay = compute_backoff_delay(
+                    attempt,
+                    cfg.retry_base_delay,
+                    cfg.retry_max_delay,
+                    cfg.retry_jitter,
+                )
+                await asyncio.sleep(delay)
     raise RuntimeError(f"请求重试耗尽（{retries} 次）: {last_error}")
-
-
-import json
 
 
 class ModelClient(ABC):

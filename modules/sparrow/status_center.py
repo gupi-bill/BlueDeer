@@ -25,73 +25,82 @@ logger = logging.getLogger("bluedeer.sparrow.status")
 
 # ============== 状态数据结构 ==============
 
+
 @dataclass
 class TaskProgressSnapshot:
     """全局任务进度快照。"""
-    active_pipelines: int = 0           # 激活流水线数
-    total_steps: int = 0                # 总步骤
-    completed_steps: int = 0            # 已完成步骤
+
+    active_pipelines: int = 0  # 激活流水线数
+    total_steps: int = 0  # 总步骤
+    completed_steps: int = 0  # 已完成步骤
     estimated_remaining_seconds: float = 0.0  # 预估剩余耗时
-    root_demand: str = ""               # 任务根需求
+    root_demand: str = ""  # 任务根需求
     related_agents: list[str] = field(default_factory=list)  # 关联岗位员工
-    breakpoint_snapshot: str = ""       # 断点快照位置
+    breakpoint_snapshot: str = ""  # 断点快照位置
     dream_inference_enabled: bool = False  # 是否开启梦境推演
-    auto_heal_triggered: bool = False   # 是否触发自动修复
-    git_commit_progress: str = ""       # Git 提交进度
+    auto_heal_triggered: bool = False  # 是否触发自动修复
+    git_commit_progress: str = ""  # Git 提交进度
 
 
 @dataclass
 class AgentStatusSnapshot:
     """单名员工实时状态。"""
+
     agent_id: str = ""
     role: str = ""
-    status: str = "online"              # online/sleep/dream/broken/offline
-    current_task: str = ""              # 当前处理任务
-    backlog_count: int = 0             # 积压任务数
-    affinity: int = 0                   # 好感度
-    coins: int = 0                      # 金币
-    recent_errors: int = 0              # 近期报错次数
-    pass_rate: float = 0.0             # 产出通过率
+    status: str = "online"  # online/sleep/dream/broken/offline
+    current_task: str = ""  # 当前处理任务
+    backlog_count: int = 0  # 积压任务数
+    affinity: int = 0  # 好感度
+    coins: int = 0  # 金币
+    recent_errors: int = 0  # 近期报错次数
+    pass_rate: float = 0.0  # 产出通过率
 
 
 @dataclass
 class SystemRuntimeSnapshot:
     """底层系统运行状态。"""
-    router_load: dict[str, int] = field(default_factory=dict)        # 模型名 → 负载
-    token_rate: dict[str, float] = field(default_factory=dict)       # 模型名 → Token/秒
-    context_occupancy: float = 0.0                                   # 上下文占用比例 0-1
-    rag_throughput: float = 0.0                                      # RAG 读写吞吐量
-    dream_stage_progress: dict[str, float] = field(default_factory=dict)  # 梦境阶段 → 进度 0-1
-    mcp_call_frequency: float = 0.0                                  # MCP 工具调用频次/秒
-    hazardous_blocked_count: int = 0                                 # 高危操作拦截数
+
+    router_load: dict[str, int] = field(default_factory=dict)  # 模型名 → 负载
+    token_rate: dict[str, float] = field(default_factory=dict)  # 模型名 → Token/秒
+    context_occupancy: float = 0.0  # 上下文占用比例 0-1
+    rag_throughput: float = 0.0  # RAG 读写吞吐量
+    dream_stage_progress: dict[str, float] = field(
+        default_factory=dict
+    )  # 梦境阶段 → 进度 0-1
+    mcp_call_frequency: float = 0.0  # MCP 工具调用频次/秒
+    hazardous_blocked_count: int = 0  # 高危操作拦截数
 
 
 @dataclass
 class SecurityPipelineSnapshot:
     """风控 & 自动化流水线状态。"""
-    scan_log_recent: list[str] = field(default_factory=list)   # 最近安全扫描日志
-    blocked_threat_count: int = 0                              # 漏洞拦截数
-    heal_progress: float = 0.0                                 # 自动测试自愈进度 0-1
+
+    scan_log_recent: list[str] = field(default_factory=list)  # 最近安全扫描日志
+    blocked_threat_count: int = 0  # 漏洞拦截数
+    heal_progress: float = 0.0  # 自动测试自愈进度 0-1
     fix_strategy_records: list[str] = field(default_factory=list)  # 修复策略执行记录
-    github_push_progress: str = ""                             # GitHub 提交/PR 进度
-    deploy_snapshot_status: str = ""                           # 部署快照打包状态
+    github_push_progress: str = ""  # GitHub 提交/PR 进度
+    deploy_snapshot_status: str = ""  # 部署快照打包状态
 
 
 @dataclass
 class AlertSummary:
     """预警提示汇总。"""
-    token_overrun: bool = False           # Token 超限预警
-    memory_high: bool = False             # 内存占用过高
+
+    token_overrun: bool = False  # Token 超限预警
+    memory_high: bool = False  # 内存占用过高
     agent_stuck: list[str] = field(default_factory=list)  # 长时间卡死的员工
-    nightmare_dream: bool = False         # 噩梦级低质量梦境
-    secret_plaintext_risk: bool = False   # 密钥明文风险
-    dependency_conflict: bool = False     # 依赖版本冲突
+    nightmare_dream: bool = False  # 噩梦级低质量梦境
+    secret_plaintext_risk: bool = False  # 密钥明文风险
+    dependency_conflict: bool = False  # 依赖版本冲突
     custom_alerts: list[str] = field(default_factory=list)  # 自定义告警
 
 
 @dataclass
 class GitPipelineSnapshot:
     """Git 流水线状态。"""
+
     uncommitted_files: int = 0
     last_commit_hash: str = ""
     last_commit_message: str = ""
@@ -103,7 +112,8 @@ class GitPipelineSnapshot:
 @dataclass
 class ModelRouterSnapshot:
     """模型路由状态。"""
-    task_types: list[str] = field(default_factory=list)        # 支持的任务类型
+
+    task_types: list[str] = field(default_factory=list)  # 支持的任务类型
     model_assignments: dict[str, str] = field(default_factory=dict)  # 任务类型 → 模型名
     degraded_models: list[str] = field(default_factory=list)  # 降级中的模型
     failure_counts: dict[str, int] = field(default_factory=dict)  # 模型 → 失败次数
@@ -112,6 +122,7 @@ class ModelRouterSnapshot:
 @dataclass
 class SystemSnapshot:
     """全系统状态快照（7 大类聚合）。"""
+
     collected_at: float = field(default_factory=time.time)
     task_progress: TaskProgressSnapshot = field(default_factory=TaskProgressSnapshot)
     agents: list[AgentStatusSnapshot] = field(default_factory=list)
@@ -143,6 +154,7 @@ class SystemSnapshot:
 
 
 # ============== 状态查询中心 ==============
+
 
 class StatusCenter:
     """状态查询中心：聚合 7 大类系统数据。
@@ -213,14 +225,21 @@ class StatusCenter:
         }
         collector = collectors.get(category)
         if collector is None:
-            raise ValueError(f"未知状态类别: {category}，可选: {list(collectors.keys())}")
+            raise ValueError(
+                f"未知状态类别: {category}，可选: {list(collectors.keys())}"
+            )
         return collector()
 
     def list_categories(self) -> list[str]:
         """列出所有可查询的状态类别（7 个）。"""
         return [
-            "task_progress", "agents", "system_runtime",
-            "security", "alerts", "git", "router",
+            "task_progress",
+            "agents",
+            "system_runtime",
+            "security",
+            "alerts",
+            "git",
+            "router",
         ]
 
     # ============== 7 大类采集实现 ==============
@@ -233,15 +252,11 @@ class StatusCenter:
             snap.active_pipelines = int(
                 self._context.get_global("active_pipelines", 0) or 0
             )
-            snap.total_steps = int(
-                self._context.get_global("total_steps", 0) or 0
-            )
+            snap.total_steps = int(self._context.get_global("total_steps", 0) or 0)
             snap.completed_steps = int(
                 self._context.get_global("completed_steps", 0) or 0
             )
-            snap.root_demand = str(
-                self._context.get_global("root_demand", "") or ""
-            )
+            snap.root_demand = str(self._context.get_global("root_demand", "") or "")
             snap.related_agents = list(
                 self._context.get_global("related_agents", []) or []
             )
@@ -295,9 +310,9 @@ class StatusCenter:
             for tt in self._router.list_task_types():
                 try:
                     client = self._router.route(tt)
-                    snap.router_load[client.model_name] = snap.router_load.get(
-                        client.model_name, 0
-                    ) + 1
+                    snap.router_load[client.model_name] = (
+                        snap.router_load.get(client.model_name, 0) + 1
+                    )
                     snap.token_rate[client.model_name] = 0.0
                 except Exception:
                     continue
@@ -364,14 +379,19 @@ class StatusCenter:
         snap = GitPipelineSnapshot()
         try:
             import subprocess
+
             result = subprocess.run(
                 ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                capture_output=True, text=True, timeout=3,
+                capture_output=True,
+                text=True,
+                timeout=3,
             )
             snap.branch = result.stdout.strip() if result.returncode == 0 else ""
             result = subprocess.run(
                 ["git", "log", "-1", "--format=%H|%s"],
-                capture_output=True, text=True, timeout=3,
+                capture_output=True,
+                text=True,
+                timeout=3,
             )
             if result.returncode == 0 and result.stdout:
                 parts = result.stdout.strip().split("|", 1)
@@ -379,12 +399,14 @@ class StatusCenter:
                 snap.last_commit_message = parts[1] if len(parts) > 1 else ""
             result = subprocess.run(
                 ["git", "status", "--porcelain"],
-                capture_output=True, text=True, timeout=3,
+                capture_output=True,
+                text=True,
+                timeout=3,
             )
             if result.returncode == 0:
-                snap.uncommitted_files = len([
-                    line for line in result.stdout.splitlines() if line.strip()
-                ])
+                snap.uncommitted_files = len(
+                    [line for line in result.stdout.splitlines() if line.strip()]
+                )
         except Exception as e:
             logger.debug("Git 状态采集失败: %s", e)
         return snap
@@ -414,6 +436,7 @@ class StatusCenter:
 
 # ============== 状态聚合与告警回调 ==============
 
+
 class StatusAggregator:
     """聚合多 agent 状态报告，支持条件告警回调。"""
 
@@ -429,8 +452,12 @@ class StatusAggregator:
         """合并所有 agent 的状态报告为汇总。"""
         result: dict[str, Any] = {
             "total": len(agents),
-            "online": 0, "sleep": 0, "error": 0, "offline": 0,
-            "total_tasks": 0, "total_errors": 0,
+            "online": 0,
+            "sleep": 0,
+            "error": 0,
+            "offline": 0,
+            "total_tasks": 0,
+            "total_errors": 0,
         }
         for a in agents:
             status = getattr(a, "status", "offline")

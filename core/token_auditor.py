@@ -12,8 +12,9 @@ import json
 import logging
 import os
 import time
-from dataclasses import dataclass, field, asdict
-from typing import Any, Callable, TYPE_CHECKING
+from collections.abc import Callable
+from dataclasses import asdict, dataclass, field
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from core.reward import RewardSystem
@@ -26,6 +27,7 @@ logger = logging.getLogger("bluedeer.token")
 @dataclass(slots=True)
 class TokenRecord:
     """单次 Token 消耗记录。"""
+
     agent_id: str
     task_id: str
     model: str
@@ -82,7 +84,11 @@ class TokenAuditor:
         self._records.append(rec)
         logger.info(
             "Token 记录: agent=%s, task=%s, model=%s, in=%d, out=%d",
-            agent_id, task_id, model, tokens_in, tokens_out,
+            agent_id,
+            task_id,
+            model,
+            tokens_in,
+            tokens_out,
         )
 
         # P0 修复：超限触发回调（自动压缩上下文）
@@ -168,7 +174,12 @@ class TokenAuditor:
                 recs = [r for r in recs if now - r.timestamp <= cutoff]
         total = sum(r.total for r in recs)
         calls = len(recs)
-        return {"agent_id": user_id, "period": period, "calls": calls, "tokens_total": total}
+        return {
+            "agent_id": user_id,
+            "period": period,
+            "calls": calls,
+            "tokens_total": total,
+        }
 
     def set_budget(self, user_id: str, limit: int) -> None:
         """设置每用户 Token 上限。
@@ -232,9 +243,14 @@ class TokenAuditor:
         by_agent: dict[str, dict[str, int]] = {}
 
         for r in records:
-            agent = by_agent.setdefault(r.agent_id, {
-                "saved": 0, "lowcost_calls": 0, "total_calls": 0,
-            })
+            agent = by_agent.setdefault(
+                r.agent_id,
+                {
+                    "saved": 0,
+                    "lowcost_calls": 0,
+                    "total_calls": 0,
+                },
+            )
             agent["total_calls"] += 1
             if r.model in get_config().model.lowcost_models:
                 lowcost_calls += 1
@@ -266,10 +282,12 @@ class TokenAuditor:
             records = [r for r in records if r.agent_id == agent_id]
         if not records:
             return 0.0
-        lowcost = sum(1 for r in records if r.model in get_config().model.lowcost_models)
+        lowcost = sum(
+            1 for r in records if r.model in get_config().model.lowcost_models
+        )
         return round(lowcost / len(records) * 100, 2)
 
-    def sync_to_reward(self, agent_id: str, reward_system: "RewardSystem") -> None:
+    def sync_to_reward(self, agent_id: str, reward_system: RewardSystem) -> None:
         """将本员工 Token 节省/低成本占比同步到奖惩系统。
 
         Args:
@@ -296,7 +314,8 @@ class TokenAuditor:
 
         # 过滤当月记录
         month_records = [
-            r for r in self._records
+            r
+            for r in self._records
             if time.strftime("%Y-%m", time.localtime(r.timestamp)) == year_month
         ]
 
@@ -309,13 +328,12 @@ class TokenAuditor:
             1 for r in month_records if r.model in get_config().model.lowcost_models
         )
         lowcost_ratio = (
-            round(month_lowcost / len(month_records) * 100, 2)
-            if month_records else 0.0
+            round(month_lowcost / len(month_records) * 100, 2) if month_records else 0.0
         )
 
         lines = [
-            f"# BlueDeer 月度 Token 成本报表",
-            f"",
+            "# BlueDeer 月度 Token 成本报表",
+            "",
             f"**统计月份**: {year_month}",
             f"**总调用次数**: {len(month_records)}",
             f"**总输入 Token**: {total_in:,}",
@@ -323,11 +341,11 @@ class TokenAuditor:
             f"**总 Token**: {total_in + total_out:,}",
             f"**低成本模型占比**: {lowcost_ratio}%",
             f"**累计节省 Token**: {savings['total_saved']:,}",
-            f"",
-            f"## 按员工统计",
-            f"",
-            f"| 员工 | 调用次数 | 输入 Token | 输出 Token | 总 Token | 节省 Token | 低成本占比 |",
-            f"|------|----------|-----------|-----------|---------|-----------|-----------|",
+            "",
+            "## 按员工统计",
+            "",
+            "| 员工 | 调用次数 | 输入 Token | 输出 Token | 总 Token | 节省 Token | 低成本占比 |",
+            "|------|----------|-----------|-----------|---------|-----------|-----------|",
         ]
 
         agent_ids = {r.agent_id for r in month_records}
@@ -343,25 +361,29 @@ class TokenAuditor:
                 f"{agent_ratio}% |"
             )
 
-        lines.extend([
-            f"",
-            f"## 按模型统计",
-            f"",
-            f"| 模型 | 调用次数 | 总 Token |",
-            f"|------|----------|---------|",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 按模型统计",
+                "",
+                "| 模型 | 调用次数 | 总 Token |",
+                "|------|----------|---------|",
+            ]
+        )
 
         model_stats = self._by_model(month_records)
         for model, stats in sorted(model_stats.items()):
             lines.append(f"| {model} | {stats['calls']} | {stats['tokens']:,} |")
 
-        lines.extend([
-            f"",
-            f"## 详细记录",
-            f"",
-            f"| 时间 | 员工 | 任务 | 模型 | 输入 | 输出 |",
-            f"|------|------|------|------|------|------|",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 详细记录",
+                "",
+                "| 时间 | 员工 | 任务 | 模型 | 输入 | 输出 |",
+                "|------|------|------|------|------|------|",
+            ]
+        )
         for r in month_records:
             ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(r.timestamp))
             lines.append(
@@ -388,7 +410,9 @@ class TokenAuditor:
             return cls()
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        auditor = cls(threshold=data.get("threshold", get_config().reward.token_threshold))
+        auditor = cls(
+            threshold=data.get("threshold", get_config().reward.token_threshold)
+        )
         for rec_data in data.get("records", []):
             auditor._records.append(TokenRecord(**rec_data))
         return auditor
@@ -411,11 +435,14 @@ class TokenAuditor:
         if not date_str:
             date_str = time.strftime("%Y-%m-%d", time.localtime())
         day_records = [
-            r for r in self._records
+            r
+            for r in self._records
             if time.strftime("%Y-%m-%d", time.localtime(r.timestamp)) == date_str
         ]
         return self._format_period_report(
-            f"日报表 {date_str}", day_records, "日",
+            f"日报表 {date_str}",
+            day_records,
+            "日",
         )
 
     def export_weekly_report(self, week_start: str = "") -> str:
@@ -425,6 +452,7 @@ class TokenAuditor:
             week_start: 周一日期 YYYY-MM-DD，默认本周一。
         """
         import datetime
+
         if not week_start:
             today = datetime.date.today()
             monday = today - datetime.timedelta(days=today.weekday())
@@ -432,12 +460,14 @@ class TokenAuditor:
         start = datetime.datetime.strptime(week_start, "%Y-%m-%d")
         end = start + datetime.timedelta(days=7)
         week_records = [
-            r for r in self._records
+            r
+            for r in self._records
             if start.timestamp() <= r.timestamp < end.timestamp()
         ]
         return self._format_period_report(
             f"周报表 {week_start} ~ {(start + datetime.timedelta(days=6)).strftime('%Y-%m-%d')}",
-            week_records, "周",
+            week_records,
+            "周",
         )
 
     def export_multi_report(self) -> dict[str, str]:
@@ -453,13 +483,18 @@ class TokenAuditor:
         }
 
     def _format_period_report(
-        self, title: str, records: list[TokenRecord], period: str,
+        self,
+        title: str,
+        records: list[TokenRecord],
+        period: str,
     ) -> str:
         """格式化周期报表（日/周通用）。"""
         total_in = sum(r.tokens_in for r in records)
         total_out = sum(r.tokens_out for r in records)
         savings = self.get_savings()
-        period_lowcost = sum(1 for r in records if r.model in get_config().model.lowcost_models)
+        period_lowcost = sum(
+            1 for r in records if r.model in get_config().model.lowcost_models
+        )
         lowcost_ratio = (
             round(period_lowcost / len(records) * 100, 2) if records else 0.0
         )
@@ -490,13 +525,15 @@ class TokenAuditor:
                 f"| {agent_id} | {len(agent_recs)} | {ai:,} | {ao:,} | {ai+ao:,} | {sv:,} | {lr}% |"
             )
 
-        lines.extend([
-            "",
-            "## 按模型",
-            "",
-            "| 模型 | 次数 | 总 Token |",
-            "|------|------|---------|",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 按模型",
+                "",
+                "| 模型 | 次数 | 总 Token |",
+                "|------|------|---------|",
+            ]
+        )
         for model, stats in sorted(self._by_model(records).items()):
             lines.append(f"| {model} | {stats['calls']} | {stats['tokens']:,} |")
 

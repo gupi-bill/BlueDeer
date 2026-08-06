@@ -13,6 +13,7 @@
 2. 实现 _build_genome / _create_child / job_skill
 3. 调用 super().__init__(...)
 """
+
 from __future__ import annotations
 
 import datetime
@@ -28,31 +29,35 @@ from collections import deque
 # 枚举
 # ----------------------------------------------------------------------
 
+
 class LifeStage(enum.Enum):
     """生命周期阶段。"""
-    BABY = "BABY"          # 婴幼 0-10%
+
+    BABY = "BABY"  # 婴幼 0-10%
     JUVENILE = "JUVENILE"  # 少年 10-30%
-    ADULT = "ADULT"        # 成年 30-60%
-    MIDDLE = "MIDDLE"      # 中年 60-80%
-    ELDERLY = "ELDERLY"    # 老年 80-100%
+    ADULT = "ADULT"  # 成年 30-60%
+    MIDDLE = "MIDDLE"  # 中年 60-80%
+    ELDERLY = "ELDERLY"  # 老年 80-100%
 
 
 class ActionState(enum.Enum):
     """当前行为。"""
-    REST = "REST"            # 休息
-    SLEEP = "SLEEP"          # 睡觉
-    WORK = "WORK"            # 工作
-    EAT = "EAT"              # 进食
+
+    REST = "REST"  # 休息
+    SLEEP = "SLEEP"  # 睡觉
+    WORK = "WORK"  # 工作
+    EAT = "EAT"  # 进食
     SOCIALIZE = "SOCIALIZE"  # 社交
     REPRODUCE = "REPRODUCE"  # 繁殖
-    EXPLORE = "EXPLORE"      # 探索
+    EXPLORE = "EXPLORE"  # 探索
 
 
 class SleepDepth(enum.Enum):
     """睡眠深度。"""
-    LIGHT = "LIGHT"              # 浅睡：恢复慢，紧急情况能醒
-    NORMAL = "NORMAL"            # 正常：中速恢复
-    DEEP = "DEEP"                # 深睡：快速恢复，难以唤醒
+
+    LIGHT = "LIGHT"  # 浅睡：恢复慢，紧急情况能醒
+    NORMAL = "NORMAL"  # 正常：中速恢复
+    DEEP = "DEEP"  # 深睡：快速恢复，难以唤醒
     HIBERNATION = "HIBERNATION"  # 冬眠：极慢代谢
 
 
@@ -89,6 +94,7 @@ def _parse_hhmm(s: str) -> tuple[int, int]:
 # 基类
 # ----------------------------------------------------------------------
 
+
 class DigitalLifeForm(threading.Thread):
     """数字生命基类。
 
@@ -100,9 +106,9 @@ class DigitalLifeForm(threading.Thread):
     _DEFAULT_GENOME: dict = {
         "species": "unknown",
         "default_name": "未命名",
-        "metabolic_rate": 0.5,         # 每小时能量消耗
-        "hunger_rate": 0.5,            # 每小时饥饿增长
-        "max_age_days": 365 * 20,      # 默认寿命 20 年
+        "metabolic_rate": 0.5,  # 每小时能量消耗
+        "hunger_rate": 0.5,  # 每小时饥饿增长
+        "max_age_days": 365 * 20,  # 默认寿命 20 年
         "reproduction_age_min_days": 365 * 2,
         "reproduction_age_max_days": 365 * 15,
         "litter_size_min": 1,
@@ -114,9 +120,9 @@ class DigitalLifeForm(threading.Thread):
     # commit 19 P0-2：技能成长树（年龄天数, 技能名）。
     # 子类可覆盖此列表实现物种专属技能。
     SKILL_TREE: list[tuple[float, str]] = [
-        (365 * 2,  "初阶岗位"),    # 2 岁解锁
-        (365 * 5,  "中阶岗位"),    # 5 岁解锁
-        (365 * 10, "高阶岗位"),    # 10 岁解锁
+        (365 * 2, "初阶岗位"),  # 2 岁解锁
+        (365 * 5, "中阶岗位"),  # 5 岁解锁
+        (365 * 10, "高阶岗位"),  # 10 岁解锁
     ]
 
     # commit 28：物种特有行为池（子类覆盖）。
@@ -142,18 +148,31 @@ class DigitalLifeForm(threading.Thread):
 
     __slots__ = [
         # 身份
-        "_name_obj", "species", "gender", "birth_time", "life_stage",
+        "_name_obj",
+        "species",
+        "gender",
+        "birth_time",
+        "life_stage",
         # 基因
         "genome",
         # 状态
-        "energy", "health", "hunger", "mood",
-        "current_action", "sleeping", "sleep_start_time",
+        "energy",
+        "health",
+        "hunger",
+        "mood",
+        "current_action",
+        "sleeping",
+        "sleep_start_time",
         # 关系
-        "parents", "children",
+        "parents",
+        "children",
         # 记忆
-        "memory_recent", "memory_long_term",
+        "memory_recent",
+        "memory_long_term",
         # commit 11：核心记忆 + 生平摘要 + 遗言（死亡时生成）
-        "core_memory", "life_summary", "last_words",
+        "core_memory",
+        "life_summary",
+        "last_words",
         # commit 11：对监工的好感度（0-100，初始 50）
         "fondness",
         # commit 11：当前所在 zone_id（用于遗物标记 + 觅食）
@@ -169,11 +188,16 @@ class DigitalLifeForm(threading.Thread):
         #   current_behavior: 当前正在执行的行为名（None 表示无）
         #   current_behavior_cfg: 当前行为配置 dict
         #   current_behavior_end: 当前行为结束时间戳
-        "_behavior_state", "current_behavior",
-        "current_behavior_cfg", "current_behavior_end",
+        "_behavior_state",
+        "current_behavior",
+        "current_behavior_cfg",
+        "current_behavior_end",
         # 运行时
-        "_alive", "_tick_count", "_stop_event",
-        "_environment", "_lock",
+        "_alive",
+        "_tick_count",
+        "_stop_event",
+        "_environment",
+        "_lock",
         # Thread 兼容（不能放 name，用 _name_obj）
         # commit 30：情感系统
         #   emotional_state: 6 维情感向量 dict {joy/sadness/anxiety/
@@ -182,33 +206,44 @@ class DigitalLifeForm(threading.Thread):
         #   _last_monologue_ts: 上次内心独白时间戳（每小时 10% 概率）
         #   _propagation_partners: {other_id: 接触开始 ts}（持续 2 分钟触发传播）
         #   _emotion_memory_cooldown: 情感记忆冷却（避免刷屏）
-        "emotional_state", "_last_social_ts", "_last_monologue_ts",
-        "_propagation_partners", "_emotion_memory_cooldown",
+        "emotional_state",
+        "_last_social_ts",
+        "_last_monologue_ts",
+        "_propagation_partners",
+        "_emotion_memory_cooldown",
         # commit 30：关系网络深化
         #   relationships: {other_id: {affection/trust/respect/familiarity: float 0~1}}
         #   relationship_tags: {other_id: [tag, ...]}（挚友/导师/搭档/单恋/世交）
         #   _cold_war_until: {other_id: 冷战结束 ts}（trust 骤降时进入）
-        "relationships", "relationship_tags", "_cold_war_until",
+        "relationships",
+        "relationship_tags",
+        "_cold_war_until",
         # commit 30：长期记忆影响
         #   wisdom: 智慧值（0~100，随年龄增长）
         #   childhood_imprint: bool（前 3 天适应期标记）
         #   childhood_done: bool（适应期是否已结束）
         #   trauma_events: list[str]（创伤事件标签，如 "witness_death"）
         #   _witnessed_deaths: list[name]（目击死亡记录，避免重复）
-        "wisdom", "childhood_imprint", "childhood_done",
-        "trauma_events", "_witnessed_deaths",
+        "wisdom",
+        "childhood_imprint",
+        "childhood_done",
+        "trauma_events",
+        "_witnessed_deaths",
         # commit 30：人生阶段叙事
         #   retirement_wish: str（老年时设置的退休愿望，"" 表示未到老年）
         #   wish_fulfilled: bool（退休愿望是否实现）
         #   hire_anniversary: float（入职周年 ts，初始 = birth_time）
         #   _last_anniversary_check: int（上次检查周年年份，避免重复触发）
-        "retirement_wish", "wish_fulfilled", "hire_anniversary",
+        "retirement_wish",
+        "wish_fulfilled",
+        "hire_anniversary",
         "_last_anniversary_check",
         # commit 31：主动消息系统
         #   _active_msg_cooldowns: {category: ts} 每个类别的上次发送时间戳
         #   _last_supervisor_interact_ts: 上次与监工互动的 ts（用于"想念监工"触发）
         #   _last_active_msg_check_tick: 上次执行 detect_and_trigger 的 tick 数
-        "_active_msg_cooldowns", "_last_supervisor_interact_ts",
+        "_active_msg_cooldowns",
+        "_last_supervisor_interact_ts",
         "_last_active_msg_check_tick",
         # commit 34：生病急救 + 持久记忆 + 桌面宠物
         #   illness: None 或 Illness 实例（来自 illness_system.py）
@@ -216,16 +251,23 @@ class DigitalLifeForm(threading.Thread):
         #   _immunity: {kind: 免疫力 0~1} 已得过且康复的疾病免疫力
         #   persistent_memory_ref: 持久记忆实例引用（首次访问时懒加载）
         #   _last_memory_sync_ts: 上次同步持久记忆的 ts
-        "illness", "_work_continuous_start_ts", "_immunity",
-        "persistent_memory_ref", "_last_memory_sync_ts",
+        "illness",
+        "_work_continuous_start_ts",
+        "_immunity",
+        "persistent_memory_ref",
+        "_last_memory_sync_ts",
         # commit 35：日记 + 自传体记忆 + 工作产物
         #   self_description / values / life_goal / contradiction:
         #     自我认知的四个维度（缓存自 autobiographical_memory）
         #   _last_self_cognition_sync_ts: 上次同步自我认知到本实例的 ts
         #   _diary_discovered: 是否已被监工通过彩蛋发现日记本
         #   _artifact_ref: 工作产物集引用（懒加载）
-        "self_description", "values", "life_goal", "contradiction",
-        "_last_self_cognition_sync_ts", "_diary_discovered",
+        "self_description",
+        "values",
+        "life_goal",
+        "contradiction",
+        "_last_self_cognition_sync_ts",
+        "_diary_discovered",
         "_artifact_ref",
         # commit 37：Agent 工具链 + 流水线任务接收
         #   bound_tools: 本智能体绑定的工具名列表（由物种自动配置）
@@ -233,8 +275,10 @@ class DigitalLifeForm(threading.Thread):
         #   _tool_call_status: 当前工具调用状态（用于前端可视化）
         #     "" / "running" / "waiting" / "done" / "error"
         #   _tool_call_meta: 工具调用元数据（tool_name / started_ts / 上次完成 ts）
-        "bound_tools", "_pipeline_task_inbox",
-        "_tool_call_status", "_tool_call_meta",
+        "bound_tools",
+        "_pipeline_task_inbox",
+        "_tool_call_status",
+        "_tool_call_meta",
         # commit 39：长期目标管理 + 团队角色演化
         #   informal_roles: list[str]，自发形成的非正式角色 key
         #     （tech_leader / social_coordinator / supervisor_deputy /
@@ -247,11 +291,17 @@ class DigitalLifeForm(threading.Thread):
         #   _teach_count: 成功教学次数（带新人/答疑）
         #   _crisis_resolved_count: 成功处理紧急事件次数
         #   _work_output: 工作产出量化（任务数 × 完成质量，用于隐士判定）
-        "informal_roles", "project_contributions",
-        "_help_count", "_social_count", "_supervisor_interact_count",
-        "_teach_count", "_crisis_resolved_count", "_work_output",
+        "informal_roles",
+        "project_contributions",
+        "_help_count",
+        "_social_count",
+        "_supervisor_interact_count",
+        "_teach_count",
+        "_crisis_resolved_count",
+        "_work_output",
         # commit 40：进化突变系统
-        "mutations", "appearance_modifiers",
+        "mutations",
+        "appearance_modifiers",
     ]
 
     def __init__(
@@ -281,7 +331,11 @@ class DigitalLifeForm(threading.Thread):
         self.life_stage = LifeStage.BABY
 
         # 复制一份 genome，避免子类共享可变默认值
-        self.genome = dict(self._DEFAULT_GENOME, **genome) if genome else dict(self._DEFAULT_GENOME)
+        self.genome = (
+            dict(self._DEFAULT_GENOME, **genome)
+            if genome
+            else dict(self._DEFAULT_GENOME)
+        )
 
         # 状态：能量/健康/饥饿/情绪
         self.energy = 80.0
@@ -324,7 +378,9 @@ class DigitalLifeForm(threading.Thread):
         self.skills: list[str] = []
 
         # commit 28：行为池运行时状态
-        self._behavior_state: dict = {}        # {行为名: {"last_run": ts, "in_progress": bool}}
+        self._behavior_state: dict = (
+            {}
+        )  # {行为名: {"last_run": ts, "in_progress": bool}}
         self.current_behavior: str | None = None
         self.current_behavior_cfg: dict | None = None
         self.current_behavior_end: float | None = None
@@ -338,22 +394,26 @@ class DigitalLifeForm(threading.Thread):
 
         # commit 30：情感系统（6 维情感向量，初始 0.5）
         self.emotional_state: dict = {
-            "joy": 0.5, "sadness": 0.1, "anxiety": 0.2,
-            "contentment": 0.6, "loneliness": 0.3, "curiosity": 0.7,
+            "joy": 0.5,
+            "sadness": 0.1,
+            "anxiety": 0.2,
+            "contentment": 0.6,
+            "loneliness": 0.3,
+            "curiosity": 0.7,
         }
         self._last_social_ts: float = time.time()
         self._last_monologue_ts: float = 0.0
-        self._propagation_partners: dict = {}      # {other_id: 接触开始 ts}
+        self._propagation_partners: dict = {}  # {other_id: 接触开始 ts}
         self._emotion_memory_cooldown: float = 0.0
 
         # commit 30：关系网络
-        self.relationships: dict = {}              # {other_id: {affection/trust/...}}
-        self.relationship_tags: dict = {}          # {other_id: [tag, ...]}
-        self._cold_war_until: dict = {}            # {other_id: 冷战结束 ts}
+        self.relationships: dict = {}  # {other_id: {affection/trust/...}}
+        self.relationship_tags: dict = {}  # {other_id: [tag, ...]}
+        self._cold_war_until: dict = {}  # {other_id: 冷战结束 ts}
 
         # commit 30：长期记忆影响
         self.wisdom: float = 0.0
-        self.childhood_imprint: bool = True        # 入职前 3 天标记
+        self.childhood_imprint: bool = True  # 入职前 3 天标记
         self.childhood_done: bool = False
         self.trauma_events: list = []
         self._witnessed_deaths: list = []
@@ -370,9 +430,9 @@ class DigitalLifeForm(threading.Thread):
         self._last_active_msg_check_tick: int = 0
 
         # commit 34：生病急救 + 持久记忆 + 桌面宠物
-        self.illness = None                # None 或 Illness 实例
-        self._work_continuous_start_ts: float = 0.0   # 连续工作起始 ts
-        self._immunity: dict = {}          # {kind: 免疫力 0~1}
+        self.illness = None  # None 或 Illness 实例
+        self._work_continuous_start_ts: float = 0.0  # 连续工作起始 ts
+        self._immunity: dict = {}  # {kind: 免疫力 0~1}
         self.persistent_memory_ref = None  # 持久记忆实例（懒加载）
         self._last_memory_sync_ts: float = 0.0
 
@@ -386,30 +446,35 @@ class DigitalLifeForm(threading.Thread):
         self._artifact_ref = None
 
         # commit 37：Agent 工具链 + 流水线任务接收
-        self.bound_tools: list[str] = []          # 由 ToolRegistry 在初始化时填入
+        self.bound_tools: list[str] = []  # 由 ToolRegistry 在初始化时填入
         self._pipeline_task_inbox: list[dict] = []  # 待执行的流水线任务
-        self._tool_call_status: str = ""          # "" / running / waiting / done / error
-        self._tool_call_meta: dict = {}           # {tool_name, started_ts, last_done_ts}
+        self._tool_call_status: str = ""  # "" / running / waiting / done / error
+        self._tool_call_meta: dict = {}  # {tool_name, started_ts, last_done_ts}
         # 自动绑定本物种工具
         try:
             from core.digital_life.tool_registry import get_tool_registry
-            self.bound_tools = get_tool_registry().list_tool_names_for_species(self.species)
+
+            self.bound_tools = get_tool_registry().list_tool_names_for_species(
+                self.species
+            )
         except Exception:
             self.bound_tools = []
 
         # commit 39：长期目标管理 + 团队角色演化
-        self.informal_roles: list[str] = []        # 由 RoleEvolutionEngine 周评估填入
-        self.project_contributions: dict = {}      # {project_id: {commits/tasks/last_active_ts/role}}
-        self._help_count: int = 0                  # 被同事求助次数
-        self._social_count: int = 0                # 自发社交次数
-        self._supervisor_interact_count: int = 0   # 与监工互动次数
-        self._teach_count: int = 0                 # 成功教学次数
-        self._crisis_resolved_count: int = 0       # 成功处理紧急事件次数
-        self._work_output: float = 0.0             # 工作产出量化（任务数 × 质量）
+        self.informal_roles: list[str] = []  # 由 RoleEvolutionEngine 周评估填入
+        self.project_contributions: dict = (
+            {}
+        )  # {project_id: {commits/tasks/last_active_ts/role}}
+        self._help_count: int = 0  # 被同事求助次数
+        self._social_count: int = 0  # 自发社交次数
+        self._supervisor_interact_count: int = 0  # 与监工互动次数
+        self._teach_count: int = 0  # 成功教学次数
+        self._crisis_resolved_count: int = 0  # 成功处理紧急事件次数
+        self._work_output: float = 0.0  # 工作产出量化（任务数 × 质量）
 
         # commit 40：进化突变系统
-        self.mutations: list[dict] = []            # 已获得的突变记录列表
-        self.appearance_modifiers: dict = {}       # 外观微调参数（颜色覆盖、体型等）
+        self.mutations: list[dict] = []  # 已获得的突变记录列表
+        self.appearance_modifiers: dict = {}  # 外观微调参数（颜色覆盖、体型等）
 
         # 必须在 stop_event / lock 初始化完成后调用
         super().__init__(daemon=True)
@@ -422,15 +487,22 @@ class DigitalLifeForm(threading.Thread):
         # 注册到环境
         if environment is not None:
             environment.register(self)
-            environment.birth_log.append({
-                "time": time.time(),
-                "species": species,
-                "name": name,
-                "gender": gender,
-            })
-            environment.broadcast_event("birth", {
-                "species": species, "name": name, "gender": gender,
-            })
+            environment.birth_log.append(
+                {
+                    "time": time.time(),
+                    "species": species,
+                    "name": name,
+                    "gender": gender,
+                }
+            )
+            environment.broadcast_event(
+                "birth",
+                {
+                    "species": species,
+                    "name": name,
+                    "gender": gender,
+                },
+            )
 
     # ------------------------------------------------------------------
     # 基因构造（子类可覆盖）
@@ -452,9 +524,14 @@ class DigitalLifeForm(threading.Thread):
             else:
                 genome[k] = v
 
-        for k in ("metabolic_rate", "hunger_rate", "max_age_days",
-                  "reproduction_age_min_days", "reproduction_age_max_days",
-                  "color_variation"):
+        for k in (
+            "metabolic_rate",
+            "hunger_rate",
+            "max_age_days",
+            "reproduction_age_min_days",
+            "reproduction_age_max_days",
+            "color_variation",
+        ):
             if k in genome and isinstance(genome[k], (int, float)):
                 mutation = 1.0 + random.uniform(-0.05, 0.05)
                 genome[k] = type(genome[k])(genome[k] * mutation)
@@ -569,12 +646,19 @@ class DigitalLifeForm(threading.Thread):
             if env_modifier["cold_drain"] > 0 and not self.sleeping:
                 metabolic += env_modifier["cold_drain"]
             self.energy = max(0.0, self.energy - metabolic * hour_frac)
-            self.hunger = min(100.0, self.hunger + self.genome["hunger_rate"] * hour_frac)
+            self.hunger = min(
+                100.0, self.hunger + self.genome["hunger_rate"] * hour_frac
+            )
 
             # 4. 睡眠恢复
             if self.sleeping:
                 depth = self.genome.get("sleep_depth", "NORMAL")
-                recover_rate = {"LIGHT": 0.5, "NORMAL": 1.0, "DEEP": 1.5, "HIBERNATION": 0.3}.get(depth, 1.0)
+                recover_rate = {
+                    "LIGHT": 0.5,
+                    "NORMAL": 1.0,
+                    "DEEP": 1.5,
+                    "HIBERNATION": 0.3,
+                }.get(depth, 1.0)
                 # commit 30：anxiety > 0.7 → 睡眠质量下降（恢复减半）
                 if self.emotional_state.get("anxiety", 0) > 0.7:
                     recover_rate *= 0.5
@@ -598,9 +682,11 @@ class DigitalLifeForm(threading.Thread):
             self._update_mood()
 
             # commit 29：大扫除日 → 全员情绪 +0.05/秒
-            if (self._environment is not None
-                    and self._environment.has_event_effect("cleaning")
-                    and not self.sleeping):
+            if (
+                self._environment is not None
+                and self._environment.has_event_effect("cleaning")
+                and not self.sleeping
+            ):
                 self.mood_score = min(100.0, self.mood_score + 0.05)
 
             # 7. 决策与行为（非睡眠时）
@@ -608,7 +694,11 @@ class DigitalLifeForm(threading.Thread):
                 # commit 29：大雨/雷暴/极低温 → 全员缩室内（强制 REST，除非在室内 zone）
                 if env_modifier["force_indoor"]:
                     # 强制休息（除非在室内 zone）
-                    indoor_zones = ("deer", "butterfly", "beaver")  # 大厅/花房/水坝机房算室内
+                    indoor_zones = (
+                        "deer",
+                        "butterfly",
+                        "beaver",
+                    )  # 大厅/花房/水坝机房算室内
                     if self.current_zone_id not in indoor_zones:
                         self.current_action = ActionState.REST
                         self._perform_action()
@@ -619,10 +709,14 @@ class DigitalLifeForm(threading.Thread):
                             self.current_action = self._decide_action()
                             self._perform_action()
                         else:
-                            anim = (self.current_behavior_cfg or {}).get("animation", "idle")
+                            anim = (self.current_behavior_cfg or {}).get(
+                                "animation", "idle"
+                            )
                             self.current_action = {
-                                "idle": ActionState.REST, "walk": ActionState.EXPLORE,
-                                "work": ActionState.WORK, "react": ActionState.SOCIALIZE,
+                                "idle": ActionState.REST,
+                                "walk": ActionState.EXPLORE,
+                                "work": ActionState.WORK,
+                                "react": ActionState.SOCIALIZE,
                             }.get(anim, ActionState.REST)
                             self._perform_action()
                 else:
@@ -634,7 +728,9 @@ class DigitalLifeForm(threading.Thread):
                         self._perform_action()
                     else:
                         # 特有行为进行中：动画帧映射到 ActionState，仍执行 _perform_action
-                        anim = (self.current_behavior_cfg or {}).get("animation", "idle")
+                        anim = (self.current_behavior_cfg or {}).get(
+                            "animation", "idle"
+                        )
                         self.current_action = {
                             "idle": ActionState.REST,
                             "walk": ActionState.EXPLORE,
@@ -708,8 +804,12 @@ class DigitalLifeForm(threading.Thread):
                 "force_indoor": bool,         # 是否强制室内（大雨/极低温）
             }
         """
-        m = {"energy_cost_mult": 1.0, "zone_recover_mult": 1.0,
-             "cold_drain": 0.0, "force_indoor": False}
+        m = {
+            "energy_cost_mult": 1.0,
+            "zone_recover_mult": 1.0,
+            "cold_drain": 0.0,
+            "force_indoor": False,
+        }
         if self._environment is None:
             return m
         # 天气影响
@@ -720,10 +820,11 @@ class DigitalLifeForm(threading.Thread):
             m["force_indoor"] = True
         # 微气候 zone 修正
         zone_mult = self._environment.species_zone_modifier(
-            self.species, self.current_zone_id)
+            self.species, self.current_zone_id
+        )
         m["zone_recover_mult"] = zone_mult
         # 雪原寒冷消耗：非 hare 物种在 hare zone 停留会掉能量
-        if (self.current_zone_id == "hare" and self.species != "hare"):
+        if self.current_zone_id == "hare" and self.species != "hare":
             m["cold_drain"] = 0.5  # 每秒额外消耗 0.5（每小时 1800）
         return m
 
@@ -736,7 +837,8 @@ class DigitalLifeForm(threading.Thread):
         is_outdoor = self.current_zone_id not in indoor_zones
         try:
             self._environment.record_zone_stay(
-                self.current_zone_id, 30.0, is_outdoor, self.species)
+                self.current_zone_id, 30.0, is_outdoor, self.species
+            )
         except Exception:
             pass
 
@@ -757,11 +859,14 @@ class DigitalLifeForm(threading.Thread):
             return
         # 找同 zone 的同事
         with self._environment._lock:
-            others = [lf for lf in self._environment.population
-                      if lf is not self
-                      and getattr(lf, "_alive", False)
-                      and not getattr(lf, "sleeping", False)
-                      and getattr(lf, "current_zone_id", "") == self.current_zone_id]
+            others = [
+                lf
+                for lf in self._environment.population
+                if lf is not self
+                and getattr(lf, "_alive", False)
+                and not getattr(lf, "sleeping", False)
+                and getattr(lf, "current_zone_id", "") == self.current_zone_id
+            ]
         if not others:
             return
         # 1. 打招呼（1% 概率，与随机一位同事）
@@ -773,7 +878,8 @@ class DigitalLifeForm(threading.Thread):
                 self.mood_score = min(100.0, self.mood_score + 0.3)
                 # commit 29：亲近对额外加成
                 is_affinity = self._environment.species_affinity(
-                    self.species, target.species)
+                    self.species, target.species
+                )
                 if is_affinity:
                     self.mood_score = min(100.0, self.mood_score + 0.5)
                     with target._lock:
@@ -782,17 +888,30 @@ class DigitalLifeForm(threading.Thread):
                 self._environment.record_interaction(self.species, target.species)
                 # 不同物种打招呼方式不同
                 greet_map = {
-                    "deer": "点头", "squirrel": "摇尾", "raven": "鸣叫",
-                    "fox": "招手", "butterfly": "振翅", "hedgehog": "竖刺",
-                    "beaver": "拍水", "hare": "蹬腿", "badger": "嗅鼻",
-                    "lark": "啁啾", "kite": "盘旋",
+                    "deer": "点头",
+                    "squirrel": "摇尾",
+                    "raven": "鸣叫",
+                    "fox": "招手",
+                    "butterfly": "振翅",
+                    "hedgehog": "竖刺",
+                    "beaver": "拍水",
+                    "hare": "蹬腿",
+                    "badger": "嗅鼻",
+                    "lark": "啁啾",
+                    "kite": "盘旋",
                 }
                 greet = greet_map.get(self.species, "点头")
-                self._environment.broadcast_event("social_greet", {
-                    "from": self._name_obj, "to": target._name_obj,
-                    "from_species": self.species, "to_species": target.species,
-                    "greet": greet, "affinity": is_affinity,
-                })
+                self._environment.broadcast_event(
+                    "social_greet",
+                    {
+                        "from": self._name_obj,
+                        "to": target._name_obj,
+                        "from_species": self.species,
+                        "to_species": target.species,
+                        "greet": greet,
+                        "affinity": is_affinity,
+                    },
+                )
             except Exception:
                 pass
         # 2. 共餐（自己正在吃 + 同事正在吃 → 共餐）
@@ -803,7 +922,9 @@ class DigitalLifeForm(threading.Thread):
                         with target._lock:
                             target.mood_score = min(100.0, target.mood_score + 0.3)
                         self.mood_score = min(100.0, self.mood_score + 0.3)
-                        self._environment.record_interaction(self.species, target.species)
+                        self._environment.record_interaction(
+                            self.species, target.species
+                        )
                     except Exception:
                         pass
                     break  # 一次只与一位共餐
@@ -817,12 +938,19 @@ class DigitalLifeForm(threading.Thread):
                             target.mood_score = min(100.0, target.mood_score + 1.0)
                         # 帮忙者也 +mood（互助的快乐）
                         self.mood_score = min(100.0, self.mood_score + 0.5)
-                        self._environment.record_interaction(self.species, target.species)
-                        self._environment.broadcast_event("social_help", {
-                            "helper": self._name_obj, "target": target._name_obj,
-                            "helper_species": self.species, "target_species": target.species,
-                            "behavior": tb,
-                        })
+                        self._environment.record_interaction(
+                            self.species, target.species
+                        )
+                        self._environment.broadcast_event(
+                            "social_help",
+                            {
+                                "helper": self._name_obj,
+                                "target": target._name_obj,
+                                "helper_species": self.species,
+                                "target_species": target.species,
+                                "behavior": tb,
+                            },
+                        )
                     except Exception:
                         pass
                 break
@@ -890,10 +1018,14 @@ class DigitalLifeForm(threading.Thread):
         # commit 30：mood_score 由 emotional_state 派生
         # = (joy + contentment - sadness - anxiety - loneliness + curiosity*0.5) 归一化到 0-100
         emo = self.emotional_state
-        raw = (emo.get("joy", 0.5) + emo.get("contentment", 0.5)
-               - emo.get("sadness", 0.1) - emo.get("anxiety", 0.2) * 0.7
-               - emo.get("loneliness", 0.3) * 0.5
-               + emo.get("curiosity", 0.5) * 0.3)
+        raw = (
+            emo.get("joy", 0.5)
+            + emo.get("contentment", 0.5)
+            - emo.get("sadness", 0.1)
+            - emo.get("anxiety", 0.2) * 0.7
+            - emo.get("loneliness", 0.3) * 0.5
+            + emo.get("curiosity", 0.5) * 0.3
+        )
         # raw 大约在 -0.6 ~ 2.3 之间，线性映射到 0-100
         mood_score = max(0.0, min(100.0, (raw + 0.6) / 2.9 * 100.0))
         self.mood_score = mood_score
@@ -955,11 +1087,15 @@ class DigitalLifeForm(threading.Thread):
                 if emo.get("anxiety", 0) > 0.5:
                     # 前 3 天焦虑高 → 终身 anxiety 基线 +0.1
                     emo["anxiety"] = min(1.0, emo["anxiety"] + 0.1)
-                    self._remember("童年烙印：适应期焦虑，终身基线 +0.1", importance="high")
+                    self._remember(
+                        "童年烙印：适应期焦虑，终身基线 +0.1", importance="high"
+                    )
                 elif emo.get("contentment", 0) > 0.6:
                     # 前 3 天满足高 → 终身 contentment 基线 +0.1
                     emo["contentment"] = min(1.0, emo["contentment"] + 0.1)
-                    self._remember("童年烙印：适应期温暖，终身基线 +0.1", importance="high")
+                    self._remember(
+                        "童年烙印：适应期温暖，终身基线 +0.1", importance="high"
+                    )
 
     def _tick_emotion_propagation(self) -> None:
         """commit 30：情感传播（每 5 秒调一次）。
@@ -973,11 +1109,14 @@ class DigitalLifeForm(threading.Thread):
         now = time.time()
         # 找同 zone 邻居
         with self._environment._lock:
-            neighbors = [lf for lf in self._environment.population
-                         if lf is not self
-                         and getattr(lf, "_alive", False)
-                         and not getattr(lf, "sleeping", False)
-                         and getattr(lf, "current_zone_id", "") == self.current_zone_id]
+            neighbors = [
+                lf
+                for lf in self._environment.population
+                if lf is not self
+                and getattr(lf, "_alive", False)
+                and not getattr(lf, "sleeping", False)
+                and getattr(lf, "current_zone_id", "") == self.current_zone_id
+            ]
         if not neighbors:
             # 清空传播记录
             self._propagation_partners.clear()
@@ -1011,10 +1150,12 @@ class DigitalLifeForm(threading.Thread):
                     with other._lock:
                         if other.emotional_state.get("sadness", 0) > 0.5:
                             other.emotional_state["sadness"] = max(
-                                0.0, other.emotional_state["sadness"] - 0.02)
+                                0.0, other.emotional_state["sadness"] - 0.02
+                            )
                             # 被安慰者 joy 略升
                             other.emotional_state["joy"] = min(
-                                1.0, other.emotional_state.get("joy", 0) + 0.01)
+                                1.0, other.emotional_state.get("joy", 0) + 0.01
+                            )
                 except Exception:
                     pass
         # 3. 渡鸦讲古（raven + 当前行为是 narrate_old_tales）→ 听众 contentment↑ anxiety↓
@@ -1023,9 +1164,11 @@ class DigitalLifeForm(threading.Thread):
                 try:
                     with other._lock:
                         other.emotional_state["contentment"] = min(
-                            1.0, other.emotional_state.get("contentment", 0) + 0.01)
+                            1.0, other.emotional_state.get("contentment", 0) + 0.01
+                        )
                         other.emotional_state["anxiety"] = max(
-                            0.0, other.emotional_state.get("anxiety", 0) - 0.01)
+                            0.0, other.emotional_state.get("anxiety", 0) - 0.01
+                        )
                 except Exception:
                     pass
         # 清理已离开的邻居记录
@@ -1075,22 +1218,23 @@ class DigitalLifeForm(threading.Thread):
             event_text = "完全无法满足"
         if event_text:
             snapshot = {k: round(v, 2) for k, v in emo.items()}
-            self._remember(
-                f"{event_text}（情感快照：{snapshot}）",
-                importance="high")
+            self._remember(f"{event_text}（情感快照：{snapshot}）", importance="high")
             self._emotion_memory_cooldown = now + 300  # 5 分钟冷却
             # commit 33：情感峰值 → 生成记忆碎片（仅 high 级别）
             if level == "high":
                 try:
                     from core.digital_life.memory_fragment import spawn_fragment
+
                     frag_type = f"emotion_peak_{emo_key}"
                     # 用 zone 哈希生成伪坐标（前端按 zone 中心+随机偏移渲染）
                     import hashlib
+
                     zone_id = self.current_zone_id or "outdoor"
                     hv = int(hashlib.md5(zone_id.encode()).hexdigest()[:8], 16)
                     spawn_fragment(
                         frag_type=frag_type,
-                        x=(hv % 100) * 0.5, y=((hv >> 8) % 100) * 0.5,
+                        x=(hv % 100) * 0.5,
+                        y=((hv >> 8) % 100) * 0.5,
                         zone_id=zone_id,
                         agent_name=self._name_obj,
                         agent_species=self.species,
@@ -1126,6 +1270,7 @@ class DigitalLifeForm(threading.Thread):
         # 生成独白
         try:
             from core.digital_life.dialogue_system import pick_monologue
+
             text = pick_monologue(self.species, self.emotional_state)
         except Exception:
             text = "……"
@@ -1133,7 +1278,8 @@ class DigitalLifeForm(threading.Thread):
         # 推送气泡（无 target，表示独白）
         if self._environment is not None:
             self._environment.push_dialogue_bubble(
-                self._name_obj, text, target="", duration=4.0)
+                self._name_obj, text, target="", duration=4.0
+            )
 
     # ------------------------------------------------------------------
     # commit 31：主动消息系统
@@ -1164,6 +1310,7 @@ class DigitalLifeForm(threading.Thread):
             return
         try:
             from core.digital_life.active_messaging import detect_and_trigger
+
             detect_and_trigger(self, router=self._get_router())
         except Exception:
             pass
@@ -1176,8 +1323,10 @@ class DigitalLifeForm(threading.Thread):
         """
         try:
             from core.digital_life.active_messaging import trigger_active_message
+
             trigger_active_message(
-                self, "work_done",
+                self,
+                "work_done",
                 detail=task_detail,
                 context=f"完成工作：{task_detail}",
                 router=self._get_router(),
@@ -1193,8 +1342,10 @@ class DigitalLifeForm(threading.Thread):
         """
         try:
             from core.digital_life.active_messaging import trigger_active_message
+
             trigger_active_message(
-                self, "share_discovery",
+                self,
+                "share_discovery",
                 detail=discovery,
                 context=f"分享发现：{discovery}",
                 router=self._get_router(),
@@ -1210,8 +1361,10 @@ class DigitalLifeForm(threading.Thread):
         """
         try:
             from core.digital_life.active_messaging import trigger_active_message
+
             trigger_active_message(
-                self, "crisis_alert",
+                self,
+                "crisis_alert",
                 detail=alert,
                 context=f"危机警报：{alert}",
                 router=self._get_router(),
@@ -1223,8 +1376,10 @@ class DigitalLifeForm(threading.Thread):
         """commit 31：老年设置退休愿望时主动告知监工。"""
         try:
             from core.digital_life.active_messaging import trigger_active_message
+
             trigger_active_message(
-                self, "retirement_wish",
+                self,
+                "retirement_wish",
                 detail=wish,
                 context=f"设置了退休愿望：{wish}",
                 router=self._get_router(),
@@ -1245,28 +1400,39 @@ class DigitalLifeForm(threading.Thread):
         if random.random() > 0.10:  # commit 30：10% 概率（让挚友/搭档更易达成）
             return
         with self._environment._lock:
-            same_zone = [lf for lf in self._environment.population
-                         if lf is not self
-                         and getattr(lf, "_alive", False)
-                         and not getattr(lf, "sleeping", False)
-                         and getattr(lf, "current_zone_id", "") == self.current_zone_id]
+            same_zone = [
+                lf
+                for lf in self._environment.population
+                if lf is not self
+                and getattr(lf, "_alive", False)
+                and not getattr(lf, "sleeping", False)
+                and getattr(lf, "current_zone_id", "") == self.current_zone_id
+            ]
             # commit 30：同 zone 没人时，按亲和对跨 zone 找（让 fox↔squirrel 等能对话）
             if not same_zone:
                 from core.digital_life.environment import SPECIES_AFFINITY
+
                 aff_species = SPECIES_AFFINITY.get(self.species, [])
-                same_zone = [lf for lf in self._environment.population
-                             if lf is not self
-                             and getattr(lf, "_alive", False)
-                             and not getattr(lf, "sleeping", False)
-                             and lf.species in aff_species]
+                same_zone = [
+                    lf
+                    for lf in self._environment.population
+                    if lf is not self
+                    and getattr(lf, "_alive", False)
+                    and not getattr(lf, "sleeping", False)
+                    and lf.species in aff_species
+                ]
         if not same_zone:
             return
         target = random.choice(same_zone)
         try:
             from core.digital_life.dialogue_system import pick_dialogue
-            result = pick_dialogue(self.species, target.species,
-                                   self.emotional_state,
-                                   self.relationships.get(target._name_obj))
+
+            result = pick_dialogue(
+                self.species,
+                target.species,
+                self.emotional_state,
+                self.relationships.get(target._name_obj),
+            )
             if not result:
                 return
             speaker_sp, text = result
@@ -1278,7 +1444,8 @@ class DigitalLifeForm(threading.Thread):
                 speaker_name = self._name_obj
                 listener_name = target._name_obj
             self._environment.push_dialogue_bubble(
-                speaker_name, text, target=listener_name, duration=3.5)
+                speaker_name, text, target=listener_name, duration=3.5
+            )
             # 对话也算一次轻社交：双方 affection 微增 + loneliness 衰减
             self._last_social_ts = time.time()
             try:
@@ -1288,16 +1455,19 @@ class DigitalLifeForm(threading.Thread):
                 pass
             # commit 30：社交闲聊按 spec 加 affection+0.03 / familiarity+0.05
             # 额外 trust +0.02（频繁接触建立信任，让挚友/搭档可达成）
-            self._bump_relationship(target._name_obj,
-                                    affection=0.03, familiarity=0.05, trust=0.02)
+            self._bump_relationship(
+                target._name_obj, affection=0.03, familiarity=0.05, trust=0.02
+            )
             try:
                 with target._lock:
-                    target._bump_relationship(self._name_obj,
-                                              affection=0.03, familiarity=0.05, trust=0.02)
+                    target._bump_relationship(
+                        self._name_obj, affection=0.03, familiarity=0.05, trust=0.02
+                    )
             except Exception:
                 pass
             self.emotional_state["loneliness"] = max(
-                0.0, self.emotional_state.get("loneliness", 0) - 0.05)
+                0.0, self.emotional_state.get("loneliness", 0) - 0.05
+            )
         except Exception:
             pass
 
@@ -1328,8 +1498,7 @@ class DigitalLifeForm(threading.Thread):
                 diff = other.mood_score - self.mood_score
                 if abs(diff) >= 1:
                     step = 1.0 if diff > 0 else -1.0
-                    self.mood_score = max(0.0, min(100.0,
-                        self.mood_score + step))
+                    self.mood_score = max(0.0, min(100.0, self.mood_score + step))
         except Exception:
             pass
 
@@ -1343,8 +1512,7 @@ class DigitalLifeForm(threading.Thread):
         for req_age, skill_name in self.SKILL_TREE:
             if age_days >= req_age and skill_name not in self.skills:
                 self.skills.append(skill_name)
-                self._remember(
-                    f"解锁技能：{skill_name}", importance="high")
+                self._remember(f"解锁技能：{skill_name}", importance="high")
 
     # ------------------------------------------------------------------
     # commit 30：关系网络深化
@@ -1359,10 +1527,15 @@ class DigitalLifeForm(threading.Thread):
         """
         if not other_id:
             return
-        rel = self.relationships.setdefault(other_id, {
-            "affection": 0.5, "trust": 0.4,
-            "respect": 0.6, "familiarity": 0.3,
-        })
+        rel = self.relationships.setdefault(
+            other_id,
+            {
+                "affection": 0.5,
+                "trust": 0.4,
+                "respect": 0.6,
+                "familiarity": 0.3,
+            },
+        )
         for k, v in deltas.items():
             if k in rel:
                 rel[k] = max(0.0, min(1.0, rel[k] + v))
@@ -1394,18 +1567,21 @@ class DigitalLifeForm(threading.Thread):
                 }.get(tag, "relationship_change")
                 if self._environment is not None:
                     self._environment.record_relationship_event(
-                        event_type, self._name_obj, other_id,
-                        extra={"tag": tag})
+                        event_type, self._name_obj, other_id, extra={"tag": tag}
+                    )
                 self._remember(
-                    f"与 {other_id} 的关系新增标签：{tag}", importance="high")
+                    f"与 {other_id} 的关系新增标签：{tag}", importance="high"
+                )
                 # commit 31：关系里程碑 → 主动告知监工
                 if tag in ("挚友", "搭档"):
                     try:
                         from core.digital_life.active_messaging import (
                             trigger_active_message,
                         )
+
                         trigger_active_message(
-                            self, "relationship_milestone",
+                            self,
+                            "relationship_milestone",
                             detail=f"{other_id}（{tag}）",
                             context=f"与 {other_id} 达成 {tag} 关系",
                             router=self._get_router(),
@@ -1417,12 +1593,18 @@ class DigitalLifeForm(threading.Thread):
                     import hashlib
 
                     from core.digital_life.memory_fragment import spawn_fragment
+
                     zone_id = self.current_zone_id or "outdoor"
-                    hv = int(hashlib.md5(
-                        (zone_id + self._name_obj).encode()).hexdigest()[:8], 16)
+                    hv = int(
+                        hashlib.md5((zone_id + self._name_obj).encode()).hexdigest()[
+                            :8
+                        ],
+                        16,
+                    )
                     spawn_fragment(
                         frag_type="friendship",
-                        x=(hv % 100) * 0.5, y=((hv >> 8) % 100) * 0.5,
+                        x=(hv % 100) * 0.5,
+                        y=((hv >> 8) % 100) * 0.5,
                         zone_id=zone_id,
                         agent_name=self._name_obj,
                         agent_species=self.species,
@@ -1475,32 +1657,43 @@ class DigitalLifeForm(threading.Thread):
         if not self.retirement_wish:
             try:
                 from core.digital_life.dialogue_system import get_retirement_wish
+
                 self.retirement_wish = get_retirement_wish(self.species)
                 self._remember(
-                    f"产生了退休愿望：{self.retirement_wish}", importance="high")
+                    f"产生了退休愿望：{self.retirement_wish}", importance="high"
+                )
                 if self._environment is not None:
-                    self._environment.broadcast_event("retirement_wish_set", {
-                        "name": self._name_obj, "species": self.species,
-                        "wish": self.retirement_wish,
-                    })
+                    self._environment.broadcast_event(
+                        "retirement_wish_set",
+                        {
+                            "name": self._name_obj,
+                            "species": self.species,
+                            "wish": self.retirement_wish,
+                        },
+                    )
                 # commit 31：主动告知监工自己的退休愿望
                 self._on_retirement_wish_set(self.retirement_wish)
             except Exception:
                 pass
         # 简化实现判定：老年 + contentment > 0.9 + 在自己 zone
-        if (not self.wish_fulfilled
-                and self.retirement_wish
-                and self.emotional_state.get("contentment", 0) > 0.9
-                and self.current_zone_id == self.species):
+        if (
+            not self.wish_fulfilled
+            and self.retirement_wish
+            and self.emotional_state.get("contentment", 0) > 0.9
+            and self.current_zone_id == self.species
+        ):
             self.wish_fulfilled = True
             self.emotional_state["contentment"] = 1.0
-            self._remember(
-                f"退休愿望实现：{self.retirement_wish}", importance="high")
+            self._remember(f"退休愿望实现：{self.retirement_wish}", importance="high")
             if self._environment is not None:
-                self._environment.broadcast_event("wish_fulfilled", {
-                    "name": self._name_obj, "species": self.species,
-                    "wish": self.retirement_wish,
-                })
+                self._environment.broadcast_event(
+                    "wish_fulfilled",
+                    {
+                        "name": self._name_obj,
+                        "species": self.species,
+                        "wish": self.retirement_wish,
+                    },
+                )
 
     def _check_anniversary(self) -> None:
         """commit 30：入职周年检查（每 60 秒调一次）。
@@ -1522,26 +1715,36 @@ class DigitalLifeForm(threading.Thread):
                 # joy 锁定 0.8（强制提升）
                 self.emotional_state["joy"] = max(0.8, self.emotional_state["joy"])
                 self.emotional_state["contentment"] = min(
-                    1.0, self.emotional_state["contentment"] + 0.1)
+                    1.0, self.emotional_state["contentment"] + 0.1
+                )
                 self._remember(
-                    f"入职 {now.year - hire_dt.year} 周年纪念日",
-                    importance="high")
-                self._environment.broadcast_event("anniversary", {
-                    "name": self._name_obj, "species": self.species,
-                    "years": now.year - hire_dt.year,
-                })
+                    f"入职 {now.year - hire_dt.year} 周年纪念日", importance="high"
+                )
+                self._environment.broadcast_event(
+                    "anniversary",
+                    {
+                        "name": self._name_obj,
+                        "species": self.species,
+                        "years": now.year - hire_dt.year,
+                    },
+                )
                 # commit 33：周年里程碑 → 生成 milestone 碎片
                 try:
                     import hashlib
 
                     from core.digital_life.memory_fragment import spawn_fragment
+
                     zone_id = self.current_zone_id or "outdoor"
-                    hv = int(hashlib.md5(
-                        (zone_id + self._name_obj + "anniv").encode()
-                    ).hexdigest()[:8], 16)
+                    hv = int(
+                        hashlib.md5(
+                            (zone_id + self._name_obj + "anniv").encode()
+                        ).hexdigest()[:8],
+                        16,
+                    )
                     spawn_fragment(
                         frag_type="milestone",
-                        x=(hv % 100) * 0.5, y=((hv >> 8) % 100) * 0.5,
+                        x=(hv % 100) * 0.5,
+                        y=((hv >> 8) % 100) * 0.5,
                         zone_id=zone_id,
                         agent_name=self._name_obj,
                         agent_species=self.species,
@@ -1551,14 +1754,15 @@ class DigitalLifeForm(threading.Thread):
                     pass
                 # 周年当天周围同事 affection +0.05
                 with self._environment._lock:
-                    peers = [lf for lf in self._environment.population
-                             if lf is not self
-                             and getattr(lf, "_alive", False)]
+                    peers = [
+                        lf
+                        for lf in self._environment.population
+                        if lf is not self and getattr(lf, "_alive", False)
+                    ]
                 for p in peers:
                     try:
                         with p._lock:
-                            p._bump_relationship(
-                                self._name_obj, affection=0.05)
+                            p._bump_relationship(self._name_obj, affection=0.05)
                     except Exception:
                         pass
         except Exception:
@@ -1577,12 +1781,12 @@ class DigitalLifeForm(threading.Thread):
         if "witness_death" not in self.trauma_events:
             self.trauma_events.append("witness_death")
         self.emotional_state["anxiety"] = min(
-            1.0, self.emotional_state["anxiety"] + 0.15)
+            1.0, self.emotional_state["anxiety"] + 0.15
+        )
         self.emotional_state["sadness"] = min(
-            1.0, self.emotional_state["sadness"] + 0.2)
-        self._remember(
-            f"目击 {deceased_name} 的死亡，留下心理创伤",
-            importance="high")
+            1.0, self.emotional_state["sadness"] + 0.2
+        )
+        self._remember(f"目击 {deceased_name} 的死亡，留下心理创伤", importance="high")
 
     # ------------------------------------------------------------------
     # commit 28：行为池系统
@@ -1602,7 +1806,10 @@ class DigitalLifeForm(threading.Thread):
             # 紧急需求中断
             if self.hunger > 80 or self.energy < 10:
                 self._end_behavior("interrupted")
-            elif self.current_behavior_end is not None and time.time() >= self.current_behavior_end:
+            elif (
+                self.current_behavior_end is not None
+                and time.time() >= self.current_behavior_end
+            ):
                 self._end_behavior("finished")
             else:
                 # 持续中：调用子类钩子
@@ -1610,15 +1817,21 @@ class DigitalLifeForm(threading.Thread):
             return
 
         # 2. 没有行为 → 仅在 REST/EXPLORE/SOCIALIZE 时考虑（不打断 WORK/EAT/SLEEP）
-        if self.current_action not in (ActionState.REST, ActionState.EXPLORE, ActionState.SOCIALIZE):
+        if self.current_action not in (
+            ActionState.REST,
+            ActionState.EXPLORE,
+            ActionState.SOCIALIZE,
+        ):
             return
 
         # 3. 检查是否被同 zone 渡鸦讲古吸引（渡鸦自己跳过）
         if self.species != "raven" and self._check_listening_to_raven():
             self.current_behavior = "listening"
             self.current_behavior_cfg = {
-                "name": "listening", "label": "聆听渡鸦讲古",
-                "animation": "idle", "particles": "listen_bubble",
+                "name": "listening",
+                "label": "聆听渡鸦讲古",
+                "animation": "idle",
+                "particles": "listen_bubble",
             }
             self.current_behavior_end = time.time() + 30
             return
@@ -1673,7 +1886,10 @@ class DigitalLifeForm(threading.Thread):
             return False
         # 季节
         if "season" in cond:
-            if self._environment is None or self._environment.current_season() != cond["season"]:
+            if (
+                self._environment is None
+                or self._environment.current_season() != cond["season"]
+            ):
                 return False
         # 最小年龄
         if "min_age_days" in cond and self.age < cond["min_age_days"]:
@@ -1703,17 +1919,22 @@ class DigitalLifeForm(threading.Thread):
             pass
         # 广播事件给前端
         if self._environment is not None:
-            self._environment.broadcast_event("behavior_start", {
-                "name": self._name_obj,
-                "species": self.species,
-                "behavior": cfg["name"],
-                "label": cfg.get("label", cfg["name"]),
-                "animation": cfg.get("animation", "idle"),
-                "particles": cfg.get("particles", ""),
-                "zone_id": self.current_zone_id,
-                "duration_sec": cfg.get("duration_sec", 60),
-            })
-        self._remember(f"开始行为：{cfg.get('label', cfg['name'])}", importance="normal")
+            self._environment.broadcast_event(
+                "behavior_start",
+                {
+                    "name": self._name_obj,
+                    "species": self.species,
+                    "behavior": cfg["name"],
+                    "label": cfg.get("label", cfg["name"]),
+                    "animation": cfg.get("animation", "idle"),
+                    "particles": cfg.get("particles", ""),
+                    "zone_id": self.current_zone_id,
+                    "duration_sec": cfg.get("duration_sec", 60),
+                },
+            )
+        self._remember(
+            f"开始行为：{cfg.get('label', cfg['name'])}", importance="normal"
+        )
 
     def _end_behavior(self, reason: str = "finished") -> None:
         """结束当前行为：清状态、广播事件、调子类钩子。"""
@@ -1729,15 +1950,19 @@ class DigitalLifeForm(threading.Thread):
         except Exception:
             pass
         if self._environment is not None:
-            self._environment.broadcast_event("behavior_end", {
-                "name": self._name_obj,
-                "species": self.species,
-                "behavior": bname,
-                "reason": reason,
-                "zone_id": self.current_zone_id,
-            })
+            self._environment.broadcast_event(
+                "behavior_end",
+                {
+                    "name": self._name_obj,
+                    "species": self.species,
+                    "behavior": bname,
+                    "reason": reason,
+                    "zone_id": self.current_zone_id,
+                },
+            )
         self._remember(
-            f"结束行为：{cfg.get('label', bname)}（{reason}）", importance="normal")
+            f"结束行为：{cfg.get('label', bname)}（{reason}）", importance="normal"
+        )
         self.current_behavior = None
         self.current_behavior_cfg = None
         self.current_behavior_end = None
@@ -1775,9 +2000,11 @@ class DigitalLifeForm(threading.Thread):
         if self.hunger > 60 and self._environment is not None:
             return ActionState.EAT
         # 成年且有能量才工作
-        if (self.life_stage in (LifeStage.ADULT, LifeStage.MIDDLE)
-                and self.energy > 30
-                and random.random() < 0.7):
+        if (
+            self.life_stage in (LifeStage.ADULT, LifeStage.MIDDLE)
+            and self.energy > 30
+            and random.random() < 0.7
+        ):
             return ActionState.WORK
         if random.random() < 0.1:
             return ActionState.SOCIALIZE
@@ -1841,11 +2068,13 @@ class DigitalLifeForm(threading.Thread):
                     status = "完成" if r.get("ok") else "失败"
                     self._remember(
                         f"执行流水线任务 step{r.get('step_id')} {status}："
-                        f"{r.get('task', '')[:60]}")
+                        f"{r.get('task', '')[:60]}"
+                    )
                     # 工作完成触发器
                     try:
                         self._on_work_done(
-                            f"流水线 step{r.get('step_id')}：{r.get('task', '')[:40]}")
+                            f"流水线 step{r.get('step_id')}：{r.get('task', '')[:40]}"
+                        )
                     except Exception:
                         pass
             except Exception:
@@ -1918,11 +2147,14 @@ class DigitalLifeForm(threading.Thread):
             partner.energy -= 20
 
             if self._environment is not None:
-                self._environment.broadcast_event("reproduction", {
-                    "species": self.species,
-                    "parents": [self._name_obj, partner._name_obj],
-                    "child": child._name_obj,
-                })
+                self._environment.broadcast_event(
+                    "reproduction",
+                    {
+                        "species": self.species,
+                        "parents": [self._name_obj, partner._name_obj],
+                        "child": child._name_obj,
+                    },
+                )
             self._remember(f"与 {partner._name_obj} 繁殖出 {child._name_obj}")
             return child
 
@@ -1949,7 +2181,9 @@ class DigitalLifeForm(threading.Thread):
             child_genome[k] = val
         return child_genome
 
-    def _create_child(self, genome: dict, environment, birth_time: float) -> DigitalLifeForm:
+    def _create_child(
+        self, genome: dict, environment, birth_time: float
+    ) -> DigitalLifeForm:
         """繁殖时构造子代（子类必须覆盖）。"""
         raise NotImplementedError(f"{self.species} 未实现 _create_child")
 
@@ -1965,9 +2199,13 @@ class DigitalLifeForm(threading.Thread):
     # commit 37：Agent 工具链 + 流水线任务接收
     # ------------------------------------------------------------------
 
-    def execute_tool(self, tool_name: str, params: dict,
-                     need_approval: bool | None = None,
-                     timeout: float = 30.0) -> dict:
+    def execute_tool(
+        self,
+        tool_name: str,
+        params: dict,
+        need_approval: bool | None = None,
+        timeout: float = 30.0,
+    ) -> dict:
         """执行一个工具调用（沙箱内）。
 
         零基础理解：智能体想"真正干一件事"（比如写代码、扫描漏洞），
@@ -1984,6 +2222,7 @@ class DigitalLifeForm(threading.Thread):
         """
         try:
             from core.digital_life.tool_executor import get_tool_executor
+
             self._tool_call_status = "running"
             self._tool_call_meta = {
                 "tool_name": tool_name,
@@ -1991,8 +2230,11 @@ class DigitalLifeForm(threading.Thread):
             }
             executor = get_tool_executor()
             result = executor.execute(
-                self, tool_name, params,
-                need_approval=need_approval, timeout=timeout,
+                self,
+                tool_name,
+                params,
+                need_approval=need_approval,
+                timeout=timeout,
             )
             self._tool_call_status = "done" if result.ok else "error"
             self._tool_call_meta["last_done_ts"] = time.time()
@@ -2000,10 +2242,16 @@ class DigitalLifeForm(threading.Thread):
         except Exception as e:
             self._tool_call_status = "error"
             self._tool_call_meta["last_done_ts"] = time.time()
-            return {"ok": False, "error": f"execute_tool 异常: {e}",
-                    "output": None, "duration_ms": 0,
-                    "stdout": "", "stderr": "",
-                    "tool_name": tool_name, "agent_id": self.get_agent_id()}
+            return {
+                "ok": False,
+                "error": f"execute_tool 异常: {e}",
+                "output": None,
+                "duration_ms": 0,
+                "stdout": "",
+                "stderr": "",
+                "tool_name": tool_name,
+                "agent_id": self.get_agent_id(),
+            }
 
     def receive_pipeline_task(self, task: dict) -> None:
         """接收一个流水线任务（来自 PipelineEngine）。
@@ -2038,24 +2286,29 @@ class DigitalLifeForm(threading.Thread):
                 from core.digital_life.agent_function_calling import (
                     dispatch_task_to_agent,
                 )
+
                 self._tool_call_status = "running"
                 r = dispatch_task_to_agent(self, task_text)
-                results.append({
-                    "step_id": task.get("step_id"),
-                    "task": task_text,
-                    "ok": r.get("ok", False),
-                    "answer": r.get("answer", ""),
-                    "tool_calls": r.get("tool_calls", []),
-                })
+                results.append(
+                    {
+                        "step_id": task.get("step_id"),
+                        "task": task_text,
+                        "ok": r.get("ok", False),
+                        "answer": r.get("answer", ""),
+                        "tool_calls": r.get("tool_calls", []),
+                    }
+                )
                 self._tool_call_status = "done" if r.get("ok") else "error"
             except Exception as e:
-                results.append({
-                    "step_id": task.get("step_id"),
-                    "task": task_text,
-                    "ok": False,
-                    "answer": f"执行异常: {e}",
-                    "tool_calls": [],
-                })
+                results.append(
+                    {
+                        "step_id": task.get("step_id"),
+                        "task": task_text,
+                        "ok": False,
+                        "answer": f"执行异常: {e}",
+                        "tool_calls": [],
+                    }
+                )
                 self._tool_call_status = "error"
         return results
 
@@ -2153,8 +2406,10 @@ class DigitalLifeForm(threading.Thread):
         exp_count = 0
         try:
             from core.digital_life.experience_library import get_experience_library
+
             exps = get_experience_library().search_by_task(
-                task, agent_species=self.species, limit=10)
+                task, agent_species=self.species, limit=10
+            )
             exp_count = len(exps)
             if exp_count > 0:
                 special_notes_parts.append(f"有 {exp_count} 条相关经验")
@@ -2176,11 +2431,19 @@ class DigitalLifeForm(threading.Thread):
                 "pending_count": pending_count,
             },
             "relevant_experience_count": exp_count,
-            "special_notes": "；".join(special_notes_parts) if special_notes_parts else "",
+            "special_notes": (
+                "；".join(special_notes_parts) if special_notes_parts else ""
+            ),
         }
 
-    def retrospect(self, task: str, tool_calls: list, ok: bool,
-                   duration_sec: float, experience_adopted: list) -> dict:
+    def retrospect(
+        self,
+        task: str,
+        tool_calls: list,
+        ok: bool,
+        duration_sec: float,
+        experience_adopted: list,
+    ) -> dict:
         """任务完成后触发复盘。
 
         零基础理解：智能体做完一件事后，回头想想——做得怎么样？
@@ -2193,6 +2456,7 @@ class DigitalLifeForm(threading.Thread):
         """
         try:
             from core.digital_life import retrospect as retro_mod
+
             router = None
             try:
                 env = getattr(self, "_environment", None)
@@ -2212,11 +2476,15 @@ class DigitalLifeForm(threading.Thread):
             )
         except Exception as e:
             return {
-                "ok": False, "error": f"retrospect 异常: {e}",
-                "lesson": "", "summary": "", "improvement": "",
+                "ok": False,
+                "error": f"retrospect 异常: {e}",
+                "lesson": "",
+                "summary": "",
+                "improvement": "",
                 "agent_species": self.species,
                 "agent_name": self._name_obj,
-                "task": task, "duration_sec": duration_sec,
+                "task": task,
+                "duration_sec": duration_sec,
             }
 
     # ------------------------------------------------------------------
@@ -2292,6 +2560,7 @@ class DigitalLifeForm(threading.Thread):
         if router is not None:
             try:
                 import asyncio
+
                 prompt = (
                     f"你是 BlueDeer 森林公司的员工「{self._name_obj}」"
                     f"（物种：{self.species}，非正式角色：{roles or '无'}）。\n"
@@ -2312,15 +2581,15 @@ class DigitalLifeForm(threading.Thread):
                 for line in raw_text.split("\n"):
                     s = line.strip()
                     if s.startswith("YESTERDAY:"):
-                        v = s[len("YESTERDAY:"):].strip()
+                        v = s[len("YESTERDAY:") :].strip()
                         if v:
                             yesterday = v
                     elif s.startswith("TODAY:"):
-                        v = s[len("TODAY:"):].strip()
+                        v = s[len("TODAY:") :].strip()
                         if v:
                             today = v
                     elif s.startswith("BLOCKERS:"):
-                        v = s[len("BLOCKERS:"):].strip()
+                        v = s[len("BLOCKERS:") :].strip()
                         if v and v not in ("无", "无。", "None"):
                             blockers = v
             except Exception:
@@ -2349,6 +2618,7 @@ class DigitalLifeForm(threading.Thread):
         if self.persistent_memory_ref is None:
             try:
                 from core.digital_life.persistent_memory import get_memory_manager
+
                 self.persistent_memory_ref = get_memory_manager().get_or_create(
                     self.get_agent_id(),
                     agent_name=self._name_obj,
@@ -2368,6 +2638,7 @@ class DigitalLifeForm(threading.Thread):
         """
         try:
             from core.digital_life.illness_system import get_illness_system
+
             return get_illness_system().assign_caregiver(patient, self)
         except Exception as e:
             return {"ok": False, "reason": str(e)}
@@ -2391,6 +2662,7 @@ class DigitalLifeForm(threading.Thread):
             from core.digital_life.autobiographical_memory import (
                 get_autobiography_manager,
             )
+
             return get_autobiography_manager().get_or_create(
                 self.get_agent_id(),
                 agent_name=self._name_obj,
@@ -2421,6 +2693,7 @@ class DigitalLifeForm(threading.Thread):
         if self._artifact_ref is None:
             try:
                 from core.digital_life.work_artifacts import get_artifacts_manager
+
                 self._artifact_ref = get_artifacts_manager().get_or_create(
                     self.get_agent_id(),
                     agent_name=self._name_obj,
@@ -2471,28 +2744,35 @@ class DigitalLifeForm(threading.Thread):
             else:
                 self._remember(
                     f"离世时仍有未竟之愿：{self.retirement_wish or '（无）'}",
-                    importance="high")
+                    importance="high",
+                )
             if self._environment is not None:
                 self._environment.unregister(self)
-                self._environment.death_log.append({
-                    "time": time.time(),
-                    "species": self.species,
-                    "name": self._name_obj,
-                    "reason": reason,
-                    "age_days": self.age,
-                    "zone_id": self.current_zone_id,  # commit 11：遗物标记用
-                    "gender": self.gender,
-                })
-                self._environment.broadcast_event("death", {
-                    "species": self.species,
-                    "name": self._name_obj,
-                    "reason": reason,
-                    "zone_id": self.current_zone_id,
-                    "wish_fulfilled": self.wish_fulfilled,
-                })
+                self._environment.death_log.append(
+                    {
+                        "time": time.time(),
+                        "species": self.species,
+                        "name": self._name_obj,
+                        "reason": reason,
+                        "age_days": self.age,
+                        "zone_id": self.current_zone_id,  # commit 11：遗物标记用
+                        "gender": self.gender,
+                    }
+                )
+                self._environment.broadcast_event(
+                    "death",
+                    {
+                        "species": self.species,
+                        "name": self._name_obj,
+                        "reason": reason,
+                        "zone_id": self.current_zone_id,
+                        "wish_fulfilled": self.wish_fulfilled,
+                    },
+                )
                 # commit 30：记录遗物
                 try:
                     from core.digital_life.dialogue_system import get_relic_def
+
                     relic_def = get_relic_def(self.species)
                     self._environment.record_relic(self, relic_def)
                 except Exception:
@@ -2500,10 +2780,14 @@ class DigitalLifeForm(threading.Thread):
                 # commit 30：通知同 zone 邻居目击死亡
                 try:
                     with self._environment._lock:
-                        witnesses = [lf for lf in self._environment.population
-                                     if lf is not self
-                                     and getattr(lf, "_alive", False)
-                                     and getattr(lf, "current_zone_id", "") == self.current_zone_id]
+                        witnesses = [
+                            lf
+                            for lf in self._environment.population
+                            if lf is not self
+                            and getattr(lf, "_alive", False)
+                            and getattr(lf, "current_zone_id", "")
+                            == self.current_zone_id
+                        ]
                     for w in witnesses:
                         try:
                             with w._lock:
@@ -2532,8 +2816,10 @@ class DigitalLifeForm(threading.Thread):
                         from core.digital_life.active_messaging import (
                             trigger_active_message,
                         )
+
                         trigger_active_message(
-                            notifier, "death_notice",
+                            notifier,
+                            "death_notice",
                             detail=self._name_obj,
                             context=f"同事 {self._name_obj}（{self.species}）因 {reason} 离世",
                             router=self._get_router(),
@@ -2545,13 +2831,18 @@ class DigitalLifeForm(threading.Thread):
                 import hashlib
 
                 from core.digital_life.memory_fragment import spawn_fragment
+
                 zone_id = self.current_zone_id or "outdoor"
-                hv = int(hashlib.md5(
-                    (zone_id + self._name_obj + "death").encode()
-                ).hexdigest()[:8], 16)
+                hv = int(
+                    hashlib.md5(
+                        (zone_id + self._name_obj + "death").encode()
+                    ).hexdigest()[:8],
+                    16,
+                )
                 spawn_fragment(
                     frag_type="death_relic",
-                    x=(hv % 100) * 0.5, y=((hv >> 8) % 100) * 0.5,
+                    x=(hv % 100) * 0.5,
+                    y=((hv >> 8) % 100) * 0.5,
                     zone_id=zone_id,
                     agent_name=self._name_obj,
                     agent_species=self.species,
@@ -2623,14 +2914,25 @@ class DigitalLifeForm(threading.Thread):
                 "skills": list(self.skills),
                 # commit 28：当前特有行为
                 "current_behavior": self.current_behavior,
-                "current_behavior_label":
-                    (self.current_behavior_cfg or {}).get("label", "") if self.current_behavior else "",
-                "behavior_particles":
-                    (self.current_behavior_cfg or {}).get("particles", "") if self.current_behavior else "",
+                "current_behavior_label": (
+                    (self.current_behavior_cfg or {}).get("label", "")
+                    if self.current_behavior
+                    else ""
+                ),
+                "behavior_particles": (
+                    (self.current_behavior_cfg or {}).get("particles", "")
+                    if self.current_behavior
+                    else ""
+                ),
                 # commit 30：情感与记忆系统
-                "emotional_state": {k: round(v, 2) for k, v in self.emotional_state.items()},
-                "top_emotion": max(self.emotional_state.items(),
-                                   key=lambda x: x[1])[0] if self.emotional_state else "neutral",
+                "emotional_state": {
+                    k: round(v, 2) for k, v in self.emotional_state.items()
+                },
+                "top_emotion": (
+                    max(self.emotional_state.items(), key=lambda x: x[1])[0]
+                    if self.emotional_state
+                    else "neutral"
+                ),
                 "wisdom": round(self.wisdom, 1),
                 "trauma_events": list(self.trauma_events),
                 "retirement_wish": self.retirement_wish,
@@ -2718,8 +3020,7 @@ class DigitalLifeForm(threading.Thread):
                 return {"ok": False, "reason": "已故"}
             self.genome["bedtime"] = bedtime
             self.genome["wakeup_time"] = wakeup
-            self._remember(
-                f"监工调整作息：{bedtime}→{wakeup}", importance="high")
+            self._remember(f"监工调整作息：{bedtime}→{wakeup}", importance="high")
             # commit 31：更新与监工互动时间戳
             self._last_supervisor_interact_ts = time.time()
             return {"ok": True, "bedtime": bedtime, "wakeup": wakeup}
@@ -2779,8 +3080,7 @@ class DigitalLifeForm(threading.Thread):
             if self.sleeping:
                 return {"ok": False, "reason": "睡眠中"}
             self.resting_until = time.time() + duration_sec
-            self._remember(
-                f"被派去觅食（{duration_sec:.0f}秒）", importance="normal")
+            self._remember(f"被派去觅食（{duration_sec:.0f}秒）", importance="normal")
             return {"ok": True, "resting_until": self.resting_until}
 
     def tick_fondness_decay(self) -> None:

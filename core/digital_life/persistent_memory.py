@@ -8,6 +8,7 @@
 
 文件存储路径：data/memory/{agent_id}_core.json 和 _long.json
 """
+
 from __future__ import annotations
 
 import datetime
@@ -22,20 +23,22 @@ import time
 
 MEMORY_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "data", "memory",
+    "data",
+    "memory",
 )
 
-SHORT_TERM_MAX = 50              # 短期记忆最多保留 50 条原文
-LONG_TERM_RECENT_DAYS = 30       # 启动时加载最近 30 天长期记忆
-MONTHLY_MERGE_DAYS = 90          # 超过 90 天的非重要长期记忆合并为月度摘要
-YEARLY_MERGE_DAYS = 365          # 超过 365 天的合并为年度摘要
-SUMMARIZE_THRESHOLD = 5          # 对话超过 5 轮触发摘要
-REUNION_ABSENT_DAYS = 7          # 超过 7 天未互动 → "想念"
+SHORT_TERM_MAX = 50  # 短期记忆最多保留 50 条原文
+LONG_TERM_RECENT_DAYS = 30  # 启动时加载最近 30 天长期记忆
+MONTHLY_MERGE_DAYS = 90  # 超过 90 天的非重要长期记忆合并为月度摘要
+YEARLY_MERGE_DAYS = 365  # 超过 365 天的合并为年度摘要
+SUMMARIZE_THRESHOLD = 5  # 对话超过 5 轮触发摘要
+REUNION_ABSENT_DAYS = 7  # 超过 7 天未互动 → "想念"
 
 
 # ----------------------------------------------------------------------
 # 单条记忆结构
 # ----------------------------------------------------------------------
+
 
 def _now_ts() -> float:
     return time.time()
@@ -45,12 +48,17 @@ def _now_iso() -> str:
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-def _make_entry(text: str, kind: str = "summary", important: bool = False,
-                tags: list[str] | None = None, meta: dict | None = None) -> dict:
+def _make_entry(
+    text: str,
+    kind: str = "summary",
+    important: bool = False,
+    tags: list[str] | None = None,
+    meta: dict | None = None,
+) -> dict:
     """构造一条记忆条目。"""
     return {
         "text": text,
-        "kind": kind,                  # summary / event / promise / identity / monthly / yearly
+        "kind": kind,  # summary / event / promise / identity / monthly / yearly
         "important": bool(important),
         "tags": tags or [],
         "meta": meta or {},
@@ -62,6 +70,7 @@ def _make_entry(text: str, kind: str = "summary", important: bool = False,
 # ----------------------------------------------------------------------
 # 单个智能体的持久记忆
 # ----------------------------------------------------------------------
+
 
 class AgentPersistentMemory:
     """一个智能体的三级持久记忆。
@@ -91,12 +100,12 @@ class AgentPersistentMemory:
         self.species = species
         self.core: list[dict] = []
         self.long: list[dict] = []
-        self.short: list[dict] = []           # 重启后从空开始
+        self.short: list[dict] = []  # 重启后从空开始
         self._lock = threading.RLock()
         self._dirty_core = False
         self._dirty_long = False
         self.last_interact_ts: float = _now_ts()
-        self.last_farewell_mood: str = "neutral"   # neutral / warm / tense
+        self.last_farewell_mood: str = "neutral"  # neutral / warm / tense
 
     # ---------------- 文件路径 ----------------
 
@@ -182,42 +191,57 @@ class AgentPersistentMemory:
         role: "user" / "agent"
         """
         with self._lock:
-            self.short.append({
-                "role": role,
-                "text": text,
-                "ts": _now_ts(),
-            })
+            self.short.append(
+                {
+                    "role": role,
+                    "text": text,
+                    "ts": _now_ts(),
+                }
+            )
             if len(self.short) > SHORT_TERM_MAX:
                 # 删掉最早的
                 del self.short[: len(self.short) - SHORT_TERM_MAX]
             self.last_interact_ts = _now_ts()
-            self._dirty_core = True   # last_interact_ts 在 core 文件里
+            self._dirty_core = True  # last_interact_ts 在 core 文件里
 
-    def add_long_summary(self, summary: str, important: bool = False,
-                          tags: list[str] | None = None,
-                          meta: dict | None = None) -> None:
+    def add_long_summary(
+        self,
+        summary: str,
+        important: bool = False,
+        tags: list[str] | None = None,
+        meta: dict | None = None,
+    ) -> None:
         """添加一条长期记忆摘要。"""
         with self._lock:
-            entry = _make_entry(summary, kind="summary",
-                                important=important, tags=tags, meta=meta)
+            entry = _make_entry(
+                summary, kind="summary", important=important, tags=tags, meta=meta
+            )
             self.long.append(entry)
             self._dirty_long = True
 
-    def add_core_event(self, text: str, tags: list[str] | None = None,
-                        meta: dict | None = None) -> None:
+    def add_core_event(
+        self, text: str, tags: list[str] | None = None, meta: dict | None = None
+    ) -> None:
         """添加一条核心记忆事件（永久保留）。"""
         with self._lock:
-            entry = _make_entry(text, kind="event", important=True,
-                                tags=tags or ["permanent"], meta=meta)
+            entry = _make_entry(
+                text,
+                kind="event",
+                important=True,
+                tags=tags or ["permanent"],
+                meta=meta,
+            )
             self.core.append(entry)
             self._dirty_core = True
 
-    def add_promise(self, text: str, who: str = "user",
-                     meta: dict | None = None) -> None:
+    def add_promise(
+        self, text: str, who: str = "user", meta: dict | None = None
+    ) -> None:
         """记录承诺/约定 → 进入核心记忆。"""
         with self._lock:
-            entry = _make_entry(text, kind="promise", important=True,
-                                tags=["promise", who], meta=meta)
+            entry = _make_entry(
+                text, kind="promise", important=True, tags=["promise", who], meta=meta
+            )
             self.core.append(entry)
             self._dirty_core = True
 
@@ -234,7 +258,8 @@ class AgentPersistentMemory:
             if 0 <= long_index < len(self.long):
                 self.long[long_index]["important"] = True
                 self.long[long_index]["tags"] = list(
-                    set(self.long[long_index].get("tags", []) + ["permanent"]))
+                    set(self.long[long_index].get("tags", []) + ["permanent"])
+                )
                 self._dirty_long = True
                 return True
             return False
@@ -292,6 +317,7 @@ class AgentPersistentMemory:
                 return None
             # 简化：50% 概率"模糊记得"
             import random
+
             if random.random() < 0.5:
                 entry = results[0]
                 snippet = entry["text"][:20]
@@ -331,8 +357,11 @@ class AgentPersistentMemory:
                 texts = [e.get("text", "") for e in entries]
                 merged = _make_entry(
                     f"【{month_key} 月度回忆】" + " | ".join(texts[:5]),
-                    kind="monthly", important=False,
-                    tags=["monthly_merge"], meta={"merged_count": len(entries)})
+                    kind="monthly",
+                    important=False,
+                    tags=["monthly_merge"],
+                    meta={"merged_count": len(entries)},
+                )
                 keep.append(merged)
             # 年度合并
             if pending_yearly:
@@ -340,8 +369,11 @@ class AgentPersistentMemory:
                 year = datetime.datetime.now().year - 1
                 merged = _make_entry(
                     f"【{year} 年度回忆】" + " | ".join(texts[:8]),
-                    kind="yearly", important=False,
-                    tags=["yearly_merge"], meta={"merged_count": len(pending_yearly)})
+                    kind="yearly",
+                    important=False,
+                    tags=["yearly_merge"],
+                    meta={"merged_count": len(pending_yearly)},
+                )
                 keep.append(merged)
             self.long = keep
             if merged_count > 0:
@@ -361,7 +393,8 @@ class AgentPersistentMemory:
                 "short_count": len(self.short),
                 "last_interact_ts": self.last_interact_ts,
                 "last_interact_time": datetime.datetime.fromtimestamp(
-                    self.last_interact_ts).strftime("%Y-%m-%d %H:%M:%S"),
+                    self.last_interact_ts
+                ).strftime("%Y-%m-%d %H:%M:%S"),
                 "absent_days": round((_now_ts() - self.last_interact_ts) / 86400, 1),
                 "farewell_mood": self.last_farewell_mood,
                 "core": list(self.core),
@@ -375,6 +408,7 @@ class AgentPersistentMemory:
 # ----------------------------------------------------------------------
 # 全局记忆管理器（单例）
 # ----------------------------------------------------------------------
+
 
 class PersistentMemoryManager:
     """管理所有智能体的持久记忆。
@@ -401,8 +435,9 @@ class PersistentMemoryManager:
 
     # ---------------- 生命周期 ----------------
 
-    def get_or_create(self, agent_id: str, agent_name: str = "",
-                       species: str = "") -> AgentPersistentMemory:
+    def get_or_create(
+        self, agent_id: str, agent_name: str = "", species: str = ""
+    ) -> AgentPersistentMemory:
         with self._lock:
             if agent_id not in self._memories:
                 mem = AgentPersistentMemory(agent_id, agent_name, species)
@@ -472,7 +507,9 @@ class PersistentMemoryManager:
                 result.append(d)
             return result
 
-    def get_agent_memory(self, agent_id: str, include_short: bool = False) -> dict | None:
+    def get_agent_memory(
+        self, agent_id: str, include_short: bool = False
+    ) -> dict | None:
         mem = self._memories.get(agent_id)
         if mem is None:
             return None
@@ -486,24 +523,40 @@ class PersistentMemoryManager:
 
     # ---------------- 写入便捷接口 ----------------
 
-    def record_chat_turn(self, agent_id: str, role: str, text: str,
-                          agent_name: str = "", species: str = "") -> None:
+    def record_chat_turn(
+        self,
+        agent_id: str,
+        role: str,
+        text: str,
+        agent_name: str = "",
+        species: str = "",
+    ) -> None:
         """记录一轮对话到短期记忆。"""
         mem = self.get_or_create(agent_id, agent_name=agent_name, species=species)
         mem.add_short_message(role, text)
 
-    def record_chat_summary(self, agent_id: str, summary: str,
-                             important: bool = False,
-                             tags: list[str] | None = None,
-                             agent_name: str = "", species: str = "") -> None:
+    def record_chat_summary(
+        self,
+        agent_id: str,
+        summary: str,
+        important: bool = False,
+        tags: list[str] | None = None,
+        agent_name: str = "",
+        species: str = "",
+    ) -> None:
         """对话结束后写入长期摘要。"""
         mem = self.get_or_create(agent_id, agent_name=agent_name, species=species)
         mem.add_long_summary(summary, important=important, tags=tags)
 
-    def record_core_event(self, agent_id: str, text: str,
-                           tags: list[str] | None = None,
-                           meta: dict | None = None,
-                           agent_name: str = "", species: str = "") -> None:
+    def record_core_event(
+        self,
+        agent_id: str,
+        text: str,
+        tags: list[str] | None = None,
+        meta: dict | None = None,
+        agent_name: str = "",
+        species: str = "",
+    ) -> None:
         """写入核心事件（如生病、急救、重生）。"""
         mem = self.get_or_create(agent_id, agent_name=agent_name, species=species)
         mem.add_core_event(text, tags=tags, meta=meta)
@@ -512,6 +565,7 @@ class PersistentMemoryManager:
 # ----------------------------------------------------------------------
 # 模块级便捷函数
 # ----------------------------------------------------------------------
+
 
 def get_memory_manager() -> PersistentMemoryManager:
     return PersistentMemoryManager.get_instance()
@@ -534,8 +588,9 @@ def snapshot_persistent_memory() -> dict:
     }
 
 
-def summarize_chat_if_needed(agent_id: str, dialogue: list[dict],
-                              router=None) -> str | None:
+def summarize_chat_if_needed(
+    agent_id: str, dialogue: list[dict], router=None
+) -> str | None:
     """如果对话超过 5 轮，调用 LLM 生成摘要；失败则用规则降级。
 
     dialogue: [{"role":"user"/"agent","text":...}, ...]
@@ -552,10 +607,12 @@ def summarize_chat_if_needed(agent_id: str, dialogue: list[dict],
             for d in dialogue[-10:]:
                 prompt += f"{d.get('role','?')}: {d.get('text','')}\n"
             import asyncio
+
             loop = asyncio.new_event_loop()
             try:
                 resp = loop.run_until_complete(
-                    router.complete_with_failover("memory_summary", prompt, agent_id))
+                    router.complete_with_failover("memory_summary", prompt, agent_id)
+                )
                 content = getattr(resp, "content", None) or str(resp)
                 if content and len(content.strip()) > 5:
                     return content.strip()
@@ -575,13 +632,25 @@ def detect_important_content(text: str) -> bool:
 
     简化版：包含"答应/承诺/约定/一定会/下次/明天/记得/别忘了"等关键词。
     """
-    keywords = ["答应", "承诺", "约定", "一定会", "下次", "明天",
-                "记得", "别忘了", "保证", "发誓", "约定好"]
+    keywords = [
+        "答应",
+        "承诺",
+        "约定",
+        "一定会",
+        "下次",
+        "明天",
+        "记得",
+        "别忘了",
+        "保证",
+        "发誓",
+        "约定好",
+    ]
     return any(kw in text for kw in keywords)
 
 
-def init_agent_identity(agent_id: str, agent_name: str,
-                         species: str, identity_text: str) -> None:
+def init_agent_identity(
+    agent_id: str, agent_name: str, species: str, identity_text: str
+) -> None:
     """首次创建智能体时，写入身份到核心记忆。"""
     mgr = get_memory_manager()
     mem = mgr.get_or_create(agent_id, agent_name, species)

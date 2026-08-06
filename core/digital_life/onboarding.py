@@ -8,6 +8,7 @@
 
 状态持久化：data/onboarding.json
 """
+
 from __future__ import annotations
 
 import json
@@ -18,16 +19,17 @@ from typing import Any
 
 _ONBOARDING_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "data", "onboarding.json",
+    "data",
+    "onboarding.json",
 )
 
 # 引导阶段
-STAGE_WELCOME = "welcome"           # 第一阶段：欢迎
-STAGE_MEET_TEAM = "meet_team"       # 第二阶段：认识同事
+STAGE_WELCOME = "welcome"  # 第一阶段：欢迎
+STAGE_MEET_TEAM = "meet_team"  # 第二阶段：认识同事
 STAGE_FIRST_INTERACT = "first_interact"  # 第三阶段：第一次互动
-STAGE_FIRST_TASK = "first_task"     # 第四阶段：第一个任务
+STAGE_FIRST_TASK = "first_task"  # 第四阶段：第一个任务
 STAGE_FREE_EXPLORE = "free_explore"  # 第五阶段：自由探索
-STAGE_DONE = "done"                 # 已完成
+STAGE_DONE = "done"  # 已完成
 
 STAGE_ORDER = [
     STAGE_WELCOME,
@@ -64,22 +66,24 @@ class OnboardingManager:
     所有引导状态通过此管理器查询/推进。
     前端通过 API 拉取当前阶段、推进阶段、跳过引导。
     """
+
     _instance: OnboardingManager | None = None
     _instance_lock = threading.Lock()
 
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._biosphere_ref: Any = None
+        self._reward_granted: bool = False  # 奖励只发一次，防重复领奖
         # 引导状态
-        self._completed: bool = False            # 是否已完成引导
+        self._completed: bool = False  # 是否已完成引导
         self._current_stage: str = STAGE_WELCOME  # 当前阶段
-        self._stage_started_ts: float = 0.0       # 当前阶段开始时间
-        self._completed_ts: float = 0.0           # 完成时间
-        self._skipped: bool = False                # 是否跳过
+        self._stage_started_ts: float = 0.0  # 当前阶段开始时间
+        self._completed_ts: float = 0.0  # 完成时间
+        self._skipped: bool = False  # 是否跳过
         # 小贴士
-        self._tips_enabled: bool = True            # 是否显示小贴士
-        self._last_tip_ts: float = 0.0             # 上次弹贴士时间
-        self._tip_shown_count: int = 0             # 已显示的贴士数
+        self._tips_enabled: bool = True  # 是否显示小贴士
+        self._last_tip_ts: float = 0.0  # 上次弹贴士时间
+        self._tip_shown_count: int = 0  # 已显示的贴士数
         self._load()
 
     @classmethod
@@ -138,7 +142,11 @@ class OnboardingManager:
             return {
                 "completed": self._completed,
                 "current_stage": self._current_stage,
-                "stage_index": STAGE_ORDER.index(self._current_stage) if self._current_stage in STAGE_ORDER else 0,
+                "stage_index": (
+                    STAGE_ORDER.index(self._current_stage)
+                    if self._current_stage in STAGE_ORDER
+                    else 0
+                ),
                 "stage_total": len(STAGE_ORDER) - 1,  # 不含 done
                 "stage_started_ts": self._stage_started_ts,
                 "completed_ts": self._completed_ts,
@@ -159,6 +167,7 @@ class OnboardingManager:
         with self._lock:
             self._completed = False
             self._skipped = False
+            self._reward_granted = False
             self._current_stage = STAGE_WELCOME
             self._stage_started_ts = time.time()
         self._save()
@@ -172,11 +181,13 @@ class OnboardingManager:
                 if idx < len(STAGE_ORDER) - 1:
                     self._current_stage = STAGE_ORDER[idx + 1]
                     self._stage_started_ts = time.time()
-                # 推进到 done 时标记完成
+                # 推进到 done 时标记完成（奖励只发一次）
                 if self._current_stage == STAGE_DONE:
                     self._completed = True
                     self._completed_ts = time.time()
-                    self._grant_reward()
+                    if not self._reward_granted:
+                        self._grant_reward()
+                        self._reward_granted = True
             else:
                 self._current_stage = STAGE_WELCOME
                 self._stage_started_ts = time.time()
@@ -188,6 +199,7 @@ class OnboardingManager:
         with self._lock:
             self._skipped = True
             self._completed = True  # 跳过也算完成，不再触发
+            self._reward_granted = True  # 跳过不领奖，防止后续 set_stage(done) 触发
             self._current_stage = STAGE_DONE
             self._completed_ts = time.time()
         self._save()
@@ -202,7 +214,9 @@ class OnboardingManager:
                 if stage == STAGE_DONE:
                     self._completed = True
                     self._completed_ts = time.time()
-                    self._grant_reward()
+                    if not self._reward_granted:
+                        self._grant_reward()
+                        self._reward_granted = True
         self._save()
         return self.get_status()
 
@@ -252,6 +266,7 @@ class OnboardingManager:
             self._tip_shown_count += 1
         self._save()
         import random
+
         return random.choice(TIPS)
 
 

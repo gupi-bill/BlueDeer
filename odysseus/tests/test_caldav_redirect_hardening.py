@@ -13,7 +13,6 @@ import socketserver
 import threading
 
 import pytest
-
 from src import caldav_sync, caldav_writeback
 
 
@@ -35,7 +34,7 @@ def test_dav_client_does_not_follow_redirect_to_internal_host():
 
     class _Internal(http.server.BaseHTTPRequestHandler):
         # Stand-in for an internal service the attacker redirects toward.
-        def do_GET(self):  # noqa: N802
+        def do_GET(self):
             sink_hits.append(self.path)
             self.send_response(207)
             self.end_headers()
@@ -47,7 +46,7 @@ def test_dav_client_does_not_follow_redirect_to_internal_host():
 
     class _Public(http.server.BaseHTTPRequestHandler):
         # The "validated" public CalDAV server that redirects everything inward.
-        def do_GET(self):  # noqa: N802
+        def do_GET(self):
             public_methods.append(self.command)
             self.send_response(302)
             self.send_header("Location", f"http://127.0.0.1:{internal_port}/leak")
@@ -77,7 +76,9 @@ def test_dav_client_does_not_follow_redirect_to_internal_host():
             pass
         # The request must actually have left the building — otherwise an early
         # error would make "sink not hit" pass vacuously.
-        assert public_methods == ["PROPFIND"], "the PROPFIND must reach the public server first"
+        assert public_methods == [
+            "PROPFIND"
+        ], "the PROPFIND must reach the public server first"
         assert sink_hits == [], "redirect toward an internal host must not be followed"
     finally:
         internal.shutdown()
@@ -88,8 +89,8 @@ def test_sync_and_writeback_construct_clients_through_the_helper():
     """Guard against a raw DAVClient (redirects enabled) creeping back in.
     Every DAVClient on the sync/write-back paths must go through
     ``_build_dav_client`` so the redirect protection can't be bypassed."""
-    sync_src = (caldav_sync.__file__)
-    wb_src = (caldav_writeback.__file__)
+    sync_src = caldav_sync.__file__
+    wb_src = caldav_writeback.__file__
     with open(sync_src, encoding="utf-8") as f:
         sync_text = f.read()
     with open(wb_src, encoding="utf-8") as f:

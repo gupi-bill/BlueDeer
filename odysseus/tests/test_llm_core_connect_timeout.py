@@ -7,10 +7,10 @@ chat to an offshore/public endpoint surfaced as an intermittent 503 that cleared
 on resend. The connect budget is now LLMConfig.CONNECT_TIMEOUT (env
 LLM_CONNECT_TIMEOUT), applied via _call_timeout/_stream_timeout helpers.
 """
-import importlib
-import httpx
-import pytest
 
+import importlib
+
+import httpx
 from src import llm_core
 from src.llm_core import LLMConfig, _call_timeout, _stream_timeout
 

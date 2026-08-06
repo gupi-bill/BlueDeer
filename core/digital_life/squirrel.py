@@ -3,6 +3,7 @@
 特殊行为：cache_food 缓存食物，饥荒时优先消耗自己的缓存。
 commit 28：行为池——藏坚果 / 忘记藏哪儿了 / 炫耀代码
 """
+
 from __future__ import annotations
 
 import random
@@ -40,10 +41,10 @@ class Squirrel(DigitalLifeForm):
                 "energy_min": 70,
                 "hunger_max": 50,
                 "life_stages": ["JUVENILE", "ADULT", "MIDDLE"],
-                "probability": 0.04,   # 每次检查 4% 触发
+                "probability": 0.04,  # 每次检查 4% 触发
             },
-            "duration_sec": 180,       # 3 分钟
-            "cooldown_sec": 600,       # 10 分钟一次
+            "duration_sec": 180,  # 3 分钟
+            "cooldown_sec": 600,  # 10 分钟一次
             "animation": "work",
             "particles": "nut_bury",
         },
@@ -56,8 +57,8 @@ class Squirrel(DigitalLifeForm):
                 "life_stages": ["JUVENILE", "ADULT", "MIDDLE"],
                 "probability": 0.008,  # 0.8% 触发（稀有）
             },
-            "duration_sec": 120,       # 2 分钟
-            "cooldown_sec": 1800,      # 30 分钟一次
+            "duration_sec": 120,  # 2 分钟
+            "cooldown_sec": 1800,  # 30 分钟一次
             "animation": "walk",
             "particles": "panic_sweat",
         },
@@ -70,8 +71,8 @@ class Squirrel(DigitalLifeForm):
                 "life_stages": ["ADULT", "MIDDLE"],
                 "probability": 0.02,
             },
-            "duration_sec": 60,        # 1 分钟
-            "cooldown_sec": 900,       # 15 分钟一次
+            "duration_sec": 60,  # 1 分钟
+            "cooldown_sec": 900,  # 15 分钟一次
             "animation": "react",
             "particles": "rainbow_tail",
         },
@@ -79,12 +80,24 @@ class Squirrel(DigitalLifeForm):
 
     __slots__ = ["food_cache"]
 
-    def __init__(self, name="较真松鼠", gender="female", environment=None,
-                 birth_time=None, genome_override=None):
+    def __init__(
+        self,
+        name="较真松鼠",
+        gender="female",
+        environment=None,
+        birth_time=None,
+        genome_override=None,
+    ):
         self.food_cache = 0.0
         genome = self._build_genome(genome_override)
-        super().__init__(name=name, species="squirrel", gender=gender,
-                         genome=genome, environment=environment, birth_time=birth_time)
+        super().__init__(
+            name=name,
+            species="squirrel",
+            gender=gender,
+            genome=genome,
+            environment=environment,
+            birth_time=birth_time,
+        )
 
     def cache_food(self, amount: float) -> None:
         """把食物存入颊袋缓存。"""
@@ -121,9 +134,13 @@ class Squirrel(DigitalLifeForm):
         elif bname == "show_off_code":
             # 炫耀：每 10 秒找一位同事 +mood
             if int(time.time()) % 10 == 0 and self._environment is not None:
-                others = [lf for lf in self._environment.population
-                          if lf is not self and getattr(lf, "_alive", False)
-                          and getattr(lf, "current_zone_id", "") == self.current_zone_id]
+                others = [
+                    lf
+                    for lf in self._environment.population
+                    if lf is not self
+                    and getattr(lf, "_alive", False)
+                    and getattr(lf, "current_zone_id", "") == self.current_zone_id
+                ]
                 if others:
                     target = random.choice(others)
                     try:
@@ -136,7 +153,9 @@ class Squirrel(DigitalLifeForm):
         """行为结束时：记录特殊事件。"""
         bname = cfg["name"]
         if bname == "cache_food":
-            self._remember(f"埋下了 {self.food_cache:.1f} 颗代码坚果", importance="high")
+            self._remember(
+                f"埋下了 {self.food_cache:.1f} 颗代码坚果", importance="high"
+            )
         elif bname == "forget_cache" and reason == "finished":
             self._remember("翻找了半天也没找到自己藏的坚果…", importance="normal")
         elif bname == "show_off_code":
@@ -146,6 +165,7 @@ class Squirrel(DigitalLifeForm):
         return Squirrel(
             name=f"{self._name_obj}的幼崽",
             gender=random.choice(["male", "female"]),
-            environment=environment, birth_time=birth_time,
+            environment=environment,
+            birth_time=birth_time,
             genome_override=genome,
         )

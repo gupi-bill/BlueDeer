@@ -1,5 +1,6 @@
 """Tests for LM Studio model discovery: port scanning, env host scanning,
 and native-API provider fingerprinting."""
+
 from src.model_discovery import ModelDiscovery
 
 
@@ -16,6 +17,7 @@ class _FakeResponse:
 # ModelDiscovery — ports list includes 1234
 # ════════════════════════════════════════════════════════════
 
+
 class TestModelDiscoveryPorts:
     def test_discover_models_scans_port_1234(self, monkeypatch):
         """discover_models must include port 1234 among the scan targets."""
@@ -24,12 +26,11 @@ class TestModelDiscoveryPorts:
 
         def fake_check_port(host, port):
             scanned_ports.append(port)
-            return None
 
         monkeypatch.setattr(discovery, "_check_port", fake_check_port)
         monkeypatch.setattr(
             "src.model_discovery.discover_tailscale_hosts",
-            lambda: [],
+            list,
         )
 
         discovery.discover_models()
@@ -40,14 +41,14 @@ class TestModelDiscoveryPorts:
         monkeypatch.delenv("LLM_HOSTS", raising=False)
         monkeypatch.setenv("LM_STUDIO_URL", "http://my-lm-box:5000")
         monkeypatch.setattr(
-            "src.model_discovery.discover_tailscale_hosts", lambda: [],
+            "src.model_discovery.discover_tailscale_hosts",
+            list,
         )
         discovery = ModelDiscovery(default_host="localhost")
         scanned = []
 
         def fake_check_port(host, port):
             scanned.append((host, port))
-            return None
 
         monkeypatch.setattr(discovery, "_check_port", fake_check_port)
         discovery.discover_models()
@@ -58,11 +59,17 @@ class TestModelDiscoveryPorts:
 # _fingerprint_provider — native API identification
 # ════════════════════════════════════════════════════════════
 
+
 class TestFingerprintProvider:
     LMSTUDIO_NATIVE = {
         "models": [
-            {"type": "llm", "key": "qwen3.6-27b", "architecture": "qwen35",
-             "quantization": {"name": "Q5_K_XL"}, "format": "gguf"},
+            {
+                "type": "llm",
+                "key": "qwen3.6-27b",
+                "architecture": "qwen35",
+                "quantization": {"name": "Q5_K_XL"},
+                "format": "gguf",
+            },
         ]
     }
 
@@ -86,7 +93,9 @@ class TestFingerprintProvider:
         discovery = ModelDiscovery(default_host="localhost")
         monkeypatch.setattr(
             "src.model_discovery.httpx.get",
-            lambda url, timeout=None: _FakeResponse({"data": [{"id": "gpt-4o"}]}, ok=False),
+            lambda url, timeout=None: _FakeResponse(
+                {"data": [{"id": "gpt-4o"}]}, ok=False
+            ),
         )
         assert discovery._fingerprint_provider("localhost", 8000) is None
 
@@ -101,8 +110,10 @@ class TestFingerprintProvider:
 
     def test_unreachable_returns_none(self, monkeypatch):
         discovery = ModelDiscovery(default_host="localhost")
+
         def boom(url, timeout=None):
             raise OSError("connection refused")
+
         monkeypatch.setattr("src.model_discovery.httpx.get", boom)
         assert discovery._fingerprint_provider("localhost", 1234) is None
 
@@ -125,6 +136,7 @@ class TestFingerprintProvider:
 # _get_hosts — LM_STUDIO_URL env var
 # ════════════════════════════════════════════════════════════
 
+
 class TestGetHostsLmStudioUrl:
     def test_lm_studio_url_adds_host_default_branch(self, monkeypatch):
         """LM_STUDIO_URL hostname must appear in hosts when Tailscale is absent."""
@@ -132,7 +144,7 @@ class TestGetHostsLmStudioUrl:
         monkeypatch.setenv("LM_STUDIO_URL", "http://my-lm-box:1234")
         monkeypatch.setattr(
             "src.model_discovery.discover_tailscale_hosts",
-            lambda: [],
+            list,
         )
         discovery = ModelDiscovery(default_host="localhost")
         hosts = discovery._get_hosts()
@@ -164,7 +176,7 @@ class TestGetHostsLmStudioUrl:
         monkeypatch.setenv("LM_STUDIO_URL", "http://localhost:1234")
         monkeypatch.setattr(
             "src.model_discovery.discover_tailscale_hosts",
-            lambda: [],
+            list,
         )
         discovery = ModelDiscovery(default_host="localhost")
         hosts = discovery._get_hosts()
@@ -176,7 +188,7 @@ class TestGetHostsLmStudioUrl:
         monkeypatch.delenv("LM_STUDIO_URL", raising=False)
         monkeypatch.setattr(
             "src.model_discovery.discover_tailscale_hosts",
-            lambda: [],
+            list,
         )
         discovery = ModelDiscovery(default_host="localhost")
         hosts = discovery._get_hosts()

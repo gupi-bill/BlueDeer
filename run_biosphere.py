@@ -10,6 +10,7 @@
 零基础读者可以这样理解：这是整个森林公司的"启动器"。
 运行 `python run_biosphere.py run`，11 只动物员工就开始上班了。
 """
+
 from __future__ import annotations
 
 import argparse
@@ -27,49 +28,78 @@ from collections import deque
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.digital_life import (
-    Environment, NamingSystem, Observer,
-    EvolutionTracker, EvolutionVisualizer,
-    ExternalTaskSystem, Storyteller, TASK_TYPES,
-    Deer, Squirrel, Butterfly, Fox, Hedgehog, Beaver,
-    Raven, Hare, Badger, Lark, Kite,
-    MemoryArchive, RecruitSystem,
+    TASK_TYPES,
+    Badger,
+    Beaver,
+    Butterfly,
+    Deer,
+    Environment,
+    EvolutionTracker,
+    EvolutionVisualizer,
+    ExternalTaskSystem,
+    Fox,
+    Hare,
+    Hedgehog,
+    Kite,
+    Lark,
+    MemoryArchive,
+    NamingSystem,
+    Observer,
+    Raven,
+    RecruitSystem,
+    Squirrel,
+    Storyteller,
 )
 from core.digital_life.digital_life_form import LifeStage
 
-
 # 11 名员工的物种 + 名字 + 类映射
 EMPLOYEES = [
-    ("deer",      "鹿·忧郁", Deer),
-    ("squirrel",  "鼠·栗壳", Squirrel),
+    ("deer", "鹿·忧郁", Deer),
+    ("squirrel", "鼠·栗壳", Squirrel),
     ("butterfly", "蝶·绘羽", Butterfly),
-    ("fox",       "狐·赤谋", Fox),
-    ("hedgehog",  "猬·针客", Hedgehog),
-    ("beaver",    "狸·大坝", Beaver),
-    ("raven",     "鸦·黑卷", Raven),
-    ("hare",      "兔·霜耳", Hare),
-    ("badger",    "獾·土工", Badger),
-    ("lark",      "雀·清音", Lark),
-    ("kite",      "鸢·天瞰", Kite),
+    ("fox", "狐·赤谋", Fox),
+    ("hedgehog", "猬·针客", Hedgehog),
+    ("beaver", "狸·大坝", Beaver),
+    ("raven", "鸦·黑卷", Raven),
+    ("hare", "兔·霜耳", Hare),
+    ("badger", "獾·土工", Badger),
+    ("lark", "雀·清音", Lark),
+    ("kite", "鸢·天瞰", Kite),
 ]
 
 DEFAULT_SAVE_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "biosphere_save.json")
+    os.path.dirname(os.path.abspath(__file__)), "biosphere_save.json"
+)
 
 DEFAULT_ARCHIVE_DIR = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "memory_archive")
+    os.path.dirname(os.path.abspath(__file__)), "memory_archive"
+)
 
 
 class Biosphere:
     """森林公司总管：把所有子系统粘合在一起。"""
 
     __slots__ = [
-        "env", "naming", "observer", "evolution", "visualizer",
-        "tasks", "storyteller", "employees", "_lock",
-        "_stop_event", "_save_thread", "_snapshot_thread",
-        "_save_path", "_running",
+        "env",
+        "naming",
+        "observer",
+        "evolution",
+        "visualizer",
+        "tasks",
+        "storyteller",
+        "employees",
+        "_lock",
+        "_stop_event",
+        "_save_thread",
+        "_snapshot_thread",
+        "_save_path",
+        "_running",
         # commit 11 新增：记忆归档 + 招募系统 + 死亡监听
-        "memory_archive", "recruit_system",
-        "_death_watcher_thread", "_router", "_raven_agent",
+        "memory_archive",
+        "recruit_system",
+        "_death_watcher_thread",
+        "_router",
+        "_raven_agent",
         "_last_death_processed",
         # commit 14 新增：内部事件队列（招募完成等）
         "_internal_events",
@@ -79,9 +109,9 @@ class Biosphere:
         "_eco_tick_thread",
     ]
 
-    def __init__(self, save_path: str | None = None,
-                 archive_dir: str | None = None,
-                 router=None) -> None:
+    def __init__(
+        self, save_path: str | None = None, archive_dir: str | None = None, router=None
+    ) -> None:
         self._save_path = save_path or DEFAULT_SAVE_PATH
         self._lock = threading.RLock()
         self._stop_event = threading.Event()
@@ -97,14 +127,12 @@ class Biosphere:
         self.observer = Observer(self.env, self.naming)
         self.evolution = EvolutionTracker(self.env)
         self.visualizer = EvolutionVisualizer(self.evolution)
-        self.tasks = ExternalTaskSystem(
-            self.env, self.observer, self.naming)
+        self.tasks = ExternalTaskSystem(self.env, self.observer, self.naming)
         self.storyteller = Storyteller(
-            self.env, self.naming, self.observer,
-            self.evolution, self.tasks)
+            self.env, self.naming, self.observer, self.evolution, self.tasks
+        )
         # commit 11：记忆归档 + 招募系统
-        self.memory_archive = MemoryArchive(
-            archive_dir or DEFAULT_ARCHIVE_DIR)
+        self.memory_archive = MemoryArchive(archive_dir or DEFAULT_ARCHIVE_DIR)
         species_cls_map = {sp: cls for sp, _, cls in EMPLOYEES}
         names_map = {sp: name for sp, name, _ in EMPLOYEES}
         self.recruit_system = RecruitSystem(
@@ -343,7 +371,7 @@ class Biosphere:
         # 尝试调 LLM
         try:
             import asyncio
-            from core.router import build_router  # type: ignore
+
             prompt = (
                 f"你是 BlueDeer 森林公司的故事讲述者。"
                 f"{life_form._name_obj}（物种：{life_form.species}，"
@@ -356,8 +384,7 @@ class Biosphere:
             )
             loop = asyncio.new_event_loop()
             try:
-                response = loop.run_until_complete(
-                    self._router.complete(prompt))
+                response = loop.run_until_complete(self._router.complete(prompt))
             finally:
                 loop.close()
             text = str(response) if response else ""
@@ -367,9 +394,9 @@ class Biosphere:
             for line in text.split("\n"):
                 line = line.strip()
                 if line.startswith("SUMMARY:"):
-                    summary = line[len("SUMMARY:"):].strip() or summary
+                    summary = line[len("SUMMARY:") :].strip() or summary
                 elif line.startswith("LAST_WORDS:"):
-                    last_words = line[len("LAST_WORDS:"):].strip() or last_words
+                    last_words = line[len("LAST_WORDS:") :].strip() or last_words
             return summary, last_words
         except Exception:
             return template_summary, template_last_words
@@ -385,12 +412,12 @@ class Biosphere:
                     with self._lock:
                         # 替换同物种的已故员工
                         self.employees = [
-                            new_lf if (lf.species == species and not lf._alive)
-                            else lf for lf in self.employees]
+                            new_lf if (lf.species == species and not lf._alive) else lf
+                            for lf in self.employees
+                        ]
                         # 注册新员工
                         self.naming.register(new_lf)
-                        self.naming.name(
-                            new_lf, custom_name=new_lf._name_obj)
+                        self.naming.name(new_lf, custom_name=new_lf._name_obj)
                         new_lf.set_zone(species)
                     # 启动新员工线程
                     try:
@@ -398,11 +425,13 @@ class Biosphere:
                     except RuntimeError:
                         pass
                     # commit 14：推内部事件供 GameServer SSE 通道转发
-                    self._internal_events.append({
-                        "type": "recruit_completed",
-                        "species": species,
-                        "name": new_lf._name_obj,
-                    })
+                    self._internal_events.append(
+                        {
+                            "type": "recruit_completed",
+                            "species": species,
+                            "name": new_lf._name_obj,
+                        }
+                    )
 
     async def async_step(self) -> None:
         """异步非阻塞步进：推进生态、招募、死亡监控各一步。"""
@@ -438,13 +467,13 @@ class Biosphere:
     # 事件类型表：type → (中文描述, 效果函数)
     # 效果函数签名：(life_form) → dict（返回事件 payload）
     _DAILY_EVENT_TYPES: list[tuple[str, str]] = [
-        ("coffee_spill",   "咖啡洒了，弄脏代码笔记"),
-        ("bug_found",      "突然发现一只真虫子爬过键盘"),
-        ("inspiration",    "灵光一闪，写出优雅代码片段"),
-        ("nap_accident",   "午休睡过头，被监工轻轻拍醒"),
-        ("snack_gift",     "前台送来一袋神秘零食"),
-        ("quarrel",        "和同事为代码风格吵了两句"),
-        ("compliment",     "被路过同事夸了一句"),
+        ("coffee_spill", "咖啡洒了，弄脏代码笔记"),
+        ("bug_found", "突然发现一只真虫子爬过键盘"),
+        ("inspiration", "灵光一闪，写出优雅代码片段"),
+        ("nap_accident", "午休睡过头，被监工轻轻拍醒"),
+        ("snack_gift", "前台送来一袋神秘零食"),
+        ("quarrel", "和同事为代码风格吵了两句"),
+        ("compliment", "被路过同事夸了一句"),
     ]
 
     def _eco_tick_loop(self) -> None:
@@ -458,6 +487,7 @@ class Biosphere:
         - commit 33：调 env.tick_immersive_systems() 沉浸感三子系统
         """
         import time as _time
+
         while not self._stop_event.is_set():
             try:
                 now_ts = _time.time()
@@ -508,8 +538,7 @@ class Biosphere:
             self._internal_events.append(payload)
         return payload
 
-    def _apply_daily_event(self, life_form, event_type: str,
-                            desc: str) -> dict:
+    def _apply_daily_event(self, life_form, event_type: str, desc: str) -> dict:
         """对 life_form 应用 event_type 效果，返回事件 payload。
 
         Args:
@@ -602,15 +631,21 @@ class Biosphere:
                     "skills": list(lf.skills),
                     # commit 28：当前特有行为
                     "current_behavior": lf.current_behavior,
-                    "current_behavior_label":
+                    "current_behavior_label": (
                         (lf.current_behavior_cfg or {}).get("label", "")
-                        if lf.current_behavior else "",
-                    "behavior_particles":
+                        if lf.current_behavior
+                        else ""
+                    ),
+                    "behavior_particles": (
                         (lf.current_behavior_cfg or {}).get("particles", "")
-                        if lf.current_behavior else "",
+                        if lf.current_behavior
+                        else ""
+                    ),
                     # commit 37：Agent 工具调用状态（前端用于头顶图标）
                     "agent_work_status": getattr(lf, "_tool_call_status", "") or "",
-                    "agent_pending_tasks": len(getattr(lf, "_pipeline_task_inbox", []) or []),
+                    "agent_pending_tasks": len(
+                        getattr(lf, "_pipeline_task_inbox", []) or []
+                    ),
                     "bound_tools_count": len(getattr(lf, "bound_tools", []) or []),
                     # commit 39：非正式角色（前端 tooltip 显示徽章）
                     "informal_roles": list(getattr(lf, "informal_roles", []) or []),
@@ -624,7 +659,7 @@ class Biosphere:
             "recruit_system": self.recruit_system.status(),
             # commit 19 P0-3：随机小事件统计
             "daily_events_enabled": self._daily_events_thread is not None
-                and self._daily_events_thread.is_alive(),
+            and self._daily_events_thread.is_alive(),
         }
 
     def interact_with_employee(self, name: str, action: str, **kwargs) -> dict:
@@ -655,8 +690,7 @@ class Biosphere:
         if action == "wake":
             return lf.interact_wake()
         if action == "forage":
-            return lf.start_foraging(
-                duration_sec=kwargs.get("duration_sec", 30.0))
+            return lf.start_foraging(duration_sec=kwargs.get("duration_sec", 30.0))
         return {"ok": False, "reason": f"未知动作: {action}"}
 
     def start_recruit(self, species: str) -> dict:
@@ -705,7 +739,7 @@ class Biosphere:
 
         try:
             import asyncio
-            from core.router import build_router  # type: ignore
+
             memory_snippet = entry.get("core_memory", [])[-3:]
             prompt = (
                 f"你是 BlueDeer 森林公司的渡鸦档案员鸦·黑卷，"
@@ -719,8 +753,7 @@ class Biosphere:
             )
             loop = asyncio.new_event_loop()
             try:
-                response = loop.run_until_complete(
-                    self._router.complete(prompt))
+                response = loop.run_until_complete(self._router.complete(prompt))
             finally:
                 loop.close()
             narration = str(response).strip() if response else ""
@@ -779,16 +812,24 @@ class Biosphere:
                     "wakeup_time": lf.genome.get("wakeup_time", "06:00"),
                     # commit 39：长期目标管理 + 团队角色演化
                     "informal_roles": list(getattr(lf, "informal_roles", []) or []),
-                    "project_contributions": dict(getattr(lf, "project_contributions", {}) or {}),
+                    "project_contributions": dict(
+                        getattr(lf, "project_contributions", {}) or {}
+                    ),
                     "help_count": int(getattr(lf, "_help_count", 0) or 0),
                     "social_count": int(getattr(lf, "_social_count", 0) or 0),
-                    "supervisor_interact_count": int(getattr(lf, "_supervisor_interact_count", 0) or 0),
+                    "supervisor_interact_count": int(
+                        getattr(lf, "_supervisor_interact_count", 0) or 0
+                    ),
                     "teach_count": int(getattr(lf, "_teach_count", 0) or 0),
-                    "crisis_resolved_count": int(getattr(lf, "_crisis_resolved_count", 0) or 0),
+                    "crisis_resolved_count": int(
+                        getattr(lf, "_crisis_resolved_count", 0) or 0
+                    ),
                     "work_output": float(getattr(lf, "_work_output", 0.0) or 0.0),
                     # commit 40：进化突变
                     "mutations": list(getattr(lf, "mutations", []) or []),
-                    "appearance_modifiers": dict(getattr(lf, "appearance_modifiers", {}) or {}),
+                    "appearance_modifiers": dict(
+                        getattr(lf, "appearance_modifiers", {}) or {}
+                    ),
                     # commit 52-2：补全持久化字段（之前丢失，重启即清零）
                     "mood_score": float(getattr(lf, "mood_score", 50.0) or 50.0),
                     "emotional_state": dict(getattr(lf, "emotional_state", {}) or {}),
@@ -796,11 +837,15 @@ class Biosphere:
                     "memory_recent": list(getattr(lf, "memory_recent", []) or []),
                     "memory_long_term": list(getattr(lf, "memory_long_term", []) or []),
                     "relationships": dict(getattr(lf, "relationships", {}) or {}),
-                    "relationship_tags": dict(getattr(lf, "relationship_tags", {}) or {}),
+                    "relationship_tags": dict(
+                        getattr(lf, "relationship_tags", {}) or {}
+                    ),
                     "wisdom": float(getattr(lf, "wisdom", 0.0) or 0.0),
                     "trauma_events": list(getattr(lf, "trauma_events", []) or []),
                     "retirement_wish": str(getattr(lf, "retirement_wish", "") or ""),
-                    "wish_fulfilled": bool(getattr(lf, "wish_fulfilled", False) or False),
+                    "wish_fulfilled": bool(
+                        getattr(lf, "wish_fulfilled", False) or False
+                    ),
                 }
                 for lf in self.employees
             ],
@@ -866,16 +911,24 @@ class Biosphere:
             # commit 39：恢复长期目标管理 + 团队角色演化字段
             try:
                 lf.informal_roles = list(emp.get("informal_roles", []) or [])
-                lf.project_contributions = dict(emp.get("project_contributions", {}) or {})
+                lf.project_contributions = dict(
+                    emp.get("project_contributions", {}) or {}
+                )
                 lf._help_count = int(emp.get("help_count", 0) or 0)
                 lf._social_count = int(emp.get("social_count", 0) or 0)
-                lf._supervisor_interact_count = int(emp.get("supervisor_interact_count", 0) or 0)
+                lf._supervisor_interact_count = int(
+                    emp.get("supervisor_interact_count", 0) or 0
+                )
                 lf._teach_count = int(emp.get("teach_count", 0) or 0)
-                lf._crisis_resolved_count = int(emp.get("crisis_resolved_count", 0) or 0)
+                lf._crisis_resolved_count = int(
+                    emp.get("crisis_resolved_count", 0) or 0
+                )
                 lf._work_output = float(emp.get("work_output", 0.0) or 0.0)
                 # commit 40：进化突变
                 lf.mutations = list(emp.get("mutations", []) or [])
-                lf.appearance_modifiers = dict(emp.get("appearance_modifiers", {}) or {})
+                lf.appearance_modifiers = dict(
+                    emp.get("appearance_modifiers", {}) or {}
+                )
                 # commit 52-2：恢复之前丢失的持久化字段
                 lf.mood_score = float(emp.get("mood_score", 50.0) or 50.0)
                 saved_emo = emp.get("emotional_state") or {}
@@ -909,6 +962,7 @@ class Biosphere:
         recruit_states = data.get("recruit_states", {})
         if recruit_states:
             from core.digital_life.recruit_system import SpeciesState
+
             for sp, state_str in recruit_states.items():
                 try:
                     new_state = SpeciesState(state_str)
@@ -921,6 +975,7 @@ class Biosphere:
 # ----------------------------------------------------------------------
 # CLI 命令
 # ----------------------------------------------------------------------
+
 
 async def _async_run_loop(bio: Biosphere, duration: float) -> None:
     """异步主循环：async_step 非阻塞步进。"""
@@ -943,13 +998,16 @@ async def _async_run_loop(bio: Biosphere, duration: float) -> None:
         signal.signal(signal.SIGINT, _original_sigint)
         bio.stop()
 
+
 def cmd_run(args) -> int:
     """启动森林公司（异步主循环）。"""
     bio = Biosphere(save_path=args.save_path)
     loaded = bio.bootstrap(load=not args.no_load)
     bio.start()
-    print(f"[*] BlueDeer 森林公司已启动：{len(bio.employees)} 名员工"
-          f"（{'从存档恢复' if loaded else '全新创建'}）")
+    print(
+        f"[*] BlueDeer 森林公司已启动：{len(bio.employees)} 名员工"
+        f"（{'从存档恢复' if loaded else '全新创建'}）"
+    )
     print(f"[*] 存档路径：{bio._save_path}")
     print("[*] Ctrl+C 停止")
     try:
@@ -970,16 +1028,20 @@ def cmd_status(args) -> int:
     print(f"运行中：{s['running']}")
     print(f"食物：{s['env']['food_available']}")
     print(f"种群：{s['env']['population_count']} 只")
-    print(f"任务：待办 {s['tasks']['pending']} / 进行 {s['tasks']['running']} / "
-          f"完成 {s['tasks']['completed']} / 失败 {s['tasks']['failed']}")
+    print(
+        f"任务：待办 {s['tasks']['pending']} / 进行 {s['tasks']['running']} / "
+        f"完成 {s['tasks']['completed']} / 失败 {s['tasks']['failed']}"
+    )
     print(f"故事章节：{s['storyteller']['total_chapters']}")
     print(f"进化快照：{s['evolution']['snapshot_count']}")
     print("\n员工：")
     for emp in s["employees"]:
-        print(f"  {emp['name']:8s}  物种={emp['species']:9s}  "
-              f"阶段={emp['stage'] or '?':8s}  能量={emp['energy']:5.1f}  "
-              f"健康={emp['health']:5.1f}  年龄={emp['age_days']}天  "
-              f"{'存活' if emp['alive'] else '已故'}")
+        print(
+            f"  {emp['name']:8s}  物种={emp['species']:9s}  "
+            f"阶段={emp['stage'] or '?':8s}  能量={emp['energy']:5.1f}  "
+            f"健康={emp['health']:5.1f}  年龄={emp['age_days']}天  "
+            f"{'存活' if emp['alive'] else '已故'}"
+        )
     return 0
 
 
@@ -1027,8 +1089,10 @@ def cmd_list_tasks(args) -> int:
     """列出所有任务类型。"""
     print("支持的 11 种任务类型：")
     for tid, spec in TASK_TYPES.items():
-        print(f"  {tid:14s}  物种={spec['species']:9s}  "
-              f"难度={spec['difficulty']}  {spec['description']}")
+        print(
+            f"  {tid:14s}  物种={spec['species']:9s}  "
+            f"难度={spec['difficulty']}  {spec['description']}"
+        )
     return 0
 
 
@@ -1038,15 +1102,18 @@ def build_parser() -> argparse.ArgumentParser:
         prog="run_biosphere",
         description="BlueDeer 森林公司主控",
     )
-    parser.add_argument("--save-path", default=DEFAULT_SAVE_PATH,
-                        help=f"存档路径（默认 {DEFAULT_SAVE_PATH}）")
+    parser.add_argument(
+        "--save-path",
+        default=DEFAULT_SAVE_PATH,
+        help=f"存档路径（默认 {DEFAULT_SAVE_PATH}）",
+    )
     sub = parser.add_subparsers(dest="command")
 
     p_run = sub.add_parser("run", help="启动森林公司")
-    p_run.add_argument("--duration", type=float, default=0,
-                       help="运行时长（秒），0=持续运行")
-    p_run.add_argument("--no-load", action="store_true",
-                       help="不加载存档，全新启动")
+    p_run.add_argument(
+        "--duration", type=float, default=0, help="运行时长（秒），0=持续运行"
+    )
+    p_run.add_argument("--no-load", action="store_true", help="不加载存档，全新启动")
     p_run.set_defaults(func=cmd_run)
 
     p_status = sub.add_parser("status", help="打印当前状态")
@@ -1060,8 +1127,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_report.set_defaults(func=cmd_report)
 
     p_inject = sub.add_parser("inject", help="注入一个任务")
-    p_inject.add_argument("task_type", choices=list(TASK_TYPES.keys()),
-                          help="任务类型")
+    p_inject.add_argument("task_type", choices=list(TASK_TYPES.keys()), help="任务类型")
     p_inject.add_argument("--desc", default="", help="任务描述")
     p_inject.set_defaults(func=cmd_inject)
 

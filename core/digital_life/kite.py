@@ -3,6 +3,7 @@
 特殊行为：survey 俯瞰团队，updraft 上升气流给团队加成。
 commit 28：行为池——高空盘旋 / 整理羽毛 / 俯冲假动作
 """
+
 from __future__ import annotations
 
 import random
@@ -41,8 +42,8 @@ class Kite(DigitalLifeForm):
                 "life_stages": ["JUVENILE", "ADULT", "MIDDLE"],
                 "probability": 0.015,
             },
-            "duration_sec": 300,       # 5 分钟
-            "cooldown_sec": 7200,      # 2 小时一次
+            "duration_sec": 300,  # 5 分钟
+            "cooldown_sec": 7200,  # 2 小时一次
             "animation": "work",
             "particles": "feather_drop",
         },
@@ -55,7 +56,7 @@ class Kite(DigitalLifeForm):
                 "life_stages": ["JUVENILE", "ADULT", "MIDDLE", "ELDERLY"],
                 "probability": 0.02,
             },
-            "duration_sec": 240,       # 4 分钟
+            "duration_sec": 240,  # 4 分钟
             "cooldown_sec": 3600,
             "animation": "idle",
             "particles": "feather_shine",
@@ -69,18 +70,30 @@ class Kite(DigitalLifeForm):
                 "life_stages": ["JUVENILE", "ADULT", "MIDDLE"],
                 "probability": 0.012,
             },
-            "duration_sec": 10,        # 10 秒
+            "duration_sec": 10,  # 10 秒
             "cooldown_sec": 900,
             "animation": "react",
             "particles": "smirk",
         },
     ]
 
-    def __init__(self, name="青鸢", gender="male", environment=None,
-                 birth_time=None, genome_override=None):
+    def __init__(
+        self,
+        name="青鸢",
+        gender="male",
+        environment=None,
+        birth_time=None,
+        genome_override=None,
+    ):
         genome = self._build_genome(genome_override)
-        super().__init__(name=name, species="kite", gender=gender,
-                         genome=genome, environment=environment, birth_time=birth_time)
+        super().__init__(
+            name=name,
+            species="kite",
+            gender=gender,
+            genome=genome,
+            environment=environment,
+            birth_time=birth_time,
+        )
 
     def survey(self) -> dict:
         """俯瞰团队，返回种群快照。"""
@@ -89,8 +102,11 @@ class Kite(DigitalLifeForm):
         with self._environment._lock:
             return {
                 "total": len(self._environment.population),
-                "alive": sum(1 for lf in self._environment.population
-                             if getattr(lf, "_alive", False)),
+                "alive": sum(
+                    1
+                    for lf in self._environment.population
+                    if getattr(lf, "_alive", False)
+                ),
             }
 
     def updraft(self) -> None:
@@ -126,11 +142,14 @@ class Kite(DigitalLifeForm):
             # 整理羽毛：能量恢复 +0.05，5% 概率扯下一根旧羽
             self.energy = min(100.0, self.energy + 0.05)
             if random.random() < 0.005 and self._environment is not None:
-                self._environment.broadcast_event("feather_shed", {
-                    "name": self._name_obj,
-                    "species": "kite",
-                    "zone_id": self.current_zone_id,
-                })
+                self._environment.broadcast_event(
+                    "feather_shed",
+                    {
+                        "name": self._name_obj,
+                        "species": "kite",
+                        "zone_id": self.current_zone_id,
+                    },
+                )
         elif bname == "dive_fake":
             # 俯冲：消耗大量能量，mood 大涨
             self.energy = max(0.0, self.energy - 1.0)
@@ -150,6 +169,7 @@ class Kite(DigitalLifeForm):
         return Kite(
             name=f"{self._name_obj}的幼崽",
             gender=random.choice(["male", "female"]),
-            environment=environment, birth_time=birth_time,
+            environment=environment,
+            birth_time=birth_time,
             genome_override=genome,
         )

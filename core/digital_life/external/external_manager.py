@@ -11,6 +11,7 @@
 - data/external_config.json：开关和配置
 - data/external_approvals.json：审批历史
 """
+
 from __future__ import annotations
 
 import json
@@ -25,15 +26,19 @@ from core.digital_life.external.git_integration import GitIntegration
 from core.digital_life.external.shell_executor import ShellExecutor
 
 _CONFIG_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__))))),
-    "data", "external_config.json",
+    os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    ),
+    "data",
+    "external_config.json",
 )
 
 _APPROVALS_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__))))),
-    "data", "external_approvals.json",
+    os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    ),
+    "data",
+    "external_approvals.json",
 )
 
 # 审批超时（30 分钟未响应自动拒绝）
@@ -62,10 +67,26 @@ _DEFAULT_CONFIG = {
     "shell": {
         "enabled": False,
         "whitelist": [
-            "python", "python3", "pytest", "pip",
-            "npm", "node", "yarn", "git",
-            "ls", "cat", "echo", "grep", "find", "head", "tail", "wc",
-            "mkdir", "cp", "mv", "touch",
+            "python",
+            "python3",
+            "pytest",
+            "pip",
+            "npm",
+            "node",
+            "yarn",
+            "git",
+            "ls",
+            "cat",
+            "echo",
+            "grep",
+            "find",
+            "head",
+            "tail",
+            "wc",
+            "mkdir",
+            "cp",
+            "mv",
+            "touch",
         ],
         "blacklist": ["rm -rf", "sudo", "chmod 777", "curl ", "wget "],
         "timeout": 60,
@@ -82,6 +103,7 @@ _DEFAULT_CONFIG = {
 
 class ApprovalRequest:
     """审批请求。"""
+
     __slots__ = (
         "agent_id",
         "agent_name",
@@ -98,9 +120,16 @@ class ApprovalRequest:
         "summary",
     )
 
-    def __init__(self, op_type: str, agent_id: str, agent_name: str,
-                 species: str, summary: str, detail: dict,
-                 risk_level: str = RISK_MEDIUM) -> None:
+    def __init__(
+        self,
+        op_type: str,
+        agent_id: str,
+        agent_name: str,
+        species: str,
+        summary: str,
+        detail: dict,
+        risk_level: str = RISK_MEDIUM,
+    ) -> None:
         self.id: str = "ap-" + uuid.uuid4().hex[:8]
         self.op_type: str = op_type
         self.agent_id: str = agent_id
@@ -110,10 +139,10 @@ class ApprovalRequest:
         self.detail: dict = detail
         self.risk_level: str = risk_level
         self.created_ts: float = time.time()
-        self.decision: str = ""    # "" / "approved" / "rejected"
+        self.decision: str = ""  # "" / "approved" / "rejected"
         self.decided_ts: float = 0.0
         self.decision_reason: str = ""
-        self.result: dict = {}     # 执行结果（审批通过后填充）
+        self.result: dict = {}  # 执行结果（审批通过后填充）
 
     def to_dict(self) -> dict:
         return {
@@ -244,9 +273,14 @@ class ExternalManager:
 
     # ---------------- 审批 ----------------
 
-    def request_approval(self, op_type: str, agent: Any,
-                          summary: str, detail: dict,
-                          risk_level: str = RISK_MEDIUM) -> str:
+    def request_approval(
+        self,
+        op_type: str,
+        agent: Any,
+        summary: str,
+        detail: dict,
+        risk_level: str = RISK_MEDIUM,
+    ) -> str:
         """发起一个审批请求。返回审批 ID。"""
         agent_id = ""
         agent_name = ""
@@ -259,8 +293,12 @@ class ExternalManager:
             agent_name = getattr(agent, "_name_obj", "") or ""
             species = getattr(agent, "species", "") or ""
         req = ApprovalRequest(
-            op_type=op_type, agent_id=agent_id, agent_name=agent_name,
-            species=species, summary=summary, detail=detail,
+            op_type=op_type,
+            agent_id=agent_id,
+            agent_name=agent_name,
+            species=species,
+            summary=summary,
+            detail=detail,
             risk_level=risk_level,
         )
         with self._lock:
@@ -283,11 +321,9 @@ class ExternalManager:
                 self._pending.pop(req_dict["id"], None)
             if expired:
                 self._save_approvals()
-            return [r.to_dict() for r in self._pending.values()
-                    if not r.decision]
+            return [r.to_dict() for r in self._pending.values() if not r.decision]
 
-    def decide(self, approval_id: str, decision: str,
-                reason: str = "") -> dict:
+    def decide(self, approval_id: str, decision: str, reason: str = "") -> dict:
         """监工做出审批决定。decision = approved / rejected。"""
         with self._lock:
             req = self._pending.get(approval_id)
@@ -340,16 +376,23 @@ class ExternalManager:
 
     # ---------------- 便捷入口 ----------------
 
-    def execute_git(self, agent: Any, args: list[str],
-                     summary: str = "",
-                     risk_level: str = RISK_LOW) -> dict:
+    def execute_git(
+        self, agent: Any, args: list[str], summary: str = "", risk_level: str = RISK_LOW
+    ) -> dict:
         """执行 git 命令。读类操作（status/log）无需审批，写类操作需审批。"""
         if not self._git.enabled:
             return {"ok": False, "error": "Git 集成未启用"}
         subcmd = args[0] if args else ""
         # 读类直接执行
-        read_only = subcmd in ("status", "log", "diff", "show",
-                                 "branch", "rev-parse", "remote")
+        read_only = subcmd in (
+            "status",
+            "log",
+            "diff",
+            "show",
+            "branch",
+            "rev-parse",
+            "remote",
+        )
         if read_only and not self._config["git"].get("require_approval", True):
             result = self._git.execute(args)
             return result.to_dict()
@@ -357,14 +400,17 @@ class ExternalManager:
         if not summary:
             summary = f"git {' '.join(args)}"
         detail = {"args": args}
-        approval_id = self.request_approval(
-            OP_GIT, agent, summary, detail, risk_level)
-        return {"ok": False, "pending_approval": approval_id,
-                "summary": summary, "message": "等待监工审批"}
+        approval_id = self.request_approval(OP_GIT, agent, summary, detail, risk_level)
+        return {
+            "ok": False,
+            "pending_approval": approval_id,
+            "summary": summary,
+            "message": "等待监工审批",
+        }
 
-    def execute_shell(self, agent: Any, command: str,
-                       summary: str = "",
-                       risk_level: str = RISK_MEDIUM) -> dict:
+    def execute_shell(
+        self, agent: Any, command: str, summary: str = "", risk_level: str = RISK_MEDIUM
+    ) -> dict:
         """执行 shell 命令（始终需要审批）。"""
         if not self._shell.enabled:
             return {"ok": False, "error": "Shell 集成未启用"}
@@ -376,15 +422,26 @@ class ExternalManager:
             summary = command[:80]
         detail = {"command": command}
         approval_id = self.request_approval(
-            OP_SHELL, agent, summary, detail, risk_level)
-        return {"ok": False, "pending_approval": approval_id,
-                "summary": summary, "message": "等待监工审批"}
+            OP_SHELL, agent, summary, detail, risk_level
+        )
+        return {
+            "ok": False,
+            "pending_approval": approval_id,
+            "summary": summary,
+            "message": "等待监工审批",
+        }
 
-    def call_api(self, agent: Any, endpoint: str, method: str = "GET",
-                  path: str = "", query: dict | None = None,
-                  body: Any = None,
-                  summary: str = "",
-                  risk_level: str = RISK_LOW) -> dict:
+    def call_api(
+        self,
+        agent: Any,
+        endpoint: str,
+        method: str = "GET",
+        path: str = "",
+        query: dict | None = None,
+        body: Any = None,
+        summary: str = "",
+        risk_level: str = RISK_LOW,
+    ) -> dict:
         """调用外部 API。GET 默认低风险，POST/PUT/DELETE 中高风险。"""
         if not self._api.enabled:
             return {"ok": False, "error": "API 集成未启用"}
@@ -392,17 +449,28 @@ class ExternalManager:
             risk_level = RISK_HIGH if risk_level == RISK_LOW else risk_level
         if not summary:
             summary = f"{method} {endpoint}/{path}"
-        detail = {"endpoint": endpoint, "method": method, "path": path,
-                  "query": query, "body": body}
+        detail = {
+            "endpoint": endpoint,
+            "method": method,
+            "path": path,
+            "query": query,
+            "body": body,
+        }
         # GET 类默认放行（不需要审批），其他走审批
-        if method.upper() == "GET" and not self._config["api"].get("require_approval", True):
-            result = self._api.call(endpoint, method=method, path=path,
-                                     query=query, body=body)
+        if method.upper() == "GET" and not self._config["api"].get(
+            "require_approval", True
+        ):
+            result = self._api.call(
+                endpoint, method=method, path=path, query=query, body=body
+            )
             return result.to_dict()
-        approval_id = self.request_approval(
-            OP_API, agent, summary, detail, risk_level)
-        return {"ok": False, "pending_approval": approval_id,
-                "summary": summary, "message": "等待监工审批"}
+        approval_id = self.request_approval(OP_API, agent, summary, detail, risk_level)
+        return {
+            "ok": False,
+            "pending_approval": approval_id,
+            "summary": summary,
+            "message": "等待监工审批",
+        }
 
 
 def get_external_manager() -> ExternalManager:

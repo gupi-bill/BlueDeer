@@ -7,13 +7,12 @@ from typing import Any
 
 from src.model_capability_readers import google_ai_studio_mapping as ai_studio
 from src.model_capability_readers.base import (
-    ModelCapabilityRecord,
     VENDOR_GOOGLE,
+    ModelCapabilityRecord,
     as_list,
     compact_str,
     stable_model_id_for,
 )
-
 
 vendor = VENDOR_GOOGLE
 
@@ -38,7 +37,9 @@ def record_from_model(
     return ModelCapabilityRecord(
         vendor=VENDOR_GOOGLE,
         model_id=model_id,
-        stable_model_id=stable_model_id_for(VENDOR_GOOGLE, model_id, endpoint_id=endpoint_id, base_url=base_url),
+        stable_model_id=stable_model_id_for(
+            VENDOR_GOOGLE, model_id, endpoint_id=endpoint_id, base_url=base_url
+        ),
         display_name=compact_str(raw.get("displayName")) or model_id,
         capability=ai_studio.capability_from_model(raw),
         deterministic_controls=ai_studio.deterministic_controls_from_model(raw),

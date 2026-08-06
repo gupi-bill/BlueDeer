@@ -9,18 +9,6 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
-
-from core.database import (
-    Base,
-    ChatMessage as DbChatMessage,
-    CalendarCal,
-    CalendarEvent,
-    Document,
-    DocumentVersion,
-    GalleryImage,
-    Note,
-    Session as DbSession,
-)
 from src.upload_handler import (
     UploadCleanupSafetyError,
     UploadHandler,
@@ -30,6 +18,21 @@ from src.upload_handler import (
 )
 from tests.helpers.sqlite_db import make_temp_sqlite
 
+from core.database import (
+    Base,
+    CalendarCal,
+    CalendarEvent,
+    Document,
+    DocumentVersion,
+    GalleryImage,
+    Note,
+)
+from core.database import (
+    ChatMessage as DbChatMessage,
+)
+from core.database import (
+    Session as DbSession,
+)
 
 OLD_TIMESTAMP = "2000-01-01T00:00:00"
 
@@ -98,8 +101,7 @@ def _manual_cleanup_endpoint(handler: UploadHandler, monkeypatch):
     before = len(router.routes)
     setup_upload_routes(handler)
     return {
-        route.endpoint.__name__: route.endpoint
-        for route in router.routes[before:]
+        route.endpoint.__name__: route.endpoint for route in router.routes[before:]
     }["manual_cleanup"]
 
 
@@ -109,35 +111,45 @@ def _reference_database(monkeypatch, *, upload_id: str, gallery_hash: str = None
     SessionLocal, engine, tmpfile = make_temp_sqlite(Base.metadata)
     db = SessionLocal()
     try:
-        db.add(DbSession(
-            id="session-1",
-            name="Cleanup regression",
-            endpoint_url="http://localhost",
-            model="test-model",
-            owner="alice",
-        ))
-        db.add(DbChatMessage(
-            id="message-1",
-            session_id="session-1",
-            role="user",
-            content=f"[Attachment: retained.png | id={upload_id} | mime=image/png]",
-            meta_data=json.dumps({
-                "attachments": [{
-                    "id": upload_id,
-                    "name": "retained.png",
-                    "mime": "image/png",
-                    "size": 8,
-                }]
-            }),
-        ))
-        if gallery_hash:
-            db.add(GalleryImage(
-                id="gallery-cleanup-reference",
-                filename="abcdef123456.png",
-                prompt="Chat upload",
+        db.add(
+            DbSession(
+                id="session-1",
+                name="Cleanup regression",
+                endpoint_url="http://localhost",
+                model="test-model",
                 owner="alice",
-                file_hash=gallery_hash,
-            ))
+            )
+        )
+        db.add(
+            DbChatMessage(
+                id="message-1",
+                session_id="session-1",
+                role="user",
+                content=f"[Attachment: retained.png | id={upload_id} | mime=image/png]",
+                meta_data=json.dumps(
+                    {
+                        "attachments": [
+                            {
+                                "id": upload_id,
+                                "name": "retained.png",
+                                "mime": "image/png",
+                                "size": 8,
+                            }
+                        ]
+                    }
+                ),
+            )
+        )
+        if gallery_hash:
+            db.add(
+                GalleryImage(
+                    id="gallery-cleanup-reference",
+                    filename="abcdef123456.png",
+                    prompt="Chat upload",
+                    owner="alice",
+                    file_hash=gallery_hash,
+                )
+            )
         db.commit()
     finally:
         db.close()
@@ -155,23 +167,26 @@ def test_admin_cleanup_preserves_referenced_upload_and_reconciles_deleted_row(
     unreferenced_id = "b" * 32 + ".txt"
     gallery_id = "7" * 32 + ".png"
     gallery_hash = "7" * 64
-    paths = _seed_old_uploads(handler, [
-        {
-            "id": referenced_id,
-            "hash": "1" * 64,
-            "mime": "image/png",
-        },
-        {
-            "id": unreferenced_id,
-            "hash": "2" * 64,
-            "mime": "text/plain",
-        },
-        {
-            "id": gallery_id,
-            "hash": gallery_hash,
-            "mime": "image/png",
-        },
-    ])
+    paths = _seed_old_uploads(
+        handler,
+        [
+            {
+                "id": referenced_id,
+                "hash": "1" * 64,
+                "mime": "image/png",
+            },
+            {
+                "id": unreferenced_id,
+                "hash": "2" * 64,
+                "mime": "text/plain",
+            },
+            {
+                "id": gallery_id,
+                "hash": gallery_hash,
+                "mime": "image/png",
+            },
+        ],
+    )
     engine, tmpfile = _reference_database(
         monkeypatch,
         upload_id=referenced_id,
@@ -227,12 +242,17 @@ def test_admin_cleanup_preserves_referenced_upload_and_reconciles_deleted_row(
 def test_cleanup_retains_upload_and_all_rows_when_index_rows_disagree(tmp_path):
     handler = _make_handler(tmp_path)
     upload_id = "c" * 32 + ".txt"
-    path = _seed_old_uploads(handler, [{
-        "id": upload_id,
-        "hash": "1" * 64,
-        "mime": "text/plain",
-        "owner": "alice",
-    }])[upload_id]
+    path = _seed_old_uploads(
+        handler,
+        [
+            {
+                "id": upload_id,
+                "hash": "1" * 64,
+                "mime": "text/plain",
+                "owner": "alice",
+            }
+        ],
+    )[upload_id]
     index_path = Path(handler.upload_dir, "uploads.json")
     index = json.loads(index_path.read_text(encoding="utf-8"))
     alice_row = next(iter(index.values()))
@@ -253,11 +273,16 @@ def test_cleanup_retains_upload_and_all_rows_when_index_rows_disagree(tmp_path):
 def test_cleanup_retains_lone_row_without_authoritative_lifecycle_metadata(tmp_path):
     handler = _make_handler(tmp_path)
     upload_id = "6" * 32 + ".txt"
-    path = _seed_old_uploads(handler, [{
-        "id": upload_id,
-        "hash": "6" * 64,
-        "mime": "text/plain",
-    }])[upload_id]
+    path = _seed_old_uploads(
+        handler,
+        [
+            {
+                "id": upload_id,
+                "hash": "6" * 64,
+                "mime": "text/plain",
+            }
+        ],
+    )[upload_id]
     index_path = Path(handler.upload_dir, "uploads.json")
     index = json.loads(index_path.read_text(encoding="utf-8"))
     row = next(iter(index.values()))
@@ -288,11 +313,16 @@ def test_reservation_and_cleanup_are_serialized_without_dangling_references(
     writer_root.mkdir()
     writer_handler = _make_handler(writer_root)
     upload_id = "2" * 32 + ".txt"
-    writer_path = _seed_old_uploads(writer_handler, [{
-        "id": upload_id,
-        "hash": "2" * 64,
-        "mime": "text/plain",
-    }])[upload_id]
+    writer_path = _seed_old_uploads(
+        writer_handler,
+        [
+            {
+                "id": upload_id,
+                "hash": "2" * 64,
+                "mime": "text/plain",
+            }
+        ],
+    )[upload_id]
     write_entered = threading.Event()
     release_write = threading.Event()
     real_atomic_write = writer_handler._atomic_write_json
@@ -307,7 +337,9 @@ def test_reservation_and_cleanup_are_serialized_without_dangling_references(
             assert release_write.wait(5)
         return real_atomic_write(path, data, sync_backup=sync_backup)
 
-    monkeypatch.setattr(writer_handler, "_atomic_write_json", blocking_reservation_write)
+    monkeypatch.setattr(
+        writer_handler, "_atomic_write_json", blocking_reservation_write
+    )
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
         reserve_future = pool.submit(
             writer_handler.reserve_upload,
@@ -326,11 +358,16 @@ def test_reservation_and_cleanup_are_serialized_without_dangling_references(
     cleanup_root = tmp_path / "cleanup-wins"
     cleanup_root.mkdir()
     cleanup_handler = _make_handler(cleanup_root)
-    cleanup_path = _seed_old_uploads(cleanup_handler, [{
-        "id": upload_id,
-        "hash": "3" * 64,
-        "mime": "text/plain",
-    }])[upload_id]
+    cleanup_path = _seed_old_uploads(
+        cleanup_handler,
+        [
+            {
+                "id": upload_id,
+                "hash": "3" * 64,
+                "mime": "text/plain",
+            }
+        ],
+    )[upload_id]
     remove_entered = threading.Event()
     release_remove = threading.Event()
     real_remove = os.remove
@@ -364,9 +401,12 @@ def test_admin_cleanup_reference_discovery_failure_returns_503_without_deleting(
 
     handler = _make_handler(tmp_path)
     upload_id = "d" * 32 + ".png"
-    path = _seed_old_uploads(handler, [
-        {"id": upload_id, "hash": "4" * 64, "mime": "image/png"},
-    ])[upload_id]
+    path = _seed_old_uploads(
+        handler,
+        [
+            {"id": upload_id, "hash": "4" * 64, "mime": "image/png"},
+        ],
+    )[upload_id]
 
     def fail_reference_scan():
         raise RuntimeError("database unavailable")
@@ -389,13 +429,16 @@ def test_admin_cleanup_reference_discovery_failure_returns_503_without_deleting(
 def test_cleanup_restores_index_when_file_removal_fails(tmp_path, monkeypatch):
     handler = _make_handler(tmp_path)
     upload_id = "e" * 32 + ".txt"
-    path = _seed_old_uploads(handler, [
-        {
-            "id": upload_id,
-            "hash": "5" * 64,
-            "mime": "text/plain",
-        },
-    ])[upload_id]
+    path = _seed_old_uploads(
+        handler,
+        [
+            {
+                "id": upload_id,
+                "hash": "5" * 64,
+                "mime": "text/plain",
+            },
+        ],
+    )[upload_id]
 
     real_remove = os.remove
 
@@ -431,9 +474,12 @@ def test_admin_cleanup_with_corrupt_index_returns_503_and_fails_closed(
 
     handler = _make_handler(tmp_path)
     upload_id = "9" * 32 + ".png"
-    path = _seed_old_uploads(handler, [
-        {"id": upload_id, "hash": "9" * 64, "mime": "image/png"},
-    ])[upload_id]
+    path = _seed_old_uploads(
+        handler,
+        [
+            {"id": upload_id, "hash": "9" * 64, "mime": "image/png"},
+        ],
+    )[upload_id]
     Path(handler.upload_dir, "uploads.json").write_text(
         '{"alice:broken": {',
         encoding="utf-8",
@@ -485,58 +531,72 @@ def test_reference_discovery_covers_all_durable_upload_stores(
     SessionLocal, engine, tmpfile = make_temp_sqlite(Base.metadata)
     db = SessionLocal()
     try:
-        db.add(DbSession(
-            id="session-2",
-            name="Reference sources",
-            endpoint_url="http://localhost",
-            model="test-model",
-            owner="alice",
-        ))
-        db.add(Document(
-            id="document-1",
-            session_id="session-2",
-            title="PDF",
-            current_content=f'<!-- pdf_source upload_id="{document_id}" -->',
-            owner="alice",
-        ))
-        db.add(DocumentVersion(
-            id="version-1",
-            document_id="document-1",
-            version_number=1,
-            content=f'<!-- pdf_form_source upload_id="{version_id}" fields="1" -->',
-        ))
-        db.add(GalleryImage(
-            id="gallery-1",
-            # Gallery filenames are normally generated 12-hex names, so this
-            # record proves retention comes from its stored content hash.
-            filename="abcdef123456.png",
-            prompt="Chat upload",
-            owner="alice",
-            file_hash=gallery_hash,
-        ))
-        db.add(Note(
-            id="note-1",
-            owner="alice",
-            title="Photo note",
-            image_url=f"/api/upload/{note_upload_id}",
-            color=f"odysseus://attachment/{note_color_id}",
-        ))
-        db.add(CalendarCal(
-            id="calendar-1",
-            owner="alice",
-            name="Personal",
-            color=f"/api/upload/{calendar_upload_id}",
-        ))
-        db.add(CalendarEvent(
-            uid="event-1",
-            calendar_id="calendar-1",
-            summary="Photo event",
-            dtstart=datetime(2026, 7, 10, 12, 0),
-            dtend=datetime(2026, 7, 10, 13, 0),
-            color=f"/api/upload/{event_upload_id}",
-            description=f"Notes: odysseus://attachment/{event_description_id}",
-            location=f"/api/upload/{event_location_id}",
-        ))
+        db.add(
+            DbSession(
+                id="session-2",
+                name="Reference sources",
+                endpoint_url="http://localhost",
+                model="test-model",
+                owner="alice",
+            )
+        )
+        db.add(
+            Document(
+                id="document-1",
+                session_id="session-2",
+                title="PDF",
+                current_content=f'<!-- pdf_source upload_id="{document_id}" -->',
+                owner="alice",
+            )
+        )
+        db.add(
+            DocumentVersion(
+                id="version-1",
+                document_id="document-1",
+                version_number=1,
+                content=f'<!-- pdf_form_source upload_id="{version_id}" fields="1" -->',
+            )
+        )
+        db.add(
+            GalleryImage(
+                id="gallery-1",
+                # Gallery filenames are normally generated 12-hex names, so this
+                # record proves retention comes from its stored content hash.
+                filename="abcdef123456.png",
+                prompt="Chat upload",
+                owner="alice",
+                file_hash=gallery_hash,
+            )
+        )
+        db.add(
+            Note(
+                id="note-1",
+                owner="alice",
+                title="Photo note",
+                image_url=f"/api/upload/{note_upload_id}",
+                color=f"odysseus://attachment/{note_color_id}",
+            )
+        )
+        db.add(
+            CalendarCal(
+                id="calendar-1",
+                owner="alice",
+                name="Personal",
+                color=f"/api/upload/{calendar_upload_id}",
+            )
+        )
+        db.add(
+            CalendarEvent(
+                uid="event-1",
+                calendar_id="calendar-1",
+                summary="Photo event",
+                dtstart=datetime(2026, 7, 10, 12, 0),
+                dtend=datetime(2026, 7, 10, 13, 0),
+                color=f"/api/upload/{event_upload_id}",
+                description=f"Notes: odysseus://attachment/{event_description_id}",
+                location=f"/api/upload/{event_location_id}",
+            )
+        )
         db.commit()
     finally:
         db.close()
@@ -573,10 +633,12 @@ def test_write_reservation_extracts_only_explicit_internal_references():
 
     assert extract_internal_upload_ids(checksum_like_text) == set()
     assert extract_internal_upload_ids(f"sha={checksum_like_text}") == set()
-    assert extract_internal_upload_ids({
-        "image": f"/api/upload/{upload_id}",
-        "nested": [f"odysseus://attachment/{upload_id}"],
-    }) == {upload_id}
+    assert extract_internal_upload_ids(
+        {
+            "image": f"/api/upload/{upload_id}",
+            "nested": [f"odysseus://attachment/{upload_id}"],
+        }
+    ) == {upload_id}
     assert extract_internal_upload_ids(
         f'<!-- pdf_source upload_id="{upload_id}" -->'
     ) == {upload_id}
@@ -596,39 +658,55 @@ def test_write_reservation_extracts_only_explicit_internal_references():
 def test_reservation_never_uses_admin_override(tmp_path):
     handler = _make_handler(tmp_path)
     upload_id = "c" * 32 + ".txt"
-    _seed_old_uploads(handler, [{
-        "id": upload_id,
-        "hash": "c" * 64,
-        "mime": "text/plain",
-        "owner": "alice",
-    }])
+    _seed_old_uploads(
+        handler,
+        [
+            {
+                "id": upload_id,
+                "hash": "c" * 64,
+                "mime": "text/plain",
+                "owner": "alice",
+            }
+        ],
+    )
 
-    assert reserve_upload_references(
-        handler,
-        "alice",
-        f"odysseus://attachment/{upload_id}",
-    ) is None
-    assert reserve_upload_references(
-        handler,
-        "admin",
-        f"odysseus://attachment/{upload_id}",
-    ) == upload_id
-    assert handler.reserve_upload(
-        upload_id,
-        owner="admin",
-        auth_manager=_AdminAuth(),
-        allow_admin=False,
-    ) is None
-    assert reserve_message_upload_references(
-        handler,
-        "admin",
-        "legacy attachment metadata",
-        {"attachments": [{"id": upload_id, "name": "owned.txt"}]},
-    ) == upload_id
+    assert (
+        reserve_upload_references(
+            handler,
+            "alice",
+            f"odysseus://attachment/{upload_id}",
+        )
+        is None
+    )
+    assert (
+        reserve_upload_references(
+            handler,
+            "admin",
+            f"odysseus://attachment/{upload_id}",
+        )
+        == upload_id
+    )
+    assert (
+        handler.reserve_upload(
+            upload_id,
+            owner="admin",
+            auth_manager=_AdminAuth(),
+            allow_admin=False,
+        )
+        is None
+    )
+    assert (
+        reserve_message_upload_references(
+            handler,
+            "admin",
+            "legacy attachment metadata",
+            {"attachments": [{"id": upload_id, "name": "owned.txt"}]},
+        )
+        == upload_id
+    )
 
 
 def test_remaining_durable_writers_reserve_before_commit(monkeypatch):
-    import core.database as database
     import core.session_manager as session_manager_module
     import src.database as legacy_database
     from core.models import ChatMessage
@@ -637,6 +715,8 @@ def test_remaining_durable_writers_reserve_before_commit(monkeypatch):
     from src.agent_tools.document_tools import EditDocumentTool
     from src.tools.calendar import do_manage_calendar
     from src.tools.notes import do_manage_notes
+
+    from core import database
 
     upload_id = "6" * 32 + ".png"
 
@@ -660,22 +740,26 @@ def test_remaining_durable_writers_reserve_before_commit(monkeypatch):
     monkeypatch.setattr(session_manager_module, "SessionLocal", SessionLocal)
     db = SessionLocal()
     try:
-        db.add(DbSession(
-            id="writer-session",
-            name="Writer coverage",
-            endpoint_url="http://localhost",
-            model="test-model",
-            owner="alice",
-        ))
-        db.add(Document(
-            id="email-document",
-            session_id="writer-session",
-            title="New Email",
-            language="email",
-            current_content="To: team@example.test\nSubject: Status\n---\nOld body",
-            version_count=1,
-            owner="alice",
-        ))
+        db.add(
+            DbSession(
+                id="writer-session",
+                name="Writer coverage",
+                endpoint_url="http://localhost",
+                model="test-model",
+                owner="alice",
+            )
+        )
+        db.add(
+            Document(
+                id="email-document",
+                session_id="writer-session",
+                title="New Email",
+                language="email",
+                current_content="To: team@example.test\nSubject: Status\n---\nOld body",
+                version_count=1,
+                owner="alice",
+            )
+        )
         db.commit()
 
         manager = SessionManager()
@@ -689,41 +773,53 @@ def test_remaining_durable_writers_reserve_before_commit(monkeypatch):
             ),
         )
 
-        document_result = asyncio.run(EditDocumentTool().execute(
-            "<<<FIND>>>\n\n<<<REPLACE>>>\n"
-            f"See /api/upload/{upload_id}\n<<<END>>>",
-            {"doc_id": "email-document", "owner": "alice"},
-        ))
+        document_result = asyncio.run(
+            EditDocumentTool().execute(
+                "<<<FIND>>>\n\n<<<REPLACE>>>\n"
+                f"See /api/upload/{upload_id}\n<<<END>>>",
+                {"doc_id": "email-document", "owner": "alice"},
+            )
+        )
         assert document_result["exit_code"] == 1
         assert "no longer available" in document_result["error"]
 
-        calendar_result = asyncio.run(do_manage_calendar(
-            json.dumps({
-                "action": "create_event",
-                "summary": "Attachment review",
-                "dtstart": "2026-07-12T12:00:00",
-                "description": f"See /api/upload/{upload_id}",
-            }),
-            owner="alice",
-        ))
+        calendar_result = asyncio.run(
+            do_manage_calendar(
+                json.dumps(
+                    {
+                        "action": "create_event",
+                        "summary": "Attachment review",
+                        "dtstart": "2026-07-12T12:00:00",
+                        "description": f"See /api/upload/{upload_id}",
+                    }
+                ),
+                owner="alice",
+            )
+        )
         assert calendar_result["exit_code"] == 1
         assert "no longer available" in calendar_result["error"]
 
-        note_result = asyncio.run(do_manage_notes(
-            json.dumps({
-                "action": "add",
-                "title": "Attachment note",
-                "content": f"See /api/upload/{upload_id}",
-            }),
-            owner="alice",
-        ))
+        note_result = asyncio.run(
+            do_manage_notes(
+                json.dumps(
+                    {
+                        "action": "add",
+                        "title": "Attachment note",
+                        "content": f"See /api/upload/{upload_id}",
+                    }
+                ),
+                owner="alice",
+            )
+        )
         assert note_result["exit_code"] == 1
         assert "no longer available" in note_result["error"]
 
         verify = SessionLocal()
         try:
             assert verify.query(DbChatMessage).count() == 0
-            stored_doc = verify.query(Document).filter(Document.id == "email-document").one()
+            stored_doc = (
+                verify.query(Document).filter(Document.id == "email-document").one()
+            )
             assert stored_doc.current_content.endswith("Old body")
             assert verify.query(CalendarEvent).count() == 0
             assert verify.query(Note).count() == 0
@@ -740,8 +836,8 @@ def test_remaining_durable_writers_reserve_before_commit(monkeypatch):
 
 
 def test_note_calendar_and_document_routes_reserve_before_database_writes(monkeypatch):
-    from routes.calendar_routes import EventCreate, setup_calendar_routes
     from routes import document_routes
+    from routes.calendar_routes import EventCreate, setup_calendar_routes
     from routes.document_helpers import DocumentCreate
     from routes.note_routes import NoteCreate, setup_note_routes
     from src import auth_helpers
@@ -754,7 +850,6 @@ def test_note_calendar_and_document_routes_reserve_before_database_writes(monkey
 
         def reserve_upload(self, candidate, **kwargs):
             self.calls.append((candidate, kwargs))
-            return None
 
     request = SimpleNamespace(
         state=SimpleNamespace(current_user="alice", api_token=False),
@@ -764,7 +859,8 @@ def test_note_calendar_and_document_routes_reserve_before_database_writes(monkey
     note_handler = RejectingHandler()
     note_router = setup_note_routes(upload_handler=note_handler)
     create_note = next(
-        route.endpoint for route in note_router.routes
+        route.endpoint
+        for route in note_router.routes
         if route.endpoint.__name__ == "create_note"
     )
     with pytest.raises(HTTPException) as note_error:
@@ -773,25 +869,26 @@ def test_note_calendar_and_document_routes_reserve_before_database_writes(monkey
             NoteCreate(image_url=f"/api/upload/{upload_id}"),
         )
     assert note_error.value.status_code == 409
-    assert note_handler.calls == [
-        (upload_id, {"owner": "alice", "allow_admin": False})
-    ]
+    assert note_handler.calls == [(upload_id, {"owner": "alice", "allow_admin": False})]
 
     calendar_handler = RejectingHandler()
     calendar_router = setup_calendar_routes(upload_handler=calendar_handler)
     create_event = next(
-        route.endpoint for route in calendar_router.routes
+        route.endpoint
+        for route in calendar_router.routes
         if route.endpoint.__name__ == "create_event"
     )
     with pytest.raises(HTTPException) as calendar_error:
-        asyncio.run(create_event(
-            request,
-            EventCreate(
-                summary="Photo",
-                dtstart="2026-07-10T12:00:00",
-                color=f"odysseus://attachment/{upload_id}",
-            ),
-        ))
+        asyncio.run(
+            create_event(
+                request,
+                EventCreate(
+                    summary="Photo",
+                    dtstart="2026-07-10T12:00:00",
+                    color=f"odysseus://attachment/{upload_id}",
+                ),
+            )
+        )
     assert calendar_error.value.status_code == 409
     assert calendar_handler.calls == [
         (upload_id, {"owner": "alice", "allow_admin": False})
@@ -814,17 +911,20 @@ def test_note_calendar_and_document_routes_reserve_before_database_writes(monkey
         document_handler,
     )
     create_document = next(
-        route.endpoint for route in document_router.routes
+        route.endpoint
+        for route in document_router.routes
         if route.endpoint.__name__ == "create_document"
     )
     with pytest.raises(HTTPException) as document_error:
-        asyncio.run(create_document(
-            request,
-            DocumentCreate(
-                language="markdown",
-                content=f"![image](/api/upload/{upload_id})",
-            ),
-        ))
+        asyncio.run(
+            create_document(
+                request,
+                DocumentCreate(
+                    language="markdown",
+                    content=f"![image](/api/upload/{upload_id})",
+                ),
+            )
+        )
     assert document_error.value.status_code == 409
     assert document_handler.calls == [
         (upload_id, {"owner": "alice", "allow_admin": False})

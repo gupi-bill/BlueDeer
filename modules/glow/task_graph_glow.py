@@ -17,31 +17,33 @@ from enum import Enum
 from typing import Any
 
 from modules.glow.color_downgrade import (
+    RGB,
     ColorDowngradeRenderer,
     GlowLayer,
-    RGB,
 )
-
 
 # ============== 任务节点状态 ==============
 
+
 class NodeGlowState(Enum):
     """任务节点 6 状态。"""
-    PENDING = "pending"      # 待执行：灰光
-    RUNNING = "running"      # 运行中：流动绿光
-    SUCCESS = "success"      # 成功：淡出绿光
-    FAILED = "failed"        # 失败：红光脉冲
-    TIMEOUT = "timeout"      # 超时：橙光闪烁
-    BLOCKED = "blocked"      # 阻塞：紫光常亮
+
+    PENDING = "pending"  # 待执行：灰光
+    RUNNING = "running"  # 运行中：流动绿光
+    SUCCESS = "success"  # 成功：淡出绿光
+    FAILED = "failed"  # 失败：红光脉冲
+    TIMEOUT = "timeout"  # 超时：橙光闪烁
+    BLOCKED = "blocked"  # 阻塞：紫光常亮
 
 
 # 节点状态 → 发光参数
-_NODE_STATE_CONFIG: dict[NodeGlowState, "NodeGlowParams"] = {}
+_NODE_STATE_CONFIG: dict[NodeGlowState, NodeGlowParams] = {}
 
 
 @dataclass
 class NodeGlowParams:
     """节点发光参数。"""
+
     color: RGB
     layer: GlowLayer
     blink: bool = False
@@ -52,79 +54,102 @@ class NodeGlowParams:
 
 _NODE_STATE_CONFIG = {
     NodeGlowState.PENDING: NodeGlowParams(
-        color=RGB(120, 120, 120), layer=GlowLayer.BACKGROUND,
-        brightness=0.6, icon="○",
+        color=RGB(120, 120, 120),
+        layer=GlowLayer.BACKGROUND,
+        brightness=0.6,
+        icon="○",
     ),
     NodeGlowState.RUNNING: NodeGlowParams(
-        color=RGB(80, 200, 100), layer=GlowLayer.MIDGROUND,
-        brightness=1.0, pulse_frames=3, icon="◐",
+        color=RGB(80, 200, 100),
+        layer=GlowLayer.MIDGROUND,
+        brightness=1.0,
+        pulse_frames=3,
+        icon="◐",
     ),
     NodeGlowState.SUCCESS: NodeGlowParams(
-        color=RGB(100, 220, 120), layer=GlowLayer.MIDGROUND,
-        brightness=0.7, icon="●",
+        color=RGB(100, 220, 120),
+        layer=GlowLayer.MIDGROUND,
+        brightness=0.7,
+        icon="●",
     ),
     NodeGlowState.FAILED: NodeGlowParams(
-        color=RGB(255, 60, 60), layer=GlowLayer.FOREGROUND,
-        brightness=1.4, blink=True, pulse_frames=4, icon="✗",
+        color=RGB(255, 60, 60),
+        layer=GlowLayer.FOREGROUND,
+        brightness=1.4,
+        blink=True,
+        pulse_frames=4,
+        icon="✗",
     ),
     NodeGlowState.TIMEOUT: NodeGlowParams(
-        color=RGB(255, 160, 40), layer=GlowLayer.FOREGROUND,
-        brightness=1.2, blink=True, pulse_frames=3, icon="⏱",
+        color=RGB(255, 160, 40),
+        layer=GlowLayer.FOREGROUND,
+        brightness=1.2,
+        blink=True,
+        pulse_frames=3,
+        icon="⏱",
     ),
     NodeGlowState.BLOCKED: NodeGlowParams(
-        color=RGB(180, 80, 200), layer=GlowLayer.MIDGROUND,
-        brightness=1.0, icon="⛔",
+        color=RGB(180, 80, 200),
+        layer=GlowLayer.MIDGROUND,
+        brightness=1.0,
+        icon="⛔",
     ),
 }
 
 
 # ============== 分支节点 ==============
 
+
 class BranchGlowType(Enum):
     """分支节点 4 类型。"""
-    DECISION = "decision"    # 判断：三色光晕区分路径
-    LOOP = "loop"            # 循环：循环流动光
-    MERGE = "merge"          # 合并：渐变融合光
-    PARALLEL = "parallel"    # 并行：多光同步
+
+    DECISION = "decision"  # 判断：三色光晕区分路径
+    LOOP = "loop"  # 循环：循环流动光
+    MERGE = "merge"  # 合并：渐变融合光
+    PARALLEL = "parallel"  # 并行：多光同步
 
 
 _BRANCH_COLOR: dict[BranchGlowType, RGB] = {
-    BranchGlowType.DECISION: RGB(255, 200, 80),   # 黄
-    BranchGlowType.LOOP: RGB(80, 180, 240),       # 蓝
-    BranchGlowType.MERGE: RGB(180, 240, 100),     # 绿黄
+    BranchGlowType.DECISION: RGB(255, 200, 80),  # 黄
+    BranchGlowType.LOOP: RGB(80, 180, 240),  # 蓝
+    BranchGlowType.MERGE: RGB(180, 240, 100),  # 绿黄
     BranchGlowType.PARALLEL: RGB(240, 180, 220),  # 粉
 }
 
 
 # ============== 任务节点 ==============
 
+
 @dataclass
 class TaskNode:
     """任务链路节点。"""
-    node_id: str                       # 节点 ID（通常含 TraceID）
-    trace_id: str = ""                 # 所属 TraceID
-    agent_id: str = ""                 # 执行 Agent
-    label: str = ""                    # 节点标签
+
+    node_id: str  # 节点 ID（通常含 TraceID）
+    trace_id: str = ""  # 所属 TraceID
+    agent_id: str = ""  # 执行 Agent
+    label: str = ""  # 节点标签
     state: NodeGlowState = NodeGlowState.PENDING
-    duration_ms: int = 0               # 耗时（毫秒）
-    load: float = 0.0                  # 负载 0-1（CPU/Token 占用）
+    duration_ms: int = 0  # 耗时（毫秒）
+    load: float = 0.0  # 负载 0-1（CPU/Token 占用）
     branch_type: BranchGlowType | None = None  # 分支类型（None 普通节点）
-    error: str = ""                    # 错误信息
+    error: str = ""  # 错误信息
 
 
 @dataclass
 class TaskEdge:
     """任务链路连线。"""
+
     from_node: str
     to_node: str
     trace_id: str = ""
-    weight: float = 1.0    # 权重（耗时越长权重越高）
-    active: bool = False   # 是否活跃流转中
+    weight: float = 1.0  # 权重（耗时越长权重越高）
+    active: bool = False  # 是否活跃流转中
 
 
 @dataclass
 class TaskGraph:
     """任务链路图谱。"""
+
     nodes: list[TaskNode] = field(default_factory=list)
     edges: list[TaskEdge] = field(default_factory=list)
 
@@ -149,6 +174,7 @@ class TaskGraph:
 
 
 # ============== 负载亮度映射 ==============
+
 
 def load_to_brightness(load: float) -> float:
     """负载 → 亮度系数。
@@ -179,6 +205,7 @@ def load_to_color(load: float, base_color: RGB) -> RGB:
 
 # ============== 任务链路光图渲染器 ==============
 
+
 class TaskGraphGlowRenderer:
     """任务链路发光图谱渲染器。
 
@@ -195,7 +222,8 @@ class TaskGraphGlowRenderer:
     def render_node(self, node: TaskNode) -> str:
         """渲染单节点发光文本。"""
         params = _NODE_STATE_CONFIG.get(
-            node.state, _NODE_STATE_CONFIG[NodeGlowState.PENDING],
+            node.state,
+            _NODE_STATE_CONFIG[NodeGlowState.PENDING],
         )
         # 分支节点用分支色
         if node.branch_type is not None:
@@ -244,7 +272,9 @@ class TaskGraphGlowRenderer:
             return [f"(TraceID {trace_id} 无节点)"]
         lines = [
             self._renderer.render_glow(
-                f"🔗 TraceID: {trace_id}", RGB(120, 200, 240), GlowLayer.FOREGROUND,
+                f"🔗 TraceID: {trace_id}",
+                RGB(120, 200, 240),
+                GlowLayer.FOREGROUND,
             ),
         ]
         for n in nodes:
@@ -262,10 +292,14 @@ class TaskGraphGlowRenderer:
         for i in range(frames_count):
             factor = 0.6 + 0.4 * (i / max(1, frames_count - 1))
             adjusted = params.color.adjust_brightness(factor * params.brightness)
-            result.append(self._renderer.render_glow(
-                f"{params.icon} {label}", adjusted, params.layer,
-                blink=(i == 0 and params.blink),
-            ))
+            result.append(
+                self._renderer.render_glow(
+                    f"{params.icon} {label}",
+                    adjusted,
+                    params.layer,
+                    blink=(i == 0 and params.blink),
+                )
+            )
         return result
 
     def render_graph_md(self, graph: TaskGraph) -> str:
@@ -303,7 +337,9 @@ class TaskGraphGlowRenderer:
                     from_label = from_n.label if from_n else e.from_node
                     to_label = to_n.label if to_n else e.to_node
                     active = "▶" if e.active else "·"
-                    lines.append(f"- {from_label} {active}→ {to_label} (权重 {e.weight:.1f})")
+                    lines.append(
+                        f"- {from_label} {active}→ {to_label} (权重 {e.weight:.1f})"
+                    )
                 lines.append("")
         # 失败节点统计
         failed = [n for n in graph.nodes if n.state == NodeGlowState.FAILED]
@@ -323,10 +359,18 @@ class TaskGraphGlowRenderer:
         """列出 4 个分支类型。"""
         return list(BranchGlowType)
 
-    def render_edge_colored(self, edge: TaskEdge, graph: TaskGraph,
-                            edge_colors: dict[str, RGB] | None = None) -> str:
+    def render_edge_colored(
+        self,
+        edge: TaskEdge,
+        graph: TaskGraph,
+        edge_colors: dict[str, RGB] | None = None,
+    ) -> str:
         """渲染带颜色的连线（按 TraceID 或自定义着色）。"""
-        color = edge_colors.get(edge.trace_id, RGB(120, 180, 240)) if edge_colors else RGB(120, 180, 240)
+        color = (
+            edge_colors.get(edge.trace_id, RGB(120, 180, 240))
+            if edge_colors
+            else RGB(120, 180, 240)
+        )
         from_n = graph.find_node(edge.from_node)
         to_n = graph.find_node(edge.to_node)
         from_label = from_n.label if from_n else edge.from_node
@@ -340,10 +384,18 @@ class TaskGraphGlowRenderer:
 def trace_progress(nodes: list[TaskNode]) -> dict[str, Any]:
     """统计链路节点完成进度。"""
     total = len(nodes)
-    done = sum(1 for n in nodes if n.state in (NodeGlowState.SUCCESS, NodeGlowState.FAILED, NodeGlowState.TIMEOUT))
+    done = sum(
+        1
+        for n in nodes
+        if n.state
+        in (NodeGlowState.SUCCESS, NodeGlowState.FAILED, NodeGlowState.TIMEOUT)
+    )
     running = sum(1 for n in nodes if n.state == NodeGlowState.RUNNING)
     failed = sum(1 for n in nodes if n.state == NodeGlowState.FAILED)
     return {
-        "total": total, "completed": done, "running": running,
-        "failed": failed, "progress": done / total if total else 1.0,
+        "total": total,
+        "completed": done,
+        "running": running,
+        "failed": failed,
+        "progress": done / total if total else 1.0,
     }

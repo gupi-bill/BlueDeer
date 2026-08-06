@@ -8,19 +8,17 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import threading
 import time
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse
-from pydantic import BaseModel
+from fastapi.responses import HTMLResponse
 
 # ── 负载均衡状态 ──
-_server_loads: dict[str, float] = {}           # server_id -> 当前负载因子
-_server_capacity: dict[str, int] = {}          # server_id -> 最大玩家数
-_backup_servers: list[str] = []                # 备用 server id 列表
+_server_loads: dict[str, float] = {}  # server_id -> 当前负载因子
+_server_capacity: dict[str, int] = {}  # server_id -> 最大玩家数
+_backup_servers: list[str] = []  # 备用 server id 列表
 
 logger = logging.getLogger("bluedeer.game")
 
@@ -47,39 +45,45 @@ def get_biosphere() -> Any:
 
 # ── HTML 页面 ──
 
+
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
-async def game_index():
+async def game_index() -> Any:
     """主游戏页面（2D 俯视角）。"""
     from game_frontend import render_index
+
     return HTMLResponse(content=render_index())
 
 
 @router.get("/map", response_class=HTMLResponse)
-async def game_map():
+async def game_map() -> Any:
     """2.5D 地图页面。"""
     from game_frontend import render_index
+
     return HTMLResponse(content=render_index())
 
 
 @router.get("/console", response_class=HTMLResponse)
-async def game_console():
+async def game_console() -> Any:
     """极简控制台页面。"""
     from console_frontend import render_index
+
     return HTMLResponse(content=render_index())
 
 
 @router.get("/report", response_class=HTMLResponse)
-async def game_report():
+async def game_report() -> Any:
     """进化报告页面。"""
     bio = get_biosphere()
     report_text = bio.evolution_report()
     safe_text = _escape_html(report_text)
-    return HTMLResponse(content=_make_text_page("进化报告", "Evolution Report", safe_text))
+    return HTMLResponse(
+        content=_make_text_page("进化报告", "Evolution Report", safe_text)
+    )
 
 
 @router.get("/story", response_class=HTMLResponse)
-async def game_story():
+async def game_story() -> Any:
     """故事章节页面。"""
     bio = get_biosphere()
     story_text = bio.story_text(n=50)
@@ -88,20 +92,25 @@ async def game_story():
 
 
 @router.get("/snap", response_class=HTMLResponse)
-async def game_snap():
+async def game_snap() -> Any:
     """快照页面。"""
     bio = get_biosphere()
     snap = bio.evolution.take_snapshot()
     save_result = bio.save()
-    snap_html = f"<pre>{_escape_html(json.dumps(snap, ensure_ascii=False, indent=2))}</pre>"
+    snap_html = (
+        f"<pre>{_escape_html(json.dumps(snap, ensure_ascii=False, indent=2))}</pre>"
+    )
     save_html = f"<p>存档: {'✅' if save_result.get('ok') else '❌'} {save_result.get('path','')}</p>"
-    return HTMLResponse(content=_make_text_page("生态快照", "Snapshot", snap_html + save_html))
+    return HTMLResponse(
+        content=_make_text_page("生态快照", "Snapshot", snap_html + save_html)
+    )
 
 
 # ── API ──
 
+
 @router.get("/api/status")
-async def api_status():
+async def api_status() -> Any:
     """实时生物圈状态。"""
     bio = get_biosphere()
     with _biosphere_lock:
@@ -109,21 +118,23 @@ async def api_status():
 
 
 @router.get("/api/story")
-async def api_story(since: float = Query(0.0, description="只返回此时间戳之后的故事")):
+async def api_story(
+    since: float = Query(0.0, description="只返回此时间戳之后的故事")
+) -> Any:
     bio = get_biosphere()
     stories = bio.story_text(n=50)
     return {"stories": stories, "count": 1, "since": since}
 
 
 @router.get("/api/report")
-async def api_report():
+async def api_report() -> Any:
     bio = get_biosphere()
     text = bio.evolution_report()
     return {"report": text, "generated_at": time.time()}
 
 
 @router.get("/api/snap")
-async def api_snap():
+async def api_snap() -> Any:
     bio = get_biosphere()
     snap = bio.evolution.take_snapshot()
     bio.save()
@@ -131,7 +142,7 @@ async def api_snap():
 
 
 @router.post("/api/inject")
-async def api_inject(request: Request):
+async def api_inject(request: Request) -> Any:
     bio = get_biosphere()
     body = await request.json()
     task_type = body.get("type", "general")
@@ -144,7 +155,7 @@ async def api_inject(request: Request):
 
 
 @router.post("/api/interact")
-async def api_interact(request: Request):
+async def api_interact(request: Request) -> Any:
     bio = get_biosphere()
     body = await request.json()
     name = body.get("name", "")
@@ -157,19 +168,20 @@ async def api_interact(request: Request):
 
 
 @router.get("/api/zones")
-async def api_zones():
+async def api_zones() -> Any:
     from game_frontend import ZONES
+
     return {"zones": ZONES, "count": len(ZONES)}
 
 
 @router.get("/api/eco")
-async def api_eco():
+async def api_eco() -> Any:
     bio = get_biosphere()
     return bio.env.ecology_summary() if hasattr(bio.env, "ecology_summary") else {}
 
 
 @router.get("/api/emotions")
-async def api_emotions():
+async def api_emotions() -> Any:
     bio = get_biosphere()
     data = {}
     for eid, emp in bio.env.employees.items():
@@ -182,44 +194,45 @@ async def api_emotions():
 
 
 @router.get("/api/relationships")
-async def api_relationships():
+async def api_relationships() -> Any:
     bio = get_biosphere()
     rels = getattr(bio.env, "relationships", {})
     return {"relationships": rels}
 
 
 @router.get("/api/events")
-async def api_events():
+async def api_events() -> Any:
     bio = get_biosphere()
     events = getattr(bio.env, "event_log", [])
     return {"events": events[-50:]}
 
 
 @router.get("/api/messages")
-async def api_messages():
+async def api_messages() -> Any:
     bio = get_biosphere()
     msgs = getattr(bio.env, "messages", [])
     return {"messages": msgs[-30:]}
 
 
 @router.get("/api/memoir")
-async def api_memoir():
+async def api_memoir() -> Any:
     bio = get_biosphere()
     from core.digital_life import MemoryArchive
+
     archive = MemoryArchive()
     entries = archive.recent(20)
     return {"memoir": entries}
 
 
 @router.get("/api/tasks")
-async def api_tasks():
+async def api_tasks() -> Any:
     bio = get_biosphere()
     tasks = getattr(bio.tasks, "pending", []) + getattr(bio.tasks, "completed", [])
     return {"tasks": tasks[-30:]}
 
 
 @router.get("/api/recruit-status")
-async def api_recruit_status():
+async def api_recruit_status() -> Any:
     bio = get_biosphere()
     rs = getattr(bio, "recruit_system", None)
     if rs is None:
@@ -228,7 +241,7 @@ async def api_recruit_status():
 
 
 @router.post("/api/recruit")
-async def api_recruit():
+async def api_recruit() -> Any:
     bio = get_biosphere()
     rs = getattr(bio, "recruit_system", None)
     if rs is None:
@@ -241,7 +254,7 @@ async def api_recruit():
 
 
 @router.get("/api/evolution")
-async def api_evolution():
+async def api_evolution() -> Any:
     bio = get_biosphere()
     evo = getattr(bio, "evolution", None)
     if evo is None:
@@ -250,7 +263,7 @@ async def api_evolution():
 
 
 @router.get("/api/diary")
-async def api_diary():
+async def api_diary() -> Any:
     bio = get_biosphere()
     diaries = []
     for eid, emp in bio.env.employees.items():
@@ -261,7 +274,7 @@ async def api_diary():
 
 
 @router.get("/api/health")
-async def api_health():
+async def api_health() -> Any:
     """生物圈健康检查。"""
     bio = get_biosphere()
     emp_count = len(getattr(bio.env, "employees", {}))
@@ -278,19 +291,30 @@ async def api_health():
 
 # ── 负载均衡接口 ──
 
+
 def register_server(server_id: str, capacity: int = 100, load: float = 0.0) -> None:
     """注册游戏服务器。"""
     _server_capacity[server_id] = capacity
     _server_loads[server_id] = load
 
+
 def update_load(server_id: str, load: float) -> None:
     """更新服务器负载因子（0.0 ~ 1.0）。"""
     _server_loads[server_id] = load
+
 
 def set_backups(backups: list[str]) -> None:
     """设置备用服务器列表。"""
     _backup_servers.clear()
     _backup_servers.extend(backups)
+
+
+def clear_servers() -> None:
+    """清空所有已注册服务器（测试用）。"""
+    _server_loads.clear()
+    _server_capacity.clear()
+    _backup_servers.clear()
+
 
 def route_to_best(game_id: str, players: int) -> str | None:
     """选负载最低的可用服务器。
@@ -312,6 +336,7 @@ def route_to_best(game_id: str, players: int) -> str | None:
             best = sid
     return best
 
+
 def fallback_handler(game_id: str) -> str | None:
     """主服务器不可用时的故障转移。
     Args:
@@ -324,8 +349,10 @@ def fallback_handler(game_id: str) -> str | None:
         return _backup_servers[0]
     return None
 
+
 def _escape_html(text: str) -> str:
     import html as _html
+
     return _html.escape(str(text))
 
 

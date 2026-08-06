@@ -1,15 +1,13 @@
 """Import SKILL.md bundles from public GitHub (or skills.sh → GitHub) URLs."""
+
 from __future__ import annotations
 
 import logging
-import os
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 from urllib.parse import quote, urljoin, urlparse
 
 import httpx
-
 from src.url_safety import check_outbound_url
 
 logger = logging.getLogger(__name__)
@@ -18,13 +16,30 @@ MAX_FILES = 64
 MAX_TOTAL_BYTES = 2_000_000
 MAX_FILE_BYTES = 400_000
 ALLOWED_SUFFIXES = (
-    ".md", ".txt", ".json", ".yaml", ".yml", ".py", ".sh", ".toml",
-    ".js", ".ts", ".css", ".html", ".xml", ".csv",
+    ".md",
+    ".txt",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".py",
+    ".sh",
+    ".toml",
+    ".js",
+    ".ts",
+    ".css",
+    ".html",
+    ".xml",
+    ".csv",
 )
 TEXT_NAMES = {"skill.md", "license", "license.md", "readme.md"}
-_GITHUB_HOSTS = frozenset({
-    "github.com", "www.github.com", "api.github.com", "raw.githubusercontent.com",
-})
+_GITHUB_HOSTS = frozenset(
+    {
+        "github.com",
+        "www.github.com",
+        "api.github.com",
+        "raw.githubusercontent.com",
+    }
+)
 
 
 def _github_host(url: str) -> str:
@@ -89,7 +104,7 @@ def _check_fetch_url(url: str) -> None:
 def _get_checked(
     url: str,
     *,
-    headers: Optional[dict] = None,
+    headers: dict | None = None,
     timeout: float = 30.0,
 ) -> httpx.Response:
     """GET that follows redirects manually, re-running the SSRF guard per hop.
@@ -164,7 +179,9 @@ def parse_skill_source(url: str) -> ResolvedSource:
     elif len(bits) == 2:
         path = ""
     else:
-        raise SkillImportError("GitHub URL must include /tree/<branch>/... or /blob/<branch>/...")
+        raise SkillImportError(
+            "GitHub URL must include /tree/<branch>/... or /blob/<branch>/..."
+        )
 
     return ResolvedSource(owner=owner, repo=repo, ref=ref, path=path)
 
@@ -207,7 +224,9 @@ def _github_response_error(response: httpx.Response) -> SkillImportError:
 
 
 def _fetch_bytes(url: str) -> bytes:
-    r = _get_checked(url, headers={"Accept": "application/vnd.github+json"}, timeout=30.0)
+    r = _get_checked(
+        url, headers={"Accept": "application/vnd.github+json"}, timeout=30.0
+    )
     if r.status_code >= 400:
         raise _github_response_error(r)
     _assert_github_url(str(r.url), context="redirect target")
@@ -224,11 +243,15 @@ def _fetch_text(url: str) -> str:
         raise SkillImportError(f"non-text file: {url}") from e
 
 
-def _list_github_dir(src: ResolvedSource, rel_dir: str, out: Dict[str, str], *, depth: int = 0) -> None:
+def _list_github_dir(
+    src: ResolvedSource, rel_dir: str, out: dict[str, str], *, depth: int = 0
+) -> None:
     if depth > 4 or len(out) >= MAX_FILES:
         return
     url = _api_contents_url(src, rel_dir)
-    r = _get_checked(url, headers={"Accept": "application/vnd.github+json"}, timeout=30.0)
+    r = _get_checked(
+        url, headers={"Accept": "application/vnd.github+json"}, timeout=30.0
+    )
     if r.status_code >= 400:
         raise _github_response_error(r)
     _assert_github_url(str(r.url), context="redirect target")
@@ -261,10 +284,10 @@ def _list_github_dir(src: ResolvedSource, rel_dir: str, out: Dict[str, str], *, 
         out[rel] = text
 
 
-def fetch_skill_bundle(url: str) -> Tuple[Dict[str, str], ResolvedSource]:
+def fetch_skill_bundle(url: str) -> tuple[dict[str, str], ResolvedSource]:
     """Download SKILL.md and sibling text assets. Returns relative_path → content."""
     src = parse_skill_source(url)
-    files: Dict[str, str] = {}
+    files: dict[str, str] = {}
 
     path = _safe_relpath(src.path) if src.path else ""
     if path.lower().endswith("skill.md"):
@@ -306,7 +329,7 @@ def fetch_skill_bundle(url: str) -> Tuple[Dict[str, str], ResolvedSource]:
     return files, src
 
 
-def pick_skill_md(files: Dict[str, str]) -> Tuple[str, str]:
+def pick_skill_md(files: dict[str, str]) -> tuple[str, str]:
     for rel, content in files.items():
         if rel.lower().endswith("skill.md"):
             return rel, content

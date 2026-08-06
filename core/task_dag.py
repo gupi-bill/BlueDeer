@@ -17,9 +17,10 @@ import json
 import logging
 import os
 import threading
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger("bluedeer.task_dag")
 
@@ -220,6 +221,7 @@ class TaskDAG:
     def _load(self) -> None:
         try:
             from core.database import Database
+
             raw = Database().load_dag_nodes()
             if raw:
                 for item in raw:
@@ -244,6 +246,7 @@ class TaskDAG:
         try:
             raw = [asdict(n) for n in self._nodes.values()]
             from core.database import Database
+
             Database().save_dag_nodes(raw)
         except Exception as e:
             logger.warning("保存 DAG 到数据库失败: %s", e)
@@ -274,7 +277,9 @@ class TaskDAG:
 
     def export_json(self, path: str) -> None:
         """导出 DAG 到 JSON 文件。"""
-        import json, os
+        import json
+        import os
+
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(self.to_dict_list(), f, ensure_ascii=False, indent=2)
@@ -283,15 +288,14 @@ class TaskDAG:
     def import_json(cls, path: str) -> TaskDAG:
         """从 JSON 文件导入 DAG。"""
         import json
+
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         return cls.from_dict_list(data)
 
     # ---- 集成辅助 ----
 
-    def decorate_task(
-        self, task_id: str, task_type: str
-    ) -> str:
+    def decorate_task(self, task_id: str, task_type: str) -> str:
         """生成任务装饰描述，用于日志/前端。"""
         deps = self.depends_on(task_id)
         if not deps:
@@ -336,7 +340,9 @@ class TaskDAG:
                 for nid in layer:
                     if nid in errors:
                         continue
-                    deps_ok = all(d in completed and d not in errors for d in self.depends_on(nid))
+                    deps_ok = all(
+                        d in completed and d not in errors for d in self.depends_on(nid)
+                    )
                     if not deps_ok:
                         continue
                     fut = pool.submit(task_funcs[nid])
@@ -351,7 +357,9 @@ class TaskDAG:
                         logger.error("并行执行节点 %s 失败: %s", nid, e)
 
         if errors:
-            raise RuntimeError(f"以下节点执行失败: {list(errors.keys())}") from next(iter(errors.values()))
+            raise RuntimeError(f"以下节点执行失败: {list(errors.keys())}") from next(
+                iter(errors.values())
+            )
 
         return completed
 

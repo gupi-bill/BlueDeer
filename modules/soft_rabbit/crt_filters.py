@@ -14,17 +14,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from modules.soft_rabbit.pixel_render import Color, PALETTE_16
-
+from modules.soft_rabbit.pixel_render import PALETTE_16, Color
 
 # ============== 滤镜类型 ==============
 
 FILTER_TYPES = (
-    "scanline",        # 扫描线
-    "grain",           # 像素颗粒
-    "chromatic_shift", # 色彩偏移（终端用字符偏移模拟）
-    "vignette",        # 暗角
-    "round_corner",    # 圆角
+    "scanline",  # 扫描线
+    "grain",  # 像素颗粒
+    "chromatic_shift",  # 色彩偏移（终端用字符偏移模拟）
+    "vignette",  # 暗角
+    "round_corner",  # 圆角
 )
 
 # 强度档位：0-12 档（0=关闭，12=最强）
@@ -39,25 +38,27 @@ def _level_to_ratio(level: int) -> float:
 @dataclass
 class FilterParams:
     """滤镜参数。"""
-    type: str           # FILTER_TYPES 之一
+
+    type: str  # FILTER_TYPES 之一
     intensity: float = 0.5  # 0.0-1.0
 
 
 # ============== 6 套硬件预设 ==============
 
 HARDWARE_PRESETS = (
-    "nes",                  # NES 红白机
-    "gameboy",              # GameBoy 掌机
+    "nes",  # NES 红白机
+    "gameboy",  # GameBoy 掌机
     "industrial_terminal",  # 老式工控终端
-    "office_90s",           # 90 年代办公显示器
-    "arcade_crt",           # 街机 CRT
-    "handheld",             # 便携掌机
+    "office_90s",  # 90 年代办公显示器
+    "arcade_crt",  # 街机 CRT
+    "handheld",  # 便携掌机
 )
 
 
 @dataclass
 class HardwarePreset:
     """硬件预设：滤镜组合 + 色调偏移。"""
+
     name: str
     label: str
     filters: list[FilterParams] = field(default_factory=list)
@@ -67,14 +68,16 @@ class HardwarePreset:
 # 6 套预设定义
 _HARDWARE_PRESETS: dict[str, HardwarePreset] = {
     "nes": HardwarePreset(
-        "nes", "NES 红白机",
+        "nes",
+        "NES 红白机",
         filters=[
             FilterParams("scanline", 0.4),
             FilterParams("grain", 0.2),
         ],
     ),
     "gameboy": HardwarePreset(
-        "gameboy", "GameBoy 掌机",
+        "gameboy",
+        "GameBoy 掌机",
         filters=[
             FilterParams("scanline", 0.6),
             FilterParams("vignette", 0.5),
@@ -82,7 +85,8 @@ _HARDWARE_PRESETS: dict[str, HardwarePreset] = {
         palette_tint=Color(120, 160, 80),  # 经典绿屏
     ),
     "industrial_terminal": HardwarePreset(
-        "industrial_terminal", "老式工控终端",
+        "industrial_terminal",
+        "老式工控终端",
         filters=[
             FilterParams("scanline", 0.3),
             FilterParams("vignette", 0.7),
@@ -90,7 +94,8 @@ _HARDWARE_PRESETS: dict[str, HardwarePreset] = {
         ],
     ),
     "office_90s": HardwarePreset(
-        "office_90s", "90 年代办公显示器",
+        "office_90s",
+        "90 年代办公显示器",
         filters=[
             FilterParams("scanline", 0.5),
             FilterParams("vignette", 0.4),
@@ -98,7 +103,8 @@ _HARDWARE_PRESETS: dict[str, HardwarePreset] = {
         ],
     ),
     "arcade_crt": HardwarePreset(
-        "arcade_crt", "街机 CRT",
+        "arcade_crt",
+        "街机 CRT",
         filters=[
             FilterParams("scanline", 0.7),
             FilterParams("grain", 0.4),
@@ -107,7 +113,8 @@ _HARDWARE_PRESETS: dict[str, HardwarePreset] = {
         ],
     ),
     "handheld": HardwarePreset(
-        "handheld", "便携掌机",
+        "handheld",
+        "便携掌机",
         filters=[
             FilterParams("scanline", 0.5),
             FilterParams("vignette", 0.8),
@@ -125,9 +132,7 @@ class HardwarePresetRegistry:
 
     def get(self, name: str) -> HardwarePreset:
         if name not in self._presets:
-            raise KeyError(
-                f"未知硬件预设: {name}（可选: {self.list_presets()}）"
-            )
+            raise KeyError(f"未知硬件预设: {name}（可选: {self.list_presets()}）")
         return self._presets[name]
 
     def list_presets(self) -> list[str]:
@@ -143,6 +148,7 @@ class HardwarePresetRegistry:
 # ============== 单个滤镜实现 ==============
 # 终端字符级模拟：通过字符替换/偏移实现视觉效果
 
+
 class ScanlineFilter:
     """扫描线滤镜：每隔 N 行用半亮字符替换。
 
@@ -150,7 +156,10 @@ class ScanlineFilter:
     """
 
     def apply_to_lines(
-        self, lines: list[str], intensity: float, line_spacing: int = 2,
+        self,
+        lines: list[str],
+        intensity: float,
+        line_spacing: int = 2,
     ) -> list[str]:
         if intensity <= 0:
             return list(lines)
@@ -159,9 +168,7 @@ class ScanlineFilter:
             if (i + 1) % line_spacing == 0:
                 # 暗行：非空格字符降级为半亮
                 dim_char = "░" if intensity > 0.5 else "·"
-                new_line = "".join(
-                    dim_char if c != " " else " " for c in line
-                )
+                new_line = "".join(dim_char if c != " " else " " for c in line)
                 result.append(new_line)
             else:
                 result.append(line)
@@ -177,7 +184,10 @@ class GrainFilter:
     GRAIN_CHARS = (".", "·", "`", "'")
 
     def apply_to_lines(
-        self, lines: list[str], intensity: float, seed: int = 0,
+        self,
+        lines: list[str],
+        intensity: float,
+        seed: int = 0,
     ) -> list[str]:
         if intensity <= 0:
             return list(lines)
@@ -222,7 +232,9 @@ class ChromaticShiftFilter:
         result: list[str] = []
         for line in lines:
             # 右移 shift 位，左侧补空格
-            shifted = " " * shift + line[:-shift] if len(line) > shift else " " * shift + line
+            shifted = (
+                " " * shift + line[:-shift] if len(line) > shift else " " * shift + line
+            )
             result.append(shifted)
         return result
 
@@ -234,7 +246,10 @@ class VignetteFilter:
     """
 
     def apply_to_lines(
-        self, lines: list[str], intensity: float, corner_size: int = 2,
+        self,
+        lines: list[str],
+        intensity: float,
+        corner_size: int = 2,
     ) -> list[str]:
         if intensity <= 0 or not lines:
             return list(lines)
@@ -249,9 +264,8 @@ class VignetteFilter:
             w = len(chars)
             # 四角区域淡化
             for x in range(w):
-                in_corner = (
-                    (x < corner_size or x >= w - corner_size) and
-                    (y < corner_size or y >= h - corner_size)
+                in_corner = (x < corner_size or x >= w - corner_size) and (
+                    y < corner_size or y >= h - corner_size
                 )
                 if in_corner and chars[x] != " ":
                     chars[x] = dim_char
@@ -266,7 +280,10 @@ class RoundCornerFilter:
     """
 
     CORNER_CHARS = {
-        "tl": "╭", "tr": "╮", "bl": "╰", "br": "╯",
+        "tl": "╭",
+        "tr": "╮",
+        "bl": "╰",
+        "br": "╯",
     }
 
     def apply_to_lines(self, lines: list[str], intensity: float) -> list[str]:
@@ -378,13 +395,13 @@ def build_preset_pipeline(
     preset = reg.get(preset_name)
     scale = _level_to_ratio(intensity_level)
     filters = [
-        FilterParams(fp.type, min(1.0, fp.intensity * scale))
-        for fp in preset.filters
+        FilterParams(fp.type, min(1.0, fp.intensity * scale)) for fp in preset.filters
     ]
     return CRTFilterPipeline(filters)
 
 
 # ============== 低像素降噪 ==============
+
 
 class PixelDenoiser:
     """低像素降噪：量化到调色板最近色，抹平平滑渐变。

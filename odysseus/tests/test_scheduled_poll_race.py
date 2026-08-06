@@ -16,14 +16,14 @@ against a shared SQLite file, synchronized with a barrier so both reach the
 SELECT at (as close to) the same moment as possible, and asserts the send
 callback fired exactly once.
 """
+
 import sqlite3
 import threading
 import time
 
 
 def test_concurrent_pollers_do_not_double_send(tmp_path, monkeypatch):
-    import routes.email_helpers as email_helpers
-    import routes.email_pollers as email_pollers
+    from routes import email_helpers, email_pollers
 
     db_path = tmp_path / "scheduled_emails.db"
     monkeypatch.setattr(email_helpers, "SCHEDULED_DB", db_path)
@@ -89,7 +89,9 @@ def test_concurrent_pollers_do_not_double_send(tmp_path, monkeypatch):
     monkeypatch.setattr(email_pollers, "_send_smtp_message", fake_send_smtp_message)
     monkeypatch.setattr(email_pollers, "_imap", FakeImap)
     monkeypatch.setattr(email_pollers, "_detect_sent_folder", lambda imap: "Sent")
-    monkeypatch.setattr(email_pollers, "_cleanup_compose_uploads", lambda attachments: None)
+    monkeypatch.setattr(
+        email_pollers, "_cleanup_compose_uploads", lambda attachments: None
+    )
 
     results = []
 

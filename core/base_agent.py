@@ -6,14 +6,13 @@ import logging
 from enum import Enum
 from typing import Any
 
-from core.capability import Capability, CapabilityEnforcer, DEFAULT_ROLE_CAPABILITIES, parse_capabilities
+from core.capability import DEFAULT_ROLE_CAPABILITIES, Capability, CapabilityEnforcer
 from core.config import ResponseStyle
 from core.context import ContextManager
 from core.event_bus import EventBus
 from core.task import RESULT_TOPIC, Task, TaskResult, TaskStatus, TokenUsage
 from core.tracer import Tracer
 from models.router import Router
-from core.exceptions import ToolExecutionError, ToolNotFoundError, ToolValidationError
 from tools.registry import ToolRegistry
 
 logger = logging.getLogger("bluedeer.agent")
@@ -21,6 +20,7 @@ logger = logging.getLogger("bluedeer.agent")
 
 class AgentState(Enum):
     """Agent 生命周期状态。"""
+
     CREATED = "created"
     RUNNING = "running"
     PAUSED = "paused"
@@ -56,7 +56,7 @@ class BaseAgent:
         tool_registry: ToolRegistry,
         context: ContextManager,
         tracer: Tracer | None = None,
-        healer: "BaseAgent | None" = None,
+        healer: BaseAgent | None = None,
         response_style: str = "default",
     ) -> None:
         self.agent_id = agent_id
@@ -68,8 +68,9 @@ class BaseAgent:
         self._tracer = tracer
         self._healer = healer
         self._task_topic = f"agent.{agent_id}"
-        # 订阅自身 topic
-        self._bus.subscribe(self._task_topic, self._on_task)
+        # 订阅自身 topic（bus 可为 None：纯逻辑测试场景跳过订阅）
+        if self._bus is not None:
+            self._bus.subscribe(self._task_topic, self._on_task)
         self._response_style = self._resolve_style(response_style)
         self._capability_enforcer: CapabilityEnforcer | None = None
         self._state: AgentState = AgentState.CREATED
@@ -112,7 +113,9 @@ class BaseAgent:
         """返回当前生命周期状态。"""
         return self._state
 
-    def enable_capability_sandbox(self, extra_capabilities: set[Capability] | None = None) -> CapabilityEnforcer:
+    def enable_capability_sandbox(
+        self, extra_capabilities: set[Capability] | None = None
+    ) -> CapabilityEnforcer:
         """启用能力沙箱。
 
         按角色名从 DEFAULT_ROLE_CAPABILITIES 加载默认能力，
@@ -133,7 +136,9 @@ class BaseAgent:
 
     def _inject_enforcer_to_tools(self) -> None:
         """将当前能力执行器注入到 ToolRegistry（如果已启用）。"""
-        if self._capability_enforcer is not None and hasattr(self._tools, "_capability_enforcer"):
+        if self._capability_enforcer is not None and hasattr(
+            self._tools, "_capability_enforcer"
+        ):
             self._tools._capability_enforcer = self._capability_enforcer
 
     @staticmethod
@@ -157,7 +162,9 @@ class BaseAgent:
 
     def _trace_span(self, trace_id: str, action: str, **fields: Any) -> None:
         if self._tracer:
-            self._tracer.span(trace_id, component=f"Agent:{self.agent_id}", action=action, **fields)
+            self._tracer.span(
+                trace_id, component=f"Agent:{self.agent_id}", action=action, **fields
+            )
 
     @property
     def topic(self) -> str:
@@ -207,7 +214,9 @@ class BaseAgent:
         流程：构建 prompt → 模型推理 → 工具调用 → 自检 → 返回结果。
         异常封装为 TaskResult(FAILED)。
         """
-        self._trace_span(task.trace_id, "handle_start", task_id=task.id, task_type=task.type)
+        self._trace_span(
+            task.trace_id, "handle_start", task_id=task.id, task_type=task.type
+        )
 
         total_tokens = TokenUsage()
 
@@ -219,13 +228,25 @@ class BaseAgent:
             # 2. 模型路由 + 推理（P0 修复：走 complete_with_failover 激活备用模型切换）
             # P0 修复：传 agent_id 供 router 查询 perks（低成本模型优先等）
             model_response = await self._router.complete_with_failover(
-                task.type, prompt, agent_id=self.agent_id,
+                task.type,
+                prompt,
+                agent_id=self.agent_id,
             )
-            model_name = model_response.model_name if hasattr(model_response, "model_name") else "unknown"
+            model_name = (
+                model_response.model_name
+                if hasattr(model_response, "model_name")
+                else "unknown"
+            )
             total_tokens.tokens_in += model_response.tokens_in
             total_tokens.tokens_out += model_response.tokens_out
 
-            self._trace_span(task.trace_id, "model_complete", model=model_name, tokens_in=model_response.tokens_in, tokens_out=model_response.tokens_out)
+            self._trace_span(
+                task.trace_id,
+                "model_complete",
+                model=model_name,
+                tokens_in=model_response.tokens_in,
+                tokens_out=model_response.tokens_out,
+            )
 
             # 3. 工具调用（如果 payload 中指定了工具）
             tool_output: Any = None
@@ -318,6 +339,21 @@ class BaseAgent:
         except Exception as heal_err:
             logger.warning(
                 "Agent %s 自愈失败: %s（原始错误: %s）",
-                self.agent_id, heal_err, error,
+                self.agent_id,
+                heal_err,
+                error,
             )
             return None
+
+    async def _execute_via_bus(self, task: Task, timeout: float = 30.0) -> TaskResult:
+        """通过 EventBus 执行任务并等待结果（request-reply 模式）。
+
+        用于 007 Agent 内部循环将子任务下发到自身 topic，
+        复用 BaseAgent._on_task -> handle -> RESULT_TOPIC 链路。
+        """
+        return await self._bus.request(
+            task,
+            self._task_topic,
+            RESULT_TOPIC,
+            timeout=timeout,
+        )

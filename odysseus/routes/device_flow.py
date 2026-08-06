@@ -6,12 +6,12 @@ import inspect
 import threading
 import time
 import uuid
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable, Mapping, Optional
-
-from fastapi import APIRouter, Form, HTTPException, Request
+from typing import Any
 
 from core.middleware import require_admin
+from fastapi import APIRouter, Form, HTTPException, Request
 
 
 @dataclass(frozen=True)
@@ -29,25 +29,27 @@ class DeviceFlowPoll:
     """Normalized provider poll outcome."""
 
     status: str
-    endpoint: Optional[Mapping[str, Any]] = None
-    error: Optional[str] = None
-    detail: Optional[str] = None
-    interval: Optional[int] = None
+    endpoint: Mapping[str, Any] | None = None
+    error: str | None = None
+    detail: str | None = None
+    interval: int | None = None
 
     @classmethod
-    def pending(cls, detail: Optional[str] = None) -> "DeviceFlowPoll":
+    def pending(cls, detail: str | None = None) -> DeviceFlowPoll:
         return cls(status="pending", detail=detail)
 
     @classmethod
-    def slow_down(cls, interval: Optional[int] = None, detail: Optional[str] = None) -> "DeviceFlowPoll":
+    def slow_down(
+        cls, interval: int | None = None, detail: str | None = None
+    ) -> DeviceFlowPoll:
         return cls(status="slow_down", interval=interval, detail=detail)
 
     @classmethod
-    def authorized(cls, endpoint: Mapping[str, Any]) -> "DeviceFlowPoll":
+    def authorized(cls, endpoint: Mapping[str, Any]) -> DeviceFlowPoll:
         return cls(status="authorized", endpoint=endpoint)
 
     @classmethod
-    def failed(cls, error: str) -> "DeviceFlowPoll":
+    def failed(cls, error: str) -> DeviceFlowPoll:
         return cls(status="failed", error=error)
 
 
@@ -70,7 +72,9 @@ class PendingDeviceFlowStore:
     def prune_expired(self) -> None:
         now = self._now()
         with self._lock:
-            for key in [k for k, v in self._pending.items() if v.get("expires_at", 0) < now]:
+            for key in [
+                k for k, v in self._pending.items() if v.get("expires_at", 0) < now
+            ]:
                 self._pending.pop(key, None)
 
     def add(self, payload: Mapping[str, Any], *, interval: int, expires_in: int) -> str:
@@ -85,7 +89,7 @@ class PendingDeviceFlowStore:
             }
         return poll_id
 
-    def get_payload(self, poll_id: str) -> Optional[dict[str, Any]]:
+    def get_payload(self, poll_id: str) -> dict[str, Any] | None:
         self.prune_expired()
         with self._lock:
             entry = self._pending.get(poll_id)
@@ -105,7 +109,7 @@ class PendingDeviceFlowStore:
             if entry is not None:
                 entry["next_poll_at"] = now + int(entry.get("interval") or 5)
 
-    def slow_down(self, poll_id: str, interval: Optional[int] = None) -> None:
+    def slow_down(self, poll_id: str, interval: int | None = None) -> None:
         now = self._now()
         with self._lock:
             entry = self._pending.get(poll_id)
@@ -125,7 +129,7 @@ async def _maybe_await(value: Any) -> Any:
     return value
 
 
-def _pending_response(detail: Optional[str] = None) -> dict[str, Any]:
+def _pending_response(detail: str | None = None) -> dict[str, Any]:
     response: dict[str, Any] = {"status": "pending"}
     if detail:
         response["detail"] = detail
@@ -153,7 +157,9 @@ def create_device_flow_router(
         expires_in = int(start.expires_in or 900)
         poll_id = store.add(start.pending, interval=interval, expires_in=expires_in)
         response = dict(start.response)
-        response.update({"poll_id": poll_id, "interval": interval, "expires_in": expires_in})
+        response.update(
+            {"poll_id": poll_id, "interval": interval, "expires_in": expires_in}
+        )
         return response
 
     @router.post("/device/poll")

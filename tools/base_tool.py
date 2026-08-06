@@ -16,10 +16,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from core.capability import Capability
+from typing import Any
 
 
 @dataclass
@@ -44,10 +41,19 @@ def validate_input(params: dict[str, Any], schema: dict[str, Any]) -> list[str]:
         val = params[key]
         expected_type = rules.get("type")
         if expected_type:
-            type_map = {"str": str, "int": int, "float": float, "bool": bool, "list": list, "dict": dict}
+            type_map = {
+                "str": str,
+                "int": int,
+                "float": float,
+                "bool": bool,
+                "list": list,
+                "dict": dict,
+            }
             py_type = type_map.get(expected_type)
             if py_type and not isinstance(val, py_type):
-                errors.append(f"参数 '{key}' 应为 {expected_type}，实际为 {type(val).__name__}")
+                errors.append(
+                    f"参数 '{key}' 应为 {expected_type}，实际为 {type(val).__name__}"
+                )
         min_val = rules.get("min")
         if min_val is not None and isinstance(val, (int, float)) and val < min_val:
             errors.append(f"参数 '{key}' 不能小于 {min_val}")
@@ -62,15 +68,16 @@ class ToolCategory(Enum):
 
     按危险度递增排序。MUTATE 是 FILE_MODIFY 的别名（向后兼容老代码）。
     """
-    READ = "read"                       # 0 只读查询
-    FILE_CREATE = "file_create"         # 1 文件新建
-    FILE_MODIFY = "file_modify"         # 2 文件修改
-    MUTATE = "file_modify"              # 2 别名（兼容老代码）
-    FILE_DELETE = "file_delete"         # 3 文件删除
-    DB_READWRITE = "db_readwrite"       # 4 数据库读写
-    NETWORK_REQUEST = "network_req"     # 5 网络请求
-    SYSTEM_TERMINAL = "sys_terminal"    # 6 系统终端
-    HAZARDOUS = "hazardous"             # 7 高危格式化
+
+    READ = "read"  # 0 只读查询
+    FILE_CREATE = "file_create"  # 1 文件新建
+    FILE_MODIFY = "file_modify"  # 2 文件修改
+    MUTATE = "file_modify"  # 2 别名（兼容老代码）
+    FILE_DELETE = "file_delete"  # 3 文件删除
+    DB_READWRITE = "db_readwrite"  # 4 数据库读写
+    NETWORK_REQUEST = "network_req"  # 5 网络请求
+    SYSTEM_TERMINAL = "sys_terminal"  # 6 系统终端
+    HAZARDOUS = "hazardous"  # 7 高危格式化
 
 
 # 权限等级映射（数值越大危险度越高）

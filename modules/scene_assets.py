@@ -13,7 +13,6 @@ from __future__ import annotations
 
 from core.pixel_canvas import Color
 
-
 # ============== 背景工位区块 ==============
 # 每个工位 8 宽 × 5 高，作为头像的背景框
 # 字符含义：'=' 桌面，'|' 桌腿，'*' 装饰
@@ -28,8 +27,11 @@ WORKSTATION_BG: list[str] = [
 
 # 工位主题色（按工位序号循环）
 WORKSTATION_COLORS: list[int] = [
-    Color.DARK_GREEN, Color.DARK_BLUE, Color.BROWN,
-    Color.PURPLE, Color.TEAL,
+    Color.DARK_GREEN,
+    Color.DARK_BLUE,
+    Color.BROWN,
+    Color.PURPLE,
+    Color.TEAL,
 ]
 
 
@@ -103,12 +105,12 @@ TASK_FLOW_COLOR = Color.CYAN
 # 用于头像旁的状态小图标（2×1）
 
 STATUS_ICONS: dict[str, list[str]] = {
-    "idle":     [". "],   # 灰点
-    "working":  ["><"],   # 闪烁
-    "success":  ["OK"],   # 绿对勾
-    "failed":   ["XX"],   # 红叉
-    "sleeping": ["zz"],   # 紫z
-    "error":    ["!!"],   # 红感叹
+    "idle": [". "],  # 灰点
+    "working": ["><"],  # 闪烁
+    "success": ["OK"],  # 绿对勾
+    "failed": ["XX"],  # 红叉
+    "sleeping": ["zz"],  # 紫z
+    "error": ["!!"],  # 红感叹
 }
 
 STATUS_ICON_COLORS: dict[str, int] = {
@@ -122,6 +124,7 @@ STATUS_ICON_COLORS: dict[str, int] = {
 
 
 # ============== 沙盘场景布局辅助 ==============
+
 
 def scene_layout(width: int, height: int) -> dict[str, tuple[int, int]]:
     """返回 80×24 沙盘各装饰元素的推荐坐标。
@@ -144,7 +147,6 @@ def scene_layout(width: int, height: int) -> dict[str, tuple[int, int]]:
 
 # ============== 资产懒加载 ==============
 
-import os as _os
 
 _ASSET_REGISTRY: dict[str, dict[str, Any]] = {
     "tree": {"sprite": TREE_SPRITE, "color": TREE_COLOR, "size": 20},
@@ -185,8 +187,9 @@ def asset_size(name: str) -> int | None:
     return info.get("size")
 
 
-def register_asset(name: str, sprite: list[str], color: int | None = None,
-                   size: int = 0) -> None:
+def register_asset(
+    name: str, sprite: list[str], color: int | None = None, size: int = 0
+) -> None:
     """注册新的素材资产。"""
     _ASSET_REGISTRY[name] = {"sprite": sprite, "color": color, "size": size}
 

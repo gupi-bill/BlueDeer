@@ -20,7 +20,7 @@ import logging
 import os
 import time
 from collections import defaultdict
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from typing import Any
 
 logger = logging.getLogger("bluedeer.debugger")
@@ -29,6 +29,7 @@ logger = logging.getLogger("bluedeer.debugger")
 @dataclass
 class SpanEvent:
     """单次 span 事件（与 Tracer.span 对应，增加时间字段）。"""
+
     trace_id: str
     component: str
     action: str
@@ -41,6 +42,7 @@ class SpanEvent:
 @dataclass
 class TraceSummary:
     """单条 trace 的摘要。"""
+
     trace_id: str
     total_duration_ms: float = 0.0
     span_count: int = 0
@@ -109,7 +111,11 @@ class Debugger:
         span_key = f"{trace_id}:{component}:{action}"
         if action.endswith("_start") or action == "handle_start":
             self._active_spans[span_key] = now
-        elif action.endswith("_success") or action.endswith("_failed") or action == "handle_success":
+        elif (
+            action.endswith("_success")
+            or action.endswith("_failed")
+            or action == "handle_success"
+        ):
             start = self._active_spans.pop(span_key, None)
             if start is not None:
                 span.duration_ms = (now - start) * 1000
@@ -117,7 +123,9 @@ class Debugger:
         self._spans[trace_id].append(span)
         self._check_error(action, fields, span)
 
-    def _check_error(self, action: str, fields: dict[str, Any], span: SpanEvent) -> None:
+    def _check_error(
+        self, action: str, fields: dict[str, Any], span: SpanEvent
+    ) -> None:
         error = fields.get("error")
         if error or "failed" in action.lower():
             span.error = str(error) if error else action
@@ -136,7 +144,9 @@ class Debugger:
                 s.agent_spans.setdefault(span.component, []).append(span)
                 if span.error:
                     s.errors.append(span)
-                s.total_duration_ms = max(s.total_duration_ms, span.timestamp + span.duration_ms / 1000)
+                s.total_duration_ms = max(
+                    s.total_duration_ms, span.timestamp + span.duration_ms / 1000
+                )
                 tokens_in = span.fields.get("tokens_in", 0)
                 tokens_out = span.fields.get("tokens_out", 0)
                 if isinstance(tokens_in, int):
@@ -161,16 +171,18 @@ class Debugger:
                 args = dict(span.fields)
                 if span.error:
                     args["error"] = span.error
-                events.append({
-                    "ph": "X" if dur_us > 0 else "i",
-                    "name": f"{span.component}.{span.action}",
-                    "cat": span.component,
-                    "ts": ts_us,
-                    "dur": dur_us if dur_us > 0 else 0,
-                    "pid": pid,
-                    "tid": hash(span.component) % 1000,
-                    "args": args,
-                })
+                events.append(
+                    {
+                        "ph": "X" if dur_us > 0 else "i",
+                        "name": f"{span.component}.{span.action}",
+                        "cat": span.component,
+                        "ts": ts_us,
+                        "dur": max(0, dur_us),
+                        "pid": pid,
+                        "tid": hash(span.component) % 1000,
+                        "args": args,
+                    }
+                )
 
         chrome_trace = {
             "displayTimeUnit": "ms",
@@ -215,18 +227,18 @@ class Debugger:
         """打印调试摘要到控制台。"""
         summaries = self.summary(trace_id)
         if not summaries:
-            print("[Debugger] 无 trace 数据")
+            logger.info("[Debugger] 无 trace 数据")
             return
 
         for s in summaries:
-            print(f"\n{'='*60}")
-            print(f"Trace: {s.trace_id}")
-            print(f"Spans: {s.span_count} | Tokens: {s.token_usage}")
+            logger.info("\n%s", "=" * 60)
+            logger.info("Trace: %s", s.trace_id)
+            logger.info("Spans: %d | Tokens: %s", s.span_count, s.token_usage)
             if s.errors:
-                print(f"Errors: {len(s.errors)}")
+                logger.info("Errors: %d", len(s.errors))
                 for e in s.errors:
-                    print(f"  ✗ {e.component}.{e.action}: {e.error}")
+                    logger.info("  ✗ %s.%s: %s", e.component, e.action, e.error)
             for comp, spans in sorted(s.agent_spans.items()):
                 total_ms = sum(sp.duration_ms for sp in spans if sp.duration_ms > 0)
-                print(f"  {comp}: {len(spans)} spans, {total_ms:.1f}ms")
-            print(f"{'='*60}")
+                logger.info("  %s: %d spans, %.1fms", comp, len(spans), total_ms)
+            logger.info("%s", "=" * 60)

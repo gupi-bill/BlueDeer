@@ -1,7 +1,6 @@
 import pytest
-from fastapi import HTTPException
-
 from core.platform_compat import _ssh_exec_argv
+from fastapi import HTTPException
 from routes.hwfit_routes import setup_hwfit_routes
 
 
@@ -66,8 +65,9 @@ def test_ssh_argv_rejects_option_shaped_remote():
 
 
 def test_detect_system_option_host_never_starts_ssh(monkeypatch):
-    from core import platform_compat
     from services.hwfit import hardware
+
+    from core import platform_compat
 
     calls = []
 

@@ -8,6 +8,7 @@
 
 存储路径：data/task_suggestions.json
 """
+
 from __future__ import annotations
 
 import json
@@ -23,22 +24,30 @@ from typing import Any
 
 _SUGGESTION_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "data", "task_suggestions.json",
+    "data",
+    "task_suggestions.json",
 )
 
 # 建议状态
-SUGG_PENDING = "pending"      # 待处理
-SUGG_ADOPTED = "adopted"      # 已采纳
-SUGG_DEFERRED = "deferred"    # 已推迟
-SUGG_REJECTED = "rejected"    # 已拒绝
-SUGG_EXPIRED = "expired"      # 已过期（48 小时未处理）
+SUGG_PENDING = "pending"  # 待处理
+SUGG_ADOPTED = "adopted"  # 已采纳
+SUGG_DEFERRED = "deferred"  # 已推迟
+SUGG_REJECTED = "rejected"  # 已拒绝
+SUGG_EXPIRED = "expired"  # 已过期（48 小时未处理）
 
 # 物种中文名
 _SPECIES_ZH: dict[str, str] = {
-    "deer": "鹿·忧郁", "squirrel": "鼠·栗壳", "butterfly": "蝶·绘羽",
-    "fox": "狐·赤谋", "hedgehog": "猬·针客", "beaver": "狸·大坝",
-    "raven": "鸦·黑卷", "hare": "兔·霜耳", "badger": "獾·土工",
-    "lark": "雀·清音", "kite": "鸢·天瞰",
+    "deer": "鹿·忧郁",
+    "squirrel": "鼠·栗壳",
+    "butterfly": "蝶·绘羽",
+    "fox": "狐·赤谋",
+    "hedgehog": "猬·针客",
+    "beaver": "狸·大坝",
+    "raven": "鸦·黑卷",
+    "hare": "兔·霜耳",
+    "badger": "獾·土工",
+    "lark": "雀·清音",
+    "kite": "鸢·天瞰",
 }
 
 # 任务类型→推荐物种
@@ -67,6 +76,7 @@ _TASK_TYPE_TO_SPECIES: dict[str, str] = {
 # ----------------------------------------------------------------------
 # TaskScout 单例
 # ----------------------------------------------------------------------
+
 
 class TaskScout:
     """主动任务发现（单例）。
@@ -122,10 +132,15 @@ class TaskScout:
             try:
                 os.makedirs(os.path.dirname(_SUGGESTION_PATH), exist_ok=True)
                 with open(_SUGGESTION_PATH, "w", encoding="utf-8") as f:
-                    json.dump({
-                        "suggestions": self._suggestions,
-                        "reject_counts": self._reject_counts,
-                    }, f, ensure_ascii=False, indent=2)
+                    json.dump(
+                        {
+                            "suggestions": self._suggestions,
+                            "reject_counts": self._reject_counts,
+                        },
+                        f,
+                        ensure_ascii=False,
+                        indent=2,
+                    )
             except OSError:
                 pass
 
@@ -139,7 +154,8 @@ class TaskScout:
             self._interval = max(60.0, float(interval))
             self._stop_event.clear()
             self._thread = threading.Thread(
-                target=self._run_loop, daemon=True,
+                target=self._run_loop,
+                daemon=True,
                 name="task-scout",
             )
             self._thread.start()
@@ -201,15 +217,18 @@ class TaskScout:
         findings: list[dict] = []
         try:
             project_root = os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            )
             now = time.time()
             week_ago = now - 7 * 86400
             hot_files: list[str] = []
             for root, dirs, files in os.walk(project_root):
                 # 跳过 .git / __pycache__ / data
-                dirs[:] = [d for d in dirs
-                           if d not in (".git", "__pycache__", "data",
-                                        "node_modules", ".venv")]
+                dirs[:] = [
+                    d
+                    for d in dirs
+                    if d not in (".git", "__pycache__", "data", "node_modules", ".venv")
+                ]
                 for fname in files:
                     if not fname.endswith(".py"):
                         continue
@@ -217,20 +236,21 @@ class TaskScout:
                     try:
                         mtime = os.path.getmtime(fpath)
                         if mtime > week_ago:
-                            hot_files.append(
-                                os.path.relpath(fpath, project_root))
+                            hot_files.append(os.path.relpath(fpath, project_root))
                     except OSError:
                         continue
             if len(hot_files) > 10:
-                findings.append({
-                    "category": "file_changes",
-                    "severity": "info",
-                    "data": {
-                        "hot_files_count": len(hot_files),
-                        "sample": hot_files[:5],
-                    },
-                    "message": f"近 7 天有 {len(hot_files)} 个 .py 文件被修改",
-                })
+                findings.append(
+                    {
+                        "category": "file_changes",
+                        "severity": "info",
+                        "data": {
+                            "hot_files_count": len(hot_files),
+                            "sample": hot_files[:5],
+                        },
+                        "message": f"近 7 天有 {len(hot_files)} 个 .py 文件被修改",
+                    }
+                )
         except Exception:
             pass
         return findings
@@ -240,7 +260,8 @@ class TaskScout:
         findings: list[dict] = []
         try:
             project_root = os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            )
             core_dir = os.path.join(project_root, "core")
             tests_dir = os.path.join(project_root, "tests")
             core_count = 0
@@ -260,16 +281,18 @@ class TaskScout:
             if core_count > 0:
                 ratio = tests_count / core_count
                 if ratio < 0.5:
-                    findings.append({
-                        "category": "test_coverage",
-                        "severity": "warning",
-                        "data": {
-                            "core_modules": core_count,
-                            "test_files": tests_count,
-                            "ratio": round(ratio, 2),
-                        },
-                        "message": f"测试覆盖率不足（{tests_count} 测试/{core_count} 模块，比例 {ratio:.2f}）",
-                    })
+                    findings.append(
+                        {
+                            "category": "test_coverage",
+                            "severity": "warning",
+                            "data": {
+                                "core_modules": core_count,
+                                "test_files": tests_count,
+                                "ratio": round(ratio, 2),
+                            },
+                            "message": f"测试覆盖率不足（{tests_count} 测试/{core_count} 模块，比例 {ratio:.2f}）",
+                        }
+                    )
         except Exception:
             pass
         return findings
@@ -279,7 +302,8 @@ class TaskScout:
         findings: list[dict] = []
         try:
             project_root = os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            )
             logs_dir = os.path.join(project_root, "logs")
             if not os.path.isdir(logs_dir):
                 return findings
@@ -299,12 +323,14 @@ class TaskScout:
                 except OSError:
                     continue
             if error_count > 0 or warn_count > 20:
-                findings.append({
-                    "category": "security_logs",
-                    "severity": "warning" if error_count > 0 else "info",
-                    "data": {"errors": error_count, "warnings": warn_count},
-                    "message": f"日志中发现 {error_count} 条错误、{warn_count} 条警告",
-                })
+                findings.append(
+                    {
+                        "category": "security_logs",
+                        "severity": "warning" if error_count > 0 else "info",
+                        "data": {"errors": error_count, "warnings": warn_count},
+                        "message": f"日志中发现 {error_count} 条错误、{warn_count} 条警告",
+                    }
+                )
         except Exception:
             pass
         return findings
@@ -314,15 +340,18 @@ class TaskScout:
         findings: list[dict] = []
         try:
             from core.digital_life.tool_executor import get_tool_executor
+
             history = get_tool_executor().list_history(limit=100)
             fail_count = sum(1 for h in history if not h.get("ok", True))
             if fail_count > 3:
-                findings.append({
-                    "category": "tool_failures",
-                    "severity": "warning",
-                    "data": {"failures": fail_count, "total": len(history)},
-                    "message": f"近 100 次工具调用中有 {fail_count} 次失败",
-                })
+                findings.append(
+                    {
+                        "category": "tool_failures",
+                        "severity": "warning",
+                        "data": {"failures": fail_count, "total": len(history)},
+                        "message": f"近 100 次工具调用中有 {fail_count} 次失败",
+                    }
+                )
         except Exception:
             pass
         return findings
@@ -335,20 +364,23 @@ class TaskScout:
                 TASK_TYPE_KEYWORDS,
                 get_experience_library,
             )
+
             stats = get_experience_library().stats()
             covered_types = set(stats.get("by_type", {}).keys())
             all_types = set(TASK_TYPE_KEYWORDS.keys())
             missing = all_types - covered_types
             if len(missing) > 5:
-                findings.append({
-                    "category": "experience_gap",
-                    "severity": "info",
-                    "data": {
-                        "missing_types": list(missing)[:10],
-                        "missing_count": len(missing),
-                    },
-                    "message": f"经验库覆盖不足（{len(missing)} 类任务暂无经验）",
-                })
+                findings.append(
+                    {
+                        "category": "experience_gap",
+                        "severity": "info",
+                        "data": {
+                            "missing_types": list(missing)[:10],
+                            "missing_count": len(missing),
+                        },
+                        "message": f"经验库覆盖不足（{len(missing)} 类任务暂无经验）",
+                    }
+                )
         except Exception:
             pass
         return findings
@@ -376,19 +408,23 @@ class TaskScout:
                 if pending >= 3:
                     overloaded.append(getattr(e, "species", "?"))
             if sick:
-                findings.append({
-                    "category": "workforce",
-                    "severity": "warning",
-                    "data": {"sick_species": sick},
-                    "message": f"{len(sick)} 个智能体生病，建议监工关注",
-                })
+                findings.append(
+                    {
+                        "category": "workforce",
+                        "severity": "warning",
+                        "data": {"sick_species": sick},
+                        "message": f"{len(sick)} 个智能体生病，建议监工关注",
+                    }
+                )
             if low_energy:
-                findings.append({
-                    "category": "workforce",
-                    "severity": "info",
-                    "data": {"low_energy_species": low_energy},
-                    "message": f"{len(low_energy)} 个智能体能量偏低",
-                })
+                findings.append(
+                    {
+                        "category": "workforce",
+                        "severity": "info",
+                        "data": {"low_energy_species": low_energy},
+                        "message": f"{len(low_energy)} 个智能体能量偏低",
+                    }
+                )
         except Exception:
             pass
         return findings
@@ -464,7 +500,10 @@ class TaskScout:
             if sugg is None:
                 return {"ok": False, "error": "建议不存在"}
             if sugg.get("status") != SUGG_PENDING:
-                return {"ok": False, "error": f"建议状态非 pending（{sugg.get('status')}）"}
+                return {
+                    "ok": False,
+                    "error": f"建议状态非 pending（{sugg.get('status')}）",
+                }
             sugg["status"] = SUGG_ADOPTED
             sugg["decided_ts"] = time.time()
             self._save()
@@ -482,10 +521,13 @@ class TaskScout:
         if self._biosphere is not None:
             try:
                 from core.digital_life.task_pipeline import get_pipeline_engine
+
                 pe = get_pipeline_engine()
                 if pe._biosphere_ref is None and self._biosphere is not None:
                     pe.set_biosphere(self._biosphere)
-                result = pe.submit(sugg.get("title", ""), name=sugg.get("title", "")[:30])
+                result = pe.submit(
+                    sugg.get("title", ""), name=sugg.get("title", "")[:30]
+                )
                 if result.get("ok"):
                     task_id = result.get("pipeline_id", "")
                     note = f"已自动派给 {species}，流水线 ID: {task_id[:8]}"
@@ -504,7 +546,10 @@ class TaskScout:
             for s in self._suggestions:
                 if s.get("id") == sugg_id:
                     if s.get("status") != SUGG_PENDING:
-                        return {"ok": False, "error": f"建议状态非 pending（{s.get('status')}）"}
+                        return {
+                            "ok": False,
+                            "error": f"建议状态非 pending（{s.get('status')}）",
+                        }
                     s["status"] = SUGG_DEFERRED
                     s["decided_ts"] = time.time()
                     s["expire_ts"] = time.time() + hours * 3600
@@ -522,19 +567,23 @@ class TaskScout:
             for s in self._suggestions:
                 if s.get("id") == sugg_id:
                     if s.get("status") != SUGG_PENDING:
-                        return {"ok": False, "error": f"建议状态非 pending（{s.get('status')}）"}
+                        return {
+                            "ok": False,
+                            "error": f"建议状态非 pending（{s.get('status')}）",
+                        }
                     s["status"] = SUGG_REJECTED
                     s["decided_ts"] = time.time()
                     s["decide_reason"] = (reason or "")[:200]
                     species = s.get("species_hint", "")
                     if species:
-                        self._reject_counts[species] = \
+                        self._reject_counts[species] = (
                             self._reject_counts.get(species, 0) + 1
+                        )
                     self._save()
                     return {
                         "ok": True,
                         "note": f"已拒绝；{species} 连续拒绝 "
-                                f"{self._reject_counts.get(species, 0)} 次",
+                        f"{self._reject_counts.get(species, 0)} 次",
                     }
             return {"ok": False, "error": "建议不存在"}
 
@@ -555,16 +604,21 @@ class TaskScout:
         """采纳率统计。"""
         with self._lock:
             total = len(self._suggestions)
-            adopted = sum(1 for s in self._suggestions
-                          if s.get("status") == SUGG_ADOPTED)
-            rejected = sum(1 for s in self._suggestions
-                           if s.get("status") == SUGG_REJECTED)
-            pending = sum(1 for s in self._suggestions
-                          if s.get("status") == SUGG_PENDING)
-            deferred = sum(1 for s in self._suggestions
-                           if s.get("status") == SUGG_DEFERRED)
-            expired = sum(1 for s in self._suggestions
-                          if s.get("status") == SUGG_EXPIRED)
+            adopted = sum(
+                1 for s in self._suggestions if s.get("status") == SUGG_ADOPTED
+            )
+            rejected = sum(
+                1 for s in self._suggestions if s.get("status") == SUGG_REJECTED
+            )
+            pending = sum(
+                1 for s in self._suggestions if s.get("status") == SUGG_PENDING
+            )
+            deferred = sum(
+                1 for s in self._suggestions if s.get("status") == SUGG_DEFERRED
+            )
+            expired = sum(
+                1 for s in self._suggestions if s.get("status") == SUGG_EXPIRED
+            )
             decided = adopted + rejected
             adopt_rate = (adopted / decided) if decided > 0 else 0.0
             return {
@@ -582,6 +636,7 @@ class TaskScout:
 # ----------------------------------------------------------------------
 # 模块级便捷 API
 # ----------------------------------------------------------------------
+
 
 def get_task_scout() -> TaskScout:
     return TaskScout.get_instance()

@@ -10,7 +10,7 @@ import json
 import logging
 import os
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from typing import Any
 
 logger = logging.getLogger("bluedeer.audit")
@@ -48,7 +48,11 @@ class AuditEntry:
 class AuditLog:
     def __init__(self, path: str = _AUDIT_FILE, archive_path: str = "") -> None:
         self._path = path
-        self._archive_path = archive_path or (path.replace(".jsonl", "_archive.jsonl") if path else "logs/audit_archive.jsonl")
+        self._archive_path = archive_path or (
+            path.replace(".jsonl", "_archive.jsonl")
+            if path
+            else "logs/audit_archive.jsonl"
+        )
         self._buffer: list[AuditEntry] = []
 
     def record(self, entry: AuditEntry) -> None:
@@ -118,7 +122,7 @@ class AuditLog:
         except OSError as e:
             logger.warning("审计日志时间搜索失败: %s", e)
         result.sort(key=lambda e: e.get("ts", 0), reverse=True)
-        return result[offset:offset + limit]
+        return result[offset : offset + limit]
 
     # ---- 归档策略 ----
 
@@ -178,8 +182,10 @@ class AuditLog:
         try:
             os.makedirs(os.path.dirname(self._path) or ".", exist_ok=True)
             with open(self._path, "a", encoding="utf-8") as f:
-                for entry in self._buffer:
-                    f.write(json.dumps(entry.to_dict(), ensure_ascii=False) + "\n")
+                f.writelines(
+                    json.dumps(entry.to_dict(), ensure_ascii=False) + "\n"
+                    for entry in self._buffer
+                )
             self._buffer.clear()
         except OSError as e:
             logger.warning("审计日志写入失败: %s", e)
@@ -226,7 +232,7 @@ class AuditLog:
             logger.warning("审计日志读取失败: %s", e)
 
         result.sort(key=lambda e: e.get("ts", 0), reverse=True)
-        return result[offset:offset + limit]
+        return result[offset : offset + limit]
 
     def summary(self) -> dict[str, Any]:
         entries = self.query(limit=500)

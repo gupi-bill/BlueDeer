@@ -13,6 +13,7 @@
 4. 消息长度 > 4096 自动分段（Telegram 单条上限）
 5. 紧急消息用 HTML <b> 加粗
 """
+
 from __future__ import annotations
 
 import json
@@ -25,6 +26,7 @@ from collections.abc import Callable
 # ====================================================================
 # 轻量 HTTP 调用（不依赖第三方包，直接用 Bot API HTTP 接口）
 # ====================================================================
+
 
 def _api_call(bot_token: str, method: str, payload: dict, timeout: float = 8.0) -> dict:
     """直接调 Telegram Bot API HTTP 接口。
@@ -48,19 +50,25 @@ def _api_call(bot_token: str, method: str, payload: dict, timeout: float = 8.0) 
 # 发送消息
 # ====================================================================
 
-def _send_message(bot_token: str, chat_id: str, text: str,
-                  parse_mode: str = "HTML") -> bool:
+
+def _send_message(
+    bot_token: str, chat_id: str, text: str, parse_mode: str = "HTML"
+) -> bool:
     """发送一条消息到指定 chat_id。"""
     # Telegram 单条消息上限 4096 字符
-    chunks = [text[i:i + 4000] for i in range(0, len(text), 4000)]
+    chunks = [text[i : i + 4000] for i in range(0, len(text), 4000)]
     ok = True
     for chunk in chunks:
         try:
-            resp = _api_call(bot_token, "sendMessage", {
-                "chat_id": chat_id,
-                "text": chunk,
-                "parse_mode": parse_mode,
-            })
+            resp = _api_call(
+                bot_token,
+                "sendMessage",
+                {
+                    "chat_id": chat_id,
+                    "text": chunk,
+                    "parse_mode": parse_mode,
+                },
+            )
             if not resp.get("ok"):
                 ok = False
         except Exception:
@@ -88,6 +96,7 @@ def _format_message(message: dict) -> str:
 # 工厂：send 函数
 # ====================================================================
 
+
 def make_sender(config: dict):
     """工厂：返回 send(message_dict) 函数。
 
@@ -101,15 +110,18 @@ def make_sender(config: dict):
 
     def _send(message: dict) -> bool:
         text = _format_message(message)
+
         # 异步发送
         def _worker():
             try:
                 _send_message(bot_token, chat_id, text)
             except Exception:
                 pass
+
         t = threading.Thread(target=_worker, daemon=True)
         t.start()
         return True
+
     return _send
 
 
@@ -117,14 +129,16 @@ def make_sender(config: dict):
 # 接收用户消息（长轮询线程）
 # ====================================================================
 
+
 class TelegramBotListener:
     """Telegram Bot 长轮询监听器。
 
     启动后会持续轮询 getUpdates 接口，收到用户消息时回调 on_message(text, chat_id)。
     """
 
-    def __init__(self, bot_token: str,
-                 on_message: Callable[[str, str], None] | None = None):
+    def __init__(
+        self, bot_token: str, on_message: Callable[[str, str], None] | None = None
+    ):
         self.bot_token = bot_token
         self.on_message = on_message
         self._offset = 0
@@ -147,10 +161,15 @@ class TelegramBotListener:
         """长轮询主循环。"""
         while not self._stop_event.is_set():
             try:
-                resp = _api_call(self.bot_token, "getUpdates", {
-                    "offset": self._offset,
-                    "timeout": 30,  # 长轮询 30 秒
-                }, timeout=35)
+                resp = _api_call(
+                    self.bot_token,
+                    "getUpdates",
+                    {
+                        "offset": self._offset,
+                        "timeout": 30,  # 长轮询 30 秒
+                    },
+                    timeout=35,
+                )
                 if not resp.get("ok"):
                     time.sleep(5)
                     continue
@@ -179,8 +198,9 @@ _listener_singleton: TelegramBotListener | None = None
 _listener_lock = threading.Lock()
 
 
-def start_listener(config: dict,
-                   on_message: Callable[[str, str], None] | None = None) -> bool:
+def start_listener(
+    config: dict, on_message: Callable[[str, str], None] | None = None
+) -> bool:
     """启动全局 Telegram Bot 监听器（单例）。
 
     Args:

@@ -1,0 +1,597 @@
+openapi: 3.0.3
+info:
+  title: BlueDeer API
+  version: 1.0.0
+  description: BlueDeer RESTful API 规范，提供任务、调度、Webhook、DAG 与报告接口。
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: 本地开发环境
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: 健康检查
+      responses:
+        "200":
+          description: 服务正常
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                    example: BlueDeer API
+                  shutting_down:
+                    type: boolean
+                    example: false
+
+  /tasks:
+    get:
+      tags: [Tasks]
+      summary: 查询任务统计
+      responses:
+        "200":
+          description: 任务统计成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  success:
+                    type: integer
+                  failed:
+                    type: integer
+                  pending:
+                    type: integer
+                  total_tokens:
+                    type: integer
+                  tasks:
+                    type: object
+        "503":
+          $ref: '#/components/responses/ServiceUnavailable'
+    post:
+      tags: [Tasks]
+      summary: 创建任务
+      parameters:
+        - name: task_type
+          in: query
+          schema:
+            type: string
+            default: general
+        - name: assignee
+          in: query
+          schema:
+            type: string
+            default: ''
+        - name: description
+          in: query
+          schema:
+            type: string
+            default: ''
+      responses:
+        "200":
+          description: 任务已提交
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  task_id:
+                    type: string
+                  trace_id:
+                    type: string
+                  status:
+                    type: string
+                    example: submitted
+        "429":
+          $ref: '#/components/responses/RateLimited'
+        "503":
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /tasks/{task_id}:
+    get:
+      tags: [Tasks]
+      summary: 查询单个任务
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 任务详情
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  task_id:
+                    type: string
+        "404":
+          $ref: '#/components/responses/NotFound'
+        "503":
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /board/save:
+    post:
+      tags: [Board]
+      summary: 保存看板状态
+      parameters:
+        - name: file
+          in: query
+          schema:
+            type: string
+            default: data/task_state.json
+      responses:
+        "200":
+          description: 保存成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  saved:
+                    type: integer
+                  path:
+                    type: string
+        "503":
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /board/load:
+    post:
+      tags: [Board]
+      summary: 加载看板状态
+      parameters:
+        - name: file
+          in: query
+          schema:
+            type: string
+            default: data/task_state.json
+      responses:
+        "200":
+          description: 加载成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  loaded:
+                    type: integer
+                  path:
+                    type: string
+        "503":
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /schedules:
+    get:
+      tags: [Schedules]
+      summary: 列出定时任务
+      responses:
+        "200":
+          description: 定时任务列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  jobs:
+                    type: object
+        "503":
+          $ref: '#/components/responses/ServiceUnavailable'
+    post:
+      tags: [Schedules]
+      summary: 创建定时任务
+      parameters:
+        - name: job_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: cron
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: task_type
+          in: query
+          schema:
+            type: string
+            default: general
+        - name: assignee
+          in: query
+          schema:
+            type: string
+            default: ''
+        - name: description
+          in: query
+          schema:
+            type: string
+            default: ''
+      responses:
+        "200":
+          description: 定时任务创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                  status:
+                    type: string
+                    example: created
+        "503":
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /schedules/{job_id}:
+    delete:
+      tags: [Schedules]
+      summary: 删除定时任务
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                  status:
+                    type: string
+                    example: deleted
+        "404":
+          $ref: '#/components/responses/NotFound'
+        "503":
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /webhooks:
+    get:
+      tags: [Webhooks]
+      summary: 列出 Webhook
+      responses:
+        "200":
+          description: Webhook 列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  webhooks:
+                    type: object
+        "503":
+          $ref: '#/components/responses/ServiceUnavailable'
+    post:
+      tags: [Webhooks]
+      summary: 创建 Webhook
+      parameters:
+        - name: hook_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: url
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uri
+        - name: events
+          in: query
+          schema:
+            type: string
+            default: task.created,task.completed,task.failed
+        - name: secret
+          in: query
+          schema:
+            type: string
+            default: ''
+        - name: description
+          in: query
+          schema:
+            type: string
+            default: ''
+      responses:
+        "200":
+          description: Webhook 创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hook_id:
+                    type: string
+                  status:
+                    type: string
+                    example: created
+        "503":
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /webhooks/{hook_id}:
+    delete:
+      tags: [Webhooks]
+      summary: 删除 Webhook
+      parameters:
+        - name: hook_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hook_id:
+                    type: string
+                  status:
+                    type: string
+                    example: deleted
+        "404":
+          $ref: '#/components/responses/NotFound'
+        "503":
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /report:
+    get:
+      tags: [Report]
+      summary: 生成报告
+      parameters:
+        - name: fmt
+          in: query
+          schema:
+            type: string
+            default: markdown
+            enum: [markdown, json, text]
+      responses:
+        "200":
+          description: 报告生成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  path:
+                    type: string
+                  format:
+                    type: string
+                  size:
+                    type: integer
+                  content:
+                    type: string
+        "503":
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /dag:
+    get:
+      tags: [DAG]
+      summary: 列出 DAG 节点与执行计划
+      responses:
+        "200":
+          description: DAG 状态
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nodes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        depends_on:
+                          type: array
+                          items:
+                            type: string
+                        description:
+                          type: string
+                  topological_order:
+                    type: array
+                    items:
+                      type: string
+                  execution_plan:
+                    type: array
+                    items:
+                      type: array
+                      items:
+                        type: string
+                  has_cycle:
+                    type: boolean
+                  total:
+                    type: integer
+
+  /dag/nodes:
+    post:
+      tags: [DAG]
+      summary: 添加 DAG 节点
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: string
+                depends_on:
+                  type: array
+                  items:
+                    type: string
+                description:
+                  type: string
+      responses:
+        "200":
+          description: 节点创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  node_id:
+                    type: string
+                  status:
+                    type: string
+                    example: created
+        "400":
+          $ref: '#/components/responses/BadRequest'
+
+  /dag/nodes/{node_id}:
+    delete:
+      tags: [DAG]
+      summary: 删除 DAG 节点
+      parameters:
+        - name: node_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  node_id:
+                    type: string
+                  status:
+                    type: string
+                    example: deleted
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /dag/plan:
+    get:
+      tags: [DAG]
+      summary: 获取 DAG 执行计划
+      parameters:
+        - name: completed
+          in: query
+          schema:
+            type: string
+            description: 逗号分隔的已完成 task_id
+      responses:
+        "200":
+          description: 执行计划
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  execution_plan:
+                    type: array
+                    items:
+                      type: array
+                      items:
+                        type: string
+                  layers:
+                    type: integer
+        "409":
+          description: DAG 存在循环依赖
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail:
+                    type: string
+
+  /dag/subgraph/{root_id}:
+    get:
+      tags: [DAG]
+      summary: 获取 DAG 子图
+      parameters:
+        - name: root_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 子图节点列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  root:
+                    type: string
+                  nodes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        depends_on:
+                          type: array
+                          items:
+                            type: string
+                  total:
+                    type: integer
+
+components:
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                type: string
+    NotFound:
+      description: 资源未找到
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                type: string
+    RateLimited:
+      description: 请求频率超限
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                type: string
+                example: 请求频率超限，请稍后重试
+    ServiceUnavailable:
+      description: 服务未初始化或正在关闭
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                type: string

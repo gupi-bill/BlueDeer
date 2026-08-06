@@ -1,6 +1,6 @@
 """BlueDeer 能力沙箱：基于能力的访问控制（Capability-based Security）。
 
-每个 Agent 声明其所需能力（capabilities），运行时 CapabilityEnforcer 
+每个 Agent 声明其所需能力（capabilities），运行时 CapabilityEnforcer
 拦截未授权操作。与 ToolCategory 层级互补：
 - ToolCategory：工具本身的危险等级（0-7）
 - Capability：Agent 被授权的操作类型
@@ -21,6 +21,7 @@ class Capability(Enum):
 
     每个 Agent 在创建时声明拥有的能力。
     """
+
     FILE_READ = "file.read"
     FILE_CREATE = "file.create"
     FILE_MODIFY = "file.modify"
@@ -36,9 +37,7 @@ class Capability(Enum):
     TOOL_MANAGE = "tool.manage"
 
 
-_CAPABILITY_STR_MAP: dict[str, Capability] = {
-    e.value: e for e in Capability
-}
+_CAPABILITY_STR_MAP: dict[str, Capability] = {e.value: e for e in Capability}
 
 
 def parse_capability(value: str) -> Capability:
@@ -79,7 +78,9 @@ class CapabilityEnforcer:
     在 Agent 和 ToolRegistry 中嵌入，拦截未授权的工具调用。
     """
 
-    def __init__(self, agent_id: str, capabilities: set[Capability] | None = None) -> None:
+    def __init__(
+        self, agent_id: str, capabilities: set[Capability] | None = None
+    ) -> None:
         self._agent_id = agent_id
         self._capabilities: set[Capability] = capabilities or set()
 
@@ -103,7 +104,9 @@ class CapabilityEnforcer:
             return required in self._capabilities
         return required.issubset(self._capabilities)
 
-    def assert_capability(self, required: Capability | set[Capability], detail: str = "") -> None:
+    def assert_capability(
+        self, required: Capability | set[Capability], detail: str = ""
+    ) -> None:
         if not self.check(required):
             raise CapabilityViolation(self._agent_id, required, detail)
 

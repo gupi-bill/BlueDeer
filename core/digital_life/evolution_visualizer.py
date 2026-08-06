@@ -11,6 +11,7 @@
 - 文本报告像"公司体检报告"。
 - ASCII 折线图就是用键盘字符画的曲线图。
 """
+
 from __future__ import annotations
 
 import datetime
@@ -55,16 +56,18 @@ class EvolutionVisualizer:
 
         if snaps:
             last = snaps[-1]
-            lines.extend([
-                "",
-                "【最近快照】",
-                f"  时间戳：{datetime.datetime.fromtimestamp(last.timestamp).strftime('%Y-%m-%d %H:%M:%S')}",
-                f"  存活总数：{last.global_stats.get('total_alive', 0)}",
-                f"  Shannon 多样性：{last.global_stats.get('biodiversity', 0):.4f}",
-                f"  季节：{last.global_stats.get('season', '?')}",
-                "",
-                "【最近快照·各物种】",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "【最近快照】",
+                    f"  时间戳：{datetime.datetime.fromtimestamp(last.timestamp).strftime('%Y-%m-%d %H:%M:%S')}",
+                    f"  存活总数：{last.global_stats.get('total_alive', 0)}",
+                    f"  Shannon 多样性：{last.global_stats.get('biodiversity', 0):.4f}",
+                    f"  季节：{last.global_stats.get('season', '?')}",
+                    "",
+                    "【最近快照·各物种】",
+                ]
+            )
             for sp, s in last.species_stats.items():
                 lines.append(
                     f"  {sp}: 数量 {s['count']}  "
@@ -75,10 +78,12 @@ class EvolutionVisualizer:
 
         # ASCII 折线图
         if len(snaps) >= 2:
-            lines.extend([
-                "",
-                "【种群总数趋势（最近 20 张快照）】",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "【种群总数趋势（最近 20 张快照）】",
+                ]
+            )
             trend = [s.global_stats.get("total_alive", 0) for s in snaps[-20:]]
             lines.extend(self._ascii_line_chart(trend, "total"))
 
@@ -89,8 +94,9 @@ class EvolutionVisualizer:
     # ASCII 折线图
     # ------------------------------------------------------------------
 
-    def _ascii_line_chart(self, values: list, label: str = "",
-                          width: int = 50, height: int = 10) -> list:
+    def _ascii_line_chart(
+        self, values: list, label: str = "", width: int = 50, height: int = 10
+    ) -> list:
         """把 values 画成 ASCII 折线图，返回字符串列表。
 
         用 ─│╭╮╰╯● 字符画平滑曲线。
@@ -181,7 +187,11 @@ class EvolutionVisualizer:
             "| 物种 | 出生 | 死亡 | 繁殖 |",
             "|------|------|------|------|",
         ]
-        all_species = set(st["species_births"]) | set(st["species_deaths"]) | set(st["species_reproductions"])
+        all_species = (
+            set(st["species_births"])
+            | set(st["species_deaths"])
+            | set(st["species_reproductions"])
+        )
         for sp in sorted(all_species):
             b = st["species_births"].get(sp, 0)
             d = st["species_deaths"].get(sp, 0)
@@ -190,20 +200,22 @@ class EvolutionVisualizer:
 
         if snaps:
             last = snaps[-1]
-            lines.extend([
-                "",
-                "## 3. 最近快照",
-                "",
-                f"- 时间：{datetime.datetime.fromtimestamp(last.timestamp).strftime('%Y-%m-%d %H:%M:%S')}",
-                f"- 存活总数：**{last.global_stats.get('total_alive', 0)}**",
-                f"- Shannon 多样性：**{last.global_stats.get('biodiversity', 0):.4f}**",
-                f"- 季节：**{last.global_stats.get('season', '?')}**",
-                "",
-                "## 4. 各物种详情",
-                "",
-                "| 物种 | 数量 | 平均能量 | 平均健康 | 平均年龄(天) |",
-                "|------|------|----------|----------|--------------|",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "## 3. 最近快照",
+                    "",
+                    f"- 时间：{datetime.datetime.fromtimestamp(last.timestamp).strftime('%Y-%m-%d %H:%M:%S')}",
+                    f"- 存活总数：**{last.global_stats.get('total_alive', 0)}**",
+                    f"- Shannon 多样性：**{last.global_stats.get('biodiversity', 0):.4f}**",
+                    f"- 季节：**{last.global_stats.get('season', '?')}**",
+                    "",
+                    "## 4. 各物种详情",
+                    "",
+                    "| 物种 | 数量 | 平均能量 | 平均健康 | 平均年龄(天) |",
+                    "|------|------|----------|----------|--------------|",
+                ]
+            )
             for sp, s in last.species_stats.items():
                 lines.append(
                     f"| {sp} | {s['count']} | {s['avg_energy']:.1f} | "
@@ -220,11 +232,13 @@ class EvolutionVisualizer:
                         lines.append(f"  最近 20 张快照：{trend}")
                         lines.append("")
 
-        lines.extend([
-            "",
-            "## 6. 生存指标",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 6. 生存指标",
+                "",
+            ]
+        )
         survival = self._tracker.get_survival_metrics()
         lines.append(f"- 总出生：{survival.get('total_births', 0)}")
         lines.append(f"- 总死亡：{survival.get('total_deaths', 0)}")

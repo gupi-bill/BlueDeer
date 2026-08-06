@@ -7,6 +7,7 @@
 
 存储路径：data/retrospects.json
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -25,7 +26,8 @@ from typing import Any
 
 _RETROSPECT_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "data", "retrospects.json",
+    "data",
+    "retrospects.json",
 )
 
 
@@ -59,10 +61,17 @@ IMPROVEMENT: <一句话改进建议，下次如何做得更好>
 # ----------------------------------------------------------------------
 
 _SPECIES_ZH: dict[str, str] = {
-    "deer": "鹿·忧郁", "squirrel": "鼠·栗壳", "butterfly": "蝶·绘羽",
-    "fox": "狐·赤谋", "hedgehog": "猬·针客", "beaver": "狸·大坝",
-    "raven": "鸦·黑卷", "hare": "兔·霜耳", "badger": "獾·土工",
-    "lark": "雀·清音", "kite": "鸢·天瞰",
+    "deer": "鹿·忧郁",
+    "squirrel": "鼠·栗壳",
+    "butterfly": "蝶·绘羽",
+    "fox": "狐·赤谋",
+    "hedgehog": "猬·针客",
+    "beaver": "狸·大坝",
+    "raven": "鸦·黑卷",
+    "hare": "兔·霜耳",
+    "badger": "獾·土工",
+    "lark": "雀·清音",
+    "kite": "鸢·天瞰",
 }
 
 
@@ -126,11 +135,16 @@ _SPECIES_LESSON_TEMPLATE: dict[str, list[str]] = {
 _lock = threading.RLock()
 
 
-def generate_retrospect(agent_species: str, agent_name: str,
-                        task: str, tool_calls: list,
-                        result_ok: bool, duration_sec: float,
-                        experience_adopted: list = None,
-                        router: Any = None) -> dict:
+def generate_retrospect(
+    agent_species: str,
+    agent_name: str,
+    task: str,
+    tool_calls: list,
+    result_ok: bool,
+    duration_sec: float,
+    experience_adopted: list = None,
+    router: Any = None,
+) -> dict:
     """生成一次任务的复盘。
 
     Args:
@@ -159,8 +173,15 @@ def generate_retrospect(agent_species: str, agent_name: str,
     if router is not None:
         try:
             text = _call_llm_for_retrospect(
-                router, agent_species, agent_name, task,
-                result_ok, duration_sec, tool_count, experience_adopted)
+                router,
+                agent_species,
+                agent_name,
+                task,
+                result_ok,
+                duration_sec,
+                tool_count,
+                experience_adopted,
+            )
             parsed = _parse_retrospect_output(text)
             if parsed["lesson"]:
                 lesson = parsed["lesson"]
@@ -179,6 +200,7 @@ def generate_retrospect(agent_species: str, agent_name: str,
     # 任务类型分类
     try:
         from core.digital_life.experience_library import classify_task_type
+
         task_type = classify_task_type(task)
     except Exception:
         task_type = "其他"
@@ -206,6 +228,7 @@ def generate_retrospect(agent_species: str, agent_name: str,
     if lesson:
         try:
             from core.digital_life.experience_library import get_experience_library
+
             get_experience_library().add_experience(
                 agent_species=agent_species,
                 task_summary=task,
@@ -223,10 +246,17 @@ def generate_retrospect(agent_species: str, agent_name: str,
 # LLM 调用
 # ----------------------------------------------------------------------
 
-def _call_llm_for_retrospect(router, agent_species: str, agent_name: str,
-                              task: str, result_ok: bool,
-                              duration_sec: float, tool_count: int,
-                              experience_adopted: list) -> str:
+
+def _call_llm_for_retrospect(
+    router,
+    agent_species: str,
+    agent_name: str,
+    task: str,
+    result_ok: bool,
+    duration_sec: float,
+    tool_count: int,
+    experience_adopted: list,
+) -> str:
     """调 LLM 生成复盘文本。"""
     species_zh = _SPECIES_ZH.get(agent_species, agent_species)
     exp_str = "、".join(experience_adopted) if experience_adopted else "无"
@@ -278,18 +308,21 @@ def _parse_retrospect_output(text: str) -> dict:
 # 模板降级
 # ----------------------------------------------------------------------
 
+
 def _template_lesson(species: str, ok: bool) -> str:
     """LLM 不可用时的模板经验。"""
-    templates = _SPECIES_LESSON_TEMPLATE.get(species, [
-        "完成任务后及时记录关键决策点，便于复盘",
-    ])
+    templates = _SPECIES_LESSON_TEMPLATE.get(
+        species,
+        [
+            "完成任务后及时记录关键决策点，便于复盘",
+        ],
+    )
     if ok:
         return templates[0]
     return f"任务失败，下次需检查：{templates[0] if '检查' in templates[0] else templates[-1]}"
 
 
-def _template_summary(species: str, task: str, ok: bool,
-                      duration_sec: float) -> str:
+def _template_summary(species: str, task: str, ok: bool, duration_sec: float) -> str:
     species_zh = _SPECIES_ZH.get(species, species)
     status = "成功完成" if ok else "执行失败"
     return f"{species_zh}用 {duration_sec:.1f} 秒{status}了「{(task or '')[:30]}」"
@@ -304,6 +337,7 @@ def _template_improvement(species: str, ok: bool) -> str:
 # ----------------------------------------------------------------------
 # 持久化
 # ----------------------------------------------------------------------
+
 
 def _save_retrospect(retro: dict) -> None:
     """追加保存复盘记录。"""
@@ -339,8 +373,7 @@ def list_retrospects(agent_species: str = "", limit: int = 50) -> list[dict]:
                 data = json.load(f)
             retros = data.get("retrospects", []) or []
             if agent_species:
-                retros = [r for r in retros
-                          if r.get("agent_species") == agent_species]
+                retros = [r for r in retros if r.get("agent_species") == agent_species]
             retros.sort(key=lambda x: x.get("ts", 0), reverse=True)
             return retros[:limit]
         except (json.JSONDecodeError, OSError):
@@ -366,6 +399,7 @@ def get_retrospect(retro_id: str) -> dict | None:
 # ----------------------------------------------------------------------
 # 经验效果评估
 # ----------------------------------------------------------------------
+
 
 def evaluate_experience_outcome(prev_ok_rate: float, current_ok: bool) -> bool:
     """判断采用经验后效果是否更好。

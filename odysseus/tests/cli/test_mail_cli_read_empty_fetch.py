@@ -2,7 +2,6 @@ import sys
 from types import ModuleType, SimpleNamespace
 
 import pytest
-
 from tests.helpers.cli_loader import load_script
 from tests.helpers.db_stubs import make_core_db_stub
 
@@ -36,7 +35,7 @@ def _load_mail_cli(monkeypatch):
     helpers._extract_html = lambda msg: ""
     helpers._list_attachments_from_msg = lambda msg: []
     pollers = ModuleType("routes.email_pollers")
-    pollers._scheduled_poll_once = lambda: {}
+    pollers._scheduled_poll_once = dict
     pollers._run_auto_summarize_once = lambda **kwargs: ""
     monkeypatch.setitem(sys.modules, "routes.email_helpers", helpers)
     monkeypatch.setitem(sys.modules, "routes.email_pollers", pollers)

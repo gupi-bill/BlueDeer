@@ -12,6 +12,6 @@ paths working after slice 2g (#4082/#4071).
 
 import sys as _sys
 
-from routes.cleanup import cleanup_routes as _canonical  # noqa: F401
+from routes.cleanup import cleanup_routes as _canonical
 
 _sys.modules[__name__] = _canonical

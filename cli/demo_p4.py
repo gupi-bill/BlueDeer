@@ -22,7 +22,7 @@ from core.context import ContextManager
 from core.event_bus import EventBus
 from core.harness import Harness
 from core.reward import RewardSystem
-from core.task import Task, TaskStatus
+from core.task import Task
 from core.token_auditor import TokenAuditor
 from core.tracer import Tracer
 from models.router import Router
@@ -78,8 +78,8 @@ async def run_demo() -> None:
     context.set_global("phase", "P4")
 
     print(f"  TokenAuditor  ✓ (阈值: {token_auditor._threshold})")
-    print(f"  RewardSystem  ✓ (32 项成就三梯次)")
-    print(f"  Harness       ✓ (带审计+奖惩+P6 节省同步)")
+    print("  RewardSystem  ✓ (32 项成就三梯次)")
+    print("  Harness       ✓ (带审计+奖惩+P6 节省同步)")
 
     # 2. 下发多个任务
     print("\n[2] 下发 3 个任务（2 成功 + 1 失败）...")
@@ -123,6 +123,7 @@ async def run_demo() -> None:
             # 手动写入语法错误代码
             from core.task import TaskResult, TaskStatus, TokenUsage
             from tools.builtin.file_write_tool import FileWriteTool
+
             fw = FileWriteTool()
             await fw.execute({"path": "output/p4/broken.py", "content": "def (\n"})
             return TaskResult(
@@ -145,7 +146,9 @@ async def run_demo() -> None:
 
         # 打印奖惩变化
         profile = reward_system.get_profile("squirrel")
-        print(f"    金币={profile.coins}  经验={profile.exp}  好感={profile.favor}  连胜={profile.streak}")
+        print(
+            f"    金币={profile.coins}  经验={profile.exp}  好感={profile.favor}  连胜={profile.streak}"
+        )
 
         # 成就解锁
         achievements = reward_system.get_achievements_detail("squirrel")
@@ -161,16 +164,20 @@ async def run_demo() -> None:
     new_ach = [a for a in dream_achievements if a["id"] in ("dream_1",)]
     if new_ach:
         print(f"    成就解锁: {new_ach[0]['name']} — {new_ach[0]['desc']}")
-    print(f"    梦境记忆: {profile.dream_memories} 条 (高质量 {profile.dream_quality_high} 条)")
+    print(
+        f"    梦境记忆: {profile.dream_memories} 条 (高质量 {profile.dream_quality_high} 条)"
+    )
 
     # 4. 排行榜（多维）
     print("\n[4] 排行榜（综合分 = level*1000 + coins）:")
     print("  " + "-" * 70)
     board = reward_system.leaderboard(sort_by="composite")
     for entry in board:
-        print(f"  {entry['agent_id']:12s} | Lv.{entry['level']} | "
-              f"金币={entry['coins']:4d} | 经验={entry['exp']:4d} | "
-              f"好感={entry['favor']:3d} | 成就={len(entry['achievements'])}项")
+        print(
+            f"  {entry['agent_id']:12s} | Lv.{entry['level']} | "
+            f"金币={entry['coins']:4d} | 经验={entry['exp']:4d} | "
+            f"好感={entry['favor']:3d} | 成就={len(entry['achievements'])}项"
+        )
     print("  " + "-" * 70)
 
     # 5. Token 统计
@@ -190,16 +197,20 @@ async def run_demo() -> None:
     # 持久化
     token_auditor.save("snapshot/stats/token_audit.json")
     reward_system.save("snapshot/stats/rewards.json")
-    print(f"  审计数据已保存: snapshot/stats/token_audit.json")
-    print(f"  奖惩数据已保存: snapshot/stats/rewards.json")
+    print("  审计数据已保存: snapshot/stats/token_audit.json")
+    print("  奖惩数据已保存: snapshot/stats/rewards.json")
 
     # 7. 看板汇总
     print("\n[7] 看板汇总:")
     board = harness.aggregate()
-    print(f"  总任务: {board['total']}  成功: {board['success']}  失败: {board['failed']}")
+    print(
+        f"  总任务: {board['total']}  成功: {board['success']}  失败: {board['failed']}"
+    )
     # P6 新增字段
     savings = board.get("token_savings", {})
-    print(f"  Token 节省: {savings.get('total_saved', 0)}  低成本调用: {savings.get('lowcost_calls', 0)}/{savings.get('total_calls', 0)}")
+    print(
+        f"  Token 节省: {savings.get('total_saved', 0)}  低成本调用: {savings.get('lowcost_calls', 0)}/{savings.get('total_calls', 0)}"
+    )
 
     # 8. 成就总览 + 进度
     print("\n[8] 较真松鼠成就总览:")
@@ -223,7 +234,7 @@ async def run_demo() -> None:
     if board["success"] >= 1 and stats["total_calls"] >= 1:
         print("✓ P4 端到端链路验证通过！（P6 优化版数值体系）")
         print("  Token 审计 → 奖惩结算 → 成就解锁 → 排行榜 → 月度报表")
-        print(f"  30 项成就三梯次 | 指数等级 | 递减好感 | Token 节省指标")
+        print("  30 项成就三梯次 | 指数等级 | 递减好感 | Token 节省指标")
     else:
         print("✗ P4 端到端链路验证失败！")
     print("=" * 60)

@@ -9,9 +9,11 @@ evolution（数据维度 - R187）：
 - 范围统计：count_range(start, end) 用 popcount 查表
 - 典型用途：布隆过滤器底层、用户标签、签到打卡
 """
+
 from __future__ import annotations
+
 import threading
-from typing import Iterator, List
+from collections.abc import Iterator
 
 # 8 位 popcount 查找表
 _POPCOUNT8 = [bin(i).count("1") for i in range(256)]
@@ -57,7 +59,7 @@ class Bitmap:
             byte_idx = pos >> 3
             bit_idx = pos & 7
             if value:
-                self._data[byte_idx] |= (1 << bit_idx)
+                self._data[byte_idx] |= 1 << bit_idx
             else:
                 self._data[byte_idx] &= ~(1 << bit_idx) & 0xFF
 
@@ -67,7 +69,7 @@ class Bitmap:
         with self._lock:
             return (self._data[pos >> 3] >> (pos & 7)) & 1
 
-    def batch_set(self, positions: List[int], value: int = 1) -> int:
+    def batch_set(self, positions: list[int], value: int = 1) -> int:
         """批量设置位。返回实际设置数。"""
         if not positions:
             return 0
@@ -80,20 +82,19 @@ class Bitmap:
                 byte_idx = pos >> 3
                 bit_idx = pos & 7
                 if value:
-                    self._data[byte_idx] |= (1 << bit_idx)
+                    self._data[byte_idx] |= 1 << bit_idx
                 else:
                     self._data[byte_idx] &= ~(1 << bit_idx) & 0xFF
                 count += 1
             return count
 
-    def batch_get(self, positions: List[int]) -> List[int]:
+    def batch_get(self, positions: list[int]) -> list[int]:
         """批量读取位。"""
         if not positions:
             return []
         with self._lock:
             return [
-                (self._data[pos >> 3] >> (pos & 7)) & 1
-                if 0 <= pos < self._size else 0
+                (self._data[pos >> 3] >> (pos & 7)) & 1 if 0 <= pos < self._size else 0
                 for pos in positions
             ]
 
@@ -108,7 +109,7 @@ class Bitmap:
                 byte_idx = pos >> 3
                 bit_idx = pos & 7
                 if value:
-                    self._data[byte_idx] |= (1 << bit_idx)
+                    self._data[byte_idx] |= 1 << bit_idx
                 else:
                     self._data[byte_idx] &= ~(1 << bit_idx) & 0xFF
 
@@ -122,10 +123,8 @@ class Bitmap:
             return sum(_POPCOUNT8[b] for b in self._data)
 
     def count_range(self, start: int, end: int) -> int:
-        if start < 0:
-            start = 0
-        if end > self._size:
-            end = self._size
+        start = max(start, 0)
+        end = min(end, self._size)
         if end <= start:
             return 0
         with self._lock:
@@ -175,7 +174,7 @@ class Bitmap:
             return bytes(self._data)
 
     @classmethod
-    def from_bytes(cls, data: bytes, size: int | None = None) -> "Bitmap":
+    def from_bytes(cls, data: bytes, size: int | None = None) -> Bitmap:
         if size is None:
             size = len(data) * 8
         bm = cls(size)
@@ -245,7 +244,7 @@ class SparseBitmap:
         with self._lock:
             return self._bits.get(pos, 0)
 
-    def batch_set(self, positions: List[int], value: int = 1) -> int:
+    def batch_set(self, positions: list[int], value: int = 1) -> int:
         if not positions:
             return 0
         with self._lock:
@@ -262,7 +261,7 @@ class SparseBitmap:
                 count += 1
             return count
 
-    def batch_get(self, positions: List[int]) -> List[int]:
+    def batch_get(self, positions: list[int]) -> list[int]:
         if not positions:
             return []
         with self._lock:
@@ -274,8 +273,7 @@ class SparseBitmap:
         if end <= start:
             return
         with self._lock:
-            if end > self._size:
-                self._size = end
+            self._size = max(self._size, end)
             for pos in range(start, end):
                 if value:
                     self._bits[pos] = 1
@@ -426,7 +424,7 @@ class RLEBitmap:
         with self._lock:
             return 1 if self._is_set(pos) else 0
 
-    def batch_set(self, positions: List[int], value: int = 1) -> int:
+    def batch_set(self, positions: list[int], value: int = 1) -> int:
         if not positions:
             return 0
         with self._lock:
@@ -443,7 +441,7 @@ class RLEBitmap:
                 count += 1
             return count
 
-    def batch_get(self, positions: List[int]) -> List[int]:
+    def batch_get(self, positions: list[int]) -> list[int]:
         if not positions:
             return []
         with self._lock:
@@ -482,5 +480,9 @@ class RLEBitmap:
                 "zeros": self._size - self.count(),
                 "density": self.density(),
                 "compressed_size": len(self._runs),
-                "compression_ratio": f"{self._size / max(1, len(self._runs)):.1f}x" if self._runs else "N/A",
+                "compression_ratio": (
+                    f"{self._size / max(1, len(self._runs)):.1f}x"
+                    if self._runs
+                    else "N/A"
+                ),
             }

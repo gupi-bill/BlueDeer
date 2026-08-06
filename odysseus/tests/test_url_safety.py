@@ -11,6 +11,7 @@ def _resolver(mapping):
         if host in mapping:
             return mapping[host]
         raise OSError(f"unresolvable: {host}")
+
     return resolve
 
 
@@ -34,13 +35,17 @@ def test_missing_host_or_empty_blocked():
 
 
 def test_public_url_allowed():
-    ok, reason = check_outbound_url("https://example.com/v1/embeddings", resolver=PUBLIC)
+    ok, reason = check_outbound_url(
+        "https://example.com/v1/embeddings", resolver=PUBLIC
+    )
     assert ok is True, reason
 
 
 def test_cloud_metadata_blocked_even_when_private_allowed():
     # The headline SSRF vector must be blocked regardless of block_private.
-    ok, reason = check_outbound_url("http://evil.example/latest/meta-data/", resolver=METADATA)
+    ok, reason = check_outbound_url(
+        "http://evil.example/latest/meta-data/", resolver=METADATA
+    )
     assert ok is False
     assert "link-local" in reason
 
@@ -58,9 +63,13 @@ def test_loopback_and_lan_allowed_by_default_local_first():
 
 
 def test_strict_mode_blocks_private_and_loopback():
-    ok, reason = check_outbound_url("http://localhost:8080", block_private=True, resolver=LOOPBACK)
+    ok, reason = check_outbound_url(
+        "http://localhost:8080", block_private=True, resolver=LOOPBACK
+    )
     assert ok is False and "private" in reason
-    ok, reason = check_outbound_url("http://nas.local", block_private=True, resolver=LAN)
+    ok, reason = check_outbound_url(
+        "http://nas.local", block_private=True, resolver=LAN
+    )
     assert ok is False and "private" in reason
 
 
@@ -69,7 +78,9 @@ def test_strict_mode_blocks_cgnat_shared_space():
     # A public redirect into it must be rejected under full SSRF lockdown,
     # even though ipaddress reports is_private=False for this range.
     CGNAT = _resolver({"svc.example": ["100.64.0.1"]})
-    ok, reason = check_outbound_url("http://svc.example:8080", block_private=True, resolver=CGNAT)
+    ok, reason = check_outbound_url(
+        "http://svc.example:8080", block_private=True, resolver=CGNAT
+    )
     assert ok is False
     assert "blocked" in reason
 
@@ -80,14 +91,18 @@ def test_strict_mode_blocks_non_global_ranges():
     # documentation space (192.0.2.0/24) are not globally routable.
     for ip in ("198.18.0.1", "192.0.2.10"):
         res = _resolver({"svc.example": [ip]})
-        ok, reason = check_outbound_url("http://svc.example", block_private=True, resolver=res)
+        ok, reason = check_outbound_url(
+            "http://svc.example", block_private=True, resolver=res
+        )
         assert ok is False, ip
         assert "blocked" in reason
 
 
 def test_strict_mode_still_allows_public_ip():
     # The lockdown must not reject a legitimate globally-routable target.
-    ok, reason = check_outbound_url("https://example.com/v1", block_private=True, resolver=PUBLIC)
+    ok, reason = check_outbound_url(
+        "https://example.com/v1", block_private=True, resolver=PUBLIC
+    )
     assert ok is True, reason
 
 

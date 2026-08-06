@@ -12,7 +12,8 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from typing import Callable
+from collections.abc import Callable
+from typing import Any
 
 logger = logging.getLogger("bluedeer.shutdown")
 
@@ -26,17 +27,27 @@ def drain(connections: list, timeout: float = 30.0) -> bool:
         remaining = end - time.time()
         if remaining <= 0:
             return False
-        active = conn.active if hasattr(conn, "active") else conn.is_active() if hasattr(conn, "is_active") else 0
+        active = (
+            conn.active
+            if hasattr(conn, "active")
+            else conn.is_active() if hasattr(conn, "is_active") else 0
+        )
         while active > 0 and remaining > 0:
             time.sleep(0.1)
             remaining = end - time.time()
-            active = conn.active if hasattr(conn, "active") else conn.is_active() if hasattr(conn, "is_active") else 0
+            active = (
+                conn.active
+                if hasattr(conn, "active")
+                else conn.is_active() if hasattr(conn, "is_active") else 0
+            )
     return True
 
 
 def shutdown_with_timeout(seconds: float) -> bool:
     gs = GracefulShutdown()
     return gs.shutdown(timeout=seconds)
+
+
 DRAINING = "draining"
 TERMINATED = "terminated"
 
@@ -123,8 +134,9 @@ class GracefulShutdown:
             if self._state == DRAINING and self._active == 0:
                 self._cond.notify_all()
 
-    def task_ctx(self):
+    def task_ctx(self) -> Any:
         """上下文管理器：自动 begin/end。"""
+
         class _Ctx:
             def __init__(self, gs):
                 self._gs = gs
@@ -254,11 +266,12 @@ class TaskRunner:
     def start(self) -> None:
         if self._thread is not None:
             return
-        self._thread = threading.Thread(target=self._loop, daemon=True,
-                                        name="task-runner")
+        self._thread = threading.Thread(
+            target=self._loop, daemon=True, name="task-runner"
+        )
         self._thread.start()
 
-    def submit(self, task: Callable, *args, **kwargs) -> bool:
+    def submit(self, task: Callable, *args: Any, **kwargs) -> bool:
         """提交任务。停机中拒绝。返回是否接受。"""
         if not self._gs.accept():
             return False

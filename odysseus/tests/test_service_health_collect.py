@@ -1,6 +1,6 @@
 """Tests for rollup logic, aggregate collection, and shared utility helpers (_safe_url, _classify_error)."""
-import pytest
 
+import pytest
 from src import service_health as sh
 
 
@@ -11,10 +11,13 @@ class _Store:
 
 # ── rollup ──
 
+
 def test_rollup_picks_worst_non_disabled():
     services = [
-        {"status": sh.OK}, {"status": sh.DISABLED},
-        {"status": sh.DEGRADED}, {"status": sh.OK},
+        {"status": sh.OK},
+        {"status": sh.DISABLED},
+        {"status": sh.DEGRADED},
+        {"status": sh.OK},
     ]
     assert sh._rollup(services) == sh.DEGRADED
 
@@ -29,16 +32,21 @@ def test_rollup_all_disabled_is_ok():
 
 # ── collect_service_health (async aggregate) ──
 
+
 def test_collect_service_health_shape(monkeypatch):
     import asyncio
 
     # Avoid touching real data sources / network.
-    monkeypatch.setattr(sh, "_gather_inputs", lambda: {
-        "settings": {"search_provider": "disabled"},
-        "integrations": [],
-        "accounts": [],
-        "endpoints": [],
-    })
+    monkeypatch.setattr(
+        sh,
+        "_gather_inputs",
+        lambda: {
+            "settings": {"search_provider": "disabled"},
+            "integrations": [],
+            "accounts": [],
+            "endpoints": [],
+        },
+    )
     out = asyncio.run(sh.collect_service_health(_Store(True), _Store(True)))
     assert set(out) == {"overall", "services", "timestamp"}
     names = {s["name"] for s in out["services"]}
@@ -49,14 +57,21 @@ def test_collect_service_health_shape(monkeypatch):
 
 # ── _safe_url: strip userinfo / query / fragment ──
 
-@pytest.mark.parametrize("raw,expected", [
-    ("http://user:pass@host:8080/path?api_key=secret#frag", "http://host:8080/path"),
-    ("https://admin:hunter2@searx.example.com/", "https://searx.example.com"),
-    ("http://ntfy.local:80?token=abc", "http://ntfy.local:80"),
-    ("host:8080", "host:8080"),
-    ("", ""),
-    (None, ""),
-])
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        (
+            "http://user:pass@host:8080/path?api_key=secret#frag",
+            "http://host:8080/path",
+        ),
+        ("https://admin:hunter2@searx.example.com/", "https://searx.example.com"),
+        ("http://ntfy.local:80?token=abc", "http://ntfy.local:80"),
+        ("host:8080", "host:8080"),
+        ("", ""),
+        (None, ""),
+    ],
+)
 def test_safe_url_strips_secrets(raw, expected):
     out = sh._safe_url(raw)
     assert out == expected
@@ -67,10 +82,12 @@ def test_safe_url_strips_secrets(raw, expected):
 
 # ── _classify_error: controlled categories, never raw text ──
 
+
 def test_classify_error_categories():
     import socket
+
     assert sh._classify_error(TimeoutError()) == "timeout"
-    assert sh._classify_error(socket.timeout()) == "timeout"
+    assert sh._classify_error(TimeoutError()) == "timeout"
     assert sh._classify_error(socket.gaierror()) == "dns_error"
     assert sh._classify_error(ConnectionRefusedError()) == "connection_refused"
     assert sh._classify_error(OSError("boom")) == "network_error"
@@ -79,20 +96,30 @@ def test_classify_error_categories():
 
 # ── Concurrent collection and aggregate deadline ──
 
+
 def test_collect_runs_subsystems_concurrently(monkeypatch):
     # The aggregate is bounded by running the (internally-bounded) subsystems
     # concurrently, so total wall-clock ≈ max(subsystem), not the sum. Each of
     # the four network subsystems here sleeps ~0.6s; sequential would be ~2.4s.
     import asyncio
     import time
-    monkeypatch.setattr(sh, "_gather_inputs", lambda: {
-        "settings": {}, "integrations": [], "accounts": [], "endpoints": [],
-    })
+
+    monkeypatch.setattr(
+        sh,
+        "_gather_inputs",
+        lambda: {
+            "settings": {},
+            "integrations": [],
+            "accounts": [],
+            "endpoints": [],
+        },
+    )
 
     def slow(name):
         def _fn(*_a, **_k):
             time.sleep(0.6)
             return {"name": name, "status": sh.OK, "detail": "", "meta": {}}
+
         return _fn
 
     monkeypatch.setattr(sh, "searxng_health", slow("searxng"))
@@ -105,7 +132,12 @@ def test_collect_runs_subsystems_concurrently(monkeypatch):
     elapsed = time.monotonic() - t0
     assert elapsed < 1.5, f"subsystems not concurrent: took {elapsed:.1f}s"
     assert {s["name"] for s in out["services"]} == {
-        "chromadb", "searxng", "ntfy", "email", "providers"}
+        "chromadb",
+        "searxng",
+        "ntfy",
+        "email",
+        "providers",
+    }
 
 
 def test_collect_aggregate_deadline_yields_controlled_result(monkeypatch):
@@ -114,14 +146,22 @@ def test_collect_aggregate_deadline_yields_controlled_result(monkeypatch):
     # marked down/timeout — never a hang or a raised exception.
     import asyncio
     import time
+
     monkeypatch.setattr(sh, "_AGGREGATE_DEADLINE", 0.5)
     monkeypatch.setattr(sh, "_SUBSYSTEM_DEADLINE", 0.4)
-    monkeypatch.setattr(sh, "_gather_inputs", lambda: {
-        "settings": {}, "integrations": [], "accounts": [], "endpoints": [],
-    })
+    monkeypatch.setattr(
+        sh,
+        "_gather_inputs",
+        lambda: {
+            "settings": {},
+            "integrations": [],
+            "accounts": [],
+            "endpoints": [],
+        },
+    )
 
     async def _slow_gather(*coros, **_k):
-        for c in coros:                 # close unawaited coros to avoid warnings
+        for c in coros:  # close unawaited coros to avoid warnings
             close = getattr(c, "close", None)
             if close:
                 close()
@@ -135,5 +175,6 @@ def test_collect_aggregate_deadline_yields_controlled_result(monkeypatch):
     assert elapsed < 2, f"aggregate deadline did not bound: {elapsed:.1f}s"
     assert set(out) == {"overall", "services", "timestamp"}
     net = [s for s in out["services"] if s["name"] != "chromadb"]
-    assert all(s["status"] == sh.DOWN and s["meta"].get("error") == "timeout"
-               for s in net)
+    assert all(
+        s["status"] == sh.DOWN and s["meta"].get("error") == "timeout" for s in net
+    )

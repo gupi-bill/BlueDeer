@@ -20,6 +20,7 @@
         ↓
     全部完成（或失败）后，鹿汇总报告
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -34,19 +35,19 @@ from typing import Any
 # 状态枚举（字符串，便于 JSON 序列化）
 # ----------------------------------------------------------------------
 
-STEP_PENDING = "pending"       # 等待前置
-STEP_READY = "ready"           # 就绪可执行
-STEP_RUNNING = "running"       # 执行中
-STEP_DONE = "done"             # 成功
-STEP_FAILED = "failed"         # 失败
-STEP_SKIPPED = "skipped"       # 因前置失败被跳过
+STEP_PENDING = "pending"  # 等待前置
+STEP_READY = "ready"  # 就绪可执行
+STEP_RUNNING = "running"  # 执行中
+STEP_DONE = "done"  # 成功
+STEP_FAILED = "failed"  # 失败
+STEP_SKIPPED = "skipped"  # 因前置失败被跳过
 STEP_WAITING_APPROVAL = "waiting_approval"  # 等审批
 
 PIPELINE_PENDING = "pending"
 PIPELINE_RUNNING = "running"
 PIPELINE_DONE = "done"
 PIPELINE_FAILED = "failed"
-PIPELINE_PARTIAL = "partial"   # 部分成功部分失败
+PIPELINE_PARTIAL = "partial"  # 部分成功部分失败
 PIPELINE_CANCELLED = "cancelled"
 
 
@@ -54,22 +55,42 @@ PIPELINE_CANCELLED = "cancelled"
 # 数据结构
 # ----------------------------------------------------------------------
 
+
 class PipelineStep:
     """流水线中的一个步骤。
 
     零基础理解：流水线就是一张"工作分配表"，每一行就是一个 step。
     """
-    __slots__ = ("step_id", "order", "agent_species", "agent_name_hint",
-                 "task", "tools", "depends_on", "status",
-                 "result", "error", "started_ts", "finished_ts",
-                 "tool_calls", "approval_id",
-                 # commit 39：关联项目 + 里程碑
-                 "project_id", "milestone_id")
 
-    def __init__(self, order: int, agent_species: str, task: str,
-                 tools: list[str] | None = None,
-                 depends_on: list[int] | None = None,
-                 agent_name_hint: str = "") -> None:
+    __slots__ = (
+        "step_id",
+        "order",
+        "agent_species",
+        "agent_name_hint",
+        "task",
+        "tools",
+        "depends_on",
+        "status",
+        "result",
+        "error",
+        "started_ts",
+        "finished_ts",
+        "tool_calls",
+        "approval_id",
+        # commit 39：关联项目 + 里程碑
+        "project_id",
+        "milestone_id",
+    )
+
+    def __init__(
+        self,
+        order: int,
+        agent_species: str,
+        task: str,
+        tools: list[str] | None = None,
+        depends_on: list[int] | None = None,
+        agent_name_hint: str = "",
+    ) -> None:
         self.step_id: int = order
         self.order: int = order
         self.agent_species: str = agent_species
@@ -102,8 +123,11 @@ class PipelineStep:
             "error": self.error[:500] if self.error else "",
             "started_ts": self.started_ts,
             "finished_ts": self.finished_ts,
-            "duration_sec": round(self.finished_ts - self.started_ts, 2)
-                            if self.finished_ts and self.started_ts else 0,
+            "duration_sec": (
+                round(self.finished_ts - self.started_ts, 2)
+                if self.finished_ts and self.started_ts
+                else 0
+            ),
             "tool_calls": self.tool_calls,
             "project_id": self.project_id,
             "milestone_id": self.milestone_id,
@@ -112,14 +136,28 @@ class PipelineStep:
 
 class Pipeline:
     """一条流水线。"""
-    __slots__ = ("id", "name", "original_task", "steps", "status",
-                 "created_ts", "finished_ts", "summary", "lock",
-                 "on_update", "retrospect", "negotiation_log",
-                 # commit 39：关联项目
-                 "project_id", "milestone_id")
 
-    def __init__(self, name: str, original_task: str,
-                 steps: list[PipelineStep]) -> None:
+    __slots__ = (
+        "id",
+        "name",
+        "original_task",
+        "steps",
+        "status",
+        "created_ts",
+        "finished_ts",
+        "summary",
+        "lock",
+        "on_update",
+        "retrospect",
+        "negotiation_log",
+        # commit 39：关联项目
+        "project_id",
+        "milestone_id",
+    )
+
+    def __init__(
+        self, name: str, original_task: str, steps: list[PipelineStep]
+    ) -> None:
         self.id: str = uuid.uuid4().hex[:12]
         self.name: str = name
         self.original_task: str = original_task
@@ -128,8 +166,8 @@ class Pipeline:
         self.created_ts: float = time.time()
         self.finished_ts: float = 0
         self.summary: str = ""
-        self.retrospect: dict = {}          # commit 38：流水线复盘
-        self.negotiation_log: list = []     # commit 38：协商记录
+        self.retrospect: dict = {}  # commit 38：流水线复盘
+        self.negotiation_log: list = []  # commit 38：协商记录
         self.lock = threading.RLock()
         # 状态变更回调（前端轮询拿，也可以走回调推送）
         self.on_update = None  # callable(pipeline_id) -> None
@@ -146,8 +184,11 @@ class Pipeline:
                 "status": self.status,
                 "created_ts": self.created_ts,
                 "finished_ts": self.finished_ts,
-                "duration_sec": round(self.finished_ts - self.created_ts, 2)
-                                if self.finished_ts else 0,
+                "duration_sec": (
+                    round(self.finished_ts - self.created_ts, 2)
+                    if self.finished_ts
+                    else 0
+                ),
                 "summary": self.summary,
                 "steps": [s.to_dict() for s in self.steps],
                 "retrospect": self.retrospect or {},
@@ -167,6 +208,7 @@ class Pipeline:
 # ----------------------------------------------------------------------
 # 流水线引擎（单例）
 # ----------------------------------------------------------------------
+
 
 class PipelineEngine:
     """多 Agent 协作流水线调度引擎。
@@ -217,8 +259,9 @@ class PipelineEngine:
 
     def list_pipelines(self, limit: int = 20) -> list[dict]:
         with self._lock:
-            items = sorted(self._pipelines.values(),
-                           key=lambda p: p.created_ts, reverse=True)[:limit]
+            items = sorted(
+                self._pipelines.values(), key=lambda p: p.created_ts, reverse=True
+            )[:limit]
             return [p.to_dict() for p in items]
 
     def get_pipeline(self, pid: str) -> dict | None:
@@ -228,8 +271,9 @@ class PipelineEngine:
 
     # ---------------- 提交流水线 ----------------
 
-    def submit(self, task: str, name: str = "",
-               project_id: str = "", milestone_id: str = "") -> dict:
+    def submit(
+        self, task: str, name: str = "", project_id: str = "", milestone_id: str = ""
+    ) -> dict:
         """提交一个自然语言任务，自动拆解为流水线并启动执行。
 
         Args:
@@ -244,12 +288,20 @@ class PipelineEngine:
         try:
             steps = self._decompose(task)
         except Exception as e:
-            return {"ok": False, "pipeline_id": "", "steps_count": 0,
-                    "error": f"拆解失败: {e}"}
+            return {
+                "ok": False,
+                "pipeline_id": "",
+                "steps_count": 0,
+                "error": f"拆解失败: {e}",
+            }
 
         if not steps:
-            return {"ok": False, "pipeline_id": "", "steps_count": 0,
-                    "error": "拆解结果为空"}
+            return {
+                "ok": False,
+                "pipeline_id": "",
+                "steps_count": 0,
+                "error": "拆解结果为空",
+            }
 
         # 2. 创建流水线
         pipeline = Pipeline(name=name or task[:30], original_task=task, steps=steps)
@@ -267,28 +319,41 @@ class PipelineEngine:
             self._pipelines[pipeline.id] = pipeline
             # 清理超过历史上限的旧 pipeline
             if len(self._pipelines) > self._max_history:
-                old = sorted(self._pipelines.values(),
-                             key=lambda p: p.created_ts)[:len(self._pipelines) - self._max_history]
+                old = sorted(self._pipelines.values(), key=lambda p: p.created_ts)[
+                    : len(self._pipelines) - self._max_history
+                ]
                 for p in old:
                     self._pipelines.pop(p.id, None)
 
         # 3. 启动后台调度
         pipeline.status = PIPELINE_RUNNING
         pipeline.notify_update()
-        self._notify("pipeline_started", {
-            "pipeline_id": pipeline.id, "name": pipeline.name,
-            "steps_count": len(steps),
-            "project_id": pipeline.project_id,
-            "milestone_id": pipeline.milestone_id,
-        })
+        self._notify(
+            "pipeline_started",
+            {
+                "pipeline_id": pipeline.id,
+                "name": pipeline.name,
+                "steps_count": len(steps),
+                "project_id": pipeline.project_id,
+                "milestone_id": pipeline.milestone_id,
+            },
+        )
 
         # 后台跑调度循环
-        t = threading.Thread(target=self._run_pipeline, args=(pipeline,),
-                             daemon=True, name=f"pipeline-{pipeline.id}")
+        t = threading.Thread(
+            target=self._run_pipeline,
+            args=(pipeline,),
+            daemon=True,
+            name=f"pipeline-{pipeline.id}",
+        )
         t.start()
 
-        return {"ok": True, "pipeline_id": pipeline.id,
-                "steps_count": len(steps), "error": ""}
+        return {
+            "ok": True,
+            "pipeline_id": pipeline.id,
+            "steps_count": len(steps),
+            "error": "",
+        }
 
     # ---------------- 任务拆解 ----------------
 
@@ -421,8 +486,21 @@ badger（网络）、lark（监控）、kite（调度）
 
         # 检测每个物种的关键词
         checks = [
-            ("squirrel", ["代码", "实现", "写一个", "函数", "code", "python",
-                           "补全", "排序", "查找", "算法"]),
+            (
+                "squirrel",
+                [
+                    "代码",
+                    "实现",
+                    "写一个",
+                    "函数",
+                    "code",
+                    "python",
+                    "补全",
+                    "排序",
+                    "查找",
+                    "算法",
+                ],
+            ),
             ("butterfly", ["ui", "界面", "页面", "设计", "css", "html"]),
             ("fox", ["测试", "test", "fuzz", "覆盖", "用例"]),
             ("hedgehog", ["安全", "漏洞", "扫描", "vulnerability", "cipher"]),
@@ -449,18 +527,25 @@ badger（网络）、lark（监控）、kite（调度）
         for i, (sp, t) in enumerate(needed, 1):
             deps = [prev] if prev else []
             step = PipelineStep(
-                order=i, agent_species=sp, task=t,
-                tools=[], depends_on=deps,
+                order=i,
+                agent_species=sp,
+                task=t,
+                tools=[],
+                depends_on=deps,
             )
             steps.append(step)
             prev = i
 
         # 最后一步：鹿汇总
-        steps.append(PipelineStep(
-            order=len(steps) + 1, agent_species="deer",
-            task=f"汇总所有步骤的结果，生成关于「{task[:60]}」的最终报告",
-            tools=[], depends_on=[prev],
-        ))
+        steps.append(
+            PipelineStep(
+                order=len(steps) + 1,
+                agent_species="deer",
+                task=f"汇总所有步骤的结果，生成关于「{task[:60]}」的最终报告",
+                tools=[],
+                depends_on=[prev],
+            )
+        )
         return steps
 
     def _sub_task_for(self, species: str, original_task: str) -> str:
@@ -489,15 +574,19 @@ badger（网络）、lark（监控）、kite（调度）
             from concurrent.futures import Future, ThreadPoolExecutor
 
             max_workers = min(8, max(2, len(pipeline.steps)))
-            executor = ThreadPoolExecutor(max_workers=max_workers,
-                                          thread_name_prefix="pipe-step")
+            executor = ThreadPoolExecutor(
+                max_workers=max_workers, thread_name_prefix="pipe-step"
+            )
             running: dict[int, Future] = {}
 
             while True:
                 with pipeline.lock:
                     # 终止条件：所有 step 都不在 pending/ready/running
-                    pending = [s for s in pipeline.steps
-                               if s.status in (STEP_PENDING, STEP_READY, STEP_RUNNING)]
+                    pending = [
+                        s
+                        for s in pipeline.steps
+                        if s.status in (STEP_PENDING, STEP_READY, STEP_RUNNING)
+                    ]
                     if not pending:
                         break
 
@@ -508,8 +597,9 @@ badger（网络）、lark（监控）、kite（调度）
                         deps_ok = True
                         deps_failed = False
                         for dep_id in step.depends_on:
-                            dep = next((x for x in pipeline.steps
-                                        if x.step_id == dep_id), None)
+                            dep = next(
+                                (x for x in pipeline.steps if x.step_id == dep_id), None
+                            )
                             if dep is None:
                                 continue
                             if dep.status != STEP_DONE:
@@ -521,12 +611,15 @@ badger（网络）、lark（监控）、kite（调度）
                             step.status = STEP_SKIPPED
                             step.error = "前置步骤失败，跳过"
                             step.finished_ts = time.time()
-                            self._notify("step_skipped", {
-                                "pipeline_id": pipeline.id,
-                                "step_id": step.step_id,
-                                "agent": step.agent_species,
-                                "task": step.task[:80],
-                            })
+                            self._notify(
+                                "step_skipped",
+                                {
+                                    "pipeline_id": pipeline.id,
+                                    "step_id": step.step_id,
+                                    "agent": step.agent_species,
+                                    "task": step.task[:80],
+                                },
+                            )
                             continue
                         if deps_ok:
                             step.status = STEP_READY
@@ -537,13 +630,17 @@ badger（网络）、lark（监控）、kite（调度）
                             step.status = STEP_RUNNING
                             step.started_ts = time.time()
                             running[step.step_id] = executor.submit(
-                                self._execute_step, pipeline, step)
-                            self._notify("step_started", {
-                                "pipeline_id": pipeline.id,
-                                "step_id": step.step_id,
-                                "agent": step.agent_species,
-                                "task": step.task[:80],
-                            })
+                                self._execute_step, pipeline, step
+                            )
+                            self._notify(
+                                "step_started",
+                                {
+                                    "pipeline_id": pipeline.id,
+                                    "step_id": step.step_id,
+                                    "agent": step.agent_species,
+                                    "task": step.task[:80],
+                                },
+                            )
 
                 # 检查 running 中已完成的
                 done_ids = []
@@ -564,8 +661,9 @@ badger（网络）、lark（监控）、kite（调度）
             with pipeline.lock:
                 total = len(pipeline.steps)
                 done = sum(1 for s in pipeline.steps if s.status == STEP_DONE)
-                failed = sum(1 for s in pipeline.steps
-                             if s.status in (STEP_FAILED, STEP_SKIPPED))
+                failed = sum(
+                    1 for s in pipeline.steps if s.status in (STEP_FAILED, STEP_SKIPPED)
+                )
                 pipeline.finished_ts = time.time()
                 if failed == 0:
                     pipeline.status = PIPELINE_DONE
@@ -576,12 +674,17 @@ badger（网络）、lark（监控）、kite（调度）
                 pipeline.summary = self._build_summary(pipeline)
 
             pipeline.notify_update()
-            self._notify("pipeline_finished", {
-                "pipeline_id": pipeline.id,
-                "status": pipeline.status,
-                "total": total, "done": done, "failed": failed,
-                "summary": pipeline.summary[:200],
-            })
+            self._notify(
+                "pipeline_finished",
+                {
+                    "pipeline_id": pipeline.id,
+                    "status": pipeline.status,
+                    "total": total,
+                    "done": done,
+                    "failed": failed,
+                    "summary": pipeline.summary[:200],
+                },
+            )
 
             # commit 39：如果关联了项目里程碑，更新里程碑进度并触发下一里程碑
             if pipeline.project_id:
@@ -602,9 +705,13 @@ badger（网络）、lark（监控）、kite（调度）
                 pipeline.summary = f"调度异常: {e}"
                 pipeline.finished_ts = time.time()
             pipeline.notify_update()
-            self._notify("pipeline_failed", {
-                "pipeline_id": pipeline.id, "error": str(e)[:200],
-            })
+            self._notify(
+                "pipeline_failed",
+                {
+                    "pipeline_id": pipeline.id,
+                    "error": str(e)[:200],
+                },
+            )
 
     # ---------------- 单步执行 ----------------
 
@@ -616,27 +723,32 @@ badger（网络）、lark（监控）、kite（调度）
             candidates = [step.agent_species]
             try:
                 from core.digital_life.negotiation_engine import get_negotiation_engine
+
                 ne = get_negotiation_engine()
                 if ne._biosphere_ref is None and self._biosphere_ref is not None:
                     ne.set_biosphere(self._biosphere_ref)
                 nego = ne.negotiate(
-                    pipeline_id=pipeline.id, step_id=step.step_id,
-                    task=step.task, candidate_species=candidates,
+                    pipeline_id=pipeline.id,
+                    step_id=step.step_id,
+                    task=step.task,
+                    candidate_species=candidates,
                     timeout=2.0,
                 )
                 if nego.get("ok") and nego.get("winner"):
                     actual_species = nego["winner"]
                 with pipeline.lock:
-                    pipeline.negotiation_log.append({
-                        "step_id": step.step_id,
-                        "task": step.task[:80],
-                        "candidates": candidates,
-                        "winner": actual_species,
-                        "bids": nego.get("bids", []),
-                        "reason": nego.get("reason", ""),
-                        "fallback": nego.get("fallback", False),
-                        "ts": time.time(),
-                    })
+                    pipeline.negotiation_log.append(
+                        {
+                            "step_id": step.step_id,
+                            "task": step.task[:80],
+                            "candidates": candidates,
+                            "winner": actual_species,
+                            "bids": nego.get("bids", []),
+                            "reason": nego.get("reason", ""),
+                            "fallback": nego.get("fallback", False),
+                            "ts": time.time(),
+                        }
+                    )
             except Exception:
                 pass
 
@@ -651,12 +763,18 @@ badger（网络）、lark（监控）、kite（调度）
             # 设置 agent 工作状态：running（前端会显示齿轮图标）
             try:
                 agent._tool_call_status = "running"
-                agent._tool_call_meta = {"tool": step.tools[0] if step.tools else "", "task": step.task[:60], "step_id": step.step_id, "pipeline_id": pipeline.id}
+                agent._tool_call_meta = {
+                    "tool": step.tools[0] if step.tools else "",
+                    "task": step.task[:60],
+                    "step_id": step.step_id,
+                    "pipeline_id": pipeline.id,
+                }
             except Exception:
                 pass
 
             # 调用 agent_function_calling
             from core.digital_life.agent_function_calling import dispatch_task_to_agent
+
             result = dispatch_task_to_agent(agent, step.task)
 
             with pipeline.lock:
@@ -690,26 +808,33 @@ badger（网络）、lark（监控）、kite（调度）
                             a._tool_call_status = ""
                 except Exception:
                     pass
+
             threading.Thread(target=_clear_status, daemon=True).start()
 
-            self._notify("step_finished", {
-                "pipeline_id": pipeline.id,
-                "step_id": step.step_id,
-                "agent": step.agent_species,
-                "ok": result.get("ok", False),
-                "result": (step.result if result.get("ok") else step.error)[:200],
-            })
+            self._notify(
+                "step_finished",
+                {
+                    "pipeline_id": pipeline.id,
+                    "step_id": step.step_id,
+                    "agent": step.agent_species,
+                    "ok": result.get("ok", False),
+                    "result": (step.result if result.get("ok") else step.error)[:200],
+                },
+            )
 
         except Exception as e:
             with pipeline.lock:
                 step.status = STEP_FAILED
                 step.error = f"执行异常: {e}"
                 step.finished_ts = time.time()
-            self._notify("step_failed", {
-                "pipeline_id": pipeline.id,
-                "step_id": step.step_id,
-                "error": str(e)[:200],
-            })
+            self._notify(
+                "step_failed",
+                {
+                    "pipeline_id": pipeline.id,
+                    "step_id": step.step_id,
+                    "error": str(e)[:200],
+                },
+            )
 
     # ---------------- 辅助 ----------------
 
@@ -719,16 +844,19 @@ badger（网络）、lark（监控）、kite（调度）
         tool_calls = []
         ok = True
         for s in pipeline.steps:
-            tool_calls.append({
-                "tool": f"step_{s.step_id}_{s.agent_species}",
-                "ok": s.status == STEP_DONE,
-                "result": {"output": s.result[:200] or s.error[:200]},
-            })
+            tool_calls.append(
+                {
+                    "tool": f"step_{s.step_id}_{s.agent_species}",
+                    "ok": s.status == STEP_DONE,
+                    "result": {"output": s.result[:200] or s.error[:200]},
+                }
+            )
             if s.status != STEP_DONE:
                 ok = False
         duration_sec = (pipeline.finished_ts or time.time()) - pipeline.created_ts
         try:
             from core.digital_life import retrospect
+
             router = self._get_router()
             retro = retrospect.generate_retrospect(
                 agent_species="deer",
@@ -747,8 +875,9 @@ badger（网络）、lark（监控）、kite（调度）
 
     # ---------------- commit 39：项目里程碑联动 ----------------
 
-    def _advance_milestone(self, pipeline: Pipeline,
-                            total: int, done: int, failed: int) -> None:
+    def _advance_milestone(
+        self, pipeline: Pipeline, total: int, done: int, failed: int
+    ) -> None:
         """流水线完成后，根据成败更新关联里程碑的进度。
 
         - 全部 step 成功 → 标记里程碑完成（进度 100%），自动通知下一里程碑启动
@@ -756,6 +885,7 @@ badger（网络）、lark（监控）、kite（调度）
         - 全部失败 → 里程碑进度不变，触发风险提醒
         """
         from core.digital_life.project_manager import get_project_manager
+
         mgr = get_project_manager()
         if not pipeline.project_id:
             return
@@ -782,32 +912,39 @@ badger（网络）、lark（监控）、kite（调度）
                 new_progress = 100
                 new_status = "done"
                 mgr.update_milestone_progress(
-                    pipeline.project_id, pipeline.milestone_id,
-                    progress=100, status="done",
+                    pipeline.project_id,
+                    pipeline.milestone_id,
+                    progress=100,
+                    status="done",
                 )
             else:
                 # 部分成功 → 推进进度（按完成率）
                 new_progress = min(99, int(old_progress + success_ratio * 50))
                 new_status = "in_progress"
                 mgr.update_milestone_progress(
-                    pipeline.project_id, pipeline.milestone_id,
-                    progress=new_progress, status="in_progress",
+                    pipeline.project_id,
+                    pipeline.milestone_id,
+                    progress=new_progress,
+                    status="in_progress",
                 )
 
             # 累加参与 agent 的项目贡献统计
             self._record_project_contributions(pipeline, proj_obj)
 
             # 通知监工
-            self._notify("milestone_progress", {
-                "pipeline_id": pipeline.id,
-                "project_id": pipeline.project_id,
-                "milestone_id": pipeline.milestone_id,
-                "milestone_name": milestone.name,
-                "old_progress": old_progress,
-                "new_progress": new_progress,
-                "status": new_status,
-                "ok": failed == 0,
-            })
+            self._notify(
+                "milestone_progress",
+                {
+                    "pipeline_id": pipeline.id,
+                    "project_id": pipeline.project_id,
+                    "milestone_id": pipeline.milestone_id,
+                    "milestone_name": milestone.name,
+                    "old_progress": old_progress,
+                    "new_progress": new_progress,
+                    "status": new_status,
+                    "ok": failed == 0,
+                },
+            )
 
             # 如果里程碑完成，自动触发下一里程碑
             if new_status == "done":
@@ -827,10 +964,10 @@ badger（网络）、lark（监控）、kite（调度）
                     continue
                 # 找到执行该 step 的智能体
                 for lf in employees:
-                    if (getattr(lf, "species", "") == step.agent_species
-                            and getattr(lf, "_alive", False)):
-                        contrib = (getattr(lf, "project_contributions", None)
-                                   or {})
+                    if getattr(lf, "species", "") == step.agent_species and getattr(
+                        lf, "_alive", False
+                    ):
+                        contrib = getattr(lf, "project_contributions", None) or {}
                         c = dict(contrib.get(pipeline.project_id, {}))
                         c["tasks"] = int(c.get("tasks", 0)) + 1
                         c["commits"] = int(c.get("commits", 0)) + 1
@@ -838,13 +975,17 @@ badger（网络）、lark（监控）、kite（调度）
                         c["role"] = c.get("role", step.agent_species)
                         # 写回（避免 __slots__ 限制）
                         try:
-                            lf.project_contributions = {**contrib,
-                                                         pipeline.project_id: c}
+                            lf.project_contributions = {
+                                **contrib,
+                                pipeline.project_id: c,
+                            }
                         except Exception:
                             pass
                         # 累加工作产出
                         try:
-                            lf._work_output = float(getattr(lf, "_work_output", 0.0)) + 1.0
+                            lf._work_output = (
+                                float(getattr(lf, "_work_output", 0.0)) + 1.0
+                            )
                         except Exception:
                             pass
                         break  # 每物种一只，找到就 break
@@ -854,6 +995,7 @@ badger（网络）、lark（监控）、kite（调度）
     def _trigger_next_milestone(self, project, finished_milestone) -> None:
         """里程碑完成后自动启动下一里程碑（依赖关系判定）。"""
         from core.digital_life.project_manager import get_project_manager
+
         mgr = get_project_manager()
         # 找到所有依赖刚完成里程碑的、尚未开始的里程碑
         triggered: list[str] = []
@@ -862,16 +1004,22 @@ badger（网络）、lark（监控）、kite（调度）
                 continue
             if finished_milestone.id in (m.depends_on or []):
                 mgr.update_milestone_progress(
-                    project.id, m.id, progress=0, status="in_progress",
+                    project.id,
+                    m.id,
+                    progress=0,
+                    status="in_progress",
                 )
                 triggered.append(m.name)
         if triggered:
-            self._notify("milestone_auto_started", {
-                "project_id": project.id,
-                "project_name": project.name,
-                "finished_milestone": finished_milestone.name,
-                "next_milestones": triggered,
-            })
+            self._notify(
+                "milestone_auto_started",
+                {
+                    "project_id": project.id,
+                    "project_name": project.name,
+                    "finished_milestone": finished_milestone.name,
+                    "next_milestones": triggered,
+                },
+            )
 
     def _get_router(self):
         if self._biosphere_ref is None:
@@ -885,21 +1033,24 @@ badger（网络）、lark（监控）、kite（调度）
         # 优先按 name_hint
         try:
             # biosphere.employees 是 list[DigitalLifeForm]
-            employees = (getattr(self._biosphere_ref, "employees", None)
-                         or getattr(self._biosphere_ref, "env", None)
-                         and getattr(self._biosphere_ref.env, "population", None)
-                         or [])
+            employees = (
+                getattr(self._biosphere_ref, "employees", None)
+                or getattr(self._biosphere_ref, "env", None)
+                and getattr(self._biosphere_ref.env, "population", None)
+                or []
+            )
             # 优先匹配名字
             if name_hint:
                 for a in employees:
-                    if (getattr(a, "species", "") == species
-                            and getattr(a, "_name_obj", "") == name_hint
-                            and getattr(a, "_alive", False)):
+                    if (
+                        getattr(a, "species", "") == species
+                        and getattr(a, "_name_obj", "") == name_hint
+                        and getattr(a, "_alive", False)
+                    ):
                         return a
             # 任意该物种的活体
             for a in employees:
-                if (getattr(a, "species", "") == species
-                        and getattr(a, "_alive", False)):
+                if getattr(a, "species", "") == species and getattr(a, "_alive", False):
                     return a
         except Exception:
             pass
@@ -909,20 +1060,27 @@ badger（网络）、lark（监控）、kite（调度）
         """生成流水线最终汇总报告。"""
         lines: list[str] = []
         lines.append(f"流水线「{pipeline.name}」执行完毕")
-        lines.append(f"总步骤: {len(pipeline.steps)}，"
-                     f"成功: {sum(1 for s in pipeline.steps if s.status == STEP_DONE)}，"
-                     f"失败: {sum(1 for s in pipeline.steps if s.status == STEP_FAILED)}，"
-                     f"跳过: {sum(1 for s in pipeline.steps if s.status == STEP_SKIPPED)}")
+        lines.append(
+            f"总步骤: {len(pipeline.steps)}，"
+            f"成功: {sum(1 for s in pipeline.steps if s.status == STEP_DONE)}，"
+            f"失败: {sum(1 for s in pipeline.steps if s.status == STEP_FAILED)}，"
+            f"跳过: {sum(1 for s in pipeline.steps if s.status == STEP_SKIPPED)}"
+        )
         lines.append("")
         lines.append("各步骤结果：")
         for s in pipeline.steps:
             status_icon = {
-                STEP_DONE: "[OK]", STEP_FAILED: "[FAIL]",
-                STEP_SKIPPED: "[SKIP]", STEP_RUNNING: "[RUN]",
-                STEP_PENDING: "[WAIT]", STEP_READY: "[RDY]",
+                STEP_DONE: "[OK]",
+                STEP_FAILED: "[FAIL]",
+                STEP_SKIPPED: "[SKIP]",
+                STEP_RUNNING: "[RUN]",
+                STEP_PENDING: "[WAIT]",
+                STEP_READY: "[RDY]",
             }.get(s.status, "[?]")
             result_preview = (s.result if s.status == STEP_DONE else s.error)[:100]
-            lines.append(f"  {status_icon} step{s.step_id} [{s.agent_species}]: {result_preview}")
+            lines.append(
+                f"  {status_icon} step{s.step_id} [{s.agent_species}]: {result_preview}"
+            )
         return "\n".join(lines)
 
     # ---------------- 控制 ----------------
@@ -934,8 +1092,12 @@ badger（网络）、lark（监控）、kite（调度）
         if p is None:
             return False
         with p.lock:
-            if p.status in (PIPELINE_DONE, PIPELINE_FAILED,
-                             PIPELINE_PARTIAL, PIPELINE_CANCELLED):
+            if p.status in (
+                PIPELINE_DONE,
+                PIPELINE_FAILED,
+                PIPELINE_PARTIAL,
+                PIPELINE_CANCELLED,
+            ):
                 return False
             for s in p.steps:
                 if s.status in (STEP_PENDING, STEP_READY):
@@ -957,9 +1119,21 @@ def get_pipeline_engine() -> PipelineEngine:
 # 单智能体直接执行（不走流水线）
 # ----------------------------------------------------------------------
 
+
 class PipelineResult:
-    __slots__ = ("created_ts", "duration_sec", "finished_ts", "pipeline_id", "status", "steps", "summary")
-    def __init__(self, pipeline_id, status, steps, summary, duration_sec, created_ts, finished_ts):
+    __slots__ = (
+        "created_ts",
+        "duration_sec",
+        "finished_ts",
+        "pipeline_id",
+        "status",
+        "steps",
+        "summary",
+    )
+
+    def __init__(
+        self, pipeline_id, status, steps, summary, duration_sec, created_ts, finished_ts
+    ):
         self.pipeline_id = pipeline_id
         self.status = status
         self.steps = steps
@@ -974,24 +1148,32 @@ class PipelineResult:
     @classmethod
     def from_pipeline(cls, p: Pipeline):
         return cls(
-            pipeline_id=p.id, status=p.status,
+            pipeline_id=p.id,
+            status=p.status,
             steps=[s.to_dict() for s in p.steps],
             summary=p.summary,
             duration_sec=(p.finished_ts - p.created_ts) if p.finished_ts else 0,
-            created_ts=p.created_ts, finished_ts=p.finished_ts,
+            created_ts=p.created_ts,
+            finished_ts=p.finished_ts,
         )
 
 
-def run_pipeline(task: str, name: str = "", project_id: str = "", milestone_id: str = "") -> PipelineResult:
+def run_pipeline(
+    task: str, name: str = "", project_id: str = "", milestone_id: str = ""
+) -> PipelineResult:
     eng = get_pipeline_engine()
-    result = eng.submit(task, name=name, project_id=project_id, milestone_id=milestone_id)
+    result = eng.submit(
+        task, name=name, project_id=project_id, milestone_id=milestone_id
+    )
     if not result["ok"]:
         return PipelineResult("", PIPELINE_FAILED, [], result.get("error", ""), 0, 0, 0)
     pid = result["pipeline_id"]
     p = eng._pipelines.get(pid)
     ev = threading.Event()
+
     def _on_done(_pid=None):
         ev.set()
+
     if p:
         p.on_update = _on_done
     ev.wait(timeout=300)
@@ -1018,20 +1200,25 @@ def retry_failed(pipeline_id: str) -> PipelineResult:
         p.finished_ts = 0
         p.summary = ""
     ev = threading.Event()
+
     def _on_done(_pid=None):
         ev.set()
+
     p.on_update = _on_done
-    t = threading.Thread(target=eng._run_pipeline, args=(p,), daemon=True, name=f"retry-{p.id}")
+    t = threading.Thread(
+        target=eng._run_pipeline, args=(p,), daemon=True, name=f"retry-{p.id}"
+    )
     t.start()
     ev.wait(timeout=300)
     p = eng._pipelines.get(pipeline_id)
     if p is None:
-        return PipelineResult(pipeline_id, PIPELINE_FAILED, [], "pipeline lost", 0, 0, 0)
+        return PipelineResult(
+            pipeline_id, PIPELINE_FAILED, [], "pipeline lost", 0, 0, 0
+        )
     return PipelineResult.from_pipeline(p)
 
 
-def run_single_agent_task(species: str, task: str,
-                           environment=None) -> dict:
+def run_single_agent_task(species: str, task: str, environment=None) -> dict:
     """直接派给单个物种的智能体执行（不走流水线）。
 
     返回：
@@ -1044,9 +1231,14 @@ def run_single_agent_task(species: str, task: str,
 
     agent = find_agent_by_species(species, environment)
     if agent is None:
-        return {"ok": False, "agent": species, "answer": "",
-                "error": f"找不到 {species} 物种的智能体",
-                "tool_calls": [], "rounds": 0}
+        return {
+            "ok": False,
+            "agent": species,
+            "answer": "",
+            "error": f"找不到 {species} 物种的智能体",
+            "tool_calls": [],
+            "rounds": 0,
+        }
 
     result = dispatch_task_to_agent(agent, task)
     result["agent"] = species

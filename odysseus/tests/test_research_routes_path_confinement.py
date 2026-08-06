@@ -18,13 +18,12 @@ from unittest.mock import MagicMock
 
 import pytest
 from fastapi import HTTPException
-
-from routes.research_routes import setup_research_routes
 from routes.research.research_routes import (
     _find_owned_research_path,
     _find_research_path,
     _require_research_path,
 )
+from routes.research_routes import setup_research_routes
 
 
 @pytest.fixture(autouse=True)
@@ -65,6 +64,7 @@ def _research_handler():
 # Helper-level tests
 # ---------------------------------------------------------------------------
 
+
 def test_find_returns_existing_trusted_research_path(tmp_path, monkeypatch):
     data_dir = tmp_path / "deep_research"
     expected = _write_research(data_dir, "rp-abc123de4567", owner="alice")
@@ -88,16 +88,19 @@ def test_require_returns_404_for_missing_valid_session_id(tmp_path, monkeypatch)
     assert exc.value.status_code == 404
 
 
-@pytest.mark.parametrize("bad_id", [
-    "../escape",
-    "../../etc/passwd",
-    "/etc/passwd",
-    "safe/../../x",
-    "",
-    "rp_bad",          # underscore not in allowed charset
-    "rp-bad.json",     # dot not in allowed charset
-    "a" * 129,         # exceeds length limit
-])
+@pytest.mark.parametrize(
+    "bad_id",
+    [
+        "../escape",
+        "../../etc/passwd",
+        "/etc/passwd",
+        "safe/../../x",
+        "",
+        "rp_bad",  # underscore not in allowed charset
+        "rp-bad.json",  # dot not in allowed charset
+        "a" * 129,  # exceeds length limit
+    ],
+)
 def test_find_rejects_bad_session_ids_before_enumeration(monkeypatch, bad_id):
     storage_root = MagicMock()
     monkeypatch.setattr(
@@ -152,7 +155,6 @@ def test_find_ignores_symlink_escape(tmp_path, monkeypatch):
     assert _find_research_path("rp-linktest1234") is None
 
 
-
 def test_find_owned_returns_path_for_matching_owner(tmp_path, monkeypatch):
     data_dir = tmp_path / "deep_research"
     expected = _write_research(data_dir, "rp-ownedalice1", owner="alice")
@@ -172,6 +174,7 @@ def test_find_owned_returns_none_for_other_owner(tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 # Route-level tests — valid paths work
 # ---------------------------------------------------------------------------
+
 
 def test_detail_returns_data_for_owner(tmp_path):
     data_dir = tmp_path / "deep_research"
@@ -245,6 +248,7 @@ def test_delete_rejects_traversal(bad_id):
 # Route-level tests — traversal does not touch files outside DEEP_RESEARCH_DIR
 # ---------------------------------------------------------------------------
 
+
 def test_delete_traversal_does_not_delete_outside_file(tmp_path, monkeypatch):
     data_dir = tmp_path / "deep_research"
     data_dir.mkdir(parents=True)
@@ -270,10 +274,14 @@ def test_archive_traversal_does_not_mutate_outside_file(tmp_path, monkeypatch):
     router = setup_research_routes(_research_handler())
     target = _route(router, "/api/research/{session_id}/archive", "POST")
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(target(session_id="../sensitive", request=_request("alice"), archived=True))
+        asyncio.run(
+            target(session_id="../sensitive", request=_request("alice"), archived=True)
+        )
     assert exc.value.status_code == 400
     data = json.loads(outside.read_text(encoding="utf-8"))
-    assert data["archived"] is False, "file outside DEEP_RESEARCH_DIR must not be mutated"
+    assert (
+        data["archived"] is False
+    ), "file outside DEEP_RESEARCH_DIR must not be mutated"
 
 
 def test_detail_traversal_does_not_read_outside_file(tmp_path, monkeypatch):
@@ -293,6 +301,7 @@ def test_detail_traversal_does_not_read_outside_file(tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 # Route-level symlink escape test
 # ---------------------------------------------------------------------------
+
 
 def _write_outside_symlink(tmp_path, session_id: str, data: dict):
     data_dir = tmp_path / "deep_research"
@@ -358,9 +367,7 @@ def test_delete_does_not_unlink_symlink_escape(tmp_path, monkeypatch):
 
     router = setup_research_routes(_research_handler())
     target = _route(router, "/api/research/{session_id}", "DELETE")
-    out = asyncio.run(
-        target(session_id="rp-linkdelete12", request=_request("alice"))
-    )
+    out = asyncio.run(target(session_id="rp-linkdelete12", request=_request("alice")))
     assert out == {"deleted": False}
     assert link.is_symlink()
     assert outside_file.exists()
@@ -369,6 +376,7 @@ def test_delete_does_not_unlink_symlink_escape(tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 # Owner/session scoping cannot escape root
 # ---------------------------------------------------------------------------
+
 
 def test_owner_scoped_paths_stay_within_research_root(tmp_path, monkeypatch):
     """Owner-scoped persisted files resolve within DEEP_RESEARCH_DIR."""
@@ -380,9 +388,10 @@ def test_owner_scoped_paths_stay_within_research_root(tmp_path, monkeypatch):
     for session_id in ("rp-abc123456789", "rp-000000000001", "abc-xyz-123"):
         _write_research(data_dir, session_id, owner="alice")
         path = _require_research_path(session_id)
-        assert path.resolve().is_relative_to(root), (
-            f"{session_id!r} produced path outside research root: {path}"
-        )
+        assert path.resolve().is_relative_to(
+            root
+        ), f"{session_id!r} produced path outside research root: {path}"
+
 
 @pytest.mark.parametrize("bad_id", _TRAVERSAL_IDS)
 def test_result_peek_rejects_traversal(bad_id):
@@ -401,7 +410,10 @@ def test_spinoff_rejects_traversal(bad_id):
         asyncio.run(target(session_id=bad_id, request=_request("alice")))
     assert exc.value.status_code == 400
 
-def test_result_peek_uses_single_disk_lookup_for_completed_result(tmp_path, monkeypatch):
+
+def test_result_peek_uses_single_disk_lookup_for_completed_result(
+    tmp_path, monkeypatch
+):
     data_dir = tmp_path / "deep_research"
     path = _write_research(
         data_dir,
@@ -503,6 +515,7 @@ def test_spinoff_uses_single_disk_lookup_for_completed_result(tmp_path, monkeypa
     assert calls == [("rp-spinsingle1", "alice")]
     assert session_manager.created is not None
     assert session_manager.created.messages
+
 
 def test_spinoff_reads_saved_query_for_done_active_task(tmp_path, monkeypatch):
     session_id = "rp-activedone1"

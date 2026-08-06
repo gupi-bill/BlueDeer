@@ -5,13 +5,14 @@ URLs. Compaction uses replace_messages for the retained transcript, which must
 store readable text plus stable structured attachment references without
 copying raw base64 payloads into ChatMessage.content.
 """
+
 import uuid
 
 import pytest
-
-import core.database as cdb
 from core.models import ChatMessage
 from tests.helpers.sqlite_db import make_temp_sqlite
+
+import core.database as cdb
 
 _TS, _ENGINE, _TMPDB = make_temp_sqlite(cdb.Base.metadata)
 
@@ -19,6 +20,7 @@ _TS, _ENGINE, _TMPDB = make_temp_sqlite(cdb.Base.metadata)
 @pytest.fixture
 def manager(monkeypatch):
     import core.session_manager as sm
+
     monkeypatch.setattr(sm, "SessionLocal", _TS)
     mgr = sm.SessionManager.__new__(sm.SessionManager)
     mgr.sessions = {}
@@ -29,9 +31,17 @@ def manager(monkeypatch):
 def _make_session(sid, owner="alice"):
     db = _TS()
     try:
-        db.add(cdb.Session(id=sid, owner=owner, name="chat", model="gpt-4o",
-                           endpoint_url="http://localhost:11434",
-                           archived=False, message_count=1))
+        db.add(
+            cdb.Session(
+                id=sid,
+                owner=owner,
+                name="chat",
+                model="gpt-4o",
+                endpoint_url="http://localhost:11434",
+                archived=False,
+                message_count=1,
+            )
+        )
         db.commit()
     finally:
         db.close()
@@ -46,19 +56,23 @@ def test_multimodal_content_persists_text_and_attachment_ref_without_payload(man
         {"type": "text", "text": "what is this?"},
         {"type": "image_url", "image_url": {"url": "data:image/png;base64,AAAA"}},
     ]
-    msgs = [ChatMessage(
-        role="user",
-        content=multimodal,
-        metadata={
-            "attachments": [{
-                "id": upload_id,
-                "name": "diagram.png",
-                "mime": "image/png",
-                "size": 4,
-                "checksum_sha256": "sha256-digest",
-            }]
-        },
-    )]
+    msgs = [
+        ChatMessage(
+            role="user",
+            content=multimodal,
+            metadata={
+                "attachments": [
+                    {
+                        "id": upload_id,
+                        "name": "diagram.png",
+                        "mime": "image/png",
+                        "size": 4,
+                        "checksum_sha256": "sha256-digest",
+                    }
+                ]
+            },
+        )
+    ]
     assert manager.replace_messages(sid, msgs) is True
 
     expected = (

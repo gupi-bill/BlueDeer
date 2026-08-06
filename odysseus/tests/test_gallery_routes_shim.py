@@ -10,8 +10,8 @@ monkeypatch-based gallery tests silently start patching the wrong module.
 
 import importlib
 
-import routes.gallery_routes as _shim_routes  # noqa: F401
 import routes.gallery_helpers as _shim_helpers  # noqa: F401
+import routes.gallery_routes as _shim_routes  # noqa: F401
 
 
 def test_legacy_and_canonical_route_module_are_same_object():
@@ -47,6 +47,6 @@ def test_monkeypatch_via_legacy_path_affects_canonical(monkeypatch):
 
     sentinel = object()
     monkeypatch.setattr(legacy, "setup_gallery_routes", sentinel)
-    assert canonical.setup_gallery_routes is sentinel, (
-        "monkeypatch via legacy path did not reach the canonical module"
-    )
+    assert (
+        canonical.setup_gallery_routes is sentinel
+    ), "monkeypatch via legacy path did not reach the canonical module"

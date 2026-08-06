@@ -42,7 +42,9 @@ def _cors_allow_methods() -> list[str]:
     tree = ast.parse((ROOT / "app.py").read_text(encoding="utf-8"))
     for node in tree.body:
         if isinstance(node, ast.Assign):
-            names = [target.id for target in node.targets if isinstance(target, ast.Name)]
+            names = [
+                target.id for target in node.targets if isinstance(target, ast.Name)
+            ]
             if "CORS_ALLOW_METHODS" in names:
                 return ast.literal_eval(node.value)
     raise AssertionError("CORS_ALLOW_METHODS not found")
@@ -72,14 +74,14 @@ def test_host_docker_overlay_mounts_socket_and_adds_docker_group():
 
 def test_docker_entrypoint_gates_socket_group_plumbing_on_explicit_opt_in():
     script = (ROOT / "docker" / "entrypoint.sh").read_text(encoding="utf-8")
-    block_start = script.index("DOCKER_SOCK=\"${DOCKER_SOCK:-/var/run/docker.sock}\"")
+    block_start = script.index('DOCKER_SOCK="${DOCKER_SOCK:-/var/run/docker.sock}"')
     block_end = script.index("\nmount_root_for()", block_start)
     socket_group_block = script[block_start:block_end]
 
     opt_in_check = socket_group_block.index(
-        "[ \"${ODYSSEUS_ENABLE_HOST_DOCKER:-}\" = \"true\" ]"
+        '[ "${ODYSSEUS_ENABLE_HOST_DOCKER:-}" = "true" ]'
     )
-    socket_check = socket_group_block.index("[ -S \"$DOCKER_SOCK\" ]")
+    socket_check = socket_group_block.index('[ -S "$DOCKER_SOCK" ]')
     stat_socket = socket_group_block.index("stat -c")
     add_group = socket_group_block.index("groupadd -g")
     add_user_group = socket_group_block.index("usermod -aG")

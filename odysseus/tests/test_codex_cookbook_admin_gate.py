@@ -8,12 +8,12 @@ not admin privileges.
 After the fix, cookie-session callers must be admin; API-token callers
 are still governed by scope checks only.
 """
-import pytest
+
 from types import SimpleNamespace
+
+import pytest
 from fastapi import HTTPException
-
 from routes.codex_routes import _require_cookbook_scope
-
 
 COOKBOOK_READ_SCOPES = {"cookbook:read", "cookbook:launch"}
 COOKBOOK_LAUNCH_SCOPES = {"cookbook:launch"}
@@ -101,6 +101,7 @@ class TestSourceCodeGate:
 
     def test_no_raw_scope_owner_in_cookbook_routes(self):
         from pathlib import Path
+
         source = Path("routes/codex_routes.py").read_text(encoding="utf-8")
         # _scope_owner should NOT appear inside cookbook route handlers.
         # Find lines between cookbook route defs that still call _scope_owner.
@@ -113,6 +114,6 @@ class TestSourceCodeGate:
                 in_cookbook = False
             if in_cookbook and "_scope_owner(request" in line:
                 violations.append((i, line.strip()))
-        assert violations == [], (
-            f"Cookbook routes still use _scope_owner instead of _require_cookbook_scope: {violations}"
-        )
+        assert (
+            violations == []
+        ), f"Cookbook routes still use _scope_owner instead of _require_cookbook_scope: {violations}"

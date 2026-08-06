@@ -11,7 +11,8 @@ import hashlib
 import logging
 import os
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -48,7 +49,9 @@ def cache_response(ttl: int = 60) -> Callable:
             result = await func(*args, **kwargs)
             _RESPONSE_CACHE[cache_key] = (now + ttl, result)
             return result
+
         return wrapper
+
     return decorator
 
 
@@ -60,7 +63,6 @@ def invalidate_cache(pattern: str | None = None) -> None:
 
 
 # ===== 请求验证中间件 =====
-from pydantic import BaseModel, ValidationError
 
 app = FastAPI(title="BlueDeer 森林公司仪表盘")
 
@@ -95,11 +97,14 @@ async def request_validation_middleware(request: Request, call_next):
 
 # ---- Gzip 压缩中间件 ----
 from fastapi.middleware.gzip import GZipMiddleware
+
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 # ---- 静态文件缓存 ----
-_STATIC_CACHE: dict[str, tuple[str, str, float]] = {}  # path -> (etag, content_type, mtime)
+_STATIC_CACHE: dict[str, tuple[str, str, float]] = (
+    {}
+)  # path -> (etag, content_type, mtime)
 
 
 def _build_etag(filepath: str) -> str:
@@ -129,8 +134,13 @@ async def static_cache_middleware(request: Request, call_next):
     else:
         etag = _build_etag(filepath)
         import mimetypes
+
         content_type, _ = mimetypes.guess_type(filepath)
-        _STATIC_CACHE[filepath] = (etag, content_type or "application/octet-stream", mtime)
+        _STATIC_CACHE[filepath] = (
+            etag,
+            content_type or "application/octet-stream",
+            mtime,
+        )
 
     if_none_match = request.headers.get("if-none-match")
     if if_none_match and if_none_match.strip('"') == etag:
@@ -140,6 +150,7 @@ async def static_cache_middleware(request: Request, call_next):
     response.headers["Cache-Control"] = "public, max-age=86400, immutable"
     response.headers["ETag"] = f'"{etag}"'
     return response
+
 
 # 初始化场景
 library = Library()
@@ -162,15 +173,15 @@ plugin_manager = PluginManager(plugin_dir="plugins")
 vector_browser = VectorBrowser(db_root="data")
 
 # ===== API Server =====
+from core.api_server import init_api
 from core.event_bus import EventBus
 from core.harness import Harness
 from core.scheduler import Scheduler
-from core.webhook import WebhookDispatcher
-from core.api_server import init_api
-from web_admin import init_admin
-from core.task_templates import TaskTemplates
 from core.task_dag import TaskDAG
+from core.task_templates import TaskTemplates
+from core.webhook import WebhookDispatcher
 from run_biosphere import Biosphere
+from web_admin import init_admin
 
 event_bus = EventBus()
 harness = Harness(event_bus=event_bus)
@@ -184,13 +195,23 @@ harness.set_dag(dag)
 harness.set_webhook(webhook)
 scheduler.set_dag(dag)
 
-api_router = init_api(bus=event_bus, harness=harness, scheduler=scheduler, webhook=webhook)
-admin_router = init_admin(bus=event_bus, harness=harness, scheduler=scheduler, webhook=webhook, templates_engine=templates_engine)
+api_router = init_api(
+    bus=event_bus, harness=harness, scheduler=scheduler, webhook=webhook
+)
+admin_router = init_admin(
+    bus=event_bus,
+    harness=harness,
+    scheduler=scheduler,
+    webhook=webhook,
+    templates_engine=templates_engine,
+)
 app.include_router(api_router)
 app.include_router(admin_router)
 
 # ── 生物圈游戏路由器 ──
-from core.game_router import router as game_router, init_biosphere
+from core.game_router import init_biosphere
+from core.game_router import router as game_router
+
 app.include_router(game_router)
 
 # 生物圈全局实例（延迟初始化）
@@ -212,6 +233,7 @@ for agent_id, name, role in [
 debugger = Debugger(enabled=True)
 debugger.enable()
 canvas = Canvas(debugger)
+
 
 # ===== 启动/关闭事件 =====
 @app.on_event("startup")
@@ -256,20 +278,31 @@ async def _periodic_ws_health() -> None:
                 "pending": agg.get("pending", 0),
                 "in_flight": len(agg.get("in_flight", {})),
             }
-            await ws_manager.broadcast({
-                "event": "health", "ts": time.time(), "data": data,
-            })
+            await ws_manager.broadcast(
+                {
+                    "event": "health",
+                    "ts": time.time(),
+                    "data": data,
+                }
+            )
 
             from core.alert import get_alert_engine
+
             ae = get_alert_engine()
             total = data["total"] or 1
             event = ae.evaluate("failed_rate", data["failed"] / total)
             if event:
-                await ws_manager.broadcast({
-                    "event": "alert", "ts": time.time(),
-                    "data": {"rule_id": event.rule_id, "severity": event.severity,
-                             "message": event.message},
-                })
+                await ws_manager.broadcast(
+                    {
+                        "event": "alert",
+                        "ts": time.time(),
+                        "data": {
+                            "rule_id": event.rule_id,
+                            "severity": event.severity,
+                            "message": event.message,
+                        },
+                    }
+                )
             ae.evaluate("pending_count", data["pending"])
         except Exception:
             pass
@@ -300,6 +333,7 @@ os.makedirs("static/sprites", exist_ok=True)
 app.mount("/sprites", StaticFiles(directory="static/sprites"), name="sprites")
 
 # ===== WebSocket 实时推送 =====
+
 
 class ConnectionManager:
     def __init__(self) -> None:
@@ -335,8 +369,10 @@ class ConnectionManager:
                 self._connections.discard(ws)
                 self._subs.pop(ws, None)
 
+
 ws_manager = ConnectionManager()
 harness.set_task_event_cb(ws_manager.broadcast)
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket) -> None:
@@ -354,6 +390,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                 ws_manager.unsubscribe(ws, msg[6:])
     except WebSocketDisconnect:
         ws_manager.disconnect(ws)
+
 
 @app.websocket("/ws/admin")
 async def admin_ws(ws: WebSocket) -> None:
@@ -373,13 +410,17 @@ async def admin_ws(ws: WebSocket) -> None:
     except WebSocketDisconnect:
         ws_manager.disconnect(ws)
 
+
 # ===== Admin 认证 =====
 
 ADMIN_USER = "admin"
 ADMIN_PASS = "bluedeer888"
-ADMIN_AUTH_ENABLED = os.environ.get("BLUEDEER_AUTH", "true").lower() in ("1", "true", "yes")
+ADMIN_AUTH_ENABLED = os.environ.get("BLUEDEER_AUTH", "true").lower() in (
+    "1",
+    "true",
+    "yes",
+)
 
-from fastapi.responses import RedirectResponse
 
 LOGIN_HTML = """<!DOCTYPE html>
 <html lang="zh"><head><meta charset="utf-8"><title>BlueDeer 登录</title>
@@ -417,15 +458,20 @@ async def admin_login(request: Request) -> HTMLResponse:
     form = await request.form()
     u, p = form.get("username", ""), form.get("password", "")
     from core.auth import get_auth
+
     session = get_auth().authenticate(u, p)
     if session:
         resp = RedirectResponse(url="/admin", status_code=302)
-        resp.set_cookie(key="bluedeer_token", value=session.token, max_age=86400, httponly=True)
+        resp.set_cookie(
+            key="bluedeer_token", value=session.token, max_age=86400, httponly=True
+        )
         return resp
-    return HTMLResponse(content=LOGIN_HTML.replace(
-        '<div id="error" class="error"></div>',
-        '<div class="error">用户名或密码错误</div>',
-    ))
+    return HTMLResponse(
+        content=LOGIN_HTML.replace(
+            '<div id="error" class="error"></div>',
+            '<div class="error">用户名或密码错误</div>',
+        )
+    )
 
 
 @app.get("/admin/logout")
@@ -433,6 +479,7 @@ async def admin_logout(request: Request) -> RedirectResponse:
     token = request.cookies.get("bluedeer_token", "")
     if token:
         from core.auth import get_auth
+
         get_auth().logout(token)
     resp = RedirectResponse(url="/admin/login", status_code=302)
     resp.delete_cookie("bluedeer_token")
@@ -440,12 +487,14 @@ async def admin_logout(request: Request) -> RedirectResponse:
 
 
 if ADMIN_AUTH_ENABLED:
+
     @app.middleware("http")
     async def admin_auth_middleware(request: Request, call_next):
         path = request.url.path
         if path.startswith("/admin") and path not in ("/admin/login", "/admin/logout"):
             token = request.cookies.get("bluedeer_token", "")
             from core.auth import get_auth
+
             session = get_auth().get_session(token)
             if not session:
                 return RedirectResponse(url="/admin/login", status_code=302)
@@ -459,6 +508,7 @@ if ADMIN_AUTH_ENABLED:
 
 def _require_role(role: str, request: Request) -> bool:
     from core.auth import ROLE_HIERARCHY
+
     user_role = getattr(request.state, "role", "viewer")
     return ROLE_HIERARCHY.get(user_role, 0) >= ROLE_HIERARCHY.get(role, 0)
 
@@ -466,6 +516,7 @@ def _require_role(role: str, request: Request) -> bool:
 @app.get("/api/users")
 async def list_users(request: Request) -> dict[str, Any]:
     from core.auth import get_auth
+
     return {"users": get_auth().list_users()}
 
 
@@ -474,10 +525,12 @@ async def create_user(request: Request) -> dict[str, Any]:
     if not _require_role("admin", request):
         return {"ok": False, "error": "权限不足"}
     from core.auth import get_auth
+
     body = await request.json()
     try:
         get_auth().create_user(
-            username=body["username"], password=body["password"],
+            username=body["username"],
+            password=body["password"],
             role=body.get("role", "viewer"),
             display_name=body.get("display_name", ""),
             email=body.get("email", ""),
@@ -492,8 +545,11 @@ async def update_user(username: str, request: Request) -> dict[str, Any]:
     if not _require_role("admin", request):
         return {"ok": False, "error": "权限不足"}
     from core.auth import get_auth
+
     body = await request.json()
-    ok = get_auth().update_user(username, **{k: v for k, v in body.items() if v is not None})
+    ok = get_auth().update_user(
+        username, **{k: v for k, v in body.items() if v is not None}
+    )
     return {"ok": ok}
 
 
@@ -502,6 +558,7 @@ async def delete_user(username: str, request: Request) -> dict[str, Any]:
     if not _require_role("admin", request):
         return {"ok": False, "error": "权限不足"}
     from core.auth import get_auth
+
     ok = get_auth().delete_user(username)
     return {"ok": ok}
 
@@ -509,6 +566,7 @@ async def delete_user(username: str, request: Request) -> dict[str, Any]:
 @app.get("/api/users/tokens")
 async def list_tokens(request: Request) -> dict[str, Any]:
     from core.auth import get_auth
+
     username = request.state.user if hasattr(request.state, "user") else ""
     return {"tokens": get_auth().list_api_tokens(username)}
 
@@ -516,6 +574,7 @@ async def list_tokens(request: Request) -> dict[str, Any]:
 @app.post("/api/users/tokens")
 async def create_token(request: Request) -> dict[str, Any]:
     from core.auth import get_auth
+
     body = await request.json()
     username = request.state.user if hasattr(request.state, "user") else "admin"
     token = get_auth().create_api_token(username, body.get("name", "default"))
@@ -525,26 +584,39 @@ async def create_token(request: Request) -> dict[str, Any]:
 @app.delete("/api/users/tokens/{token_str}")
 async def revoke_token(token_str: str, request: Request) -> dict[str, Any]:
     from core.auth import get_auth
+
     ok = get_auth().revoke_api_token(token_str)
     return {"ok": ok}
 
 
 # ── 系统健康 API ──
 
+
 @app.get("/api/system/health")
 async def system_health() -> dict[str, Any]:
     import time
+
     stats = harness.aggregate() or {}
     tasks = stats.get("tasks", {})
     success = tasks.get("success", 0)
     failed = tasks.get("failed", 0)
     total = tasks.get("total", 1) or 1
     rate = round(success / total * 100, 1)
+    mem_mb = 0
+    threads = 0
+    try:
+        import psutil
+
+        proc = psutil.Process()
+        mem_mb = round(proc.memory_info().rss / 1024 / 1024, 1)
+        threads = proc.num_threads()
+    except Exception:
+        pass
     return {
         "status": "ok" if rate > 80 else "degraded" if rate > 50 else "critical",
         "uptime": f"{time.time() - stats.get('started_at', time.time()):.0f}s",
-        "threads": 0,
-        "memory": "0 MB",
+        "threads": threads,
+        "memory": f"{mem_mb} MB",
         "success_rate": rate,
         "total_tasks": total,
         "failed_tasks": failed,
@@ -553,12 +625,18 @@ async def system_health() -> dict[str, Any]:
 
 # ── RAG 统计 API ──
 
+
 @app.get("/api/rag/stats")
 async def rag_stats() -> dict[str, Any]:
     try:
         from core.rag_engine import get_rag_engine
+
         engine = get_rag_engine()
-        info = engine.info() if hasattr(engine, "info") else engine.get_stats() if hasattr(engine, "get_stats") else {}
+        info = (
+            engine.info()
+            if hasattr(engine, "info")
+            else engine.get_stats() if hasattr(engine, "get_stats") else {}
+        )
         return {
             "total_docs": info.get("total_docs", info.get("document_count", 0)),
             "total_tags": info.get("total_tags", info.get("tag_count", 0)),
@@ -566,17 +644,29 @@ async def rag_stats() -> dict[str, Any]:
             "last_indexed": info.get("last_indexed", info.get("last_update", "--")),
         }
     except ImportError:
-        return {"total_docs": 0, "total_tags": 0, "graph_edges": 0, "last_indexed": "--"}
+        return {
+            "total_docs": 0,
+            "total_tags": 0,
+            "graph_edges": 0,
+            "last_indexed": "--",
+        }
     except Exception:
-        return {"total_docs": 0, "total_tags": 0, "graph_edges": 0, "last_indexed": "--"}
+        return {
+            "total_docs": 0,
+            "total_tags": 0,
+            "graph_edges": 0,
+            "last_indexed": "--",
+        }
 
 
 # ── 奖励排行榜 API ──
+
 
 @app.get("/api/rewards/leaderboard")
 async def rewards_leaderboard() -> dict[str, Any]:
     try:
         from core.reward import RewardSystem
+
         rs = RewardSystem.load("data/rewards.json")
         lb = rs.leaderboard()
         if isinstance(lb, list):
@@ -588,34 +678,54 @@ async def rewards_leaderboard() -> dict[str, Any]:
 
 # ── 清理 API ──
 
+
 @app.get("/api/cleanup/stats")
 async def cleanup_stats() -> dict[str, Any]:
     from core.cleanup import get_storage_stats
+
     return get_storage_stats()
 
 
 @app.post("/api/cleanup/run")
 async def cleanup_run(request: Request) -> dict[str, Any]:
     from core.cleanup import run_cleanup
-    body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
+
+    body = (
+        await request.json()
+        if request.headers.get("content-type", "").startswith("application/json")
+        else {}
+    )
     dry_run = body.get("dry_run", False)
     max_days = body.get("max_days", 14)
     result = run_cleanup(dry_run=dry_run, max_days=max_days)
-    return {"ok": True, "removed": result.removed, "freed_bytes": result.freed_bytes, "db_vacuumed": result.db_vacuumed, "errors": result.errors}
+    return {
+        "ok": True,
+        "removed": result.removed,
+        "freed_bytes": result.freed_bytes,
+        "db_vacuumed": result.db_vacuumed,
+        "errors": result.errors,
+    }
 
 
 # ── 备份 API ──
 
+
 @app.get("/api/backups")
 async def list_backups_api() -> dict[str, Any]:
     from core.backup import list_backups
+
     return {"backups": list_backups()}
 
 
 @app.post("/api/backups")
 async def create_backup_api(request: Request) -> dict[str, Any]:
     from core.backup import create_backup
-    body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
+
+    body = (
+        await request.json()
+        if request.headers.get("content-type", "").startswith("application/json")
+        else {}
+    )
     path = create_backup(name=body.get("name", ""), db_only=body.get("db_only", False))
     return {"ok": True, "path": path}
 
@@ -623,6 +733,7 @@ async def create_backup_api(request: Request) -> dict[str, Any]:
 @app.post("/api/backups/restore")
 async def restore_backup_api(request: Request) -> dict[str, Any]:
     from core.backup import restore_backup
+
     body = await request.json()
     dry_run = body.get("dry_run", False)
     file_path = body.get("file", "")
@@ -638,6 +749,7 @@ async def restore_backup_api(request: Request) -> dict[str, Any]:
 @app.delete("/api/backups/{filename}")
 async def delete_backup_api(filename: str) -> dict[str, Any]:
     from core.backup import delete_backup
+
     ok = delete_backup(filename)
     return {"ok": ok}
 
@@ -675,16 +787,18 @@ async def get_trace(trace_id: str) -> dict[str, Any]:
         args = dict(span.fields)
         if span.error:
             args["error"] = span.error
-        events.append({
-            "ph": "X" if dur_us > 0 else "i",
-            "name": f"{span.component}.{span.action}",
-            "cat": span.component,
-            "ts": ts_us,
-            "dur": dur_us if dur_us > 0 else 0,
-            "pid": pid,
-            "tid": hash(span.component) % 1000,
-            "args": args,
-        })
+        events.append(
+            {
+                "ph": "X" if dur_us > 0 else "i",
+                "name": f"{span.component}.{span.action}",
+                "cat": span.component,
+                "ts": ts_us,
+                "dur": max(0, dur_us),
+                "pid": pid,
+                "tid": hash(span.component) % 1000,
+                "args": args,
+            }
+        )
     return {"trace_id": trace_id, "events": events, "count": len(events)}
 
 
@@ -728,35 +842,64 @@ async def get_trace_summary(trace_id: str) -> dict[str, Any]:
 async def generate_test_traces() -> dict[str, Any]:
     """生成测试 trace 数据用于演示。"""
     import random
+
     trace_id = f"test_{int(time.time())}_{random.randint(1000, 9999)}"
-    agents = ["Squirrel", "Fox", "Beaver", "Owl", "Hedgehog", "EventBus", "ToolRegistry"]
-    actions = ["handle_start", "handle_success", "tool_call", "tool_result",
-               "model_query", "model_response", "rag_retrieve", "rag_result",
-               "event_publish", "event_receive"]
+    agents = [
+        "Squirrel",
+        "Fox",
+        "Beaver",
+        "Owl",
+        "Hedgehog",
+        "EventBus",
+        "ToolRegistry",
+    ]
+    actions = [
+        "handle_start",
+        "handle_success",
+        "tool_call",
+        "tool_result",
+        "model_query",
+        "model_response",
+        "rag_retrieve",
+        "rag_result",
+        "event_publish",
+        "event_receive",
+    ]
 
     # 生成 agent 级 span
     debugger.record_span(trace_id, "Workflow", "orchestrate_start")
     await asyncio.sleep(0.01)
 
-    for agent in agents[:random.randint(3, 6)]:
-        debugger.record_span(trace_id, agent, "handle_start", tokens_in=random.randint(50, 500))
+    for agent in agents[: random.randint(3, 6)]:
+        debugger.record_span(
+            trace_id, agent, "handle_start", tokens_in=random.randint(50, 500)
+        )
         await asyncio.sleep(random.uniform(0.005, 0.03))
 
         # sub-actions
         for _ in range(random.randint(1, 3)):
             action = random.choice(actions)
-            debugger.record_span(trace_id, agent, action,
-                                 tokens_in=random.randint(10, 200),
-                                 tokens_out=random.randint(5, 100))
+            debugger.record_span(
+                trace_id,
+                agent,
+                action,
+                tokens_in=random.randint(10, 200),
+                tokens_out=random.randint(5, 100),
+            )
             await asyncio.sleep(random.uniform(0.002, 0.015))
 
         # 随机错误
         if random.random() < 0.15:
-            debugger.record_span(trace_id, agent, "handle_failed",
-                                 error=f"模拟超时 ({random.randint(1, 5)}s)")
+            debugger.record_span(
+                trace_id,
+                agent,
+                "handle_failed",
+                error=f"模拟超时 ({random.randint(1, 5)}s)",
+            )
         else:
-            debugger.record_span(trace_id, agent, "handle_success",
-                                 tokens_out=random.randint(20, 300))
+            debugger.record_span(
+                trace_id, agent, "handle_success", tokens_out=random.randint(20, 300)
+            )
 
     debugger.record_span(trace_id, "Workflow", "orchestrate_success")
     await asyncio.sleep(0.01)
@@ -819,6 +962,7 @@ def _ensure_agent_registry() -> None:
     if _agent_registry_loaded:
         return
     from core.agent_registry import AgentRegistry
+
     registry = getattr(app.state, "agent_registry", None)
     if registry is None:
         registry = AgentRegistry()
@@ -826,6 +970,7 @@ def _ensure_agent_registry() -> None:
     # 自动发现 modules/*/agent.py 下的 Agent 类
     import importlib
     from pathlib import Path
+
     modules_dir = Path("modules")
     if modules_dir.is_dir():
         for child in modules_dir.iterdir():
@@ -835,13 +980,16 @@ def _ensure_agent_registry() -> None:
                     mod = importlib.import_module(f"modules.{child.name}.agent")
                     for attr in dir(mod):
                         cls = getattr(mod, attr)
-                        if isinstance(cls, type) and "BaseAgent" in [b.__name__ for b in cls.__mro__]:
+                        if isinstance(cls, type) and "BaseAgent" in [
+                            b.__name__ for b in cls.__mro__
+                        ]:
                             registry.register(cls)
                 except Exception as e:
                     logger.debug("跳过模块 %s: %s", child.name, e)
     # 同步到市场
     try:
         from core.agent_market import get_market
+
         get_market().refresh_from_registry()
     except Exception:
         pass
@@ -898,19 +1046,22 @@ async def get_agent(name: str) -> dict[str, Any]:
     info = app.state.agent_registry.get_agent(name)
     if info is None:
         return {"success": False, "error": f"Agent {name} 未找到"}
-    return {"success": True, "agent": {
-        "name": info.name,
-        "role": info.role,
-        "module": info.module,
-        "version": info.version,
-        "description": info.description,
-        "capabilities": info.capabilities,
-        "base_class": info.base_class,
-        "source": info.source,
-        "source_url": info.source_url,
-        "enabled": info.enabled,
-        "tags": info.tags,
-    }}
+    return {
+        "success": True,
+        "agent": {
+            "name": info.name,
+            "role": info.role,
+            "module": info.module,
+            "version": info.version,
+            "description": info.description,
+            "capabilities": info.capabilities,
+            "base_class": info.base_class,
+            "source": info.source,
+            "source_url": info.source_url,
+            "enabled": info.enabled,
+            "tags": info.tags,
+        },
+    }
 
 
 @app.get("/api/agents/{name}/enable")
@@ -936,6 +1087,7 @@ def _get_agent_monitor():
     global _agent_monitor
     if _agent_monitor is None:
         from core.agent_monitor import AgentMonitor
+
         _agent_monitor = AgentMonitor()
     return _agent_monitor
 
@@ -959,9 +1111,11 @@ async def agent_health_summary() -> dict[str, Any]:
                 "avg_duration_ms": a.avg_duration_ms,
                 "last_run_at": a.last_run_at,
                 "last_error": a.last_error,
-                "success_rate": round(
-                    a.success_count / a.total_runs * 100, 1
-                ) if a.total_runs else 0,
+                "success_rate": (
+                    round(a.success_count / a.total_runs * 100, 1)
+                    if a.total_runs
+                    else 0
+                ),
             }
             for a in summary.agents
         ],
@@ -969,7 +1123,9 @@ async def agent_health_summary() -> dict[str, Any]:
 
 
 @app.get("/api/agents/{name}/health")
-async def agent_health_detail(name: str, max_errors: int = 10, max_recent: int = 10) -> dict[str, Any]:
+async def agent_health_detail(
+    name: str, max_errors: int = 10, max_recent: int = 10
+) -> dict[str, Any]:
     mon = _get_agent_monitor()
     health = mon.get_health(agent_id=name, max_errors=max_errors, max_recent=max_recent)
     if isinstance(health, list):
@@ -987,9 +1143,11 @@ async def agent_health_detail(name: str, max_errors: int = 10, max_recent: int =
             "max_duration_ms": health.max_duration_ms,
             "last_run_at": health.last_run_at,
             "last_error": health.last_error,
-            "success_rate": round(
-                health.success_count / health.total_runs * 100, 1
-            ) if health.total_runs else 0,
+            "success_rate": (
+                round(health.success_count / health.total_runs * 100, 1)
+                if health.total_runs
+                else 0
+            ),
             "errors": health.errors,
             "recent_runs": health.recent_runs,
         },
@@ -1005,6 +1163,7 @@ def _get_comm_log():
     global _comm_log
     if _comm_log is None:
         from core.comm_log import CommLog
+
         _comm_log = CommLog()
     return _comm_log
 
@@ -1059,6 +1218,7 @@ async def comm_log_query(
 @app.get("/api/comm-log/summary")
 async def comm_log_summary() -> dict[str, Any]:
     from core.comm_log import CommLogViewer
+
     log = _get_comm_log()
     return CommLogViewer.summary(log)
 
@@ -1072,6 +1232,7 @@ def _get_plugin_repo():
     global _plugin_repo
     if _plugin_repo is None:
         from core.plugin_repo import PluginRepo
+
         _plugin_repo = PluginRepo()
     return _plugin_repo
 
@@ -1121,6 +1282,7 @@ async def plugin_uninstall(body: dict[str, Any]) -> dict[str, Any]:
 @app.get("/api/dag/nodes")
 async def dag_list_nodes() -> dict[str, Any]:
     from core.task_dag import TaskDAG
+
     dag = TaskDAG()
     nodes = dag.list_nodes()
     return {
@@ -1141,6 +1303,7 @@ async def dag_list_nodes() -> dict[str, Any]:
 @app.post("/api/dag/nodes")
 async def dag_add_node(body: dict[str, Any]) -> dict[str, Any]:
     from core.task_dag import TaskDAG
+
     dag = TaskDAG()
     node = dag.add_node(
         body["id"],
@@ -1149,12 +1312,20 @@ async def dag_add_node(body: dict[str, Any]) -> dict[str, Any]:
         metadata=body.get("metadata", {}),
     )
     dag.save()
-    return {"success": True, "node": {"id": node.id, "depends_on": node.depends_on, "description": node.description}}
+    return {
+        "success": True,
+        "node": {
+            "id": node.id,
+            "depends_on": node.depends_on,
+            "description": node.description,
+        },
+    }
 
 
 @app.put("/api/dag/nodes/{node_id}")
 async def dag_update_node(node_id: str, body: dict[str, Any]) -> dict[str, Any]:
     from core.task_dag import TaskDAG
+
     dag = TaskDAG()
     existing = dag.get_node(node_id)
     if not existing:
@@ -1166,12 +1337,20 @@ async def dag_update_node(node_id: str, body: dict[str, Any]) -> dict[str, Any]:
         metadata=body.get("metadata", existing.metadata),
     )
     dag.save()
-    return {"success": True, "node": {"id": node.id, "depends_on": node.depends_on, "description": node.description}}
+    return {
+        "success": True,
+        "node": {
+            "id": node.id,
+            "depends_on": node.depends_on,
+            "description": node.description,
+        },
+    }
 
 
 @app.delete("/api/dag/nodes/{node_id}")
 async def dag_delete_node(node_id: str) -> dict[str, Any]:
     from core.task_dag import TaskDAG
+
     dag = TaskDAG()
     ok = dag.remove_node(node_id)
     if ok:
@@ -1182,6 +1361,7 @@ async def dag_delete_node(node_id: str) -> dict[str, Any]:
 @app.post("/api/dag/auto-layout")
 async def dag_auto_layout() -> dict[str, Any]:
     from core.task_dag import TaskDAG
+
     dag = TaskDAG()
     plan = dag.execution_plan()
     nodes = dag.list_nodes()
@@ -1199,6 +1379,7 @@ async def dag_auto_layout() -> dict[str, Any]:
 @app.get("/api/dag/plan")
 async def dag_plan() -> dict[str, Any]:
     from core.task_dag import TaskDAG
+
     dag = TaskDAG()
     try:
         plan = dag.execution_plan()
@@ -1212,23 +1393,30 @@ async def dag_plan() -> dict[str, Any]:
 
 @app.get("/api/gantt")
 async def gantt_data(max_bars: int = 50) -> dict[str, Any]:
-    from core.gantt import GanttGenerator, GanttFormatter
+    from core.gantt import GanttFormatter, GanttGenerator
+
     gen = GanttGenerator()
     try:
         from core.scheduler import Scheduler
+
         sched = Scheduler()
         jobs = sched.list_jobs()
-        sched_data = {jid: {"cron": j.cron, "task_type": j.task_type, "enabled": j.enabled}
-                      for jid, j in jobs.items()}
+        sched_data = {
+            jid: {"cron": j.cron, "task_type": j.task_type, "enabled": j.enabled}
+            for jid, j in jobs.items()
+        }
     except Exception:
         sched_data = {}
     try:
         from core.harness import Harness
+
         h = Harness()
         agg = h.aggregate()
     except Exception:
         agg = None
-    gantt = gen.generate(harness_aggregate=agg, scheduler_jobs=sched_data, since=time.time() - 3600)
+    gantt = gen.generate(
+        harness_aggregate=agg, scheduler_jobs=sched_data, since=time.time() - 3600
+    )
     chart = GanttFormatter.to_chart_data(gantt, max_bars=max_bars)
     return chart
 
@@ -1239,6 +1427,7 @@ async def retry_status() -> dict[str, Any]:
     active = {}
     try:
         from core.harness import Harness
+
         h = Harness()
         mgr = getattr(h, "_retry_mgr", None)
         if mgr:
@@ -1263,7 +1452,8 @@ async def retry_status() -> dict[str, Any]:
 
 @app.get("/api/dag-templates")
 async def dag_templates_list(category: str = "") -> dict[str, Any]:
-    from core.dag_templates import list_templates, list_categories
+    from core.dag_templates import list_categories, list_templates
+
     cat = category or None
     return {
         "categories": list_categories(),
@@ -1274,6 +1464,7 @@ async def dag_templates_list(category: str = "") -> dict[str, Any]:
 @app.get("/api/dag-templates/{template_id}")
 async def dag_templates_get(template_id: str) -> dict[str, Any]:
     from core.dag_templates import get_template
+
     t = get_template(template_id)
     if t is None:
         return {"error": "模板不存在"}
@@ -1289,6 +1480,7 @@ async def dag_templates_get(template_id: str) -> dict[str, Any]:
 @app.post("/api/dag-templates/{template_id}/apply")
 async def dag_templates_apply(template_id: str) -> dict[str, Any]:
     from core.dag_templates import apply_template
+
     try:
         dag = apply_template(template_id, clear_existing=True)
         return {
@@ -1312,6 +1504,7 @@ async def audit_query(
     offset: int = 0,
 ) -> dict[str, Any]:
     from core.audit import get_audit_log
+
     log = get_audit_log()
     entries = log.query(
         task_id=task_id or None,
@@ -1330,12 +1523,14 @@ async def audit_query(
 @app.get("/api/alerts/rules")
 async def alert_rules() -> dict[str, Any]:
     from core.alert import get_alert_engine
+
     return {"rules": get_alert_engine().list_rules()}
 
 
 @app.post("/api/alerts/rules")
 async def alert_add_rule(request: Request) -> dict[str, Any]:
     from core.alert import AlertRule, get_alert_engine
+
     body = await request.json()
     rule = AlertRule(**body)
     get_alert_engine().add_rule(rule)
@@ -1345,6 +1540,7 @@ async def alert_add_rule(request: Request) -> dict[str, Any]:
 @app.delete("/api/alerts/rules/{rule_id}")
 async def alert_remove_rule(rule_id: str) -> dict[str, Any]:
     from core.alert import get_alert_engine
+
     ok = get_alert_engine().remove_rule(rule_id)
     return {"ok": ok}
 
@@ -1352,12 +1548,14 @@ async def alert_remove_rule(rule_id: str) -> dict[str, Any]:
 @app.get("/api/alerts/events")
 async def alert_events(limit: int = 50) -> dict[str, Any]:
     from core.alert import get_alert_engine
+
     return {"events": get_alert_engine().recent_alerts(limit=min(limit, 200))}
 
 
 @app.post("/api/alerts/acknowledge/{rule_id}")
 async def alert_acknowledge(rule_id: str) -> dict[str, Any]:
     from core.alert import get_alert_engine
+
     get_alert_engine().acknowledge(rule_id)
     return {"ok": True}
 
@@ -1368,6 +1566,7 @@ async def alert_acknowledge(rule_id: str) -> dict[str, Any]:
 @app.post("/api/agents/refresh")
 async def agent_refresh() -> dict[str, Any]:
     from core.agent_market import get_market
+
     get_market().refresh_from_registry()
     return {"ok": True}
 
@@ -1376,6 +1575,7 @@ async def agent_refresh() -> dict[str, Any]:
 async def agent_stats_all() -> dict[str, Any]:
     from core.agent_market import get_market
     from core.audit import get_audit_log
+
     m = get_market()
     log = get_audit_log()
     agents = m.list_agents()
@@ -1384,14 +1584,30 @@ async def agent_stats_all() -> dict[str, Any]:
         try:
             entries = log.query(agent=a["name"], limit=500)
             total = len(entries)
-            success = sum(1 for e in entries if e.get("action") in ("completed", "success"))
+            success = sum(
+                1 for e in entries if e.get("action") in ("completed", "success")
+            )
             failed = sum(1 for e in entries if e.get("action") in ("failed", "error"))
-            durations = [e.get("duration_ms", 0) for e in entries if e.get("duration_ms")]
+            durations = [
+                e.get("duration_ms", 0) for e in entries if e.get("duration_ms")
+            ]
             avg_dur = round(sum(durations) / len(durations), 1) if durations else 0
             last = max((e.get("ts", 0) for e in entries), default=0)
-            stats[a["name"]] = {"total_tasks": total, "success": success, "failed": failed, "avg_duration_ms": avg_dur, "last_active": last}
+            stats[a["name"]] = {
+                "total_tasks": total,
+                "success": success,
+                "failed": failed,
+                "avg_duration_ms": avg_dur,
+                "last_active": last,
+            }
         except Exception:
-            stats[a["name"]] = {"total_tasks": 0, "success": 0, "failed": 0, "avg_duration_ms": 0, "last_active": 0}
+            stats[a["name"]] = {
+                "total_tasks": 0,
+                "success": 0,
+                "failed": 0,
+                "avg_duration_ms": 0,
+                "last_active": 0,
+            }
     return {"stats": stats}
 
 
@@ -1402,7 +1618,9 @@ async def vector_stats() -> dict[str, Any]:
 
 
 @app.get("/api/vector/layers/{scope:str}")
-async def vector_layer(scope: str, sub_id: str = "", offset: int = 0, limit: int = 50) -> dict[str, Any]:
+async def vector_layer(
+    scope: str, sub_id: str = "", offset: int = 0, limit: int = 50
+) -> dict[str, Any]:
     """浏览指定层的文档。"""
     return vector_browser.list_documents(scope, sub_id, offset, limit)
 
@@ -1463,6 +1681,7 @@ async def get_github_projects(category: str = "") -> dict[str, Any]:
     """获取 GitHub 项目。"""
     if category:
         from core.github_knowledge import ProjectCategory
+
         try:
             cat = ProjectCategory(category)
             projects = github.get_by_category(cat)
@@ -1493,7 +1712,8 @@ async def dashboard(request: Request) -> str:
     github_data = github.stats()
     announcements = scene.breakroom.recent(count=5, msg_type=None)
 
-    html = """<!DOCTYPE html>
+    html = (
+        """<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -2450,10 +2670,18 @@ body {
         <div class="subtitle">2.5D 平面户型图 · 点击房间查看详情</div>
     </div>
     <div class="stats-mini">
-        <span><b>""" + str(status["library"]["total_entries"]) + """</b>资料库</span>
-        <span><b>""" + str(status["breakroom"]["total_messages"]) + """</b>茶水间</span>
-        <span><b>""" + str(status["offices"]["total_offices"]) + """</b>办公室</span>
-        <span><b>""" + str(github_data["total_projects"]) + """</b>GitHub项目</span>
+        <span><b>"""
+        + str(status["library"]["total_entries"])
+        + """</b>资料库</span>
+        <span><b>"""
+        + str(status["breakroom"]["total_messages"])
+        + """</b>茶水间</span>
+        <span><b>"""
+        + str(status["offices"]["total_offices"])
+        + """</b>办公室</span>
+        <span><b>"""
+        + str(github_data["total_projects"])
+        + """</b>GitHub项目</span>
     </div>
 </div>
 
@@ -2555,6 +2783,7 @@ body {
             <div class="room-label" style="left:15px;top:12px;"><span class="room-icon">🏢</span>开放办公区</div>
             <div class="rug"></div>
 """
+    )
 
     # 工位布局
     positions = [
@@ -2582,8 +2811,12 @@ body {
         items = personal_items[idx]
         headphone = f'<div class="headphones">{items[0]}</div>' if items[0] else ""
         photo = f'<div class="photo-frame">{items[1]}</div>' if items[1] else ""
-        sticky = f'<div class="sticky-note"></div>' if items[2] else ""
-        click_attr = f"onclick=\"event.stopPropagation();showDesk('{aid}','{name}','{role}',{level})\"" if aid != "desk6" else ""
+        sticky = '<div class="sticky-note"></div>' if items[2] else ""
+        click_attr = (
+            f"onclick=\"event.stopPropagation();showDesk('{aid}','{name}','{role}',{level})\""
+            if aid != "desk6"
+            else ""
+        )
         html += f"""
             <div class="desk" style="left:{x}px;top:{y}px;" {click_attr}>
                 <div class="desk-top"></div>
@@ -2602,7 +2835,8 @@ body {
             </div>
 """
 
-    html += """
+    html += (
+        """
         </div>
 
         <!-- 茶水间 -->
@@ -2688,7 +2922,11 @@ body {
 const roomData = {
     library: {
         title: "📚 资料库",
-        content: "公司拥有三面书墙，收录 <b>""" + str(status["library"]["total_entries"]) + """</b> 条知识条目，整合 <b>""" + str(github_data["total_projects"]) + """</b> 个 GitHub 精选项目。阅读桌上摊开的书、地球仪、眼镜和热茶，知识的香气扑面而来。"
+        content: "公司拥有三面书墙，收录 <b>"""
+        + str(status["library"]["total_entries"])
+        + """</b> 条知识条目，整合 <b>"""
+        + str(github_data["total_projects"])
+        + """</b> 个 GitHub 精选项目。阅读桌上摊开的书、地球仪、眼镜和热茶，知识的香气扑面而来。"
     },
     ceo: {
         title: "🫎 总经理办公室",
@@ -2700,7 +2938,9 @@ const roomData = {
     },
     breakroom: {
         title: "☕ 茶水间",
-        content: "员工自由交流区。当前有 <b>""" + str(status["breakroom"]["total_messages"]) + """</b> 条消息。咖啡机、微波炉、饮水机一应俱全，公告板贴着最新通知。"
+        content: "员工自由交流区。当前有 <b>"""
+        + str(status["breakroom"]["total_messages"])
+        + """</b> 条消息。咖啡机、微波炉、饮水机一应俱全，公告板贴着最新通知。"
     },
     restarea: {
         title: "🧘 休息区",
@@ -2732,6 +2972,7 @@ function closePanel() {
 </script>
 </body>
 </html>"""
+    )
     return html
 
 
@@ -2855,4 +3096,5 @@ async def debug_page(request: Request) -> str:
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8080)

@@ -75,13 +75,17 @@ class ReportGenerator:
     ) -> str:
         """导出报告为指定格式并返回内容字符串。"""
         if fmt == "json":
-            return json.dumps({
-                "title": title,
-                "generated_at": _now(),
-                "stats": aggregate_stats or {},
-                "tasks": task_board,
-                "trace": trace_lines or [],
-            }, ensure_ascii=False, indent=2)
+            return json.dumps(
+                {
+                    "title": title,
+                    "generated_at": _now(),
+                    "stats": aggregate_stats or {},
+                    "tasks": task_board,
+                    "trace": trace_lines or [],
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
         elif fmt == "csv":
             lines = ["TaskID,Status,Tokens,Error"]
             for tid, r in task_board.items():
@@ -91,7 +95,9 @@ class ReportGenerator:
                 lines.append(f"{tid[:16]},{status},{tokens},{error}")
             return "\n".join(lines)
         elif fmt == "html":
-            return self._markdown_to_html(self._render_markdown(task_board, aggregate_stats, trace_lines, title))
+            return self._markdown_to_html(
+                self._render_markdown(task_board, aggregate_stats, trace_lines, title)
+            )
         return self._render_markdown(task_board, aggregate_stats, trace_lines, title)
 
     def add_template(self, name: str, content: str) -> None:
@@ -133,28 +139,35 @@ class ReportGenerator:
         if aggregate_stats:
             lines.append("## 汇总统计")
             lines.append("")
-            lines.append(f"| 指标 | 数值 |")
-            lines.append(f"|------|------|")
+            lines.append("| 指标 | 数值 |")
+            lines.append("|------|------|")
             for key in ("total", "success", "failed", "pending", "total_tokens"):
                 val = aggregate_stats.get(key, "—")
-                label = {"total": "任务总数", "success": "成功", "failed": "失败",
-                         "pending": "待处理", "total_tokens": "Token 消耗"}.get(key, key)
+                label = {
+                    "total": "任务总数",
+                    "success": "成功",
+                    "failed": "失败",
+                    "pending": "待处理",
+                    "total_tokens": "Token 消耗",
+                }.get(key, key)
                 lines.append(f"| {label} | {val} |")
-            if "in_flight" in aggregate_stats and aggregate_stats["in_flight"]:
+            if aggregate_stats.get("in_flight"):
                 lines.append("")
                 lines.append("### 在途任务（按 Agent）")
                 lines.append("")
                 for agent, count in aggregate_stats["in_flight"].items():
                     lines.append(f"- **{agent}**: {count}")
-            if "rewards" in aggregate_stats and aggregate_stats["rewards"]:
+            if aggregate_stats.get("rewards"):
                 lines.append("")
                 lines.append("### 排行榜")
                 lines.append("")
                 lines.append("| Agent | 等级 | 金币 | 经验 |")
                 lines.append("|-------|------|------|------|")
                 for entry in aggregate_stats["rewards"]:
-                    lines.append(f"| {entry.get('agent_id','?')} | {entry.get('level','?')} "
-                                 f"| {entry.get('coins','?')} | {entry.get('exp','?')} |")
+                    lines.append(
+                        f"| {entry.get('agent_id','?')} | {entry.get('level','?')} "
+                        f"| {entry.get('coins','?')} | {entry.get('exp','?')} |"
+                    )
             lines.append("")
 
         if task_board:
@@ -188,7 +201,7 @@ class ReportGenerator:
             "<!DOCTYPE html>",
             '<html lang="zh-CN">',
             "<head><meta charset='utf-8'>",
-            f"<title>BlueDeer 报告</title>",
+            "<title>BlueDeer 报告</title>",
             "<style>",
             "  body { font-family: -apple-system, 'Segoe UI', sans-serif; max-width: 960px; margin: 2em auto; padding: 0 1em; color: #1a1a2e; background: #f8f9fa; }",
             "  h1 { color: #0f3460; border-bottom: 2px solid #e94560; padding-bottom: .3em; }",
@@ -235,8 +248,14 @@ class ReportGenerator:
                 if not in_table:
                     html_parts.append("<table>")
                     in_table = True
-                tag = "th" if in_table and _is_header_row(lines, lines.index(line)) else "td"
-                html_parts.append(f"<tr>{''.join(f'<{tag}>{c}</{tag}>' for c in cells)}</tr>")
+                tag = (
+                    "th"
+                    if in_table and _is_header_row(lines, lines.index(line))
+                    else "td"
+                )
+                html_parts.append(
+                    f"<tr>{''.join(f'<{tag}>{c}</{tag}>' for c in cells)}</tr>"
+                )
             else:
                 if in_table:
                     html_parts.append("</table>")
@@ -256,6 +275,7 @@ class ReportGenerator:
 
 def _now() -> str:
     from datetime import datetime
+
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 

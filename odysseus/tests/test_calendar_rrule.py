@@ -10,7 +10,6 @@ import sys
 import uuid
 
 import pytest
-
 from tests.helpers.import_state import clear_fake_database_modules
 from tests.helpers.sqlite_db import make_temp_sqlite
 
@@ -40,12 +39,17 @@ async def test_create_event_with_rrule_persists_recurrence():
 
     owner = "tester-" + uuid.uuid4().hex[:6]
     rrule = "FREQ=WEEKLY;BYDAY=MO"
-    res = await do_manage_calendar(json.dumps({
-        "action": "create_event",
-        "summary": "Standup",
-        "dtstart": "2026-06-08T09:00:00Z",
-        "rrule": rrule,
-    }), owner=owner)
+    res = await do_manage_calendar(
+        json.dumps(
+            {
+                "action": "create_event",
+                "summary": "Standup",
+                "dtstart": "2026-06-08T09:00:00Z",
+                "rrule": rrule,
+            }
+        ),
+        owner=owner,
+    )
     assert res.get("exit_code", 0) == 0, res
     uid = res.get("uid")
     assert uid, res
@@ -64,11 +68,16 @@ async def test_create_event_without_rrule_is_single():
     from src.tool_implementations import do_manage_calendar
 
     owner = "tester-" + uuid.uuid4().hex[:6]
-    res = await do_manage_calendar(json.dumps({
-        "action": "create_event",
-        "summary": "One-off",
-        "dtstart": "2026-06-09T10:00:00Z",
-    }), owner=owner)
+    res = await do_manage_calendar(
+        json.dumps(
+            {
+                "action": "create_event",
+                "summary": "One-off",
+                "dtstart": "2026-06-09T10:00:00Z",
+            }
+        ),
+        owner=owner,
+    )
     assert res.get("exit_code", 0) == 0, res
     db = _TS()
     try:
@@ -82,19 +91,29 @@ async def test_update_event_can_clear_rrule():
     from src.tool_implementations import do_manage_calendar
 
     owner = "tester-" + uuid.uuid4().hex[:6]
-    created = await do_manage_calendar(json.dumps({
-        "action": "create_event",
-        "summary": "Repeating standup",
-        "dtstart": "2026-07-01T14:00:00Z",
-        "rrule": "FREQ=WEEKLY;BYDAY=WE",
-    }), owner=owner)
+    created = await do_manage_calendar(
+        json.dumps(
+            {
+                "action": "create_event",
+                "summary": "Repeating standup",
+                "dtstart": "2026-07-01T14:00:00Z",
+                "rrule": "FREQ=WEEKLY;BYDAY=WE",
+            }
+        ),
+        owner=owner,
+    )
     assert created.get("exit_code", 0) == 0, created
 
-    updated = await do_manage_calendar(json.dumps({
-        "action": "update_event",
-        "uid": created["uid"],
-        "rrule": "",
-    }), owner=owner)
+    updated = await do_manage_calendar(
+        json.dumps(
+            {
+                "action": "update_event",
+                "uid": created["uid"],
+                "rrule": "",
+            }
+        ),
+        owner=owner,
+    )
     assert updated.get("exit_code", 0) == 0, updated
 
     db = _TS()
@@ -110,19 +129,29 @@ async def test_update_event_can_clear_rrule_with_repeat_none_alias():
     from src.tool_implementations import do_manage_calendar
 
     owner = "tester-" + uuid.uuid4().hex[:6]
-    created = await do_manage_calendar(json.dumps({
-        "action": "create_event",
-        "summary": "Repeating review",
-        "dtstart": "2026-07-01T15:00:00Z",
-        "rrule": "FREQ=WEEKLY;BYDAY=WE",
-    }), owner=owner)
+    created = await do_manage_calendar(
+        json.dumps(
+            {
+                "action": "create_event",
+                "summary": "Repeating review",
+                "dtstart": "2026-07-01T15:00:00Z",
+                "rrule": "FREQ=WEEKLY;BYDAY=WE",
+            }
+        ),
+        owner=owner,
+    )
     assert created.get("exit_code", 0) == 0, created
 
-    updated = await do_manage_calendar(json.dumps({
-        "action": "update_event",
-        "uid": created["uid"],
-        "repeat": "none",
-    }), owner=owner)
+    updated = await do_manage_calendar(
+        json.dumps(
+            {
+                "action": "update_event",
+                "uid": created["uid"],
+                "repeat": "none",
+            }
+        ),
+        owner=owner,
+    )
     assert updated.get("exit_code", 0) == 0, updated
 
     db = _TS()
@@ -139,19 +168,29 @@ async def test_list_events_exposes_rrule_for_repeating_events():
 
     owner = "tester-" + uuid.uuid4().hex[:6]
     rrule = "FREQ=WEEKLY;BYDAY=WE"
-    created = await do_manage_calendar(json.dumps({
-        "action": "create_event",
-        "summary": "Weekly sync",
-        "dtstart": "2026-07-01T14:00:00Z",
-        "rrule": rrule,
-    }), owner=owner)
+    created = await do_manage_calendar(
+        json.dumps(
+            {
+                "action": "create_event",
+                "summary": "Weekly sync",
+                "dtstart": "2026-07-01T14:00:00Z",
+                "rrule": rrule,
+            }
+        ),
+        owner=owner,
+    )
     assert created.get("exit_code", 0) == 0, created
 
-    listed = await do_manage_calendar(json.dumps({
-        "action": "list_events",
-        "start": "2026-07-01T00:00:00Z",
-        "end": "2026-07-02T00:00:00Z",
-    }), owner=owner)
+    listed = await do_manage_calendar(
+        json.dumps(
+            {
+                "action": "list_events",
+                "start": "2026-07-01T00:00:00Z",
+                "end": "2026-07-02T00:00:00Z",
+            }
+        ),
+        owner=owner,
+    )
     assert listed.get("exit_code", 0) == 0, listed
     matches = [ev for ev in listed["events"] if ev["uid"] == created["uid"]]
     assert matches

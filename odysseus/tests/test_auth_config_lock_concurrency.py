@@ -5,16 +5,15 @@ or corrupt auth.json. If someone removes the lock, these tests should fail
 with missing users or assertion errors.
 """
 
+import contextlib
 import json
+import sys
 import threading
 import time
-import contextlib
-import sys
 import types
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pytest
-
 from tests.helpers.import_state import clear_module
 
 

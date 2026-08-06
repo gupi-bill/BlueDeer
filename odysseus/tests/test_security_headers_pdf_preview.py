@@ -1,8 +1,7 @@
+from core.middleware import SecurityHeadersMiddleware
 from fastapi import FastAPI
 from fastapi.responses import Response
 from fastapi.testclient import TestClient
-
-from core.middleware import SecurityHeadersMiddleware
 
 
 def _client():

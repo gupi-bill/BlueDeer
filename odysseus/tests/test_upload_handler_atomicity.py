@@ -15,6 +15,7 @@ These tests exercise:
 * Smoke tests: normal upload, duplicate detection, info lookup after
   a backup-recovery scenario.
 """
+
 import concurrent.futures
 import io
 import json
@@ -22,9 +23,6 @@ import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-
-import pytest
-
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -34,6 +32,7 @@ if str(PROJECT_ROOT) not in sys.path:
 try:
     from fastapi import HTTPException  # type: ignore
 except Exception:  # pragma: no cover
+
     class HTTPException(Exception):
         def __init__(self, status_code: int, detail: str = ""):
             self.status_code = status_code
@@ -41,8 +40,7 @@ except Exception:  # pragma: no cover
             super().__init__(detail)
 
 
-from src.upload_handler import UploadHandler  # noqa: E402
-
+from src.upload_handler import UploadHandler
 
 N_WRITERS = 10
 
@@ -163,7 +161,6 @@ async def test_duplicate_vs_insert_race_preserves_both(tmp_path):
     the new entry; here the test relies on the post-fix invariant being
     correct by construction and on the lock serialising the writes.
     """
-    import threading
 
     for iteration in range(3):
         iter_dir = tmp_path / f"iter_{iteration}"
@@ -177,7 +174,9 @@ async def test_duplicate_vs_insert_race_preserves_both(tmp_path):
             json.dump({}, f)
 
         # Seed: one upload (new entry) so the index has a real row to dedupe against.
-        fake_seed = SimpleNamespace(filename="seed.txt", file=io.BytesIO(shared_content))
+        fake_seed = SimpleNamespace(
+            filename="seed.txt", file=io.BytesIO(shared_content)
+        )
         seed_result = handler.save_upload(fake_seed, "127.0.0.1", "owner_a")
         original_id = seed_result["id"]
 
@@ -186,27 +185,25 @@ async def test_duplicate_vs_insert_race_preserves_both(tmp_path):
         # The post-fix code must preserve both entries in uploads.json
         # and flag the duplicate as ``is_duplicate=True`` with the
         # original's id.
-        fake_dup = SimpleNamespace(filename="shared.txt", file=io.BytesIO(shared_content))
+        fake_dup = SimpleNamespace(
+            filename="shared.txt", file=io.BytesIO(shared_content)
+        )
         fake_new = SimpleNamespace(
             filename="other.txt", file=io.BytesIO(b"different-content")
         )
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-            f_dup = pool.submit(
-                handler.save_upload, fake_dup, "127.0.0.1", "owner_a"
-            )
-            f_new = pool.submit(
-                handler.save_upload, fake_new, "127.0.0.1", "owner_a"
-            )
+            f_dup = pool.submit(handler.save_upload, fake_dup, "127.0.0.1", "owner_a")
+            f_new = pool.submit(handler.save_upload, fake_new, "127.0.0.1", "owner_a")
             dup_result = f_dup.result()
             new_result = f_new.result()
 
-        assert dup_result.get("is_duplicate") is True, (
-            f"iter {iteration}: duplicate should be flagged is_duplicate=True"
-        )
-        assert dup_result["id"] == original_id, (
-            f"iter {iteration}: duplicate should resolve to the seed's id"
-        )
+        assert (
+            dup_result.get("is_duplicate") is True
+        ), f"iter {iteration}: duplicate should be flagged is_duplicate=True"
+        assert (
+            dup_result["id"] == original_id
+        ), f"iter {iteration}: duplicate should resolve to the seed's id"
 
         with open(db_path, "r", encoding="utf-8") as f:
             final = json.load(f)
@@ -215,9 +212,9 @@ async def test_duplicate_vs_insert_race_preserves_both(tmp_path):
             f"iter {iteration}: expected 2 entries (original + new) after "
             f"duplicate+insert race, got {len(final)}: {sorted(final.keys())}"
         )
-        assert original_id in {v["id"] for v in final.values()}, (
-            f"iter {iteration}: original id {original_id} missing from final index"
-        )
+        assert original_id in {
+            v["id"] for v in final.values()
+        }, f"iter {iteration}: original id {original_id} missing from final index"
 
 
 # ---------------------------------------------------------------------------
@@ -242,9 +239,9 @@ def test_partial_write_recovery_via_bak(tmp_path):
     }
     handler._atomic_write_json(db_path, original)
     handler._atomic_write_json(db_path, {"latest": True})
-    assert os.path.exists(db_path + ".bak"), (
-        "Production _atomic_write_json must create a .bak sibling on subsequent writes."
-    )
+    assert os.path.exists(
+        db_path + ".bak"
+    ), "Production _atomic_write_json must create a .bak sibling on subsequent writes."
 
     full = open(db_path, "rb").read()
     truncated_len = max(1, len(full) // 2)
@@ -271,22 +268,22 @@ def test_atomic_write_primitives_present_in_production_code():
     src_path = PROJECT_ROOT / "src" / "upload_handler.py"
     text = src_path.read_text(encoding="utf-8")
 
-    assert "os.replace" in text, (
-        f"{src_path} does not use os.replace — atomic-rename write is missing."
-    )
-    assert "tempfile.mkstemp" in text or "NamedTemporaryFile" in text, (
-        f"{src_path} does not write to a temp file — atomic-rename write is missing."
-    )
-    assert "_atomic_write_json" in text, (
-        f"{src_path} is missing the _atomic_write_json helper."
-    )
-    assert "self._index_lock" in text, (
-        f"{src_path} is missing self._index_lock — concurrent writers are not serialised."
-    )
+    assert (
+        "os.replace" in text
+    ), f"{src_path} does not use os.replace — atomic-rename write is missing."
+    assert (
+        "tempfile.mkstemp" in text or "NamedTemporaryFile" in text
+    ), f"{src_path} does not write to a temp file — atomic-rename write is missing."
+    assert (
+        "_atomic_write_json" in text
+    ), f"{src_path} is missing the _atomic_write_json helper."
+    assert (
+        "self._index_lock" in text
+    ), f"{src_path} is missing self._index_lock — concurrent writers are not serialised."
     # The dedupe path must do its read inside the lock too.
-    assert text.count("with self._index_lock:") >= 2, (
-        "Both dedupe and insert RMW sites must be under _index_lock."
-    )
+    assert (
+        text.count("with self._index_lock:") >= 2
+    ), "Both dedupe and insert RMW sites must be under _index_lock."
 
 
 # ---------------------------------------------------------------------------
@@ -336,7 +333,9 @@ def test_smoke_duplicate_upload(tmp_path):
 
     with open(_db_path(handler), "r", encoding="utf-8") as f:
         final = json.load(f)
-    assert len(final) == 1, f"Duplicate upload should not add a new row, got {len(final)}"
+    assert (
+        len(final) == 1
+    ), f"Duplicate upload should not add a new row, got {len(final)}"
 
 
 def test_duplicate_upload_ignores_stale_missing_file(tmp_path):

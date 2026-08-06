@@ -15,8 +15,8 @@ from typing import Any
 from src import model_capabilities as mc
 from src.model_capability_readers import generic_openai
 from src.model_capability_readers.base import (
-    ModelCapabilityRecord,
     VENDOR_LLAMACPP,
+    ModelCapabilityRecord,
     as_list,
     as_mapping,
     build_capability,
@@ -28,7 +28,6 @@ from src.model_capability_readers.base import (
     openai_model_items,
     stable_model_id_for,
 )
-
 
 vendor = VENDOR_LLAMACPP
 
@@ -44,11 +43,17 @@ def _model_entries(payload: Mapping[str, Any]) -> tuple[Mapping[str, Any], ...]:
     data_items = openai_model_items(payload)
     if data_items:
         return data_items
-    return tuple(item for item in as_list(payload.get("models")) if isinstance(item, Mapping))
+    return tuple(
+        item for item in as_list(payload.get("models")) if isinstance(item, Mapping)
+    )
 
 
 def _server_model_entries(payload: Mapping[str, Any]) -> tuple[Mapping[str, Any], ...]:
-    return tuple(item for item in as_list(as_mapping(payload).get("models")) if isinstance(item, Mapping))
+    return tuple(
+        item
+        for item in as_list(as_mapping(payload).get("models"))
+        if isinstance(item, Mapping)
+    )
 
 
 def _model_id_from_props(payload: Mapping[str, Any]) -> str:
@@ -79,17 +84,26 @@ def _capability_tokens_from_server_model(raw: Mapping[str, Any]) -> tuple[str, .
 
 
 def _family_from_server_model(raw: Mapping[str, Any]) -> str:
-    capabilities = {compact_str(value).lower().replace("-", "_") for value in as_list(raw.get("capabilities"))}
+    capabilities = {
+        compact_str(value).lower().replace("-", "_")
+        for value in as_list(raw.get("capabilities"))
+    }
     if "embedding" in capabilities or "embeddings" in capabilities:
         return mc.FAMILY_EMBEDDING
     if "rerank" in capabilities or "reranking" in capabilities:
         return mc.FAMILY_RERANK
-    if "completion" in capabilities or "completions" in capabilities or "chat" in capabilities:
+    if (
+        "completion" in capabilities
+        or "completions" in capabilities
+        or "chat" in capabilities
+    ):
         return mc.FAMILY_CHAT
     return mc.FAMILY_UNKNOWN
 
 
-def _matching_server_model(payload: Mapping[str, Any], model_id: str) -> Mapping[str, Any]:
+def _matching_server_model(
+    payload: Mapping[str, Any], model_id: str
+) -> Mapping[str, Any]:
     for item in _server_model_entries(payload):
         if model_id in {
             model_id_from(item, "id", "name", "model"),
@@ -116,16 +130,22 @@ def _limits_from_model_entry(raw: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _props_params(payload: Mapping[str, Any]) -> Mapping[str, Any]:
-    return as_mapping(as_mapping(payload.get("default_generation_settings")).get("params"))
+    return as_mapping(
+        as_mapping(payload.get("default_generation_settings")).get("params")
+    )
 
 
-def _limits_from_props(payload: Mapping[str, Any], slots_payload: Any = None) -> dict[str, Any]:
+def _limits_from_props(
+    payload: Mapping[str, Any], slots_payload: Any = None
+) -> dict[str, Any]:
     default_settings = as_mapping(payload.get("default_generation_settings"))
     limits: dict[str, Any] = {}
     n_ctx = int_limit(default_settings.get("n_ctx"))
     total_slots = int_limit(payload.get("total_slots"))
     if not n_ctx and isinstance(slots_payload, list):
-        slot_contexts = [int_limit(as_mapping(slot).get("n_ctx")) for slot in slots_payload]
+        slot_contexts = [
+            int_limit(as_mapping(slot).get("n_ctx")) for slot in slots_payload
+        ]
         slot_contexts = [value for value in slot_contexts if value]
         if slot_contexts:
             n_ctx = min(slot_contexts)
@@ -138,7 +158,9 @@ def _limits_from_props(payload: Mapping[str, Any], slots_payload: Any = None) ->
     return limits
 
 
-def _modalities_from_props(payload: Mapping[str, Any]) -> tuple[tuple[str, ...], tuple[str, ...]]:
+def _modalities_from_props(
+    payload: Mapping[str, Any],
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
     modalities = as_mapping(payload.get("modalities"))
     input_modalities = [mc.MODALITY_TEXT]
     output_modalities = [mc.MODALITY_TEXT]
@@ -164,7 +186,9 @@ def _capabilities_from_props(payload: Mapping[str, Any]) -> tuple[str, ...]:
     return tuple(out)
 
 
-def _unsupported_assertions_from_props(payload: Mapping[str, Any]) -> tuple[mc.CapabilityAssertion, ...]:
+def _unsupported_assertions_from_props(
+    payload: Mapping[str, Any],
+) -> tuple[mc.CapabilityAssertion, ...]:
     modalities = as_mapping(payload.get("modalities"))
     assertions: list[mc.CapabilityAssertion] = []
     if modalities.get("vision") is False:
@@ -190,7 +214,9 @@ def _unsupported_assertions_from_props(payload: Mapping[str, Any]) -> tuple[mc.C
     return tuple(assertions)
 
 
-def _deterministic_controls_from_props(payload: Mapping[str, Any]) -> tuple[mc.DeterministicControl, ...]:
+def _deterministic_controls_from_props(
+    payload: Mapping[str, Any],
+) -> tuple[mc.DeterministicControl, ...]:
     controls: list[str] = []
     params = _props_params(payload)
     for key in ("temperature", "top_p", "seed"):
@@ -203,7 +229,10 @@ def _deterministic_controls_from_props(payload: Mapping[str, Any]) -> tuple[mc.D
     template_caps = as_mapping(payload.get("chat_template_caps"))
     if template_caps.get("supports_system_role") is True:
         controls.append(mc.CONTROL_SYSTEM_PROMPT)
-    if template_caps.get("supports_tools") is True or template_caps.get("supports_tool_calls") is True:
+    if (
+        template_caps.get("supports_tools") is True
+        or template_caps.get("supports_tool_calls") is True
+    ):
         controls.append(mc.CONTROL_TOOL_CHOICE)
     return deterministic_controls_from_supported_parameters(merge_unique(controls))
 
@@ -266,7 +295,9 @@ def _record(
     return ModelCapabilityRecord(
         vendor=VENDOR_LLAMACPP,
         model_id=model_id,
-        stable_model_id=stable_model_id_for(VENDOR_LLAMACPP, model_id, endpoint_id=endpoint_id, base_url=base_url),
+        stable_model_id=stable_model_id_for(
+            VENDOR_LLAMACPP, model_id, endpoint_id=endpoint_id, base_url=base_url
+        ),
         display_name=model_id,
         capability=capability,
         capability_assertions=(
@@ -294,7 +325,9 @@ def record_from_model_payload(
     if not model_id:
         return None
     server_model = as_mapping(server_model)
-    family = _family_from_server_model(server_model) if server_model else mc.FAMILY_UNKNOWN
+    family = (
+        _family_from_server_model(server_model) if server_model else mc.FAMILY_UNKNOWN
+    )
     if family == mc.FAMILY_UNKNOWN:
         return generic_openai.record_from_model(
             raw,
@@ -350,7 +383,12 @@ def records_from_payloads(
     props_payload = as_mapping(props_payload)
     models_payload = as_mapping(models_payload)
     props_record = (
-        record_from_props_payload(props_payload, slots_payload=slots_payload, endpoint_id=endpoint_id, base_url=base_url)
+        record_from_props_payload(
+            props_payload,
+            slots_payload=slots_payload,
+            endpoint_id=endpoint_id,
+            base_url=base_url,
+        )
         if props_payload
         else None
     )
@@ -372,10 +410,16 @@ def records_from_payloads(
         if not model_record:
             continue
         if props_record and props_record.model_id == model_id:
-            limits = {**dict(model_record.capability.limits), **dict(props_record.capability.limits)}
+            limits = {
+                **dict(model_record.capability.limits),
+                **dict(props_record.capability.limits),
+            }
             capability = _capability_for_family(
                 props_record.capability.family,
-                capabilities=merge_unique(model_record.capability.capabilities, props_record.capability.capabilities),
+                capabilities=merge_unique(
+                    model_record.capability.capabilities,
+                    props_record.capability.capabilities,
+                ),
                 limits=limits,
                 props_payload=props_payload,
             )
@@ -401,7 +445,11 @@ def records_from_payloads(
                         + _unsupported_assertions_from_props(props_payload)
                     ),
                     deterministic_controls=props_record.deterministic_controls,
-                    raw={"models": item, "props": props_payload, "slots": slots_payload or []},
+                    raw={
+                        "models": item,
+                        "props": props_payload,
+                        "slots": slots_payload or [],
+                    },
                 )
             )
         else:
@@ -421,8 +469,12 @@ def records_from_payload(
     if not payload:
         return ()
     if "default_generation_settings" in payload or "chat_template_caps" in payload:
-        record = record_from_props_payload(payload, endpoint_id=endpoint_id, base_url=base_url)
+        record = record_from_props_payload(
+            payload, endpoint_id=endpoint_id, base_url=base_url
+        )
         return (record,) if record else ()
     if "models" in payload or "data" in payload:
-        return records_from_payloads(models_payload=payload, endpoint_id=endpoint_id, base_url=base_url)
+        return records_from_payloads(
+            models_payload=payload, endpoint_id=endpoint_id, base_url=base_url
+        )
     return ()

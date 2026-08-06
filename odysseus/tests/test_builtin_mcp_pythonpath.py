@@ -12,7 +12,9 @@ def test_builtin_python_env_preserves_existing_pythonpath(monkeypatch):
     env = builtin_python_env("/app")
 
     assert env == {
-        "PYTHONPATH": os.pathsep.join(["/app", "/app/venv/lib/python3.13/site-packages", "/extra"])
+        "PYTHONPATH": os.pathsep.join(
+            ["/app", "/app/venv/lib/python3.13/site-packages", "/extra"]
+        )
     }
 
 

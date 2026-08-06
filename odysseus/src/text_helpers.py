@@ -107,8 +107,8 @@ def _sub_delimited(text, open_re, close_re, repl):
         cm = close_re.search(text, om.end())
         if cm is None:
             break
-        out.append(text[pos:om.start()])
-        out.append(repl(text[om.end():cm.start()]))
+        out.append(text[pos : om.start()])
+        out.append(repl(text[om.end() : cm.start()]))
         pos = cm.end()
     out.append(text[pos:])
     return "".join(out)
@@ -133,7 +133,10 @@ def normalize_thinking_markup(text: str) -> str:
 
     # Forward-only so a stale/unreachable `<channel|>` can't drive a ReDoS rescan.
     out = _sub_delimited(
-        out, _GEMMA_THOUGHT_CHANNEL_OPEN_RE, _GEMMA_CHANNEL_CLOSE_TRIM_RE, _replace_gemma_thought
+        out,
+        _GEMMA_THOUGHT_CHANNEL_OPEN_RE,
+        _GEMMA_CHANNEL_CLOSE_TRIM_RE,
+        _replace_gemma_thought,
     )
     out = _sub_delimited(
         out, _GEMMA_RESPONSE_OPEN_RE, _GEMMA_CHANNEL_CLOSE_RE, lambda inner: inner
@@ -177,7 +180,9 @@ def strip_think(text: str, *, prose: bool = False, prompt_echo: bool = True) -> 
     text = _THINK_ATTR_CLOSE_RE.sub("</think>", text)
     # Forward-only block strip (see _sub_delimited): one pass collapses nested
     # and sequential blocks without the old lazy re.sub loop's ReDoS rescan.
-    out = _sub_delimited(text, _THINK_OPEN_TAG_RE, _THINK_CLOSE_TAG_RE, lambda _inner: "")
+    out = _sub_delimited(
+        text, _THINK_OPEN_TAG_RE, _THINK_CLOSE_TAG_RE, lambda _inner: ""
+    )
     out = _THINK_OPEN_RE.sub("", out)
     out = _THINK_TAG_RE.sub("", out)
     if prompt_echo:

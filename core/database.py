@@ -18,10 +18,11 @@ import os
 import sqlite3
 import threading
 import time
+from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
-from typing import Any, AsyncGenerator, Generator
+from typing import Any
 
-from core.exceptions import StorageConnectionError, StorageQueryError
+from core.exceptions import StorageConnectionError
 
 logger = logging.getLogger("bluedeer.database")
 
@@ -73,9 +74,7 @@ class Database:
             self._total_conns += 1
             return conn
         except sqlite3.Error as e:
-            raise StorageConnectionError(
-                f"数据库连接失败 {self._db_path}: {e}"
-            ) from e
+            raise StorageConnectionError(f"数据库连接失败 {self._db_path}: {e}") from e
 
     @contextmanager
     def conn(self) -> Generator[sqlite3.Connection, None, None]:
@@ -198,10 +197,15 @@ class Database:
             for jid, j in jobs.items():
                 conn.execute(
                     "INSERT OR REPLACE INTO scheduler_jobs VALUES (?,?,?,?,?,?,?)",
-                    (jid, j.get("cron", ""), j.get("task_type", "general"),
-                     json.dumps(j.get("task_payload", {}), ensure_ascii=False),
-                     j.get("assignee", ""), 1 if j.get("enabled", True) else 0,
-                     j.get("description", "")),
+                    (
+                        jid,
+                        j.get("cron", ""),
+                        j.get("task_type", "general"),
+                        json.dumps(j.get("task_payload", {}), ensure_ascii=False),
+                        j.get("assignee", ""),
+                        1 if j.get("enabled", True) else 0,
+                        j.get("description", ""),
+                    ),
                 )
 
     def load_scheduler_jobs(self) -> list[dict[str, Any]]:
@@ -223,11 +227,16 @@ class Database:
             for hid, h in hooks.items():
                 conn.execute(
                     "INSERT OR REPLACE INTO webhooks VALUES (?,?,?,?,?,?,?,?)",
-                    (hid, h.get("url", ""),
-                     json.dumps(h.get("events", []), ensure_ascii=False),
-                     1 if h.get("enabled", True) else 0,
-                     h.get("secret", ""), h.get("description", ""),
-                     h.get("timeout_seconds", 10.0), h.get("max_retries", 3)),
+                    (
+                        hid,
+                        h.get("url", ""),
+                        json.dumps(h.get("events", []), ensure_ascii=False),
+                        1 if h.get("enabled", True) else 0,
+                        h.get("secret", ""),
+                        h.get("description", ""),
+                        h.get("timeout_seconds", 10.0),
+                        h.get("max_retries", 3),
+                    ),
                 )
 
     def load_webhooks(self) -> list[dict[str, Any]]:
@@ -249,11 +258,16 @@ class Database:
             for tid, t in templates.items():
                 conn.execute(
                     "INSERT OR REPLACE INTO task_templates VALUES (?,?,?,?,?,?,?,?)",
-                    (tid, t.get("type", "general"), t.get("prompt_template", ""),
-                     t.get("assignee", ""),
-                     json.dumps(t.get("default_payload", {}), ensure_ascii=False),
-                     json.dumps(t.get("tags", []), ensure_ascii=False),
-                     t.get("description", ""), t.get("timeout_seconds", 0.0)),
+                    (
+                        tid,
+                        t.get("type", "general"),
+                        t.get("prompt_template", ""),
+                        t.get("assignee", ""),
+                        json.dumps(t.get("default_payload", {}), ensure_ascii=False),
+                        json.dumps(t.get("tags", []), ensure_ascii=False),
+                        t.get("description", ""),
+                        t.get("timeout_seconds", 0.0),
+                    ),
                 )
 
     def load_task_templates(self) -> list[dict[str, Any]]:
@@ -277,11 +291,18 @@ class Database:
                        (task_id, trace_id, status, task_type, agent_id,
                         error, tokens_in, tokens_out, created_at, completed_at)
                        VALUES (?,?,?,?,?,?,?,?,?,?)""",
-                    (tid, r.get("trace_id", ""), r.get("status", "pending"),
-                     r.get("task_type", ""), r.get("agent_id", ""),
-                     r.get("error", ""), r.get("tokens_in", 0),
-                     r.get("tokens_out", 0),
-                     r.get("created_at", 0.0), r.get("completed_at", 0.0)),
+                    (
+                        tid,
+                        r.get("trace_id", ""),
+                        r.get("status", "pending"),
+                        r.get("task_type", ""),
+                        r.get("agent_id", ""),
+                        r.get("error", ""),
+                        r.get("tokens_in", 0),
+                        r.get("tokens_out", 0),
+                        r.get("created_at", 0.0),
+                        r.get("completed_at", 0.0),
+                    ),
                 )
 
     def load_task_results(self) -> list[dict[str, Any]]:
@@ -295,9 +316,15 @@ class Database:
             for tid, t in pending.items():
                 conn.execute(
                     "INSERT OR REPLACE INTO task_pending VALUES (?,?,?,?,?,?,?)",
-                    (tid, t.get("trace_id", ""), t.get("created_at", 0.0),
-                     t.get("type", "general"), t.get("assignee", ""),
-                     t.get("priority", 0), t.get("context_ref", "")),
+                    (
+                        tid,
+                        t.get("trace_id", ""),
+                        t.get("created_at", 0.0),
+                        t.get("type", "general"),
+                        t.get("assignee", ""),
+                        t.get("priority", 0),
+                        t.get("context_ref", ""),
+                    ),
                 )
 
     def load_task_pending(self) -> list[dict[str, Any]]:
@@ -312,8 +339,11 @@ class Database:
             for name, p in plugins.items():
                 conn.execute(
                     "INSERT OR REPLACE INTO plugin_state VALUES (?,?,?)",
-                    (name, 1 if p.get("enabled", True) else 0,
-                     json.dumps(p.get("data", {}), ensure_ascii=False)),
+                    (
+                        name,
+                        1 if p.get("enabled", True) else 0,
+                        json.dumps(p.get("data", {}), ensure_ascii=False),
+                    ),
                 )
 
     def load_plugin_states(self) -> list[dict[str, Any]]:
@@ -349,9 +379,12 @@ class Database:
             for n in nodes:
                 conn.execute(
                     "INSERT OR REPLACE INTO dag_nodes VALUES (?,?,?,?)",
-                    (n["id"], json.dumps(n.get("depends_on", []), ensure_ascii=False),
-                     n.get("description", ""),
-                     json.dumps(n.get("metadata", {}), ensure_ascii=False)),
+                    (
+                        n["id"],
+                        json.dumps(n.get("depends_on", []), ensure_ascii=False),
+                        n.get("description", ""),
+                        json.dumps(n.get("metadata", {}), ensure_ascii=False),
+                    ),
                 )
 
     def load_dag_nodes(self) -> list[dict[str, Any]]:

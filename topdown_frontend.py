@@ -12,49 +12,71 @@
 from __future__ import annotations
 
 import json
-from game_frontend import ZONES, SPECIES_COLORS
 
+from game_frontend import ZONES
 
 # 11 物种深蓝色表（与花名册圆点同源）
 EMPLOYEE_COLOR_MAP = {
-    "deer": "#0B1A33", "squirrel": "#1A3B5C", "butterfly": "#1C2E4A",
-    "fox": "#132A4A", "hedgehog": "#091626", "beaver": "#1A3B5C",
-    "raven": "#040B17", "hare": "#2B4C7E", "badger": "#12304D",
-    "lark": "#1A4870", "kite": "#213A5C",
+    "deer": "#0B1A33",
+    "squirrel": "#1A3B5C",
+    "butterfly": "#1C2E4A",
+    "fox": "#132A4A",
+    "hedgehog": "#091626",
+    "beaver": "#1A3B5C",
+    "raven": "#040B17",
+    "hare": "#2B4C7E",
+    "badger": "#12304D",
+    "lark": "#1A4870",
+    "kite": "#213A5C",
 }
 
 SPECIES_CN = {
-    "deer": "鹿", "squirrel": "鼠", "butterfly": "蝶", "fox": "狐",
-    "hedgehog": "猬", "beaver": "狸", "raven": "鸦", "hare": "兔",
-    "badger": "獾", "lark": "雀", "kite": "鸢",
+    "deer": "鹿",
+    "squirrel": "鼠",
+    "butterfly": "蝶",
+    "fox": "狐",
+    "hedgehog": "猬",
+    "beaver": "狸",
+    "raven": "鸦",
+    "hare": "兔",
+    "badger": "獾",
+    "lark": "雀",
+    "kite": "鸢",
 }
 
 SPECIES_JOB = {
-    "deer": "调度官", "squirrel": "前端工程师", "butterfly": "视觉设计师",
-    "fox": "测试工程师", "hedgehog": "安全工程师", "beaver": "基建工程师",
-    "raven": "记忆管理员", "hare": "快递员", "badger": "矿工",
-    "lark": "播音员", "kite": "瞭望员",
+    "deer": "调度官",
+    "squirrel": "前端工程师",
+    "butterfly": "视觉设计师",
+    "fox": "测试工程师",
+    "hedgehog": "安全工程师",
+    "beaver": "基建工程师",
+    "raven": "记忆管理员",
+    "hare": "快递员",
+    "badger": "矿工",
+    "lark": "播音员",
+    "kite": "瞭望员",
 }
 
 # 每个物种工位上的 2D 道具（俯视图）
 SPECIES_PROP = {
-    "squirrel": "desk",      # 电脑桌
-    "fox": "desk",           # 测试台
-    "hedgehog": "shield",    # 安全盾
-    "beaver": "logs",        # 木料堆
-    "butterfly": "easel",    # 画架
-    "raven": "shelf",        # 档案架
-    "hare": "mailbox",       # 信箱
-    "badger": "lamp",        # 矿灯
-    "lark": "speaker",       # 喇叭
-    "kite": "telescope",     # 望远镜
-    "deer": "roundtable",    # 圆桌
+    "squirrel": "desk",  # 电脑桌
+    "fox": "desk",  # 测试台
+    "hedgehog": "shield",  # 安全盾
+    "beaver": "logs",  # 木料堆
+    "butterfly": "easel",  # 画架
+    "raven": "shelf",  # 档案架
+    "hare": "mailbox",  # 信箱
+    "badger": "lamp",  # 矿灯
+    "lark": "speaker",  # 喇叭
+    "kite": "telescope",  # 望远镜
+    "deer": "roundtable",  # 圆桌
 }
 
 # 转换 ZONES 为前端用（rect 转 list）
-zones_json = json.dumps([
-    {**z, "rect": list(z["rect"])} for z in ZONES
-], ensure_ascii=False)
+zones_json = json.dumps(
+    [{**z, "rect": list(z["rect"])} for z in ZONES], ensure_ascii=False
+)
 
 
 def render_index() -> str:

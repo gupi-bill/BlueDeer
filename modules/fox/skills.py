@@ -9,7 +9,6 @@ import logging
 from typing import Any
 
 from core.healer import Healer
-from core.task import Task
 from core.test_runner import TestType
 from tools.registry import ToolRegistry
 
@@ -36,10 +35,13 @@ class TestRunSkill:
             test_path: 测试文件或目录。
             test_type: 测试类型（P7 扩容）。默认 UNIT。
         """
-        return await self._tools.call("test_run", {
-            "test_path": test_path,
-            "test_type": test_type.value,
-        })
+        return await self._tools.call(
+            "test_run",
+            {
+                "test_path": test_path,
+                "test_type": test_type.value,
+            },
+        )
 
 
 class SecurityTestSkill:
@@ -53,10 +55,13 @@ class SecurityTestSkill:
 
     async def run_tests(self, test_path: str) -> dict[str, Any]:
         """运行安全扫描测试。"""
-        return await self._tools.call("test_run", {
-            "test_path": test_path,
-            "test_type": TestType.SECURITY.value,
-        })
+        return await self._tools.call(
+            "test_run",
+            {
+                "test_path": test_path,
+                "test_type": TestType.SECURITY.value,
+            },
+        )
 
 
 class ArtSpecTestSkill:
@@ -70,10 +75,13 @@ class ArtSpecTestSkill:
 
     async def run_tests(self, test_path: str) -> dict[str, Any]:
         """运行美术规范校验测试。"""
-        return await self._tools.call("test_run", {
-            "test_path": test_path,
-            "test_type": TestType.ART_SPEC.value,
-        })
+        return await self._tools.call(
+            "test_run",
+            {
+                "test_path": test_path,
+                "test_type": TestType.ART_SPEC.value,
+            },
+        )
 
 
 class HealSkill:
@@ -82,7 +90,9 @@ class HealSkill:
     def __init__(self, healer: Healer) -> None:
         self._healer = healer
 
-    async def heal(self, test_path: str, target_file: str | None = None) -> dict[str, Any]:
+    async def heal(
+        self, test_path: str, target_file: str | None = None
+    ) -> dict[str, Any]:
         """执行完整修复闭环。
 
         Args:
@@ -94,8 +104,11 @@ class HealSkill:
         """
         # Healer.heal 是同步方法（subprocess），用 to_thread 包一下
         import asyncio
+
         return await asyncio.to_thread(
-            self._healer.heal, test_path, target_file,
+            self._healer.heal,
+            test_path,
+            target_file,
         )
 
 

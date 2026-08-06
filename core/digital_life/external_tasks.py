@@ -19,6 +19,7 @@
 - 员工必须醒着、健康、有能量、成年、没在忙才能接单。
 - 任务完成有奖励（食物/能量恢复），失败有惩罚。
 """
+
 from __future__ import annotations
 
 import random
@@ -28,17 +29,83 @@ from collections import defaultdict, deque
 
 # 11 种任务类型与物种岗位匹配
 TASK_TYPES = {
-    "deploy":        {"species": "beaver",    "difficulty": 3, "reward_food": 50, "reward_energy": -15, "description": "部署服务"},
-    "test":          {"species": "fox",       "difficulty": 2, "reward_food": 30, "reward_energy": -10, "description": "自动化测试"},
-    "ui_design":     {"species": "butterfly", "difficulty": 2, "reward_food": 25, "reward_energy": -8,  "description": "UI 设计"},
-    "code":          {"species": "squirrel",  "difficulty": 3, "reward_food": 40, "reward_energy": -12, "description": "编码开发"},
-    "security_scan": {"species": "hedgehog",  "difficulty": 2, "reward_food": 35, "reward_energy": -10, "description": "安全扫描"},
-    "archive":       {"species": "raven",     "difficulty": 1, "reward_food": 20, "reward_energy": -5,  "description": "归档记忆"},
-    "audit":         {"species": "hare",      "difficulty": 1, "reward_food": 20, "reward_energy": -5,  "description": "资源核算"},
-    "route":         {"species": "badger",    "difficulty": 2, "reward_food": 25, "reward_energy": -8,  "description": "工具路由"},
-    "monitor":       {"species": "lark",      "difficulty": 1, "reward_food": 15, "reward_energy": -4,  "description": "状态监控"},
-    "plan":          {"species": "kite",      "difficulty": 2, "reward_food": 30, "reward_energy": -8,  "description": "任务规划"},
-    "dispatch":      {"species": "deer",      "difficulty": 3, "reward_food": 45, "reward_energy": -15, "description": "总管调度"},
+    "deploy": {
+        "species": "beaver",
+        "difficulty": 3,
+        "reward_food": 50,
+        "reward_energy": -15,
+        "description": "部署服务",
+    },
+    "test": {
+        "species": "fox",
+        "difficulty": 2,
+        "reward_food": 30,
+        "reward_energy": -10,
+        "description": "自动化测试",
+    },
+    "ui_design": {
+        "species": "butterfly",
+        "difficulty": 2,
+        "reward_food": 25,
+        "reward_energy": -8,
+        "description": "UI 设计",
+    },
+    "code": {
+        "species": "squirrel",
+        "difficulty": 3,
+        "reward_food": 40,
+        "reward_energy": -12,
+        "description": "编码开发",
+    },
+    "security_scan": {
+        "species": "hedgehog",
+        "difficulty": 2,
+        "reward_food": 35,
+        "reward_energy": -10,
+        "description": "安全扫描",
+    },
+    "archive": {
+        "species": "raven",
+        "difficulty": 1,
+        "reward_food": 20,
+        "reward_energy": -5,
+        "description": "归档记忆",
+    },
+    "audit": {
+        "species": "hare",
+        "difficulty": 1,
+        "reward_food": 20,
+        "reward_energy": -5,
+        "description": "资源核算",
+    },
+    "route": {
+        "species": "badger",
+        "difficulty": 2,
+        "reward_food": 25,
+        "reward_energy": -8,
+        "description": "工具路由",
+    },
+    "monitor": {
+        "species": "lark",
+        "difficulty": 1,
+        "reward_food": 15,
+        "reward_energy": -4,
+        "description": "状态监控",
+    },
+    "plan": {
+        "species": "kite",
+        "difficulty": 2,
+        "reward_food": 30,
+        "reward_energy": -8,
+        "description": "任务规划",
+    },
+    "dispatch": {
+        "species": "deer",
+        "difficulty": 3,
+        "reward_food": 45,
+        "reward_energy": -15,
+        "description": "总管调度",
+    },
 }
 
 
@@ -61,8 +128,16 @@ class Task:
         "task_type",
     )
 
-    def __init__(self, task_id, task_type, description="", difficulty=None,
-                 reward_food=None, reward_energy=None, deadline=300.0):
+    def __init__(
+        self,
+        task_id,
+        task_type,
+        description="",
+        difficulty=None,
+        reward_food=None,
+        reward_energy=None,
+        deadline=300.0,
+    ):
         """构造一个任务。
 
         未显式传入的字段从 TASK_TYPES 取默认值。
@@ -71,13 +146,21 @@ class Task:
         self.task_id = task_id
         self.task_type = task_type
         self.description = description if description else spec.get("description", "")
-        self.difficulty = difficulty if difficulty is not None else spec.get("difficulty", 2)
-        self.reward_food = reward_food if reward_food is not None else spec.get("reward_food", 30)
-        self.reward_energy = reward_energy if reward_energy is not None else spec.get("reward_energy", -10)
+        self.difficulty = (
+            difficulty if difficulty is not None else spec.get("difficulty", 2)
+        )
+        self.reward_food = (
+            reward_food if reward_food is not None else spec.get("reward_food", 30)
+        )
+        self.reward_energy = (
+            reward_energy
+            if reward_energy is not None
+            else spec.get("reward_energy", -10)
+        )
         self.created_at = time.time()
         self.deadline = float(deadline)
         self.assigned_to = None
-        self.status = "pending"   # pending / running / completed / failed / expired
+        self.status = "pending"  # pending / running / completed / failed / expired
         self.result = None
         self.completed_at = None
         self.attempts = 0
@@ -99,7 +182,11 @@ class Task:
             "deadline": self.deadline,
             "status": self.status,
             "attempts": self.attempts,
-            "assigned_to": getattr(self.assigned_to, "_name_obj", None) if self.assigned_to else None,
+            "assigned_to": (
+                getattr(self.assigned_to, "_name_obj", None)
+                if self.assigned_to
+                else None
+            ),
             "result": self.result,
             "completed_at": self.completed_at,
         }
@@ -122,14 +209,18 @@ class ExternalTaskSystem:
         self._naming = naming
         self._lock = threading.RLock()
         self._pending: deque = deque()
-        self._running: dict = {}               # task_id -> (task, life_form)
+        self._running: dict = {}  # task_id -> (task, life_form)
         self._completed: deque = deque(maxlen=200)
         self._failed: deque = deque(maxlen=200)
         self._history: deque = deque(maxlen=1000)
         self._task_counter = 0
-        self._species_performance = defaultdict(lambda: {
-            "assigned": 0, "completed": 0, "failed": 0,
-        })
+        self._species_performance = defaultdict(
+            lambda: {
+                "assigned": 0,
+                "completed": 0,
+                "failed": 0,
+            }
+        )
         # 自动分配线程
         self._auto_assign_thread = None
         self._stop_event = threading.Event()
@@ -138,8 +229,15 @@ class ExternalTaskSystem:
     # 注入
     # ------------------------------------------------------------------
 
-    def inject(self, task_type, description="", difficulty=None,
-               reward_food=None, reward_energy=None, deadline=300.0) -> Task:
+    def inject(
+        self,
+        task_type,
+        description="",
+        difficulty=None,
+        reward_food=None,
+        reward_energy=None,
+        deadline=300.0,
+    ) -> Task:
         """注入一个任务到 pending 队列。"""
         if task_type not in TASK_TYPES:
             raise ValueError(f"未知任务类型: {task_type}")
@@ -147,18 +245,29 @@ class ExternalTaskSystem:
             self._task_counter += 1
             task_id = f"task-{self._task_counter:04d}"
             task = Task(
-                task_id=task_id, task_type=task_type,
-                description=description, difficulty=difficulty,
-                reward_food=reward_food, reward_energy=reward_energy,
+                task_id=task_id,
+                task_type=task_type,
+                description=description,
+                difficulty=difficulty,
+                reward_food=reward_food,
+                reward_energy=reward_energy,
                 deadline=deadline,
             )
             self._pending.append(task)
-            self._history.append({
-                "action": "inject", "task_id": task_id, "time": time.time(),
-            })
-        self._env.broadcast_event("task_injected", {
-            "task_id": task_id, "task_type": task_type,
-        })
+            self._history.append(
+                {
+                    "action": "inject",
+                    "task_id": task_id,
+                    "time": time.time(),
+                }
+            )
+        self._env.broadcast_event(
+            "task_injected",
+            {
+                "task_id": task_id,
+                "task_type": task_type,
+            },
+        )
         return task
 
     def inject_batch(self, tasks: list) -> list:
@@ -199,7 +308,8 @@ class ExternalTaskSystem:
             return None
         with self._env._lock:
             candidates = [
-                lf for lf in self._env.population
+                lf
+                for lf in self._env.population
                 if getattr(lf, "species", "") == species
                 and getattr(lf, "_alive", False)
             ]
@@ -213,8 +323,11 @@ class ExternalTaskSystem:
                     if getattr(lf, "energy", 0) < 30:
                         continue
                     from .digital_life_form import LifeStage
+
                     if getattr(lf, "life_stage", None) not in (
-                            LifeStage.ADULT, LifeStage.MIDDLE):
+                        LifeStage.ADULT,
+                        LifeStage.MIDDLE,
+                    ):
                         continue
                     # 没在跑其他任务
                     if any(t[1] is lf for t in self._running.values()):
@@ -235,16 +348,23 @@ class ExternalTaskSystem:
             task.status = "running"
             task.attempts += 1
             self._running[task.task_id] = (task, life_form)
-            self._history.append({
-                "action": "assign", "task_id": task.task_id,
-                "time": time.time(),
-            })
+            self._history.append(
+                {
+                    "action": "assign",
+                    "task_id": task.task_id,
+                    "time": time.time(),
+                }
+            )
             sp = getattr(life_form, "species", "unknown")
             self._species_performance[sp]["assigned"] += 1
-        self._env.broadcast_event("task_assigned", {
-            "task_id": task.task_id, "task_type": task.task_type,
-            "worker": getattr(life_form, "_name_obj", ""),
-        })
+        self._env.broadcast_event(
+            "task_assigned",
+            {
+                "task_id": task.task_id,
+                "task_type": task.task_type,
+                "worker": getattr(life_form, "_name_obj", ""),
+            },
+        )
         return {"ok": True, "task_id": task.task_id}
 
     def auto_assign(self) -> int:
@@ -265,8 +385,10 @@ class ExternalTaskSystem:
     def start_auto_assigner(self, interval: float = 5.0) -> None:
         """启动后台自动分配线程。"""
         with self._lock:
-            if (self._auto_assign_thread is not None
-                    and self._auto_assign_thread.is_alive()):
+            if (
+                self._auto_assign_thread is not None
+                and self._auto_assign_thread.is_alive()
+            ):
                 return
             self._stop_event.clear()
             t = threading.Thread(
@@ -311,6 +433,7 @@ class ExternalTaskSystem:
         with life_form._lock:
             energy = life_form.energy
             from .digital_life_form import LifeStage
+
             is_elderly = life_form.life_stage == LifeStage.ELDERLY
 
         # 成功概率
@@ -333,7 +456,8 @@ class ExternalTaskSystem:
         if success:
             with self._env._lock:
                 self._env.food_available = min(
-                    2000.0, self._env.food_available + task.reward_food)
+                    2000.0, self._env.food_available + task.reward_food
+                )
             if self._observer is not None and self._naming is not None:
                 lid = self._naming.get_id(life_form)
                 if lid:
@@ -367,16 +491,24 @@ class ExternalTaskSystem:
                     self._failed.append(task)
                     sp = getattr(life_form, "species", "unknown")
                     self._species_performance[sp]["failed"] += 1
-                    self._history.append({
-                        "action": "complete", "task_id": task_id,
-                        "success": False, "reason": "worker_died",
-                        "time": time.time(),
-                    })
+                    self._history.append(
+                        {
+                            "action": "complete",
+                            "task_id": task_id,
+                            "success": False,
+                            "reason": "worker_died",
+                            "time": time.time(),
+                        }
+                    )
                 completed += 1
-                self._env.broadcast_event("task_completed", {
-                    "task_id": task_id, "success": False,
-                    "worker": getattr(life_form, "_name_obj", ""),
-                })
+                self._env.broadcast_event(
+                    "task_completed",
+                    {
+                        "task_id": task_id,
+                        "success": False,
+                        "worker": getattr(life_form, "_name_obj", ""),
+                    },
+                )
                 continue
             # 执行
             result = self.execute(task, life_form)
@@ -395,15 +527,23 @@ class ExternalTaskSystem:
                     sp = getattr(life_form, "species", "unknown")
                     self._species_performance[sp]["failed"] += 1
                 task.completed_at = time.time()
-                self._history.append({
-                    "action": "complete", "task_id": task_id,
-                    "success": result["success"], "time": time.time(),
-                })
+                self._history.append(
+                    {
+                        "action": "complete",
+                        "task_id": task_id,
+                        "success": result["success"],
+                        "time": time.time(),
+                    }
+                )
             completed += 1
-            self._env.broadcast_event("task_completed", {
-                "task_id": task_id, "success": result["success"],
-                "worker": getattr(life_form, "_name_obj", ""),
-            })
+            self._env.broadcast_event(
+                "task_completed",
+                {
+                    "task_id": task_id,
+                    "success": result["success"],
+                    "worker": getattr(life_form, "_name_obj", ""),
+                },
+            )
         return completed
 
     def check_expired(self) -> int:
@@ -417,9 +557,12 @@ class ExternalTaskSystem:
                     task.completed_at = time.time()
                     self._failed.append(task)
                     expired_count += 1
-                    self._env.broadcast_event("task_expired", {
-                        "task_id": task.task_id,
-                    })
+                    self._env.broadcast_event(
+                        "task_expired",
+                        {
+                            "task_id": task.task_id,
+                        },
+                    )
                 else:
                     still_pending.append(task)
             self._pending = still_pending
@@ -473,7 +616,9 @@ class ExternalTaskSystem:
                 "failed": len(self._failed),
                 "history_size": len(self._history),
                 "task_counter": self._task_counter,
-                "species_performance": {k: dict(v) for k, v in self._species_performance.items()},
+                "species_performance": {
+                    k: dict(v) for k, v in self._species_performance.items()
+                },
                 "auto_assigner_running": (
                     self._auto_assign_thread is not None
                     and self._auto_assign_thread.is_alive()

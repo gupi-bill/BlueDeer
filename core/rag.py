@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
+from core.config import get_config
 from vector_db.persistence import load_from_disk, save_to_disk
 from vector_db.vector_store import SearchResult, VectorStore
-
-from core.config import get_config
 
 logger = logging.getLogger("bluedeer.rag")
 
@@ -23,6 +22,7 @@ SCOPE_TASK = "task"
 @dataclass
 class FusedResult:
     """多路召回融合结果。"""
+
     id: str
     text: str
     metadata: dict[str, Any]
@@ -137,7 +137,8 @@ class RAGSystem:
 
     @staticmethod
     def _apply_confidence(
-        results: list[SearchResult], threshold: float,
+        results: list[SearchResult],
+        threshold: float,
     ) -> list[SearchResult]:
         """过滤低于阈值的结果，并为每个结果附加置信度标签。"""
         filtered: list[SearchResult] = []
@@ -152,7 +153,9 @@ class RAGSystem:
                 metadata["confidence"] = "medium"
             else:
                 metadata["confidence"] = "low"
-            filtered.append(SearchResult(id=r.id, text=r.text, metadata=metadata, score=r.score))
+            filtered.append(
+                SearchResult(id=r.id, text=r.text, metadata=metadata, score=r.score)
+            )
         return filtered
 
     def retrieve_cross(
@@ -232,16 +235,22 @@ class RAGSystem:
 
             # —— 关键词召回（BM25 风格） ——
             if use_keyword:
-                kw_tokens = set(re.findall(r"[a-zA-Z_]\w*|[\u4e00-\u9fff]", query.lower()))
+                kw_tokens = set(
+                    re.findall(r"[a-zA-Z_]\w*|[\u4e00-\u9fff]", query.lower())
+                )
                 for doc_id in store.list_ids():
                     doc = store.get(doc_id)
                     if not doc:
                         continue
-                    doc_tokens = set(re.findall(r"[a-zA-Z_]\w*|[\u4e00-\u9fff]", doc.text.lower()))
+                    doc_tokens = set(
+                        re.findall(r"[a-zA-Z_]\w*|[\u4e00-\u9fff]", doc.text.lower())
+                    )
                     overlap = len(kw_tokens & doc_tokens)
                     if overlap == 0:
                         continue
-                    score = overlap / (len(kw_tokens) + len(doc_tokens) - overlap + 1e-8)
+                    score = overlap / (
+                        len(kw_tokens) + len(doc_tokens) - overlap + 1e-8
+                    )
                     _add("keyword", doc.id, doc.text, doc.metadata, score)
 
             # —— 知识图谱召回 ——
@@ -263,7 +272,9 @@ class RAGSystem:
         return results[:top_k]
 
     @staticmethod
-    def rerank(results: list[FusedResult | SearchResult], top_k: int | None = None) -> list[FusedResult | SearchResult]:
+    def rerank(
+        results: list[FusedResult | SearchResult], top_k: int | None = None
+    ) -> list[FusedResult | SearchResult]:
         """重排序：使用交叉编码风格信号对结果重新排序。
 
         对每个结果计算三个信号：
@@ -323,6 +334,7 @@ class RAGSystem:
 
         path = self._get_path(SCOPE_TASK, task_id)
         import os
+
         if os.path.exists(path):
             os.remove(path)
             logger.info("RAG 清理任务库: task_id=%s", task_id)
@@ -349,6 +361,7 @@ class RAGSystem:
             清理的条目数。
         """
         import time
+
         if now is None:
             now = time.time()
         try:
@@ -378,7 +391,9 @@ class RAGSystem:
             self._save_store(scope, sub_id)
             logger.info(
                 "RAG 过期清理: scope=%s, sub_id=%s, 清理 %d 条",
-                scope, sub_id, len(expired_ids),
+                scope,
+                sub_id,
+                len(expired_ids),
             )
         return len(expired_ids)
 
@@ -404,7 +419,9 @@ class RAGSystem:
         """
         threshold_map = {"high": 0.6, "medium": 0.3, "low": 0.0}
         threshold = threshold_map.get(min_confidence, 0.0)
-        return self.retrieve(query, scope, sub_id, top_k, confidence_threshold=threshold)
+        return self.retrieve(
+            query, scope, sub_id, top_k, confidence_threshold=threshold
+        )
 
     def get_store_size(self, scope: str, sub_id: str = "") -> int:
         """获取指定层的文档数。"""
@@ -428,11 +445,13 @@ class RagCapable:
     rag 为 None 时所有方法安全跳过，不影响主链路。
     """
 
-    def bind_rag(self, rag: "RAGSystem | None") -> None:
+    def bind_rag(self, rag: RAGSystem | None) -> None:
         """绑定 RAG 系统（None 表示不启用）。"""
         self._rag = rag
 
-    def rag_retrieve(self, query: str, top_k: int = 2, confidence_threshold: float = 0.0) -> list[SearchResult]:
+    def rag_retrieve(
+        self, query: str, top_k: int = 2, confidence_threshold: float = 0.0
+    ) -> list[SearchResult]:
         """从岗位私有库检索历史方案。rag 未绑定或失败时返回空列表。"""
         if not getattr(self, "_rag", None):
             return []

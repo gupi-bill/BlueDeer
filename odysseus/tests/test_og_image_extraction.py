@@ -1,9 +1,9 @@
 """Tests for og:image extraction (src/search/content.py)."""
+
 import pytest
 
 pytest.importorskip("bs4")
 from bs4 import BeautifulSoup
-
 from src.search.content import _extract_og_image
 
 

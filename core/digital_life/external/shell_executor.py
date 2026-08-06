@@ -7,6 +7,7 @@
 - 超时自动终止（默认 60 秒）
 - 所有命令需监工审批
 """
+
 from __future__ import annotations
 
 import os
@@ -18,18 +19,38 @@ from typing import Any
 
 # 默认白名单：允许执行的命令前缀
 _DEFAULT_WHITELIST: list[str] = [
-    "python", "python3", "pytest", "pip",
-    "npm", "node", "yarn",
+    "python",
+    "python3",
+    "pytest",
+    "pip",
+    "npm",
+    "node",
+    "yarn",
     "git",
-    "docker", "docker-compose",
-    "ls", "cat", "echo", "grep", "find", "head", "tail", "wc",
-    "mkdir", "cp", "mv", "touch",
+    "docker",
+    "docker-compose",
+    "ls",
+    "cat",
+    "echo",
+    "grep",
+    "find",
+    "head",
+    "tail",
+    "wc",
+    "mkdir",
+    "cp",
+    "mv",
+    "touch",
 ]
 
 # 默认黑名单：禁止的命令片段（出现在命令任何位置都拒绝）
 _DEFAULT_BLACKLIST: list[str] = [
-    "rm -rf", "rm -fr", "sudo", "chmod 777",
-    "curl ", "wget ",
+    "rm -rf",
+    "rm -fr",
+    "sudo",
+    "chmod 777",
+    "curl ",
+    "wget ",
     ":(){:|:&};:",  # fork bomb
     "> /dev/sda",
     "/etc/passwd",
@@ -41,6 +62,7 @@ _DEFAULT_BLACKLIST: list[str] = [
 
 class ShellResult:
     """shell 命令执行结果。"""
+
     __slots__ = (
         "command",
         "duration_ms",
@@ -52,10 +74,17 @@ class ShellResult:
         "workdir",
     )
 
-    def __init__(self, ok: bool, command: str = "", stdout: str = "",
-                 stderr: str = "", returncode: int = 0,
-                 duration_ms: float = 0, timeout: bool = False,
-                 workdir: str = "") -> None:
+    def __init__(
+        self,
+        ok: bool,
+        command: str = "",
+        stdout: str = "",
+        stderr: str = "",
+        returncode: int = 0,
+        duration_ms: float = 0,
+        timeout: bool = False,
+        workdir: str = "",
+    ) -> None:
         self.ok = ok
         self.command = command
         self.stdout = stdout
@@ -150,12 +179,12 @@ class ShellExecutor:
                 return True, "ok"
         return False, f"命令 {first_name} 不在白名单"
 
-    def execute(self, command: str, caller: Any = None,
-                 timeout: float | None = None) -> ShellResult:
+    def execute(
+        self, command: str, caller: Any = None, timeout: float | None = None
+    ) -> ShellResult:
         """执行 shell 命令。"""
         if not self._enabled:
-            return ShellResult(False, command=command,
-                               stderr="Shell 集成未启用")
+            return ShellResult(False, command=command, stderr="Shell 集成未启用")
         ok, reason = self.validate(command)
         if not ok:
             return ShellResult(False, command=command, stderr=reason)
@@ -163,9 +192,13 @@ class ShellExecutor:
         start = time.time()
         try:
             proc = subprocess.run(
-                command, shell=True, cwd=self._workdir,
-                capture_output=True, text=True,
-                timeout=actual_timeout, check=False,
+                command,
+                shell=True,
+                cwd=self._workdir,
+                capture_output=True,
+                text=True,
+                timeout=actual_timeout,
+                check=False,
             )
             dur = (time.time() - start) * 1000
             return ShellResult(
@@ -178,14 +211,21 @@ class ShellExecutor:
                 workdir=self._workdir,
             )
         except subprocess.TimeoutExpired:
-            return ShellResult(False, command=command,
-                               stderr=f"超时（{actual_timeout}s）",
-                               returncode=-1, timeout=True,
-                               duration_ms=actual_timeout * 1000,
-                               workdir=self._workdir)
+            return ShellResult(
+                False,
+                command=command,
+                stderr=f"超时（{actual_timeout}s）",
+                returncode=-1,
+                timeout=True,
+                duration_ms=actual_timeout * 1000,
+                workdir=self._workdir,
+            )
         except Exception as e:
-            return ShellResult(False, command=command,
-                               stderr=f"执行异常: {e}",
-                               returncode=-1,
-                               duration_ms=(time.time() - start) * 1000,
-                               workdir=self._workdir)
+            return ShellResult(
+                False,
+                command=command,
+                stderr=f"执行异常: {e}",
+                returncode=-1,
+                duration_ms=(time.time() - start) * 1000,
+                workdir=self._workdir,
+            )

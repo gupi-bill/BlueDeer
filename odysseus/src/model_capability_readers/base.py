@@ -16,7 +16,6 @@ from urllib.parse import urlparse
 
 from src import model_capabilities as mc
 
-
 VENDOR_GENERIC_OPENAI = "generic_openai"
 VENDOR_OPENAI = "openai"
 VENDOR_OPENROUTER = "openrouter"
@@ -44,7 +43,9 @@ class ModelCapabilityRecord:
 
     def __post_init__(self) -> None:
         if not self.stable_model_id:
-            object.__setattr__(self, "stable_model_id", stable_model_id_for(self.vendor, self.model_id))
+            object.__setattr__(
+                self, "stable_model_id", stable_model_id_for(self.vendor, self.model_id)
+            )
         if not self.capability_assertions and self.capability.capabilities:
             object.__setattr__(
                 self,
@@ -64,8 +65,12 @@ class ModelCapabilityRecord:
             "stable_model_id": self.stable_model_id,
             "display_name": self.display_name,
             "capability": self.capability.to_dict(),
-            "capability_assertions": [assertion.to_dict() for assertion in self.capability_assertions],
-            "deterministic_controls": [control.to_dict() for control in self.deterministic_controls],
+            "capability_assertions": [
+                assertion.to_dict() for assertion in self.capability_assertions
+            ],
+            "deterministic_controls": [
+                control.to_dict() for control in self.deterministic_controls
+            ],
         }
         if include_raw:
             data["raw"] = dict(self.raw)
@@ -122,7 +127,9 @@ def _base_url_scope(base_url: Any) -> str:
     return f"url:{digest}"
 
 
-def stable_model_id_for(vendor: Any, model_id: Any, *, endpoint_id: Any = "", base_url: Any = "") -> str:
+def stable_model_id_for(
+    vendor: Any, model_id: Any, *, endpoint_id: Any = "", base_url: Any = ""
+) -> str:
     vendor_part = _identity_part(vendor or VENDOR_UNKNOWN)
     model_part = _identity_part(model_id)
     endpoint = compact_str(endpoint_id)
@@ -159,7 +166,9 @@ def merge_unique(*groups: Iterable[str]) -> tuple[str, ...]:
     return tuple(out)
 
 
-def deterministic_controls_from_supported_parameters(values: Any) -> tuple[mc.DeterministicControl, ...]:
+def deterministic_controls_from_supported_parameters(
+    values: Any,
+) -> tuple[mc.DeterministicControl, ...]:
     return mc.deterministic_controls_from_values(
         values,
         status=mc.ASSERTION_CLAIMED,
@@ -221,7 +230,9 @@ def split_modality_arrow(value: Any) -> tuple[tuple[str, ...], tuple[str, ...]]:
     return modalities_from_value(text), ()
 
 
-def family_from_modalities(input_modalities: Iterable[str], output_modalities: Iterable[str]) -> str:
+def family_from_modalities(
+    input_modalities: Iterable[str], output_modalities: Iterable[str]
+) -> str:
     output_set = set(output_modalities)
     if mc.MODALITY_EMBEDDING in output_set:
         return mc.FAMILY_EMBEDDING
@@ -236,9 +247,13 @@ def family_from_modalities(input_modalities: Iterable[str], output_modalities: I
     return mc.FAMILY_UNKNOWN
 
 
-def primary_task_for_family(family: str, capabilities: Iterable[str] = ()) -> str | None:
+def primary_task_for_family(
+    family: str, capabilities: Iterable[str] = ()
+) -> str | None:
     caps = set(capabilities)
-    if family == mc.FAMILY_IMAGE and (mc.CAP_IMAGE_EDITING in caps or mc.CAP_INPAINTING in caps):
+    if family == mc.FAMILY_IMAGE and (
+        mc.CAP_IMAGE_EDITING in caps or mc.CAP_INPAINTING in caps
+    ):
         return mc.TASK_IMAGE_EDIT
     if family == mc.FAMILY_AUDIO and mc.CAP_TTS in caps:
         return mc.TASK_AUDIO_SYNTHESIZE

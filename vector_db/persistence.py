@@ -26,9 +26,7 @@ def _xor_bytes(data: bytes, key: str) -> bytes:
     return bytes(b ^ kb[i % klen] for i, b in enumerate(data))
 
 
-def save_to_disk(
-    store: VectorStore, path: str, encrypt_key: str | None = None
-) -> None:
+def save_to_disk(store: VectorStore, path: str, encrypt_key: str | None = None) -> None:
     """将向量库序列化到文件。
 
     Args:
@@ -115,6 +113,7 @@ def backup(store: VectorStore, path: str) -> str:
 def compress(store: VectorStore, path: str) -> str:
     """压缩向量库到磁盘（gzip 格式）。返回压缩文件路径。"""
     import gzip
+
     data = store.to_dict()
     raw = json.dumps(data, ensure_ascii=False)
     cpath = path if path.endswith(".gz") else path + ".gz"

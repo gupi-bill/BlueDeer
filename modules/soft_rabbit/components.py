@@ -12,18 +12,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
-
 
 # ============== 边框字符集 ==============
 # 5 种边框样式对应字符（用于跨端统一渲染）
 BORDER_CHARS: dict[str, dict[str, str]] = {
-    "single":  {"tl": "┌", "tr": "┐", "bl": "└", "br": "┘", "h": "─", "v": "│"},
-    "double":  {"tl": "╔", "tr": "╗", "bl": "╚", "br": "╝", "h": "═", "v": "║"},
+    "single": {"tl": "┌", "tr": "┐", "bl": "└", "br": "┘", "h": "─", "v": "│"},
+    "double": {"tl": "╔", "tr": "╗", "bl": "╚", "br": "╝", "h": "═", "v": "║"},
     "rounded": {"tl": "╭", "tr": "╮", "bl": "╰", "br": "╯", "h": "─", "v": "│"},
-    "ascii":   {"tl": "+", "tr": "+", "bl": "+", "br": "+", "h": "-", "v": "|"},
-    "pixel":   {"tl": "▛", "tr": "▜", "bl": "▙", "br": "▟", "h": "▀", "v": "▌"},
+    "ascii": {"tl": "+", "tr": "+", "bl": "+", "br": "+", "h": "-", "v": "|"},
+    "pixel": {"tl": "▛", "tr": "▜", "bl": "▙", "br": "▟", "h": "▀", "v": "▌"},
 }
 
 
@@ -31,37 +30,40 @@ BORDER_CHARS: dict[str, dict[str, str]] = {
 
 # 8 类弹窗类型
 BUBBLE_TYPES = (
-    "dialog",          # 普通对话
-    "notice",          # 任务通知
-    "alert",           # 高危告警
-    "achievement",     # 成就解锁
-    "dream_report",    # 梦境报告
+    "dialog",  # 普通对话
+    "notice",  # 任务通知
+    "alert",  # 高危告警
+    "achievement",  # 成就解锁
+    "dream_report",  # 梦境报告
     "security_audit",  # 安全审计
-    "git_push",        # Git 推送反馈
-    "token_report",    # Token 成本报表
+    "git_push",  # Git 推送反馈
+    "token_report",  # Token 成本报表
 )
 
 
 @dataclass
 class BubbleSpec:
     """气泡弹窗规格。"""
-    type: str           # BUBBLE_TYPES 之一
-    title: str          # 默认标题
-    color_key: str      # 主题色板键（决定边框/标题色）
-    border_style: str   # 边框样式（BORDER_CHARS 键）
-    icon: str           # 像素图标字符
+
+    type: str  # BUBBLE_TYPES 之一
+    title: str  # 默认标题
+    color_key: str  # 主题色板键（决定边框/标题色）
+    border_style: str  # 边框样式（BORDER_CHARS 键）
+    icon: str  # 像素图标字符
 
 
 # 8 类弹窗预设（每类独立边框 + 图标 + 配色键）
 _BUBBLE_PRESETS: dict[str, BubbleSpec] = {
-    "dialog":         BubbleSpec("dialog", "对话", "text", "single", "💬"),
-    "notice":         BubbleSpec("notice", "通知", "info", "single", "📋"),
-    "alert":          BubbleSpec("alert", "高危告警", "error", "double", "⚠"),
-    "achievement":    BubbleSpec("achievement", "成就解锁", "title", "double", "🎖"),
-    "dream_report":   BubbleSpec("dream_report", "梦境报告", "accent", "rounded", "💭"),
-    "security_audit": BubbleSpec("security_audit", "安全审计", "security", "pixel", "🛡"),
-    "git_push":       BubbleSpec("git_push", "Git 推送", "success", "single", "📦"),
-    "token_report":   BubbleSpec("token_report", "Token 报表", "warning", "ascii", "🪙"),
+    "dialog": BubbleSpec("dialog", "对话", "text", "single", "💬"),
+    "notice": BubbleSpec("notice", "通知", "info", "single", "📋"),
+    "alert": BubbleSpec("alert", "高危告警", "error", "double", "⚠"),
+    "achievement": BubbleSpec("achievement", "成就解锁", "title", "double", "🎖"),
+    "dream_report": BubbleSpec("dream_report", "梦境报告", "accent", "rounded", "💭"),
+    "security_audit": BubbleSpec(
+        "security_audit", "安全审计", "security", "pixel", "🛡"
+    ),
+    "git_push": BubbleSpec("git_push", "Git 推送", "success", "single", "📦"),
+    "token_report": BubbleSpec("token_report", "Token 报表", "warning", "ascii", "🪙"),
 }
 
 
@@ -145,23 +147,24 @@ class BubbleRenderer:
 
 # 面板分类
 PANEL_CATEGORIES = (
-    "core",      # 核心：调度/任务/排行榜/成就
-    "monitor",   # 监控：梦境/安全/Git/模型路由
-    "test",      # 测试：单元/集成/规范
-    "art",       # 美术：素材预览
+    "core",  # 核心：调度/任务/排行榜/成就
+    "monitor",  # 监控：梦境/安全/Git/模型路由
+    "test",  # 测试：单元/集成/规范
+    "art",  # 美术：素材预览
     "security",  # 安全：审计/密钥
-    "ops",       # 运维：部署/告警
-    "data",      # 数据：向量库/统计
+    "ops",  # 运维：部署/告警
+    "data",  # 数据：向量库/统计
 )
 
 
 @dataclass
 class PanelSpec:
     """面板规格。"""
-    type: str           # 唯一类型名
-    title: str          # 默认标题
-    category: str       # PANEL_CATEGORIES 之一
-    icon: str           # 像素图标
+
+    type: str  # 唯一类型名
+    title: str  # 默认标题
+    category: str  # PANEL_CATEGORIES 之一
+    icon: str  # 像素图标
 
 
 # 32 类细分功能面板预设（8 基础 + 24 拓展）
@@ -293,12 +296,14 @@ class PanelContainer:
 
 # ============== 快捷键交互 ==============
 
+
 @dataclass
 class KeyBinding:
     """快捷键绑定。"""
-    key: str        # 按键（如 "q"）
-    action: str     # 动作描述
-    group: str      # 功能分组
+
+    key: str  # 按键（如 "q"）
+    action: str  # 动作描述
+    group: str  # 功能分组
 
 
 # 默认快捷键绑定（按功能分组）
@@ -408,7 +413,9 @@ class ShortcutHintPanel:
         """渲染选中按键的高亮文本。"""
         return f"{self.HIGHLIGHT_PREFIX}{key}{self.HIGHLIGHT_SUFFIX}"
 
+
 # ============== 组件生命周期基类 ==============
+
 
 class Component:
     """UI 组件基类，提供 render / on_click / on_hover 生命周期。
@@ -416,8 +423,14 @@ class Component:
     所有自定义组件继承此类并实现抽象方法。
     """
 
-    def __init__(self, component_id: str, x: int = 0, y: int = 0,
-                 width: int = 10, height: int = 3) -> None:
+    def __init__(
+        self,
+        component_id: str,
+        x: int = 0,
+        y: int = 0,
+        width: int = 10,
+        height: int = 3,
+    ) -> None:
         self.id = component_id
         self.x = x
         self.y = y
@@ -521,7 +534,6 @@ class ComponentRegistry:
     @property
     def count(self) -> int:
         return len(self._components)
-
 
     def render_with_highlight(
         self,

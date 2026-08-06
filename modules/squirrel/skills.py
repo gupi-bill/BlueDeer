@@ -27,6 +27,7 @@ def list_templates() -> list[str]:
 def clear_templates() -> None:
     _CODE_TEMPLATE_CACHE.clear()
 
+
 logger = logging.getLogger("bluedeer.squirrel.skills")
 
 # 默认温度参数：代码生成用低温度，减少幻觉
@@ -55,7 +56,8 @@ class CodeGenSkill:
         )
         logger.info(
             "代码生成完成: task=%s, tokens=%d",
-            task.id, response.tokens_in + response.tokens_out,
+            task.id,
+            response.tokens_in + response.tokens_out,
         )
         return response.content
 

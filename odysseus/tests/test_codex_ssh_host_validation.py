@@ -7,13 +7,13 @@ in ``remoteHost`` would be injected into that command.
 These pin validation on the host/port before they reach the ssh string, matching
 the validators the rest of the cookbook routes already apply.
 """
+
 import asyncio
 
 import pytest
 from fastapi import APIRouter, HTTPException
+from routes import codex_routes
 from starlette.requests import Request
-
-import routes.codex_routes as codex_routes
 
 
 def _route_endpoint(path: str, method: str, router=None):
@@ -114,15 +114,17 @@ def _documents_endpoint(total: int):
         limit=20,
         archived=False,
     ):
-        calls.append({
-            "owner": request.state.current_user,
-            "search": search,
-            "language": language,
-            "sort": sort,
-            "offset": offset,
-            "limit": limit,
-            "archived": archived,
-        })
+        calls.append(
+            {
+                "owner": request.state.current_user,
+                "search": search,
+                "language": language,
+                "sort": sort,
+                "offset": offset,
+                "limit": limit,
+                "archived": archived,
+            }
+        )
         end = min(offset + limit, total)
         docs = [{"id": f"doc-{i}"} for i in range(offset, end)]
         return {"documents": docs, "total": total}
@@ -234,7 +236,9 @@ async def test_email_draft_document_accepts_send_scope_with_document_write():
         return {"id": "doc-1", "title": req.title}
 
     router = codex_routes.setup_codex_routes(document_router=document_router)
-    endpoint = _route_endpoint("/api/codex/emails/draft-document", "POST", router=router)
+    endpoint = _route_endpoint(
+        "/api/codex/emails/draft-document", "POST", router=router
+    )
 
     result = await endpoint(
         _codex_request(["email:send", "documents:write"]),

@@ -8,7 +8,7 @@ from typing import Any
 from core.base_agent import BaseAgent
 from core.context import ContextManager
 from core.event_bus import EventBus
-from core.rag import RagCapable, RAGSystem, SCOPE_AGENT
+from core.rag import SCOPE_AGENT, RagCapable, RAGSystem
 from core.task import Task, TaskResult, TaskStatus, TokenUsage
 from core.tracer import Tracer
 from models.router import Router
@@ -247,5 +247,7 @@ class SquirrelAgent(BaseAgent, RagCapable):
 
         check_result = output.get("syntax_check")
         if not check_result or not check_result.get("valid"):
-            error = check_result.get("error", "未知错误") if check_result else "无校验结果"
+            error = (
+                check_result.get("error", "未知错误") if check_result else "无校验结果"
+            )
             raise ValueError(f"自检失败：语法校验未通过: {error}")

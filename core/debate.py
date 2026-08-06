@@ -10,9 +10,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Awaitable, Callable
 
 from core.task import Task, TaskResult, TaskStatus
 
@@ -24,16 +24,18 @@ _HIGH_RISK_TYPES = frozenset({"security_audit", "architecture_refactor", "deploy
 
 class DebateVerdict(Enum):
     """辩论结论。"""
-    CONSENSUS = "consensus"          # 多数一致，采纳
-    DISSENT = "dissent"              # 存在分歧，需人工复核
-    INSUFFICIENT = "insufficient"    # 参与者不足
+
+    CONSENSUS = "consensus"  # 多数一致，采纳
+    DISSENT = "dissent"  # 存在分歧，需人工复核
+    INSUFFICIENT = "insufficient"  # 参与者不足
 
 
 @dataclass
 class DebateResult:
     """辩论校验结果。"""
+
     verdict: DebateVerdict
-    consensus_result: TaskResult | None = None       # 共识结果（CONSENSUS 时非空）
+    consensus_result: TaskResult | None = None  # 共识结果（CONSENSUS 时非空）
     dissent_results: list[TaskResult] = field(default_factory=list)
     participants: list[str] = field(default_factory=list)
 
@@ -50,6 +52,7 @@ DispatchFn = Callable[[Task, str], Awaitable[TaskResult]]
 @dataclass
 class ArgumentSubmission:
     """辩论中的一次论点提交。"""
+
     participant: str
     content: str
     scores: list[int] = field(default_factory=list)
@@ -108,7 +111,9 @@ class DebateVerifier:
         """
         if len(agent_ids) < self._min_participants:
             logger.warning(
-                "辩论参与者不足: %d < %d", len(agent_ids), self._min_participants,
+                "辩论参与者不足: %d < %d",
+                len(agent_ids),
+                self._min_participants,
             )
             return DebateResult(
                 verdict=DebateVerdict.INSUFFICIENT,
@@ -157,7 +162,9 @@ class DebateVerifier:
         if not self._started:
             raise RuntimeError("辩论尚未开始，请先调用 start_debate")
         arg_id = f"{participant}_{len(self._arguments)}"
-        self._arguments[arg_id] = ArgumentSubmission(participant=participant, content=content)
+        self._arguments[arg_id] = ArgumentSubmission(
+            participant=participant, content=content
+        )
         logger.info("论点提交: %s by %s", arg_id, participant)
         return arg_id
 
@@ -192,7 +199,8 @@ class DebateVerifier:
         return best
 
     def _check_consensus(
-        self, results: list[tuple[str, TaskResult]],
+        self,
+        results: list[tuple[str, TaskResult]],
     ) -> DebateResult:
         """检查结果共识：按 status 分组，找最大一致组。"""
         by_status: dict[TaskStatus, list[tuple[str, TaskResult]]] = {}
@@ -203,8 +211,7 @@ class DebateVerifier:
         majority_status = max(by_status, key=lambda s: len(by_status[s]))
         majority_group = by_status[majority_status]
         minority_results = [
-            r for s, grp in by_status.items() if s != majority_status
-            for _, r in grp
+            r for s, grp in by_status.items() if s != majority_status for _, r in grp
         ]
 
         participants = [a for a, _ in results]
@@ -217,7 +224,9 @@ class DebateVerifier:
             )
             logger.info(
                 "辩论达成共识: %d/%d 一致（%s）",
-                len(majority_group), len(results), majority_status.value,
+                len(majority_group),
+                len(results),
+                majority_status.value,
             )
             return DebateResult(
                 verdict=DebateVerdict.CONSENSUS,
@@ -228,7 +237,8 @@ class DebateVerifier:
 
         logger.warning(
             "辩论存在分歧: 最大组 %d/%d，需人工复核",
-            len(majority_group), len(results),
+            len(majority_group),
+            len(results),
         )
         return DebateResult(
             verdict=DebateVerdict.DISSENT,

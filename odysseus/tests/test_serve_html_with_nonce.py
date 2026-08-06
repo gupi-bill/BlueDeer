@@ -7,6 +7,7 @@ fault, not a client "not found", and must surface as a logged 500 rather than
 hiding behind a 404 where 5xx alerting can't see it. These tests lock that
 intent (raised in the PR #4637 review).
 """
+
 import types
 
 import pytest
@@ -14,7 +15,6 @@ import pytest
 pytest.importorskip("fastapi")
 pytest.importorskip("starlette.responses")
 from fastapi import HTTPException
-
 from src.app_helpers import serve_html_with_nonce
 
 

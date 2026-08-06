@@ -7,34 +7,37 @@ Connects to local Dovecot IMAP and reads from the AI summary cache.
 """
 
 import asyncio
-import imaplib
-import smtplib
 import email
 import email.header
 import email.utils
-from email.message import EmailMessage
-import re
 import html
+import imaplib
 import json
-import sqlite3
-import sys
 import os
 import os.path
-from pathlib import Path
-from datetime import datetime, timedelta
+import re
+import smtplib
+import sqlite3
+import sys
 import uuid
 from contextvars import ContextVar
+from datetime import datetime
+from email.message import EmailMessage
+from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
+from mcp.types import TextContent, Tool
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 server = Server("email")
 EMAIL_SOCKET_TIMEOUT = float(os.environ.get("EMAIL_SOCKET_TIMEOUT", "20"))
-from src.constants import DATA_DIR as _DATA_DIR, APP_DB, EMAIL_CACHE_DB, SETTINGS_FILE as _SETTINGS_FILE, MAIL_ATTACHMENTS_DIR
+from src.constants import APP_DB, EMAIL_CACHE_DB, MAIL_ATTACHMENTS_DIR
+from src.constants import DATA_DIR as _DATA_DIR
+from src.constants import SETTINGS_FILE as _SETTINGS_FILE
+
 DATA_DIR = Path(_DATA_DIR)
 
 
@@ -49,6 +52,7 @@ def _q(name: str) -> str:
 
 def _uid_fetch_rows(data) -> list:
     return [d for d in (data or []) if isinstance(d, bytes) and b"UID " in d]
+
 
 # ── Config ──
 # Multi-account aware. Accounts live in data/app.db :: email_accounts.
@@ -186,10 +190,14 @@ def _default_document_owner() -> str | None:
         auth_path = DATA_DIR / "auth.json"
         if not auth_path.exists():
             return None
-        users = (json.loads(auth_path.read_text(encoding="utf-8")).get("users") or {})
+        users = json.loads(auth_path.read_text(encoding="utf-8")).get("users") or {}
         if not isinstance(users, dict) or not users:
             return None
-        admins = [name for name, data in users.items() if isinstance(data, dict) and data.get("is_admin")]
+        admins = [
+            name
+            for name, data in users.items()
+            if isinstance(data, dict) and data.get("is_admin")
+        ]
         if len(admins) == 1:
             return admins[0]
         if len(users) == 1:
@@ -207,9 +215,13 @@ def _read_accounts_from_db() -> list:
     try:
         conn = sqlite3.connect(str(path))
         conn.row_factory = sqlite3.Row
-        columns = {r[1] for r in conn.execute("PRAGMA table_info(email_accounts)").fetchall()}
+        columns = {
+            r[1] for r in conn.execute("PRAGMA table_info(email_accounts)").fetchall()
+        }
         owner_select = "owner" if "owner" in columns else "NULL AS owner"
-        smtp_security_select = "smtp_security" if "smtp_security" in columns else "'' AS smtp_security"
+        smtp_security_select = (
+            "smtp_security" if "smtp_security" in columns else "'' AS smtp_security"
+        )
         rows = conn.execute(f"""
             SELECT id, {owner_select}, name, is_default, enabled,
                    imap_host, imap_port, imap_user, imap_password, imap_starttls,
@@ -247,11 +259,16 @@ def _resolve_account_from_rows(rows: list[dict], selector: str | None) -> dict |
         if r["id"] == selector:
             return r
     for r in rows:
-        fields = [r.get("name") or "", r.get("imap_user") or "", r.get("from_address") or ""]
+        fields = [
+            r.get("name") or "",
+            r.get("imap_user") or "",
+            r.get("from_address") or "",
+        ]
         if any(sel in (f or "").lower() for f in fields):
             return r
     try:
         from difflib import get_close_matches
+
         candidates = []
         by_candidate = {}
         for r in rows:
@@ -321,7 +338,9 @@ def _load_config(account: str | None = None) -> dict:
             f"{r.get('name') or r.get('imap_user')} <{r.get('imap_user') or r.get('from_address') or '?'}>"
             for r in rows
         )
-        raise ValueError(f"Email account not found for selector {account!r}. Available accounts: {available}")
+        raise ValueError(
+            f"Email account not found for selector {account!r}. Available accounts: {available}"
+        )
     if row:
         cfg["account_id"] = row["id"]
         cfg["account_name"] = row["name"]
@@ -335,18 +354,32 @@ def _load_config(account: str | None = None) -> dict:
         try:
             from src.secret_storage import decrypt as _decrypt
         except Exception:
-            _decrypt = lambda v: v  # noqa: E731
-        cfg["imap_password"] = _decrypt(row["imap_password"]) if row["imap_password"] else cfg["imap_password"]
+            _decrypt = lambda v: v
+        cfg["imap_password"] = (
+            _decrypt(row["imap_password"])
+            if row["imap_password"]
+            else cfg["imap_password"]
+        )
         cfg["imap_starttls"] = bool(row["imap_starttls"])
         # The email_accounts table stores STARTTLS but not an explicit IMAP SSL
         # flag. Port 993 is implicit TLS for IMAP providers like Gmail.
         cfg["imap_ssl"] = int(cfg["imap_port"]) == 993 and not cfg["imap_starttls"]
         cfg["smtp_host"] = row["smtp_host"] or cfg["smtp_host"]
         cfg["smtp_port"] = int(row["smtp_port"] or cfg["smtp_port"])
-        cfg["smtp_security"] = row["smtp_security"] or cfg["smtp_security"] or ("starttls" if int(cfg["smtp_port"]) == 587 else "ssl")
+        cfg["smtp_security"] = (
+            row["smtp_security"]
+            or cfg["smtp_security"]
+            or ("starttls" if int(cfg["smtp_port"]) == 587 else "ssl")
+        )
         cfg["smtp_user"] = row["smtp_user"] or cfg["smtp_user"]
-        cfg["smtp_password"] = _decrypt(row["smtp_password"]) if row["smtp_password"] else cfg["smtp_password"]
-        cfg["from_address"] = row["from_address"] or row["imap_user"] or cfg["from_address"]
+        cfg["smtp_password"] = (
+            _decrypt(row["smtp_password"])
+            if row["smtp_password"]
+            else cfg["smtp_password"]
+        )
+        cfg["from_address"] = (
+            row["from_address"] or row["imap_user"] or cfg["from_address"]
+        )
     else:
         # Legacy fallback: settings.json flat keys
         try:
@@ -354,12 +387,24 @@ def _load_config(account: str | None = None) -> dict:
             if settings_path.exists():
                 settings = json.loads(settings_path.read_text(encoding="utf-8"))
                 for key in (
-                    "imap_host", "imap_port", "imap_user", "imap_password",
-                    "smtp_host", "smtp_port", "smtp_user", "smtp_password",
-                    "from_address", "archive_folder", "trash_folder",
+                    "imap_host",
+                    "imap_port",
+                    "imap_user",
+                    "imap_password",
+                    "smtp_host",
+                    "smtp_port",
+                    "smtp_user",
+                    "smtp_password",
+                    "from_address",
+                    "archive_folder",
+                    "trash_folder",
                 ):
                     if settings.get(key) not in (None, ""):
-                        cfg[key] = int(settings[key]) if key.endswith("_port") else settings[key]
+                        cfg[key] = (
+                            int(settings[key])
+                            if key.endswith("_port")
+                            else settings[key]
+                        )
         except Exception:
             pass
 
@@ -479,8 +524,20 @@ def _resolve_folder(conn, preferred: str, role: str) -> str:
                 return name
 
     candidates = {
-        "trash": ("Trash", "[Gmail]/Trash", "[Google Mail]/Trash", "Bin", "Deleted Messages", "Deleted Items"),
-        "archive": ("Archive", "Archives", "[Gmail]/All Mail", "[Google Mail]/All Mail"),
+        "trash": (
+            "Trash",
+            "[Gmail]/Trash",
+            "[Google Mail]/Trash",
+            "Bin",
+            "Deleted Messages",
+            "Deleted Items",
+        ),
+        "archive": (
+            "Archive",
+            "Archives",
+            "[Gmail]/All Mail",
+            "[Google Mail]/All Mail",
+        ),
         "junk": ("Junk", "Spam", "[Gmail]/Spam", "[Google Mail]/Spam"),
     }.get(role, ())
     lower_map = {n.lower(): n for n in names}
@@ -555,23 +612,29 @@ def _parse_list_unsubscribe_header(value: str | None) -> list[dict]:
             if not addr or "\r" in addr or "\n" in addr:
                 continue
             query = parse_qs(parsed.query or "", keep_blank_values=True)
-            subject = unquote((query.get("subject") or ["unsubscribe"])[0] or "unsubscribe")
+            subject = unquote(
+                (query.get("subject") or ["unsubscribe"])[0] or "unsubscribe"
+            )
             body = unquote((query.get("body") or ["unsubscribe"])[0] or "unsubscribe")
             subject = re.sub(r"[\r\n]+", " ", subject).strip() or "unsubscribe"
             body = re.sub(r"[\r\n]+", "\n", body).strip() or "unsubscribe"
-            out.append({
-                "kind": "mailto",
-                "target": addr,
-                "subject": subject[:200],
-                "body": body[:1000],
-                "executable": True,
-            })
+            out.append(
+                {
+                    "kind": "mailto",
+                    "target": addr,
+                    "subject": subject[:200],
+                    "body": body[:1000],
+                    "executable": True,
+                }
+            )
         elif scheme in {"http", "https"}:
-            out.append({
-                "kind": "url",
-                "target": target,
-                "executable": False,
-            })
+            out.append(
+                {
+                    "kind": "url",
+                    "target": target,
+                    "executable": False,
+                }
+            )
     return out
 
 
@@ -596,7 +659,10 @@ def _email_unsubscribe_candidate_from_msg(msg, uid: str, folder: str) -> dict | 
     if auto_submitted and auto_submitted != "no":
         score += 10
         reasons.append(f"auto-submitted={auto_submitted}")
-    if re.search(r"\b(unsubscribe|newsletter|sale|discount|offer|promo|limited time)\b", (subject or "").lower()):
+    if re.search(
+        r"\b(unsubscribe|newsletter|sale|discount|offer|promo|limited time)\b",
+        (subject or "").lower(),
+    ):
         score += 10
         reasons.append("promotional subject")
     executable = [m for m in methods if m.get("executable")]
@@ -654,7 +720,9 @@ def _dedupe_unsubscribe_candidates(candidates: list[dict]) -> list[dict]:
     return list(deduped.values())
 
 
-def _scan_unsubscribe_candidates(folder="INBOX", account=None, limit=25, max_scan=150) -> dict:
+def _scan_unsubscribe_candidates(
+    folder="INBOX", account=None, limit=25, max_scan=150
+) -> dict:
     limit = max(1, min(int(limit or 25), 100))
     max_scan = max(limit, min(int(max_scan or 150), 500))
     folder = folder or "INBOX"
@@ -663,10 +731,20 @@ def _scan_unsubscribe_candidates(folder="INBOX", account=None, limit=25, max_sca
     try:
         status, _ = conn.select(_q(folder), readonly=True)
         if status != "OK":
-            return {"success": False, "error": f"Folder not found: {folder}", "candidates": []}
+            return {
+                "success": False,
+                "error": f"Folder not found: {folder}",
+                "candidates": [],
+            }
         status, data = conn.uid("SEARCH", None, "ALL")
         if status != "OK" or not data or not data[0]:
-            return {"success": True, "candidates": [], "total": 0, "scanned": 0, "folder": folder}
+            return {
+                "success": True,
+                "candidates": [],
+                "total": 0,
+                "scanned": 0,
+                "folder": folder,
+            }
         uids = []
         for raw_uid in data[0].split():
             try:
@@ -675,15 +753,27 @@ def _scan_unsubscribe_candidates(folder="INBOX", account=None, limit=25, max_sca
                 continue
         uids = sorted(uids, reverse=True)[:max_scan]
         if not uids:
-            return {"success": True, "candidates": [], "total": 0, "scanned": 0, "folder": folder}
-        status, msg_data = conn.uid("FETCH", _b(",".join(str(u) for u in uids)), "(UID RFC822.HEADER)")
+            return {
+                "success": True,
+                "candidates": [],
+                "total": 0,
+                "scanned": 0,
+                "folder": folder,
+            }
+        status, msg_data = conn.uid(
+            "FETCH", _b(",".join(str(u) for u in uids)), "(UID RFC822.HEADER)"
+        )
     finally:
         try:
             conn.logout()
         except Exception:
             pass
     if status != "OK":
-        return {"success": False, "error": "Failed to fetch email headers", "candidates": []}
+        return {
+            "success": False,
+            "error": "Failed to fetch email headers",
+            "candidates": [],
+        }
     for item in msg_data or []:
         if not isinstance(item, tuple) or len(item) < 2:
             continue
@@ -700,7 +790,14 @@ def _scan_unsubscribe_candidates(folder="INBOX", account=None, limit=25, max_sca
             candidates.append(candidate)
     raw_total = len(candidates)
     candidates = _dedupe_unsubscribe_candidates(candidates)
-    candidates.sort(key=lambda c: (int(c.get("score") or 0), int(c.get("duplicate_count") or 1), int(c.get("uid") or 0)), reverse=True)
+    candidates.sort(
+        key=lambda c: (
+            int(c.get("score") or 0),
+            int(c.get("duplicate_count") or 1),
+            int(c.get("uid") or 0),
+        ),
+        reverse=True,
+    )
     return {
         "success": True,
         "candidates": candidates[:limit],
@@ -712,7 +809,9 @@ def _scan_unsubscribe_candidates(folder="INBOX", account=None, limit=25, max_sca
     }
 
 
-def _unsubscribe_email(uid, folder="INBOX", account=None, method_index=0, allow_web=False) -> dict:
+def _unsubscribe_email(
+    uid, folder="INBOX", account=None, method_index=0, allow_web=False
+) -> dict:
     uid = str(uid or "").strip()
     if not uid:
         return {"success": False, "error": "uid is required"}
@@ -740,7 +839,11 @@ def _unsubscribe_email(uid, folder="INBOX", account=None, method_index=0, allow_
         return {"success": False, "error": "No List-Unsubscribe header found"}
     methods = candidate.get("methods") or []
     method_index = int(method_index or 0)
-    method = methods[method_index] if 0 <= method_index < len(methods) else (candidate.get("recommended_method") or methods[0])
+    method = (
+        methods[method_index]
+        if 0 <= method_index < len(methods)
+        else (candidate.get("recommended_method") or methods[0])
+    )
     if method.get("kind") == "url":
         return {
             "success": False,
@@ -753,7 +856,11 @@ def _unsubscribe_email(uid, folder="INBOX", account=None, method_index=0, allow_
             ),
         }
     if method.get("kind") != "mailto" or not method.get("executable"):
-        return {"success": False, "error": "Unsupported unsubscribe method", "candidate": candidate}
+        return {
+            "success": False,
+            "error": "Unsupported unsubscribe method",
+            "candidate": candidate,
+        }
     result = _send_email(
         to=method.get("target"),
         subject=method.get("subject") or "unsubscribe",
@@ -788,7 +895,7 @@ def _extract_text(msg):
                 if payload:
                     charset = part.get_content_charset() or "utf-8"
                     raw_html = payload.decode(charset, errors="replace")
-                    text = re.sub(r"<br\s*/?>", "\n", raw_html, flags=re.I)
+                    text = re.sub(r"<br\s*/?>", "\n", raw_html, flags=re.IGNORECASE)
                     text = re.sub(r"<[^>]+>", "", text)
                     text = html.unescape(text)
                     text_parts.append(text.strip())
@@ -898,7 +1005,9 @@ def _fixture_account_rows() -> list[dict]:
     owner = _current_owner()
     owners = []
     for row in _fixture_email_rows(owner or None):
-        email_addr = row.get("account_email") or owner or "fixture@fixtures.odysseus.local"
+        email_addr = (
+            row.get("account_email") or owner or "fixture@fixtures.odysseus.local"
+        )
         if email_addr not in owners:
             owners.append(email_addr)
     if not owners:
@@ -926,8 +1035,13 @@ def _fixture_email_matches(item: dict, query: str) -> bool:
     return all(term in haystack for term in terms)
 
 
-def _fixture_list_emails(folder="INBOX", max_results=20, unresponded_only=False,
-                         unread_only=False, account=None) -> list[dict] | None:
+def _fixture_list_emails(
+    folder="INBOX",
+    max_results=20,
+    unresponded_only=False,
+    unread_only=False,
+    account=None,
+) -> list[dict] | None:
     if not _fixture_email_enabled():
         return None
     if account and str(account).strip().lower() not in {
@@ -942,15 +1056,23 @@ def _fixture_list_emails(folder="INBOX", max_results=20, unresponded_only=False,
     return _fixture_email_rows(_current_owner())[: int(max_results or 20)]
 
 
-def _fixture_search_emails(query, folders=None, max_results=20, account=None) -> list[dict] | None:
+def _fixture_search_emails(
+    query, folders=None, max_results=20, account=None
+) -> list[dict] | None:
     if not _fixture_email_enabled():
         return None
     rows = _fixture_list_emails("INBOX", max_results=1000, account=account) or []
-    out = [dict(row, _folder="INBOX") for row in rows if _fixture_email_matches(row, str(query or ""))]
+    out = [
+        dict(row, _folder="INBOX")
+        for row in rows
+        if _fixture_email_matches(row, str(query or ""))
+    ]
     return out[: int(max_results or 20)]
 
 
-def _fixture_read_email(uid=None, message_id=None, folder="INBOX", account=None) -> dict | None:
+def _fixture_read_email(
+    uid=None, message_id=None, folder="INBOX", account=None
+) -> dict | None:
     if not _fixture_email_enabled():
         return None
     if (folder or "INBOX").upper() not in {"INBOX", "ALL", "ALL MAIL"}:
@@ -966,14 +1088,21 @@ def _fixture_read_email(uid=None, message_id=None, folder="INBOX", account=None)
 # ── Tool implementations ──
 
 
-def _list_emails(folder="INBOX", max_results=20, unresponded_only=False,
-                 unread_only=False, account=None):
+def _list_emails(
+    folder="INBOX",
+    max_results=20,
+    unresponded_only=False,
+    unread_only=False,
+    account=None,
+):
     """List emails newest-first. By default returns the latest messages,
     including read mail, so it matches normal inbox UI expectations.
     Pass unread_only=True and/or unresponded_only=True for attention scans.
     account selects mailbox (None = default).
     """
-    fixture = _fixture_list_emails(folder, max_results, unresponded_only, unread_only, account)
+    fixture = _fixture_list_emails(
+        folder, max_results, unresponded_only, unread_only, account
+    )
     if fixture is not None:
         return fixture
     conn = None
@@ -1024,23 +1153,27 @@ def _list_emails(folder="INBOX", max_results=20, unresponded_only=False,
                 cached = cache.get(subject, {})
                 summary = cached.get("summary", "")
 
-                results.append({
-                    "uid": uid.decode(),
-                    "message_id": message_id,
-                    "subject": subject,
-                    "from": sender_display,
-                    "from_address": sender_addr,
-                    "date": date_str,
-                    "summary": summary,
-                })
+                results.append(
+                    {
+                        "uid": uid.decode(),
+                        "message_id": message_id,
+                        "subject": subject,
+                        "from": sender_display,
+                        "from_address": sender_addr,
+                        "date": date_str,
+                        "summary": summary,
+                    }
+                )
             except Exception:
                 continue
 
         return results
     finally:
         if conn:
-            try: conn.logout()
-            except Exception: pass
+            try:
+                conn.logout()
+            except Exception:
+                pass
 
 
 def _result_sort_time(result: dict) -> datetime:
@@ -1055,9 +1188,12 @@ def _result_sort_time(result: dict) -> datetime:
     return datetime.min
 
 
-def _list_emails_across_accounts(folder="INBOX", max_results=20,
-                                 unresponded_only=False, unread_only=False):
-    fixture = _fixture_list_emails(folder, max_results, unresponded_only, unread_only, None)
+def _list_emails_across_accounts(
+    folder="INBOX", max_results=20, unresponded_only=False, unread_only=False
+):
+    fixture = _fixture_list_emails(
+        folder, max_results, unresponded_only, unread_only, None
+    )
     if fixture is not None:
         return fixture, []
     rows = _list_accounts_raw()
@@ -1065,7 +1201,9 @@ def _list_emails_across_accounts(folder="INBOX", max_results=20,
     errors = []
     for row in rows:
         account_selector = row.get("id") or row.get("name") or row.get("imap_user")
-        account_name = row.get("name") or row.get("imap_user") or row.get("id") or "unknown"
+        account_name = (
+            row.get("name") or row.get("imap_user") or row.get("id") or "unknown"
+        )
         account_email = row.get("imap_user") or row.get("from_address") or ""
         try:
             account_results = _list_emails(
@@ -1093,7 +1231,9 @@ def _search_emails(query, folders=None, max_results=20, account=None):
     _list_emails plus an `_folder` tag."""
     if not query or not str(query).strip():
         return []
-    fixture = _fixture_search_emails(query, folders=folders, max_results=max_results, account=account)
+    fixture = _fixture_search_emails(
+        query, folders=folders, max_results=max_results, account=account
+    )
     if fixture is not None:
         return fixture
     q = str(query).replace("\\", "\\\\").replace('"', '\\"')
@@ -1132,25 +1272,29 @@ def _search_emails(query, folders=None, max_results=20, account=None):
                         sender_name, sender_addr = email.utils.parseaddr(sender)
                         sender_display = sender_name or sender_addr
                         cached = cache.get(subject, {})
-                        out.append({
-                            "uid": uid.decode(),
-                            "message_id": message_id,
-                            "subject": subject,
-                            "from": sender_display,
-                            "from_address": sender_addr,
-                            "to": to_str,
-                            "cc": cc_str,
-                            "date": date_str,
-                            "_folder": folder,
-                            "summary": cached.get("summary", ""),
-                        })
+                        out.append(
+                            {
+                                "uid": uid.decode(),
+                                "message_id": message_id,
+                                "subject": subject,
+                                "from": sender_display,
+                                "from_address": sender_addr,
+                                "to": to_str,
+                                "cc": cc_str,
+                                "date": date_str,
+                                "_folder": folder,
+                                "summary": cached.get("summary", ""),
+                            }
+                        )
                     except Exception:
                         continue
             except Exception:
                 continue
     finally:
-        try: conn.logout()
-        except Exception: pass
+        try:
+            conn.logout()
+        except Exception:
+            pass
     # Cap total across folders.
     return out[: max_results * len(folders)]
 
@@ -1175,12 +1319,14 @@ def _list_attachments_from_msg(msg):
             filename = f"attachment_{idx}"
         payload = part.get_payload(decode=True)
         size = len(payload) if payload else 0
-        attachments.append({
-            "index": idx,
-            "filename": filename,
-            "content_type": ct,
-            "size": size,
-        })
+        attachments.append(
+            {
+                "index": idx,
+                "filename": filename,
+                "content_type": ct,
+                "size": size,
+            }
+        )
         idx += 1
     return attachments
 
@@ -1218,7 +1364,9 @@ def _extract_attachment_to_disk(msg, index, target_dir):
 
 def _read_email(uid=None, message_id=None, folder="INBOX", account=None):
     """Read full email content by UID or message-ID. account = mailbox selector."""
-    fixture = _fixture_read_email(uid=uid, message_id=message_id, folder=folder, account=account)
+    fixture = _fixture_read_email(
+        uid=uid, message_id=message_id, folder=folder, account=account
+    )
     if fixture is not None:
         return fixture
     cfg = _load_config(account)
@@ -1228,7 +1376,9 @@ def _read_email(uid=None, message_id=None, folder="INBOX", account=None):
         conn.select(_q(folder), readonly=True)
 
         if message_id and not uid:
-            status, data = conn.uid("SEARCH", None, f'(HEADER Message-ID "{message_id}")')
+            status, data = conn.uid(
+                "SEARCH", None, f'(HEADER Message-ID "{message_id}")'
+            )
             if status != "OK" or not data[0]:
                 return {"error": f"Email not found with Message-ID: {message_id}"}
             uid = data[0].split()[-1]
@@ -1239,7 +1389,12 @@ def _read_email(uid=None, message_id=None, folder="INBOX", account=None):
         status, msg_data = conn.uid("FETCH", _b(uid), "(BODY.PEEK[])")
         if status != "OK":
             return {"error": f"Failed to fetch email UID {uid}"}
-        if not msg_data or not msg_data[0] or not isinstance(msg_data[0], tuple) or len(msg_data[0]) < 2:
+        if (
+            not msg_data
+            or not msg_data[0]
+            or not isinstance(msg_data[0], tuple)
+            or len(msg_data[0]) < 2
+        ):
             return {"error": f"Email not found with UID {uid}"}
 
         raw = msg_data[0][1]
@@ -1269,12 +1424,16 @@ def _read_email(uid=None, message_id=None, folder="INBOX", account=None):
         }
     finally:
         if conn:
-            try: conn.logout()
-            except Exception: pass
+            try:
+                conn.logout()
+            except Exception:
+                pass
 
 
 def _read_email_across_accounts(uid=None, message_id=None, folder="INBOX"):
-    fixture = _fixture_read_email(uid=uid, message_id=message_id, folder=folder, account=None)
+    fixture = _fixture_read_email(
+        uid=uid, message_id=message_id, folder=folder, account=None
+    )
     if fixture is not None:
         return fixture
     rows = _list_accounts_raw()
@@ -1282,7 +1441,9 @@ def _read_email_across_accounts(uid=None, message_id=None, folder="INBOX"):
     errors = []
     for row in rows:
         account_selector = row.get("id") or row.get("name") or row.get("imap_user")
-        account_name = row.get("name") or row.get("imap_user") or row.get("id") or "unknown"
+        account_name = (
+            row.get("name") or row.get("imap_user") or row.get("id") or "unknown"
+        )
         account_email = row.get("imap_user") or row.get("from_address") or ""
         result = _read_email(
             uid=uid,
@@ -1306,11 +1467,15 @@ def _read_email_across_accounts(uid=None, message_id=None, folder="INBOX"):
                 "Call read_email again with the account name/email."
             )
         }
-    return {"error": f"Email not found in any configured account. Checked: {'; '.join(errors)}"}
+    return {
+        "error": f"Email not found in any configured account. Checked: {'; '.join(errors)}"
+    }
 
 
 def _smtp_ready(cfg: dict) -> bool:
-    return bool(cfg.get("smtp_host") and cfg.get("smtp_user") and cfg.get("smtp_password"))
+    return bool(
+        cfg.get("smtp_host") and cfg.get("smtp_user") and cfg.get("smtp_password")
+    )
 
 
 def _resolve_send_config(account=None):
@@ -1318,7 +1483,9 @@ def _resolve_send_config(account=None):
     if _smtp_ready(cfg):
         return account, cfg
     if account:
-        raise ValueError(f"Email account {cfg.get('account_name') or account} has no SMTP configured")
+        raise ValueError(
+            f"Email account {cfg.get('account_name') or account} has no SMTP configured"
+        )
     for row in _list_accounts_raw():
         selector = row.get("id") or row.get("name") or row.get("imap_user")
         trial = _load_config(selector)
@@ -1331,7 +1498,9 @@ def _smtp_connect(account=None, cfg=None):
     """Connect to SMTP server, returns logged-in connection."""
     cfg = cfg or _load_config(account)
     if not _smtp_ready(cfg):
-        raise ValueError(f"Email account {cfg.get('account_name') or account or 'default'} has no SMTP configured")
+        raise ValueError(
+            f"Email account {cfg.get('account_name') or account or 'default'} has no SMTP configured"
+        )
     port = int(cfg.get("smtp_port") or 465)
     security = str(cfg.get("smtp_security") or "").strip().lower()
     if security not in {"ssl", "starttls", "none"}:
@@ -1385,13 +1554,23 @@ def _read_agent_email_confirm_setting() -> bool:
     signatures and sending to real recipients without the user's review."""
     try:
         from src.settings import get_setting
+
         return bool(get_setting("agent_email_confirm", True))
     except Exception:
         return True
 
 
-def _stash_agent_draft(*, to, subject, body, in_reply_to=None, references=None,
-                      cc=None, bcc=None, account=None) -> dict:
+def _stash_agent_draft(
+    *,
+    to,
+    subject,
+    body,
+    in_reply_to=None,
+    references=None,
+    cc=None,
+    bcc=None,
+    account=None,
+) -> dict:
     """Insert the composed email into scheduled_emails with status
     'agent_draft' and a far-future send_at so the scheduled-send poller
     never picks it up. Returns the pending payload the model surfaces to
@@ -1427,27 +1606,34 @@ def _stash_agent_draft(*, to, subject, body, in_reply_to=None, references=None,
                 odysseus_kind TEXT
             )
         """)
-        conn.execute("""
+        conn.execute(
+            """
             INSERT INTO scheduled_emails
             (id, to_addr, cc, bcc, subject, body, in_reply_to, references_hdr,
              attachments, send_at, created_at, status, account_id, odysseus_kind, owner)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'agent_draft', ?, ?, ?)
-        """, (
-            pending_id,
-            to if isinstance(to, str) else ", ".join(to),
-            cc if isinstance(cc, str) else (", ".join(cc) if cc else None),
-            bcc if isinstance(bcc, str) else (", ".join(bcc) if bcc else None),
-            subject or "",
-            body or "",
-            in_reply_to or None,
-            references if isinstance(references, str) else (" ".join(references) if references else None),
-            "[]",
-            far_future,
-            now,
-            account or None,
-            "agent_draft",
-            _current_owner(),
-        ))
+        """,
+            (
+                pending_id,
+                to if isinstance(to, str) else ", ".join(to),
+                cc if isinstance(cc, str) else (", ".join(cc) if cc else None),
+                bcc if isinstance(bcc, str) else (", ".join(bcc) if bcc else None),
+                subject or "",
+                body or "",
+                in_reply_to or None,
+                (
+                    references
+                    if isinstance(references, str)
+                    else (" ".join(references) if references else None)
+                ),
+                "[]",
+                far_future,
+                now,
+                account or None,
+                "agent_draft",
+                _current_owner(),
+            ),
+        )
         conn.commit()
         conn.close()
     except Exception as e:
@@ -1467,7 +1653,16 @@ def _stash_agent_draft(*, to, subject, body, in_reply_to=None, references=None,
     }
 
 
-def _send_email(to, subject, body, in_reply_to=None, references=None, cc=None, bcc=None, account=None):
+def _send_email(
+    to,
+    subject,
+    body,
+    in_reply_to=None,
+    references=None,
+    cc=None,
+    bcc=None,
+    account=None,
+):
     """Send an email via SMTP. Returns dict with status.
 
     When the `agent_email_confirm` setting is on (the default), the email
@@ -1481,9 +1676,14 @@ def _send_email(to, subject, body, in_reply_to=None, references=None, cc=None, b
         # owner's account selector before browser approval handles it.
         cfg = _load_config(account)
         return _stash_agent_draft(
-            to=to, subject=subject, body=body,
-            in_reply_to=in_reply_to, references=references,
-            cc=cc, bcc=bcc, account=cfg.get("account_id") or account,
+            to=to,
+            subject=subject,
+            body=body,
+            in_reply_to=in_reply_to,
+            references=references,
+            cc=cc,
+            bcc=bcc,
+            account=cfg.get("account_id") or account,
         )
     send_account, cfg = _resolve_send_config(account)
     msg = EmailMessage()
@@ -1495,7 +1695,9 @@ def _send_email(to, subject, body, in_reply_to=None, references=None, cc=None, b
     if in_reply_to:
         msg["In-Reply-To"] = _clean_header_value(in_reply_to)
     if references:
-        msg["References"] = _clean_header_value(references if isinstance(references, str) else " ".join(references))
+        msg["References"] = _clean_header_value(
+            references if isinstance(references, str) else " ".join(references)
+        )
     if "Date" not in msg:
         msg["Date"] = email.utils.formatdate(localtime=True)
     if "Message-ID" not in msg:
@@ -1508,9 +1710,13 @@ def _send_email(to, subject, body, in_reply_to=None, references=None, cc=None, b
     else:
         recipients.extend(to)
     if cc:
-        recipients.extend([a.strip() for a in cc.split(",")] if isinstance(cc, str) else cc)
+        recipients.extend(
+            [a.strip() for a in cc.split(",")] if isinstance(cc, str) else cc
+        )
     if bcc:
-        recipients.extend([a.strip() for a in bcc.split(",")] if isinstance(bcc, str) else bcc)
+        recipients.extend(
+            [a.strip() for a in bcc.split(",")] if isinstance(bcc, str) else bcc
+        )
 
     conn = _smtp_connect(send_account, cfg=cfg)
     try:
@@ -1524,7 +1730,9 @@ def _send_email(to, subject, body, in_reply_to=None, references=None, cc=None, b
         imap = _imap_connect(send_account)
         try:
             sent_folder = _detect_sent_folder(imap)
-            append_st, append_data = imap.append(_q(sent_folder), "\\Seen", None, msg.as_bytes())
+            append_st, append_data = imap.append(
+                _q(sent_folder), "\\Seen", None, msg.as_bytes()
+            )
             if append_st == "OK" and append_data:
                 m = re.search(rb"APPENDUID\s+\d+\s+(\d+)", append_data[0] or b"")
                 if m:
@@ -1615,7 +1823,8 @@ def _create_email_draft_document(
     source_message_id=None,
 ):
     """Create an Odysseus email compose document for user review. Does not send."""
-    from core.database import SessionLocal, Document, DocumentVersion
+    from core.database import Document, DocumentVersion, SessionLocal
+
     try:
         from src.event_bus import fire_event
     except Exception:
@@ -1652,7 +1861,9 @@ def _create_email_draft_document(
                 .first()
             )
             if existing and "\n---\n" in (existing.current_content or ""):
-                existing.current_content = _merge_email_reply_body(existing.current_content, body or "")
+                existing.current_content = _merge_email_reply_body(
+                    existing.current_content, body or ""
+                )
                 existing.version_count = (existing.version_count or 0) + 1
                 ver = DocumentVersion(
                     id=ver_id,
@@ -1725,7 +1936,9 @@ def _create_email_draft_document(
         db.close()
 
 
-def _draft_reply_to_email(uid, body, folder="INBOX", reply_all=False, account=None, title=None):
+def _draft_reply_to_email(
+    uid, body, folder="INBOX", reply_all=False, account=None, title=None
+):
     """Create a threaded Odysseus reply draft document. Does not send."""
     conn = _imap_connect(account)
     conn.select(_q(folder), readonly=True)
@@ -1737,10 +1950,18 @@ def _draft_reply_to_email(uid, body, folder="INBOX", reply_all=False, account=No
     orig = email.message_from_bytes(raw)
 
     orig_subject = _decode_header(orig.get("Subject", ""))
-    reply_subject = orig_subject if orig_subject.lower().startswith("re:") else f"Re: {orig_subject}"
+    reply_subject = (
+        orig_subject
+        if orig_subject.lower().startswith("re:")
+        else f"Re: {orig_subject}"
+    )
     orig_message_id = orig.get("Message-ID", "")
     orig_references = orig.get("References", "")
-    new_references = (orig_references + " " + orig_message_id).strip() if orig_references else orig_message_id
+    new_references = (
+        (orig_references + " " + orig_message_id).strip()
+        if orig_references
+        else orig_message_id
+    )
 
     sender = _decode_header(orig.get("From", ""))
     _, sender_addr = email.utils.parseaddr(sender)
@@ -1777,13 +1998,18 @@ def _draft_reply_to_email(uid, body, folder="INBOX", reply_all=False, account=No
     )
 
 
-async def _ai_draft_reply_to_email(uid, folder="INBOX", reply_all=False, account=None, title=None):
+async def _ai_draft_reply_to_email(
+    uid, folder="INBOX", reply_all=False, account=None, title=None
+):
     """Generate a reply with Odysseus' AI-reply prompt/style, then create a compose doc."""
     read_result = _read_email(uid=uid, folder=folder, account=account)
     if "error" in read_result:
         return read_result
 
-    to_addr = read_result.get("from_address") or email.utils.parseaddr(read_result.get("from") or "")[1]
+    to_addr = (
+        read_result.get("from_address")
+        or email.utils.parseaddr(read_result.get("from") or "")[1]
+    )
     subject = read_result.get("subject") or ""
     reply_subject = subject if subject.lower().startswith("re:") else f"Re: {subject}"
     original_body = read_result.get("body") or ""
@@ -1797,12 +2023,11 @@ async def _ai_draft_reply_to_email(uid, folder="INBOX", reply_all=False, account
             _EMAIL_REPLY_SYS_PROMPT_BASE,
             _apply_email_style_mechanics,
             _extract_reply,
-            _load_settings,
         )
         from src.endpoint_resolver import (
+            resolve_chat_fallback_candidates,
             resolve_endpoint,
             resolve_utility_fallback_candidates,
-            resolve_chat_fallback_candidates,
         )
         from src.llm_core import llm_call_async_with_fallback
     except Exception as exc:
@@ -1890,18 +2115,28 @@ def _reply_to_email(uid, body, folder="INBOX", reply_all=False, account=None):
         status, msg_data = conn.uid("FETCH", _b(uid), "(BODY.PEEK[])")
     finally:
         if conn:
-            try: conn.logout()
-            except Exception: pass
+            try:
+                conn.logout()
+            except Exception:
+                pass
     if status != "OK" or not msg_data or not msg_data[0]:
         return {"error": f"Failed to fetch email UID {uid}"}
     raw = msg_data[0][1]
     orig = email.message_from_bytes(raw)
 
     orig_subject = _decode_header(orig.get("Subject", ""))
-    reply_subject = orig_subject if orig_subject.lower().startswith("re:") else f"Re: {orig_subject}"
+    reply_subject = (
+        orig_subject
+        if orig_subject.lower().startswith("re:")
+        else f"Re: {orig_subject}"
+    )
     orig_message_id = orig.get("Message-ID", "")
     orig_references = orig.get("References", "")
-    new_references = (orig_references + " " + orig_message_id).strip() if orig_references else orig_message_id
+    new_references = (
+        (orig_references + " " + orig_message_id).strip()
+        if orig_references
+        else orig_message_id
+    )
 
     sender = _decode_header(orig.get("From", ""))
     _, sender_addr = email.utils.parseaddr(sender)
@@ -1981,7 +2216,9 @@ def _bulk_move(uids, source_folder, dest_folder, account=None, role: str = ""):
     moved = 0
     try:
         conn.select(_q(source_folder))
-        dest_folder = _resolve_folder(conn, dest_folder, role or _folder_role_from_name(dest_folder))
+        dest_folder = _resolve_folder(
+            conn, dest_folder, role or _folder_role_from_name(dest_folder)
+        )
         msg_set = ",".join(str(u) for u in uids)
         try:
             status, data = conn.uid("FETCH", _b(msg_set), "(UID)")
@@ -2026,7 +2263,9 @@ def _move_message(uid, source_folder, dest_folder, account=None, role: str = "")
     conn = _imap_connect(account)
     conn.select(_q(source_folder))
     try:
-        dest_folder = _resolve_folder(conn, dest_folder, role or _folder_role_from_name(dest_folder))
+        dest_folder = _resolve_folder(
+            conn, dest_folder, role or _folder_role_from_name(dest_folder)
+        )
         try:
             status, data = conn.uid("FETCH", _b(uid), "(UID)")
         except Exception:
@@ -2057,13 +2296,17 @@ def _delete_email(uid, folder="INBOX", permanent=False, account=None):
     cfg = _load_config(account)
     if permanent:
         return _set_flag(uid, folder, "\\Deleted", add=True, account=account)
-    return _move_message(uid, folder, cfg["trash_folder"], account=account, role="trash")
+    return _move_message(
+        uid, folder, cfg["trash_folder"], account=account, role="trash"
+    )
 
 
 def _archive_email(uid, folder="INBOX", account=None):
     """Move an email to the archive folder."""
     cfg = _load_config(account)
-    return _move_message(uid, folder, cfg["archive_folder"], account=account, role="archive")
+    return _move_message(
+        uid, folder, cfg["archive_folder"], account=account, role="archive"
+    )
 
 
 def _download_attachment(uid, index, folder="INBOX", account=None):
@@ -2075,8 +2318,10 @@ def _download_attachment(uid, index, folder="INBOX", account=None):
         status, msg_data = conn.uid("FETCH", _b(uid), "(BODY.PEEK[])")
     finally:
         if conn:
-            try: conn.logout()
-            except Exception: pass
+            try:
+                conn.logout()
+            except Exception:
+                pass
     if status != "OK":
         return {"error": f"Failed to fetch email UID {uid}"}
     raw = msg_data[0][1]
@@ -2102,7 +2347,7 @@ async def list_tools() -> list[Tool]:
         "account": {
             "type": "string",
             "description": "Which email account to use (name, email, or id). "
-                           "Omit to use the default account. Use list_email_accounts to discover available accounts.",
+            "Omit to use the default account. Use list_email_accounts to discover available accounts.",
         },
     }
     return [
@@ -2163,9 +2408,21 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "folder": {"type": "string", "description": "IMAP folder to scan", "default": "INBOX"},
-                    "limit": {"type": "integer", "description": "Maximum candidates to return", "default": 25},
-                    "max_scan": {"type": "integer", "description": "How many newest messages to inspect", "default": 150},
+                    "folder": {
+                        "type": "string",
+                        "description": "IMAP folder to scan",
+                        "default": "INBOX",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum candidates to return",
+                        "default": 25,
+                    },
+                    "max_scan": {
+                        "type": "integer",
+                        "description": "How many newest messages to inspect",
+                        "default": 150,
+                    },
                     **ACCOUNT_PROP,
                 },
                 "required": [],
@@ -2181,10 +2438,25 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "uid": {"type": "string", "description": "Email UID from scan_email_unsubscribes/list_emails"},
-                    "folder": {"type": "string", "description": "IMAP folder", "default": "INBOX"},
-                    "method_index": {"type": "integer", "description": "Unsubscribe method index from scan_email_unsubscribes", "default": 0},
-                    "allow_web": {"type": "boolean", "description": "Return web unsubscribe URL instructions when the method is URL", "default": False},
+                    "uid": {
+                        "type": "string",
+                        "description": "Email UID from scan_email_unsubscribes/list_emails",
+                    },
+                    "folder": {
+                        "type": "string",
+                        "description": "IMAP folder",
+                        "default": "INBOX",
+                    },
+                    "method_index": {
+                        "type": "integer",
+                        "description": "Unsubscribe method index from scan_email_unsubscribes",
+                        "default": 0,
+                    },
+                    "allow_web": {
+                        "type": "boolean",
+                        "description": "Return web unsubscribe URL instructions when the method is URL",
+                        "default": False,
+                    },
                     **ACCOUNT_PROP,
                 },
                 "required": ["uid"],
@@ -2201,9 +2473,19 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "uid": {"type": "string", "description": "Email UID from list_emails"},
-                    "index": {"type": "integer", "description": "Attachment index (from read_email's attachments list)"},
-                    "folder": {"type": "string", "description": "IMAP folder (default: INBOX)", "default": "INBOX"},
+                    "uid": {
+                        "type": "string",
+                        "description": "Email UID from list_emails",
+                    },
+                    "index": {
+                        "type": "integer",
+                        "description": "Attachment index (from read_email's attachments list)",
+                    },
+                    "folder": {
+                        "type": "string",
+                        "description": "IMAP folder (default: INBOX)",
+                        "default": "INBOX",
+                    },
                     **ACCOUNT_PROP,
                 },
                 "required": ["uid", "index"],
@@ -2221,11 +2503,20 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "to": {"type": "string", "description": "Recipient email address(es), comma-separated"},
+                    "to": {
+                        "type": "string",
+                        "description": "Recipient email address(es), comma-separated",
+                    },
                     "subject": {"type": "string", "description": "Email subject line"},
                     "body": {"type": "string", "description": "Plain text body"},
-                    "cc": {"type": "string", "description": "CC address(es), comma-separated (optional)"},
-                    "bcc": {"type": "string", "description": "BCC address(es), comma-separated (optional)"},
+                    "cc": {
+                        "type": "string",
+                        "description": "CC address(es), comma-separated (optional)",
+                    },
+                    "bcc": {
+                        "type": "string",
+                        "description": "BCC address(es), comma-separated (optional)",
+                    },
                     **ACCOUNT_PROP,
                 },
                 "required": ["to", "subject", "body"],
@@ -2243,12 +2534,24 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "to": {"type": "string", "description": "Recipient email address(es), comma-separated"},
+                    "to": {
+                        "type": "string",
+                        "description": "Recipient email address(es), comma-separated",
+                    },
                     "subject": {"type": "string", "description": "Email subject line"},
                     "body": {"type": "string", "description": "Draft body"},
-                    "cc": {"type": "string", "description": "CC address(es), comma-separated (optional)"},
-                    "bcc": {"type": "string", "description": "BCC address(es), comma-separated (optional)"},
-                    "title": {"type": "string", "description": "Optional Odysseus document title"},
+                    "cc": {
+                        "type": "string",
+                        "description": "CC address(es), comma-separated (optional)",
+                    },
+                    "bcc": {
+                        "type": "string",
+                        "description": "BCC address(es), comma-separated (optional)",
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Optional Odysseus document title",
+                    },
                     **ACCOUNT_PROP,
                 },
                 "required": ["to", "subject", "body"],
@@ -2269,10 +2572,21 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "uid": {"type": "string", "description": "Exact Email UID from list_emails/read_email; never invent UID 1"},
+                    "uid": {
+                        "type": "string",
+                        "description": "Exact Email UID from list_emails/read_email; never invent UID 1",
+                    },
                     "body": {"type": "string", "description": "Reply body text"},
-                    "folder": {"type": "string", "description": "IMAP folder (default: INBOX)", "default": "INBOX"},
-                    "reply_all": {"type": "boolean", "description": "Reply to all recipients (default: false)", "default": False},
+                    "folder": {
+                        "type": "string",
+                        "description": "IMAP folder (default: INBOX)",
+                        "default": "INBOX",
+                    },
+                    "reply_all": {
+                        "type": "boolean",
+                        "description": "Reply to all recipients (default: false)",
+                        "default": False,
+                    },
                     **ACCOUNT_PROP,
                 },
                 "required": ["uid", "body"],
@@ -2290,11 +2604,25 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "uid": {"type": "string", "description": "Exact Email UID from list_emails/read_email; never invent UID 1"},
+                    "uid": {
+                        "type": "string",
+                        "description": "Exact Email UID from list_emails/read_email; never invent UID 1",
+                    },
                     "body": {"type": "string", "description": "Draft reply body text"},
-                    "folder": {"type": "string", "description": "IMAP folder (default: INBOX)", "default": "INBOX"},
-                    "reply_all": {"type": "boolean", "description": "Reply to all recipients (default: false)", "default": False},
-                    "title": {"type": "string", "description": "Optional Odysseus document title"},
+                    "folder": {
+                        "type": "string",
+                        "description": "IMAP folder (default: INBOX)",
+                        "default": "INBOX",
+                    },
+                    "reply_all": {
+                        "type": "boolean",
+                        "description": "Reply to all recipients (default: false)",
+                        "default": False,
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Optional Odysseus document title",
+                    },
                     **ACCOUNT_PROP,
                 },
                 "required": ["uid", "body"],
@@ -2312,10 +2640,24 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "uid": {"type": "string", "description": "Exact Email UID from list_emails/read_email; never invent UID 1"},
-                    "folder": {"type": "string", "description": "IMAP folder (default: INBOX)", "default": "INBOX"},
-                    "reply_all": {"type": "boolean", "description": "Reply to all recipients (default: false)", "default": False},
-                    "title": {"type": "string", "description": "Optional Odysseus document title"},
+                    "uid": {
+                        "type": "string",
+                        "description": "Exact Email UID from list_emails/read_email; never invent UID 1",
+                    },
+                    "folder": {
+                        "type": "string",
+                        "description": "IMAP folder (default: INBOX)",
+                        "default": "INBOX",
+                    },
+                    "reply_all": {
+                        "type": "boolean",
+                        "description": "Reply to all recipients (default: false)",
+                        "default": False,
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Optional Odysseus document title",
+                    },
                     **ACCOUNT_PROP,
                 },
                 "required": ["uid"],
@@ -2327,8 +2669,15 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "uid": {"type": "string", "description": "Email UID from list_emails"},
-                    "folder": {"type": "string", "description": "Source folder (default: INBOX)", "default": "INBOX"},
+                    "uid": {
+                        "type": "string",
+                        "description": "Email UID from list_emails",
+                    },
+                    "folder": {
+                        "type": "string",
+                        "description": "Source folder (default: INBOX)",
+                        "default": "INBOX",
+                    },
                     **ACCOUNT_PROP,
                 },
                 "required": ["uid"],
@@ -2340,9 +2689,20 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "uid": {"type": "string", "description": "Email UID from list_emails"},
-                    "folder": {"type": "string", "description": "Source folder (default: INBOX)", "default": "INBOX"},
-                    "permanent": {"type": "boolean", "description": "Hard-delete instead of move to Trash", "default": False},
+                    "uid": {
+                        "type": "string",
+                        "description": "Email UID from list_emails",
+                    },
+                    "folder": {
+                        "type": "string",
+                        "description": "Source folder (default: INBOX)",
+                        "default": "INBOX",
+                    },
+                    "permanent": {
+                        "type": "boolean",
+                        "description": "Hard-delete instead of move to Trash",
+                        "default": False,
+                    },
                     **ACCOUNT_PROP,
                 },
                 "required": ["uid"],
@@ -2355,8 +2715,16 @@ async def list_tools() -> list[Tool]:
                 "type": "object",
                 "properties": {
                     "uid": {"type": "string", "description": "Email UID"},
-                    "folder": {"type": "string", "description": "IMAP folder", "default": "INBOX"},
-                    "read": {"type": "boolean", "description": "True to mark read, false to mark unread", "default": True},
+                    "folder": {
+                        "type": "string",
+                        "description": "IMAP folder",
+                        "default": "INBOX",
+                    },
+                    "read": {
+                        "type": "boolean",
+                        "description": "True to mark read, false to mark unread",
+                        "default": True,
+                    },
                     **ACCOUNT_PROP,
                 },
                 "required": ["uid"],
@@ -2376,7 +2744,13 @@ async def list_tools() -> list[Tool]:
                 "properties": {
                     "action": {
                         "type": "string",
-                        "enum": ["mark_read", "mark_unread", "archive", "delete", "junk"],
+                        "enum": [
+                            "mark_read",
+                            "mark_unread",
+                            "archive",
+                            "delete",
+                            "junk",
+                        ],
                         "description": "What to do to every selected message.",
                     },
                     "uids": {
@@ -2389,8 +2763,16 @@ async def list_tools() -> list[Tool]:
                         "description": "Operate on ALL unread messages in the folder (ignores uids).",
                         "default": False,
                     },
-                    "folder": {"type": "string", "description": "IMAP folder", "default": "INBOX"},
-                    "permanent": {"type": "boolean", "description": "For delete: expunge instead of moving to Trash.", "default": False},
+                    "folder": {
+                        "type": "string",
+                        "description": "IMAP folder",
+                        "default": "INBOX",
+                    },
+                    "permanent": {
+                        "type": "boolean",
+                        "description": "For delete: expunge instead of moving to Trash.",
+                        "default": False,
+                    },
                     **ACCOUNT_PROP,
                 },
                 "required": ["action"],
@@ -2475,8 +2857,18 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 rows = _fixture_account_rows()
             if not rows:
                 if all_db_accounts and owner:
-                    return [TextContent(type="text", text="No email accounts configured for this owner.")]
-                return [TextContent(type="text", text="No email accounts configured. Legacy single-account mode active.")]
+                    return [
+                        TextContent(
+                            type="text",
+                            text="No email accounts configured for this owner.",
+                        )
+                    ]
+                return [
+                    TextContent(
+                        type="text",
+                        text="No email accounts configured. Legacy single-account mode active.",
+                    )
+                ]
             lines = [f"Found {len(rows)} email account(s):\n"]
             for r in rows:
                 star = " (default)" if r.get("is_default") else ""
@@ -2525,7 +2917,11 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 active_cfg = _load_config(acct)
                 if active_cfg.get("account_name") or active_cfg.get("imap_user"):
                     for item in results:
-                        item["_account"] = active_cfg.get("account_name") or active_cfg.get("imap_user") or "default"
+                        item["_account"] = (
+                            active_cfg.get("account_name")
+                            or active_cfg.get("imap_user")
+                            or "default"
+                        )
                         item["_account_email"] = active_cfg.get("imap_user") or ""
 
             if len(all_accounts) >= 2 and acct:
@@ -2535,7 +2931,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 other = [
                     f"{a['name']} <{a.get('imap_user') or a.get('from_address') or '?'}>"
                     for a in all_accounts
-                    if a['id'] != active_cfg.get("account_id")
+                    if a["id"] != active_cfg.get("account_id")
                 ]
                 header_lines.append(
                     f"[EMAIL ACCOUNT CONTEXT: This result is ONLY from account `{active_name}` ({active_email}). "
@@ -2543,7 +2939,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                     f"If the user asks for Gmail/another inbox, call list_emails again with `account` set to that account name or email.]\n"
                 )
             if errors:
-                header_lines.append("[EMAIL ACCOUNT ERRORS: " + "; ".join(errors) + "]\n")
+                header_lines.append(
+                    "[EMAIL ACCOUNT ERRORS: " + "; ".join(errors) + "]\n"
+                )
 
             if not results:
                 msg = "No unread/unresponded emails found."
@@ -2575,10 +2973,20 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             except Exception as e:
                 return [TextContent(type="text", text=f"Unsubscribe scan failed: {e}")]
             if not result.get("success"):
-                return [TextContent(type="text", text=f"Unsubscribe scan failed: {result.get('error', 'unknown error')}")]
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"Unsubscribe scan failed: {result.get('error', 'unknown error')}",
+                    )
+                ]
             candidates = result.get("candidates") or []
             if not candidates:
-                return [TextContent(type="text", text=f"No unsubscribe candidates found in {result.get('scanned', 0)} recent emails.")]
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"No unsubscribe candidates found in {result.get('scanned', 0)} recent emails.",
+                    )
+                ]
             lines = [
                 f"Found {len(candidates)} unsubscribe candidate(s) from {result.get('scanned', 0)} recent emails.",
                 "Review these with the user before executing. Mailto methods can use unsubscribe_email; URL methods require browser/web tools after approval.\n",
@@ -2592,9 +3000,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 )
                 for j, method in enumerate(cand.get("methods") or []):
                     if method.get("kind") == "mailto":
-                        lines.append(f"   Method {j}: mailto {method.get('target')} (executable via unsubscribe_email)")
+                        lines.append(
+                            f"   Method {j}: mailto {method.get('target')} (executable via unsubscribe_email)"
+                        )
                     elif method.get("kind") == "url":
-                        lines.append(f"   Method {j}: web URL {method.get('target')} (use browser/web tools after approval)")
+                        lines.append(
+                            f"   Method {j}: web URL {method.get('target')} (use browser/web tools after approval)"
+                        )
             return [TextContent(type="text", text="\n".join(lines))]
 
         elif name == "unsubscribe_email":
@@ -2606,33 +3018,49 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 allow_web=bool(arguments.get("allow_web", False)),
             )
             if result.get("requires_browser"):
-                return [TextContent(
-                    type="text",
-                    text=(
-                        "Web unsubscribe requires browser/web navigation.\n"
-                        f"URL: {result.get('url')}\n"
-                        f"{result.get('instructions')}"
-                    ),
-                )]
+                return [
+                    TextContent(
+                        type="text",
+                        text=(
+                            "Web unsubscribe requires browser/web navigation.\n"
+                            f"URL: {result.get('url')}\n"
+                            f"{result.get('instructions')}"
+                        ),
+                    )
+                ]
             if not result.get("success"):
-                return [TextContent(type="text", text=f"Unsubscribe failed: {result.get('error', 'unknown error')}")]
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"Unsubscribe failed: {result.get('error', 'unknown error')}",
+                    )
+                ]
             method = result.get("method") or {}
             if result.get("pending"):
-                return [TextContent(
+                return [
+                    TextContent(
+                        type="text",
+                        text=(
+                            f"Unsubscribe email staged for approval to {method.get('target')}. "
+                            "Nothing has been sent until the user approves the pending email."
+                        ),
+                    )
+                ]
+            return [
+                TextContent(
                     type="text",
-                    text=(
-                        f"Unsubscribe email staged for approval to {method.get('target')}. "
-                        "Nothing has been sent until the user approves the pending email."
-                    ),
-                )]
-            return [TextContent(type="text", text=f"Unsubscribe email sent to {method.get('target')}.")]
+                    text=f"Unsubscribe email sent to {method.get('target')}.",
+                )
+            ]
 
         elif name == "download_attachment":
             uid = arguments.get("uid")
             index = arguments.get("index")
             folder = arguments.get("folder", "INBOX")
             if uid is None or index is None:
-                return [TextContent(type="text", text="Error: uid and index are required")]
+                return [
+                    TextContent(type="text", text="Error: uid and index are required")
+                ]
             result = _download_attachment(uid, index, folder, account=acct)
             if "error" in result:
                 return [TextContent(type="text", text=f"Error: {result['error']}")]
@@ -2649,7 +3077,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             folders = arguments.get("folders") or None
             max_results = arguments.get("max_results", 20)
             try:
-                hits = _search_emails(q, folders=folders, max_results=max_results, account=acct)
+                hits = _search_emails(
+                    q, folders=folders, max_results=max_results, account=acct
+                )
             except Exception as e:
                 return [TextContent(type="text", text=f"Search failed: {e}")]
             if not hits:
@@ -2663,9 +3093,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                     f"   Folder: {em.get('_folder', 'INBOX')}\n"
                     f"   UID: {em['uid']}"
                 )
-                if em.get('to'):
+                if em.get("to"):
                     lines.append(f"   To: {em['to']}")
-                if em.get('summary'):
+                if em.get("summary"):
                     lines.append(f"   Summary: {em['summary']}")
             return [TextContent(type="text", text="\n".join(lines))]
 
@@ -2695,10 +3125,10 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 f"**Account:** {result.get('account', 'default')} ({result.get('account_email', '')})\n"
                 f"**Message-ID:** {result['message_id']}\n"
             )
-            if result.get('attachments'):
+            if result.get("attachments"):
                 text += f"\n**Attachments ({len(result['attachments'])}):**\n"
-                for a in result['attachments']:
-                    size_kb = a['size'] // 1024
+                for a in result["attachments"]:
+                    size_kb = a["size"] // 1024
                     text += f"  - [{a['index']}] {a['filename']} ({a['content_type']}, {size_kb}KB)\n"
                 text += "\n_Use `download_attachment` with the UID and index to download._\n"
             text += f"\n---\n\n{result['body']}"
@@ -2709,7 +3139,11 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             subject = arguments.get("subject")
             body = arguments.get("body")
             if not to or not subject or body is None:
-                return [TextContent(type="text", text="Error: to, subject, and body are required")]
+                return [
+                    TextContent(
+                        type="text", text="Error: to, subject, and body are required"
+                    )
+                ]
             result = _send_email(
                 to=to,
                 subject=subject,
@@ -2721,22 +3155,33 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             if "error" in result:
                 return [TextContent(type="text", text=f"Error: {result['error']}")]
             if result.get("pending"):
-                return [TextContent(
-                    type="text",
-                    text=(
-                        f"Draft staged for approval (pending id: {result.get('pending_id')}). "
-                        "Nothing has been sent yet. Review and approve it in Odysseus before delivery."
-                    ),
-                )]
+                return [
+                    TextContent(
+                        type="text",
+                        text=(
+                            f"Draft staged for approval (pending id: {result.get('pending_id')}). "
+                            "Nothing has been sent yet. Review and approve it in Odysseus before delivery."
+                        ),
+                    )
+                ]
             acct_note = f" (from {result['account']})" if result.get("account") else ""
-            return [TextContent(type="text", text=f"Sent email to {result['to']} with subject '{result['subject']}'{acct_note}.")]
+            return [
+                TextContent(
+                    type="text",
+                    text=f"Sent email to {result['to']} with subject '{result['subject']}'{acct_note}.",
+                )
+            ]
 
         elif name == "draft_email":
             to = arguments.get("to")
             subject = arguments.get("subject")
             body = arguments.get("body")
             if not to or not subject or body is None:
-                return [TextContent(type="text", text="Error: to, subject, and body are required")]
+                return [
+                    TextContent(
+                        type="text", text="Error: to, subject, and body are required"
+                    )
+                ]
             result = _create_email_draft_document(
                 to=to,
                 subject=subject,
@@ -2747,20 +3192,24 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 account=acct,
             )
             acct_note = f" from {result['account']}" if result.get("account") else ""
-            return [TextContent(
-                type="text",
-                text=(
-                    f"Created Odysseus email draft `{result['title']}` "
-                    f"(document ID: {result['doc_id']}){acct_note}. "
-                    "It has not been sent; open the document in Odysseus to review and send."
-                ),
-            )]
+            return [
+                TextContent(
+                    type="text",
+                    text=(
+                        f"Created Odysseus email draft `{result['title']}` "
+                        f"(document ID: {result['doc_id']}){acct_note}. "
+                        "It has not been sent; open the document in Odysseus to review and send."
+                    ),
+                )
+            ]
 
         elif name == "reply_to_email":
             uid = arguments.get("uid")
             body = arguments.get("body")
             if not uid or body is None:
-                return [TextContent(type="text", text="Error: uid and body are required")]
+                return [
+                    TextContent(type="text", text="Error: uid and body are required")
+                ]
             result = _reply_to_email(
                 uid=uid,
                 body=body,
@@ -2772,16 +3221,29 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 return [TextContent(type="text", text=f"Error: {result['error']}")]
             # Mark original as answered
             try:
-                _set_flag(uid, arguments.get("folder", "INBOX"), "\\Answered", add=True, account=acct)
+                _set_flag(
+                    uid,
+                    arguments.get("folder", "INBOX"),
+                    "\\Answered",
+                    add=True,
+                    account=acct,
+                )
             except Exception:
                 pass
-            return [TextContent(type="text", text=f"Replied to UID {uid}: '{result['subject']}' → {result['to']}")]
+            return [
+                TextContent(
+                    type="text",
+                    text=f"Replied to UID {uid}: '{result['subject']}' → {result['to']}",
+                )
+            ]
 
         elif name == "draft_email_reply":
             uid = arguments.get("uid")
             body = arguments.get("body")
             if not uid or body is None:
-                return [TextContent(type="text", text="Error: uid and body are required")]
+                return [
+                    TextContent(type="text", text="Error: uid and body are required")
+                ]
             result = _draft_reply_to_email(
                 uid=uid,
                 body=body,
@@ -2793,14 +3255,16 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             if "error" in result:
                 return [TextContent(type="text", text=f"Error: {result['error']}")]
             acct_note = f" from {result['account']}" if result.get("account") else ""
-            return [TextContent(
-                type="text",
-                text=(
-                    f"Created Odysseus reply draft `{result['title']}` for UID {uid} "
-                    f"(document ID: {result['doc_id']}){acct_note}. "
-                    "It has not been sent; open the document in Odysseus to review and send."
-                ),
-            )]
+            return [
+                TextContent(
+                    type="text",
+                    text=(
+                        f"Created Odysseus reply draft `{result['title']}` for UID {uid} "
+                        f"(document ID: {result['doc_id']}){acct_note}. "
+                        "It has not been sent; open the document in Odysseus to review and send."
+                    ),
+                )
+            ]
 
         elif name == "ai_draft_email_reply":
             uid = arguments.get("uid")
@@ -2816,21 +3280,28 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             if "error" in result:
                 return [TextContent(type="text", text=f"Error: {result['error']}")]
             acct_note = f" from {result['account']}" if result.get("account") else ""
-            return [TextContent(
-                type="text",
-                text=(
-                    f"Generated AI reply and created Odysseus compose draft "
-                    f"`{result['title']}` for UID {uid} (document ID: {result['doc_id']}){acct_note}. "
-                    "It has not been sent; open the document in Odysseus to review and send."
-                ),
-            )]
+            return [
+                TextContent(
+                    type="text",
+                    text=(
+                        f"Generated AI reply and created Odysseus compose draft "
+                        f"`{result['title']}` for UID {uid} (document ID: {result['doc_id']}){acct_note}. "
+                        "It has not been sent; open the document in Odysseus to review and send."
+                    ),
+                )
+            ]
 
         elif name == "archive_email":
             uid = arguments.get("uid")
             if not uid:
                 return [TextContent(type="text", text="Error: uid is required")]
             ok = _archive_email(uid, arguments.get("folder", "INBOX"), account=acct)
-            return [TextContent(type="text", text=f"{'Archived' if ok else 'Failed to archive'} UID {uid}")]
+            return [
+                TextContent(
+                    type="text",
+                    text=f"{'Archived' if ok else 'Failed to archive'} UID {uid}",
+                )
+            ]
 
         elif name == "delete_email":
             uid = arguments.get("uid")
@@ -2842,16 +3313,28 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 permanent=bool(arguments.get("permanent", False)),
                 account=acct,
             )
-            return [TextContent(type="text", text=f"{'Deleted' if ok else 'Failed to delete'} UID {uid}")]
+            return [
+                TextContent(
+                    type="text",
+                    text=f"{'Deleted' if ok else 'Failed to delete'} UID {uid}",
+                )
+            ]
 
         elif name == "mark_email_read":
             uid = arguments.get("uid")
             if not uid:
                 return [TextContent(type="text", text="Error: uid is required")]
             read = bool(arguments.get("read", True))
-            ok = _set_flag(uid, arguments.get("folder", "INBOX"), "\\Seen", add=read, account=acct)
+            ok = _set_flag(
+                uid, arguments.get("folder", "INBOX"), "\\Seen", add=read, account=acct
+            )
             state = "read" if read else "unread"
-            return [TextContent(type="text", text=f"{'Marked' if ok else 'Failed to mark'} UID {uid} as {state}")]
+            return [
+                TextContent(
+                    type="text",
+                    text=f"{'Marked' if ok else 'Failed to mark'} UID {uid} as {state}",
+                )
+            ]
 
         elif name == "bulk_email":
             action = arguments.get("action", "")
@@ -2861,42 +3344,90 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             if all_unread:
                 uids = _search_uids(folder, "UNSEEN", account=acct)
             if not uids:
-                return [TextContent(type="text", text="No messages selected (pass uids or all_unread=true).")]
+                return [
+                    TextContent(
+                        type="text",
+                        text="No messages selected (pass uids or all_unread=true).",
+                    )
+                ]
             requested_n = len(uids)
             changed_n = 0
             try:
                 if action == "mark_read":
-                    changed_n = _bulk_set_flag(uids, folder, "\\Seen", add=True, account=acct)
+                    changed_n = _bulk_set_flag(
+                        uids, folder, "\\Seen", add=True, account=acct
+                    )
                     verb = "marked read"
                 elif action == "mark_unread":
-                    changed_n = _bulk_set_flag(uids, folder, "\\Seen", add=False, account=acct)
+                    changed_n = _bulk_set_flag(
+                        uids, folder, "\\Seen", add=False, account=acct
+                    )
                     verb = "marked unread"
                 elif action == "archive":
                     cfg = _load_config(acct)
-                    changed_n = _bulk_move(uids, folder, cfg["archive_folder"], account=acct, role="archive")
+                    changed_n = _bulk_move(
+                        uids,
+                        folder,
+                        cfg["archive_folder"],
+                        account=acct,
+                        role="archive",
+                    )
                     verb = "archived"
                 elif action == "junk":
                     cfg = _load_config(acct)
                     junk_folder = cfg.get("junk_folder") or "Junk"
-                    changed_n = _bulk_move(uids, folder, junk_folder, account=acct, role="junk")
+                    changed_n = _bulk_move(
+                        uids, folder, junk_folder, account=acct, role="junk"
+                    )
                     verb = "moved to Junk"
                 elif action == "delete":
                     permanent = bool(arguments.get("permanent", False))
                     if permanent:
-                        changed_n = _bulk_set_flag(uids, folder, "\\Deleted", add=True, account=acct)
+                        changed_n = _bulk_set_flag(
+                            uids, folder, "\\Deleted", add=True, account=acct
+                        )
                         verb = "permanently deleted"
                     else:
                         cfg = _load_config(acct)
-                        changed_n = _bulk_move(uids, folder, cfg["trash_folder"], account=acct, role="trash")
+                        changed_n = _bulk_move(
+                            uids,
+                            folder,
+                            cfg["trash_folder"],
+                            account=acct,
+                            role="trash",
+                        )
                         verb = "moved to Trash"
                 else:
-                    return [TextContent(type="text", text=f"Unknown bulk action: {action!r}. Use mark_read/mark_unread/archive/delete/junk.")]
+                    return [
+                        TextContent(
+                            type="text",
+                            text=f"Unknown bulk action: {action!r}. Use mark_read/mark_unread/archive/delete/junk.",
+                        )
+                    ]
             except Exception as e:
-                return [TextContent(type="text", text=f"Bulk {action} failed after partial work: {e}")]
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"Bulk {action} failed after partial work: {e}",
+                    )
+                ]
             if changed_n <= 0:
-                return [TextContent(type="text", text=f"No matching UIDs found in {folder}; 0 of {requested_n} email(s) {verb}.")]
-            suffix = "" if changed_n == requested_n else f" ({changed_n} of {requested_n} requested UIDs matched)"
-            return [TextContent(type="text", text=f"Done — {changed_n} email(s) {verb}{suffix}.")]
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"No matching UIDs found in {folder}; 0 of {requested_n} email(s) {verb}.",
+                    )
+                ]
+            suffix = (
+                ""
+                if changed_n == requested_n
+                else f" ({changed_n} of {requested_n} requested UIDs matched)"
+            )
+            return [
+                TextContent(
+                    type="text", text=f"Done — {changed_n} email(s) {verb}{suffix}."
+                )
+            ]
 
         else:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]
@@ -2908,6 +3439,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
 
 # ── Main ──
+
 
 async def run():
     async with stdio_server() as (read_stream, write_stream):

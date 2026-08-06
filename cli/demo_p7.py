@@ -15,7 +15,7 @@ import shutil
 from core.context import ContextManager
 from core.event_bus import EventBus
 from core.healer import Healer
-from core.task import Task, TaskStatus
+from core.task import Task
 from core.test_runner import TestRunner
 from core.tracer import Tracer
 from models.router import Router
@@ -49,10 +49,10 @@ async def run_demo() -> None:
     tracer = Tracer()
     healer = Healer(test_runner=runner, history_path="logs/healer_history.json")
 
-    print(f"  TestRunner    ✓ (subprocess + pytest 解析)")
-    print(f"  Healer        ✓ (4 策略: 重试生成/修断言/补导入/升级)")
-    print(f"  TestRunTool   ✓ (READ 级工具)")
-    print(f"  FoxAgent      ✓ (测试质量员工)")
+    print("  TestRunner    ✓ (subprocess + pytest 解析)")
+    print("  Healer        ✓ (4 策略: 重试生成/修断言/补导入/升级)")
+    print("  TestRunTool   ✓ (READ 级工具)")
+    print("  FoxAgent      ✓ (测试质量员工)")
 
     fox = FoxAgent(
         event_bus=bus,
@@ -112,21 +112,27 @@ async def run_demo() -> None:
 
         # 展示结果
         initial = result.output["initial_result"]
-        print(f"  初始测试: passed={initial['passed']}  "
-              f"passed={initial['passed_count']}  failed={initial['failed_count']}  "
-              f"error={initial['error_count']}")
+        print(
+            f"  初始测试: passed={initial['passed']}  "
+            f"passed={initial['passed_count']}  failed={initial['failed_count']}  "
+            f"error={initial['error_count']}"
+        )
 
         heal = result.output.get("heal_result")
         if heal:
-            print(f"  修复闭环: fixes_applied={heal['fixes_applied']}  "
-                  f"final_passed={heal['final_passed']}")
+            print(
+                f"  修复闭环: fixes_applied={heal['fixes_applied']}  "
+                f"final_passed={heal['final_passed']}"
+            )
             for fix in heal.get("fixes", []):
-                print(f"    - 策略={fix['strategy']}  applied={fix['applied']}  "
-                      f"success={fix['success']}")
+                print(
+                    f"    - 策略={fix['strategy']}  applied={fix['applied']}  "
+                    f"success={fix['success']}"
+                )
                 if fix["detail"]:
                     print(f"      详情: {fix['detail'][:60]}")
         else:
-            print(f"  修复闭环: 无需修复（测试已通过）")
+            print("  修复闭环: 无需修复（测试已通过）")
 
         print(f"  最终状态: {result.status.value}")
         if result.error:
@@ -145,6 +151,7 @@ async def run_demo() -> None:
     # ============== 5. Healer 策略匹配演示 ==============
     print("\n[5] Healer 策略匹配演示（离线分析）...")
     from core.test_runner import TestFailure
+
     demo_failures = [
         TestFailure(error_type="SyntaxError", error_message="invalid syntax"),
         TestFailure(error_type="AssertionError", error_message="3 != 4"),
@@ -159,11 +166,11 @@ async def run_demo() -> None:
     # ============== 6. 总结 ==============
     print("\n" + "=" * 60)
     print("P7 自动测试修复体系验证:")
-    print(f"  TestRunner: subprocess 跑 pytest + 解析输出 ✓")
-    print(f"  Healer: 4 策略（重试生成/修断言/补导入/升级）✓")
-    print(f"  FoxAgent: 跑测试→失败→修复→验证 闭环 ✓")
+    print("  TestRunner: subprocess 跑 pytest + 解析输出 ✓")
+    print("  Healer: 4 策略（重试生成/修断言/补导入/升级）✓")
+    print("  FoxAgent: 跑测试→失败→修复→验证 闭环 ✓")
     print(f"  修复历史: {len(history)} 条记录持久化 ✓")
-    print(f"  全量回归: 232 测试通过 ✓")
+    print("  全量回归: 232 测试通过 ✓")
 
     success_count = sum(1 for h in history if h.success)
     if len(history) > 0:

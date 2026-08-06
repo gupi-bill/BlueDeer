@@ -5,6 +5,7 @@ resolve to the base URL itself, not base + "/". Discord webhook URLs
 404 on the trailing-slash variant, so api_call against a
 POST-to-base integration silently failed.
 """
+
 import sys
 import types
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -41,8 +42,7 @@ if "src.constants" not in sys.modules:
     stub_c.SETTINGS_FILE = "/tmp/settings_test.json"  # type: ignore
     sys.modules["src.constants"] = stub_c
 
-from src import integrations  # noqa: E402
-
+from src import integrations
 
 # ---------------------------------------------------------------------------
 # _join_integration_url unit tests
@@ -104,7 +104,9 @@ async def test_api_call_root_path_has_no_trailing_slash():
     mock_client.request = AsyncMock(return_value=mock_resp)
 
     with (
-        patch.object(integrations, "_find_integration", return_value=DISCORD_INTEGRATION),
+        patch.object(
+            integrations, "_find_integration", return_value=DISCORD_INTEGRATION
+        ),
         patch("httpx.AsyncClient", return_value=mock_client),
     ):
         result = await integrations.execute_api_call(

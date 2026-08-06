@@ -10,7 +10,6 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-
 FAMILY_CHAT = "chat"
 FAMILY_EMBEDDING = "embedding"
 FAMILY_IMAGE = "image"
@@ -180,20 +179,34 @@ CONTROL_SYSTEM_FINGERPRINT = "system_fingerprint"
 
 # Canonical reasoning control mechanisms describe how a serving path accepts
 # reasoning controls. They are provider/engine evidence, not user preferences.
-REASONING_CONTROL_MESSAGE_DIRECTIVE = "reasoning_message_directive"  # User-message soft switch, e.g. /think or /no_think.
+REASONING_CONTROL_MESSAGE_DIRECTIVE = (
+    "reasoning_message_directive"  # User-message soft switch, e.g. /think or /no_think.
+)
 REASONING_CONTROL_SYSTEM_DIRECTIVE = "reasoning_system_directive"  # System prompt instruction, e.g. "detailed thinking on/off".
 REASONING_CONTROL_TEMPLATE_KWARG = "reasoning_template_kwarg"  # Chat-template kwarg, e.g. chat_template_kwargs.enable_thinking.
-REASONING_CONTROL_NATIVE_BOOL = "reasoning_native_bool"  # Direct API boolean, e.g. think: true/false.
+REASONING_CONTROL_NATIVE_BOOL = (
+    "reasoning_native_bool"  # Direct API boolean, e.g. think: true/false.
+)
 REASONING_CONTROL_STRUCTURED_OBJECT = "reasoning_structured_object"  # Structured API object, e.g. thinking: {type: "..."}.
-REASONING_CONTROL_BUDGET = "reasoning_budget"  # Token budget control, e.g. thinkingBudget: 0/-1/N.
-REASONING_CONTROL_EFFORT = "reasoning_effort"  # Graded effort control, e.g. low/medium/high.
+REASONING_CONTROL_BUDGET = (
+    "reasoning_budget"  # Token budget control, e.g. thinkingBudget: 0/-1/N.
+)
+REASONING_CONTROL_EFFORT = (
+    "reasoning_effort"  # Graded effort control, e.g. low/medium/high.
+)
 
 # Canonical reasoning control values describe what the provider control accepts.
 # Odysseus runtime preferences can also use auto/on/off, but that is a separate
 # layer that later code resolves into these provider-specific controls.
-REASONING_CONTROL_VALUE_ON = "on"  # Provider supports explicitly requesting reasoning on.
-REASONING_CONTROL_VALUE_OFF = "off"  # Provider supports explicitly requesting reasoning off.
-REASONING_CONTROL_VALUE_AUTO = "auto"  # Provider supports adaptive/dynamic/vendor-decided reasoning.
+REASONING_CONTROL_VALUE_ON = (
+    "on"  # Provider supports explicitly requesting reasoning on.
+)
+REASONING_CONTROL_VALUE_OFF = (
+    "off"  # Provider supports explicitly requesting reasoning off.
+)
+REASONING_CONTROL_VALUE_AUTO = (
+    "auto"  # Provider supports adaptive/dynamic/vendor-decided reasoning.
+)
 
 REASONING_CONTROL_MECHANISMS = frozenset(
     {
@@ -378,7 +391,9 @@ def _clean_token(value: Any) -> str:
     return str(value or "").strip().lower().replace("-", "_").replace(" ", "_")
 
 
-def _normalize_choice(value: Any, allowed: frozenset[str], aliases: Mapping[str, str], default: str) -> str:
+def _normalize_choice(
+    value: Any, allowed: frozenset[str], aliases: Mapping[str, str], default: str
+) -> str:
     token = _clean_token(value)
     token = aliases.get(token, token)
     return token if token in allowed else default
@@ -459,7 +474,7 @@ class Modalities:
     output: tuple[str, ...] = ()
 
     @classmethod
-    def from_values(cls, input: Any = None, output: Any = None) -> "Modalities":
+    def from_values(cls, input: Any = None, output: Any = None) -> Modalities:
         return cls(
             input=_normalize_tokens(input, normalize_modality),
             output=_normalize_tokens(output, normalize_modality),
@@ -494,18 +509,25 @@ class ModelCapability:
         limits: Mapping[str, Any] | None = None,
         source: Any = SOURCE_UNKNOWN,
         confidence: Any = CONFIDENCE_UNKNOWN,
-    ) -> "ModelCapability":
+    ) -> ModelCapability:
         normalized_family = normalize_family(family)
         default_input, default_output = _DEFAULT_MODALITIES_BY_FAMILY[normalized_family]
         return cls(
             family=normalized_family,
-            primary_task=str(primary_task or _DEFAULT_TASK_BY_FAMILY[normalized_family]).strip() or TASK_UNKNOWN,
+            primary_task=str(
+                primary_task or _DEFAULT_TASK_BY_FAMILY[normalized_family]
+            ).strip()
+            or TASK_UNKNOWN,
             modalities=Modalities.from_values(
                 input_modalities if input_modalities is not None else default_input,
                 output_modalities if output_modalities is not None else default_output,
             ),
             capabilities=_normalize_tokens(
-                capabilities if capabilities is not None else _DEFAULT_CAPABILITIES_BY_FAMILY.get(normalized_family, ()),
+                (
+                    capabilities
+                    if capabilities is not None
+                    else _DEFAULT_CAPABILITIES_BY_FAMILY.get(normalized_family, ())
+                ),
                 normalize_capability,
             ),
             limits=_normalize_limits(limits),
@@ -514,7 +536,7 @@ class ModelCapability:
         )
 
     @classmethod
-    def from_dict(cls, value: Mapping[str, Any]) -> "ModelCapability":
+    def from_dict(cls, value: Mapping[str, Any]) -> ModelCapability:
         if not isinstance(value, Mapping):
             return unknown_capability()
         modalities = value.get("modalities")
@@ -562,7 +584,7 @@ class CapabilityAssertion:
         confidence: Any = CONFIDENCE_UNKNOWN,
         evidence: Mapping[str, Any] | None = None,
         tested_at: Any = "",
-    ) -> "CapabilityAssertion":
+    ) -> CapabilityAssertion:
         normalized_capability = normalize_capability(capability)
         normalized_status = normalize_assertion_status(status)
         if not normalized_capability:
@@ -577,7 +599,7 @@ class CapabilityAssertion:
         )
 
     @classmethod
-    def from_dict(cls, value: Mapping[str, Any]) -> "CapabilityAssertion":
+    def from_dict(cls, value: Mapping[str, Any]) -> CapabilityAssertion:
         if not isinstance(value, Mapping):
             return cls.build(capability="")
         return cls.build(
@@ -619,7 +641,7 @@ class DeterministicControl:
         confidence: Any = CONFIDENCE_UNKNOWN,
         evidence: Mapping[str, Any] | None = None,
         tested_at: Any = "",
-    ) -> "DeterministicControl":
+    ) -> DeterministicControl:
         normalized_control = normalize_deterministic_control(control)
         normalized_status = normalize_assertion_status(status)
         if not normalized_control:
@@ -634,7 +656,7 @@ class DeterministicControl:
         )
 
     @classmethod
-    def from_dict(cls, value: Mapping[str, Any]) -> "DeterministicControl":
+    def from_dict(cls, value: Mapping[str, Any]) -> DeterministicControl:
         if not isinstance(value, Mapping):
             return cls.build(control="")
         return cls.build(
@@ -686,7 +708,7 @@ class CapabilityProbeResult:
         response_id: Any = "",
         response_fingerprint: Any = "",
         evidence: Mapping[str, Any] | None = None,
-    ) -> "CapabilityProbeResult":
+    ) -> CapabilityProbeResult:
         normalized_capability = normalize_capability(capability)
         normalized_status = normalize_probe_status(status)
         if not normalized_capability or not normalized_status:
@@ -706,7 +728,7 @@ class CapabilityProbeResult:
         )
 
     @classmethod
-    def from_dict(cls, value: Mapping[str, Any]) -> "CapabilityProbeResult":
+    def from_dict(cls, value: Mapping[str, Any]) -> CapabilityProbeResult:
         if not isinstance(value, Mapping):
             return cls.build(provider="", model_id="", capability="", status=PROBE_FAIL)
         return cls.build(
@@ -733,7 +755,11 @@ class CapabilityProbeResult:
             capability=self.capability,
             status=status_map.get(self.status, ASSERTION_UNKNOWN),
             source=SOURCE_CAPABILITY_PROBE,
-            confidence=CONFIDENCE_EXPLICIT if self.status == PROBE_PASS else CONFIDENCE_HEURISTIC,
+            confidence=(
+                CONFIDENCE_EXPLICIT
+                if self.status == PROBE_PASS
+                else CONFIDENCE_HEURISTIC
+            ),
             evidence={
                 "provider": self.provider,
                 "endpoint_id": self.endpoint_id,
@@ -881,7 +907,13 @@ DISPLAY_QUERIES = (
         surface="audio_realtime",
         families=(FAMILY_AUDIO,),
         modality_any=(MODALITY_AUDIO,),
-        capabilities_any=(CAP_AUDIO_INPUT, CAP_AUDIO_OUTPUT, CAP_TRANSCRIPTION, CAP_TTS, CAP_REALTIME),
+        capabilities_any=(
+            CAP_AUDIO_INPUT,
+            CAP_AUDIO_OUTPUT,
+            CAP_TRANSCRIPTION,
+            CAP_TTS,
+            CAP_REALTIME,
+        ),
     ),
     CapabilityQuery(
         surface="embeddings",
@@ -900,7 +932,9 @@ DISPLAY_QUERIES = (
 
 
 def display_surfaces_for(capability: ModelCapability) -> tuple[str, ...]:
-    return tuple(query.surface for query in DISPLAY_QUERIES if query.matches(capability))
+    return tuple(
+        query.surface for query in DISPLAY_QUERIES if query.matches(capability)
+    )
 
 
 def unknown_capability(

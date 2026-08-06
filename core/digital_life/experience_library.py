@@ -9,6 +9,7 @@
 
 存储路径：data/experience_library.json
 """
+
 from __future__ import annotations
 
 import json
@@ -23,7 +24,8 @@ import uuid
 
 _EXPERIENCE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "data", "experience_library.json",
+    "data",
+    "experience_library.json",
 )
 
 
@@ -32,14 +34,52 @@ _EXPERIENCE_PATH = os.path.join(
 # ----------------------------------------------------------------------
 
 TASK_TYPE_KEYWORDS: dict[str, list[str]] = {
-    "代码生成-算法实现": ["排序", "查找", "算法", "树", "图", "动态规划",
-                          "递归", "sort", "search", "algorithm"],
-    "代码生成-安全相关": ["加密", "哈希", "签名", "证书", "密码", "登录",
-                          "cipher", "hash", "auth", "login"],
-    "代码生成-业务逻辑": ["业务", "接口", "API", "实现", "功能", "module",
-                          "function", "class", "service"],
-    "UI-界面设计": ["ui", "界面", "页面", "设计", "布局", "css", "html",
-                    "样式", "组件"],
+    "代码生成-算法实现": [
+        "排序",
+        "查找",
+        "算法",
+        "树",
+        "图",
+        "动态规划",
+        "递归",
+        "sort",
+        "search",
+        "algorithm",
+    ],
+    "代码生成-安全相关": [
+        "加密",
+        "哈希",
+        "签名",
+        "证书",
+        "密码",
+        "登录",
+        "cipher",
+        "hash",
+        "auth",
+        "login",
+    ],
+    "代码生成-业务逻辑": [
+        "业务",
+        "接口",
+        "API",
+        "实现",
+        "功能",
+        "module",
+        "function",
+        "class",
+        "service",
+    ],
+    "UI-界面设计": [
+        "ui",
+        "界面",
+        "页面",
+        "设计",
+        "布局",
+        "css",
+        "html",
+        "样式",
+        "组件",
+    ],
     "UI-交互体验": ["交互", "动画", "动效", "反馈", "hover", "click"],
     "测试-单元测试": ["单元测试", "unit test", "pytest", "unittest", "用例"],
     "测试-模糊测试": ["fuzz", "模糊测试", "随机测试", "边界"],
@@ -78,6 +118,7 @@ def classify_task_type(task: str) -> str:
 # ----------------------------------------------------------------------
 # 经验库单例
 # ----------------------------------------------------------------------
+
 
 class ExperienceLibrary:
     """组织经验库（单例）。
@@ -140,16 +181,25 @@ class ExperienceLibrary:
             try:
                 os.makedirs(os.path.dirname(_EXPERIENCE_PATH), exist_ok=True)
                 with open(_EXPERIENCE_PATH, "w", encoding="utf-8") as f:
-                    json.dump({"experiences": self._experiences},
-                              f, ensure_ascii=False, indent=2)
+                    json.dump(
+                        {"experiences": self._experiences},
+                        f,
+                        ensure_ascii=False,
+                        indent=2,
+                    )
             except OSError:
                 pass
 
     # ---------------- 写入 ----------------
 
-    def add_experience(self, agent_species: str, task_summary: str,
-                       lesson: str, task_type: str = "",
-                       improvement: str = "") -> str:
+    def add_experience(
+        self,
+        agent_species: str,
+        task_summary: str,
+        lesson: str,
+        task_type: str = "",
+        improvement: str = "",
+    ) -> str:
         """添加一条经验。返回经验 ID。
 
         Args:
@@ -171,7 +221,7 @@ class ExperienceLibrary:
             "task_summary": (task_summary or "")[:200],
             "lesson": lesson.strip()[:500],
             "improvement": (improvement or "").strip()[:500],
-            "weight": 1,                # 初始权重 1
+            "weight": 1,  # 初始权重 1
             "adopted_count": 0,
             "success_count": 0,
             "failure_count": 0,
@@ -184,13 +234,13 @@ class ExperienceLibrary:
             if len(self._experiences) > 500:
                 self._experiences.sort(
                     key=lambda x: (x.get("weight", 0), x.get("last_used_ts", 0)),
-                    reverse=True)
+                    reverse=True,
+                )
                 self._experiences = self._experiences[:500]
             self._save()
         return exp_id
 
-    def adopt_experience(self, exp_id: str, agent_species: str,
-                         better: bool) -> dict:
+    def adopt_experience(self, exp_id: str, agent_species: str, better: bool) -> dict:
         """记录某智能体采用了一条经验，并更新权重。
 
         Args:
@@ -223,9 +273,9 @@ class ExperienceLibrary:
 
     # ---------------- 检索 ----------------
 
-    def search_experiences(self, task_type: str = "",
-                           agent_species: str = "",
-                           limit: int = 5) -> list[dict]:
+    def search_experiences(
+        self, task_type: str = "", agent_species: str = "", limit: int = 5
+    ) -> list[dict]:
         """按任务类型和物种检索经验。
 
         排序规则：权重降序 + 最近使用时间降序。
@@ -240,11 +290,13 @@ class ExperienceLibrary:
                 results.append(dict(exp))
             results.sort(
                 key=lambda x: (x.get("weight", 0), x.get("last_used_ts", 0)),
-                reverse=True)
+                reverse=True,
+            )
             return results[:limit]
 
-    def search_by_task(self, task: str, agent_species: str = "",
-                       limit: int = 5) -> list[dict]:
+    def search_by_task(
+        self, task: str, agent_species: str = "", limit: int = 5
+    ) -> list[dict]:
         """按任务文本检索相关经验。
 
         先按任务类型筛选，再按物种筛选（物种为空则取全部），
@@ -253,11 +305,13 @@ class ExperienceLibrary:
         task_type = classify_task_type(task)
         # 先精确匹配任务类型
         results = self.search_experiences(
-            task_type=task_type, agent_species=agent_species, limit=limit)
+            task_type=task_type, agent_species=agent_species, limit=limit
+        )
         # 如果该物种没经验，取同任务类型其他物种的经验
         if not results and agent_species:
             results = self.search_experiences(
-                task_type=task_type, agent_species="", limit=limit)
+                task_type=task_type, agent_species="", limit=limit
+            )
         return results
 
     # ---------------- 查询 ----------------
@@ -271,8 +325,8 @@ class ExperienceLibrary:
                     continue
                 results.append(dict(exp))
             results.sort(
-                key=lambda x: (x.get("weight", 0), x.get("created_ts", 0)),
-                reverse=True)
+                key=lambda x: (x.get("weight", 0), x.get("created_ts", 0)), reverse=True
+            )
             return results[:limit]
 
     def stats(self) -> dict:
@@ -299,20 +353,25 @@ class ExperienceLibrary:
 # 模块级便捷 API
 # ----------------------------------------------------------------------
 
+
 def get_experience_library() -> ExperienceLibrary:
     return ExperienceLibrary.get_instance()
 
 
-def add_experience(agent_species: str, task_summary: str, lesson: str,
-                   task_type: str = "") -> str:
+def add_experience(
+    agent_species: str, task_summary: str, lesson: str, task_type: str = ""
+) -> str:
     return get_experience_library().add_experience(
-        agent_species, task_summary, lesson, task_type=task_type)
+        agent_species, task_summary, lesson, task_type=task_type
+    )
 
 
-def search_experiences_by_task(task: str, agent_species: str = "",
-                                limit: int = 5) -> list[dict]:
+def search_experiences_by_task(
+    task: str, agent_species: str = "", limit: int = 5
+) -> list[dict]:
     return get_experience_library().search_by_task(
-        task, agent_species=agent_species, limit=limit)
+        task, agent_species=agent_species, limit=limit
+    )
 
 
 def format_experiences_for_prompt(experiences: list[dict]) -> str:
@@ -323,5 +382,6 @@ def format_experiences_for_prompt(experiences: list[dict]) -> str:
     for i, exp in enumerate(experiences, 1):
         lines.append(
             f"{i}. [{exp.get('task_type', '')}] {exp.get('lesson', '')}"
-            f"（来自 {exp.get('agent_species', '')}，权重 {exp.get('weight', 0)}）")
+            f"（来自 {exp.get('agent_species', '')}，权重 {exp.get('weight', 0)}）"
+        )
     return "\n".join(lines)

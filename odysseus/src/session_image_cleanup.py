@@ -56,7 +56,11 @@ def session_image_refs(db, session_id: str) -> tuple[set[str], set[str]]:
         if img.filename:
             filenames.add(str(img.filename))
 
-    messages = db.query(ChatMessage.meta_data).filter(ChatMessage.session_id == session_id).all()
+    messages = (
+        db.query(ChatMessage.meta_data)
+        .filter(ChatMessage.session_id == session_id)
+        .all()
+    )
     for row in messages:
         raw = getattr(row, "meta_data", None)
         if not raw:
@@ -74,7 +78,9 @@ def session_image_refs(db, session_id: str) -> tuple[set[str], set[str]]:
             image_id = ev.get("image_id")
             if image_id:
                 image_ids.add(str(image_id))
-            filename = _image_filename_from_url(ev.get("image_url") or ev.get("url") or "")
+            filename = _image_filename_from_url(
+                ev.get("image_url") or ev.get("url") or ""
+            )
             if filename:
                 filenames.add(filename)
 
@@ -123,7 +129,9 @@ def cleanup_session_images(session_id: str, db=None) -> int:
     except Exception as exc:
         if owns_db:
             db.rollback()
-        logger.warning("Failed to clean images for deleted session %s: %s", session_id, exc)
+        logger.warning(
+            "Failed to clean images for deleted session %s: %s", session_id, exc
+        )
         return 0
     finally:
         if owns_db:

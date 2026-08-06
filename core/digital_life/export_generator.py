@@ -10,6 +10,7 @@
 - Markdown 快照：纯字符串拼接
 - 分享文案：调 LLM，失败时降级用模板
 """
+
 from __future__ import annotations
 
 import time
@@ -17,18 +18,32 @@ from typing import Any
 
 # 物种主题色（与 game_frontend.py 的 SPECIES_COLORS 一致）
 SPECIES_COLORS = {
-    "deer": "#c9a96e", "squirrel": "#a87238", "butterfly": "#e8a8c8",
-    "fox": "#e87048", "hedgehog": "#8a7a5a", "beaver": "#9a6840",
-    "raven": "#3a3a4a", "hare": "#d8d8e0", "badger": "#6a5a4a",
-    "lark": "#a8c8e0", "kite": "#7a8a9a",
+    "deer": "#c9a96e",
+    "squirrel": "#a87238",
+    "butterfly": "#e8a8c8",
+    "fox": "#e87048",
+    "hedgehog": "#8a7a5a",
+    "beaver": "#9a6840",
+    "raven": "#3a3a4a",
+    "hare": "#d8d8e0",
+    "badger": "#6a5a4a",
+    "lark": "#a8c8e0",
+    "kite": "#7a8a9a",
 }
 
 # 物种中文名
 SPECIES_CN = {
-    "deer": "鹿", "squirrel": "松鼠", "butterfly": "蝴蝶",
-    "fox": "狐狸", "hedgehog": "刺猬", "beaver": "海狸",
-    "raven": "渡鸦", "hare": "野兔", "badger": "獾",
-    "lark": "云雀", "kite": "鸢",
+    "deer": "鹿",
+    "squirrel": "松鼠",
+    "butterfly": "蝴蝶",
+    "fox": "狐狸",
+    "hedgehog": "刺猬",
+    "beaver": "海狸",
+    "raven": "渡鸦",
+    "hare": "野兔",
+    "badger": "獾",
+    "lark": "云雀",
+    "kite": "鸢",
 }
 
 # 岗位描述
@@ -50,17 +65,28 @@ SPECIES_ROLE = {
 def _pinyin(name: str) -> str:
     """把中文名字粗略转拼音（只处理已知名字，未知的返回空）。"""
     PINYIN_MAP = {
-        "鹿": "Lu", "忧郁": "Youyu",
-        "鼠": "Shu", "栗壳": "Like",
-        "蝶": "Die", "绘羽": "Huiyu",
-        "狐": "Hu", "赤谋": "Chimou",
-        "猬": "Wei", "针客": "Zhenke",
-        "狸": "Li", "大坝": "Daba",
-        "鸦": "Ya", "黑卷": "Heijuan",
-        "兔": "Tu", "霜耳": "Shuanger",
-        "獾": "Huan", "土工": "Tugong",
-        "雀": "Que", "清音": "Qingyin",
-        "鸢": "Yuan", "天瞰": "Tiankan",
+        "鹿": "Lu",
+        "忧郁": "Youyu",
+        "鼠": "Shu",
+        "栗壳": "Like",
+        "蝶": "Die",
+        "绘羽": "Huiyu",
+        "狐": "Hu",
+        "赤谋": "Chimou",
+        "猬": "Wei",
+        "针客": "Zhenke",
+        "狸": "Li",
+        "大坝": "Daba",
+        "鸦": "Ya",
+        "黑卷": "Heijuan",
+        "兔": "Tu",
+        "霜耳": "Shuanger",
+        "獾": "Huan",
+        "土工": "Tugong",
+        "雀": "Que",
+        "清音": "Qingyin",
+        "鸢": "Yuan",
+        "天瞰": "Tiankan",
     }
     # 名字格式："鹿·忧郁" → "Lu Youyu"
     parts = name.split("·")
@@ -73,10 +99,12 @@ def _pinyin(name: str) -> str:
 
 def _escape_svg(text: str) -> str:
     """转义 SVG 文本中的特殊字符。"""
-    return (text.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace('"', "&quot;"))
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
 
 
 def generate_agent_card_svg(agent_dict: dict) -> str:
@@ -230,7 +258,9 @@ def generate_snapshot_markdown(biosphere: Any) -> str:
             mood = 0.5
         species_cn = SPECIES_CN.get(species, species)
         role = SPECIES_ROLE.get(species, "")
-        lines.append(f"| {name} | {species_cn} | {age:.1f}天 | {health:.0f} | {mood:.2f} | {role} |")
+        lines.append(
+            f"| {name} | {species_cn} | {age:.1f}天 | {health:.0f} | {mood:.2f} | {role} |"
+        )
     lines.append("")
 
     # 技能矩阵
@@ -306,7 +336,11 @@ def generate_snapshot_markdown(biosphere: Any) -> str:
                 try:
                     t_val = float(e.get("time", 0)) if isinstance(e, dict) else 0
                     t = time.strftime("%m-%d %H:%M", time.localtime(t_val))
-                    desc = e.get("description", e.get("desc", str(e))) if isinstance(e, dict) else str(e)
+                    desc = (
+                        e.get("description", e.get("desc", str(e)))
+                        if isinstance(e, dict)
+                        else str(e)
+                    )
                     lines.append(f"- `{t}` {desc}")
                 except Exception:
                     continue
@@ -315,6 +349,7 @@ def generate_snapshot_markdown(biosphere: Any) -> str:
     # 站会摘要
     try:
         from core.digital_life.project_manager import ProjectManager
+
         pm = ProjectManager.get_instance()
         standups = pm.list_standups()
         if standups:
@@ -382,6 +417,7 @@ def generate_share_text(biosphere: Any, router: Any = None) -> str:
     # 尝试调 LLM 生成更有趣的文案
     try:
         import asyncio
+
         prompt = (
             f"你是 BlueDeer 森林公司的故事讲述者。"
             f"用户的数字森林公司已经运行 {run_days} 天了，"

@@ -13,28 +13,29 @@ import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 from core.scene import CEOOffice
-from core.task import Task, TaskStatus
 
 logger = logging.getLogger("bluedeer.jarvis")
 
 
 class IntentType(Enum):
     """用户意图类型。"""
-    QUERY_STATUS = "query_status"        # 查询状态
-    CREATE_TASK = "create_task"          # 创建任务
+
+    QUERY_STATUS = "query_status"  # 查询状态
+    CREATE_TASK = "create_task"  # 创建任务
     SEARCH_KNOWLEDGE = "search_knowledge"  # 搜索知识
-    HOLD_MEETING = "hold_meeting"        # 召开会议
-    SEND_MESSAGE = "send_message"        # 发送消息
-    START_REST = "start_rest"            # 开始休息
-    UNKNOWN = "unknown"                  # 未知
+    HOLD_MEETING = "hold_meeting"  # 召开会议
+    SEND_MESSAGE = "send_message"  # 发送消息
+    START_REST = "start_rest"  # 开始休息
+    UNKNOWN = "unknown"  # 未知
 
 
 @dataclass
 class JARVISResponse:
     """JARVIS 响应。"""
+
     text: str
     intent: IntentType
     data: dict[str, Any] = field(default_factory=dict)
@@ -67,7 +68,9 @@ class JARVIS:
         self._conversation_history.append({"role": "user", "text": text})
         self._conversation_history.append({"role": "jarvis", "text": response.text})
         if len(self._conversation_history) > self._max_history * 2:
-            self._conversation_history = self._conversation_history[-self._max_history * 2:]
+            self._conversation_history = self._conversation_history[
+                -self._max_history * 2 :
+            ]
 
         return response
 
@@ -78,15 +81,23 @@ class JARVIS:
         text_lower = text.lower()
 
         # 查询状态
-        if any(kw in text_lower for kw in ["状态", "情况", "status", "怎么样了", "当前"]):
+        if any(
+            kw in text_lower for kw in ["状态", "情况", "status", "怎么样了", "当前"]
+        ):
             return IntentType.QUERY_STATUS
 
         # 创建任务
-        if any(kw in text_lower for kw in ["创建任务", "新建", "写代码", "generate", "做个"]):
+        if any(
+            kw in text_lower
+            for kw in ["创建任务", "新建", "写代码", "generate", "做个"]
+        ):
             return IntentType.CREATE_TASK
 
         # 搜索知识
-        if any(kw in text_lower for kw in ["搜索", "查找", "资料", "search", "find", "知识"]):
+        if any(
+            kw in text_lower
+            for kw in ["搜索", "查找", "资料", "search", "find", "知识"]
+        ):
             return IntentType.SEARCH_KNOWLEDGE
 
         # 召开会议
@@ -94,11 +105,16 @@ class JARVIS:
             return IntentType.HOLD_MEETING
 
         # 发送消息
-        if any(kw in text_lower for kw in ["发消息", "告诉", "通知", "say", "tell", "announce"]):
+        if any(
+            kw in text_lower
+            for kw in ["发消息", "告诉", "通知", "say", "tell", "announce"]
+        ):
             return IntentType.SEND_MESSAGE
 
         # 休息
-        if any(kw in text_lower for kw in ["休息", "放松", "休息一下", "rest", "break"]):
+        if any(
+            kw in text_lower for kw in ["休息", "放松", "休息一下", "rest", "break"]
+        ):
             return IntentType.START_REST
 
         return IntentType.UNKNOWN
@@ -122,14 +138,14 @@ class JARVIS:
         else:
             return JARVISResponse(
                 text="你好，我是 BlueDeer 森林公司的 JARVIS 助手。"
-                     "我可以帮你：\n"
-                     "1. 查询全场景状态\n"
-                     "2. 创建任务\n"
-                     "3. 搜索知识库\n"
-                     "4. 召开会议\n"
-                     "5. 发送公告消息\n"
-                     "6. 开始休息\n"
-                     "请告诉我你需要什么帮助？",
+                "我可以帮你：\n"
+                "1. 查询全场景状态\n"
+                "2. 创建任务\n"
+                "3. 搜索知识库\n"
+                "4. 召开会议\n"
+                "5. 发送公告消息\n"
+                "6. 开始休息\n"
+                "请告诉我你需要什么帮助？",
                 intent=intent,
                 success=True,
             )
@@ -166,7 +182,7 @@ class JARVIS:
 
         return JARVISResponse(
             text=f"📋 已识别任务类型: {task_type}。"
-                 f"已提交到调度队列，等待分配合适的员工处理。",
+            f"已提交到调度队列，等待分配合适的员工处理。",
             intent=IntentType.CREATE_TASK,
             data={"task_type": task_type, "raw_text": text},
         )
@@ -181,12 +197,12 @@ class JARVIS:
             keywords = text
 
         results = self._scene.library.search(keywords, top_k=3)
-        result_text = "\n".join(
-            f"- {r.title}" for r in results
-        ) if results else "未找到相关结果"
+        result_text = (
+            "\n".join(f"- {r.title}" for r in results) if results else "未找到相关结果"
+        )
 
         return JARVISResponse(
-            text=f"🔍 搜索 \"{keywords}\" 结果：\n{result_text}",
+            text=f'🔍 搜索 "{keywords}" 结果：\n{result_text}',
             intent=IntentType.SEARCH_KNOWLEDGE,
             data={"query": keywords, "results": len(results)},
         )
@@ -218,7 +234,7 @@ class JARVIS:
 
         msg_id = self._scene.breakroom.announce(content)
         return JARVISResponse(
-            text=f"📢 公告已发布到茶水间",
+            text="📢 公告已发布到茶水间",
             intent=IntentType.SEND_MESSAGE,
             data={"message_id": msg_id, "content": content},
         )
@@ -227,7 +243,7 @@ class JARVIS:
         """处理休息请求。"""
         session = self._scene.rest_area.start_rest("employee", duration=300.0)
         return JARVISResponse(
-            text=f"🧘 休息模式已开启。你可以回顾最近的梦境记忆，放松一下。",
+            text="🧘 休息模式已开启。你可以回顾最近的梦境记忆，放松一下。",
             intent=IntentType.START_REST,
             data={"session_id": session.session_id},
         )
@@ -242,11 +258,13 @@ class JARVIS:
         """手动添加一条消息到对话历史。"""
         self._conversation_history.append({"role": role, "text": content})
         if len(self._conversation_history) > self._max_history * 2:
-            self._conversation_history = self._conversation_history[-self._max_history * 2:]
+            self._conversation_history = self._conversation_history[
+                -self._max_history * 2 :
+            ]
 
     def get_context(self, window: int = 10) -> list[dict[str, str]]:
         """获取最近 N 轮对话（每轮 user + jarvis = 2 条）。"""
-        return self._conversation_history[-(window * 2):]
+        return self._conversation_history[-(window * 2) :]
 
     def clear_history(self) -> None:
         """清空对话历史。"""

@@ -13,47 +13,48 @@ import logging
 import os
 import time
 import uuid
-from dataclasses import dataclass, field, asdict
-from enum import Enum
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from core.security import (
-    RiskLevel,
     SecurityGuard,
     SecurityReport,
     sanitize_log,
 )
-from tools.base_tool import BaseTool, ToolCategory
+from tools.base_tool import BaseTool
 
 logger = logging.getLogger("bluedeer.mcp")
 
 
 # ============== AuditRecord：审计日志记录 ==============
 
+
 @dataclass
 class AuditRecord:
     """单次工具调用的审计记录。"""
-    record_id: str = ""           # 审计记录 ID
+
+    record_id: str = ""  # 审计记录 ID
     timestamp: float = 0.0
-    agent_id: str = ""            # 调用方 Agent
-    tool_name: str = ""           # 工具名
-    category: str = ""            # 工具分级
+    agent_id: str = ""  # 调用方 Agent
+    tool_name: str = ""  # 工具名
+    category: str = ""  # 工具分级
     params_sanitized: dict[str, Any] = field(default_factory=dict)  # 脱敏后的参数
-    status: str = ""              # allowed / denied / success / failed
-    reason: str = ""              # 拒绝/失败原因
-    risk_level: str = ""          # 扫描风险等级
-    threat_count: int = 0         # 命中威胁数
-    duration_ms: int = 0          # 执行耗时
-    result_summary: str = ""      # 结果摘要（脱敏后）
+    status: str = ""  # allowed / denied / success / failed
+    reason: str = ""  # 拒绝/失败原因
+    risk_level: str = ""  # 扫描风险等级
+    threat_count: int = 0  # 命中威胁数
+    duration_ms: int = 0  # 执行耗时
+    result_summary: str = ""  # 结果摘要（脱敏后）
     # T4 防篡改：SHA256 哈希链
-    hash: str = ""                # 本条记录的 SHA256（含 prev_hash）
-    prev_hash: str = ""           # 上一条记录的 hash
+    hash: str = ""  # 本条记录的 SHA256（含 prev_hash）
+    prev_hash: str = ""  # 上一条记录的 hash
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
 # ============== AuditLogger：审计日志记录器 ==============
+
 
 class AuditLogger:
     """审计日志记录器（JSON Lines 持久化）。
@@ -149,21 +150,25 @@ class AuditLogger:
         for i, rec in enumerate(self._buffer):
             expected_prev = self._buffer[i - 1].hash if i > 0 else ""
             if rec.prev_hash != expected_prev:
-                issues.append({
-                    "index": i,
-                    "record_id": rec.record_id,
-                    "type": "broken_chain",
-                    "detail": f"prev_hash 不匹配: 期望 {expected_prev[:16]}..., 实际 {rec.prev_hash[:16]}...",
-                })
+                issues.append(
+                    {
+                        "index": i,
+                        "record_id": rec.record_id,
+                        "type": "broken_chain",
+                        "detail": f"prev_hash 不匹配: 期望 {expected_prev[:16]}..., 实际 {rec.prev_hash[:16]}...",
+                    }
+                )
             # 重算 hash（排除 hash 和 prev_hash 字段）
             actual_hash = self._compute_hash(rec, rec.prev_hash)
             if rec.hash != actual_hash:
-                issues.append({
-                    "index": i,
-                    "record_id": rec.record_id,
-                    "type": "tampered",
-                    "detail": f"hash 不匹配: 记录 {rec.hash[:16]}..., 实际 {actual_hash[:16]}...",
-                })
+                issues.append(
+                    {
+                        "index": i,
+                        "record_id": rec.record_id,
+                        "type": "tampered",
+                        "detail": f"hash 不匹配: 记录 {rec.hash[:16]}..., 实际 {actual_hash[:16]}...",
+                    }
+                )
         return issues
 
     def clear(self) -> None:
@@ -178,9 +183,11 @@ class AuditLogger:
 
 # ============== MCPClient：统一工具调用入口 ==============
 
+
 @dataclass
 class ToolMeta:
     """工具元数据。"""
+
     name: str = ""
     description: str = ""
     category: str = ""
@@ -216,7 +223,8 @@ class MCPClient:
         self._tools[tool.name] = tool
         logger.info(
             "MCP 注册工具: %s (category=%s)",
-            tool.name, tool.category.value,
+            tool.name,
+            tool.category.value,
         )
 
     def list_tools(self) -> list[str]:
@@ -226,15 +234,19 @@ class MCPClient:
         """返回所有已注册工具的元数据。"""
         metas: list[ToolMeta] = []
         for name, tool in self._tools.items():
-            metas.append(ToolMeta(
-                name=name,
-                description=getattr(tool, "description", ""),
-                category=getattr(tool, "category", ""),
-                parameters=getattr(tool, "parameters", {}),
-            ))
+            metas.append(
+                ToolMeta(
+                    name=name,
+                    description=getattr(tool, "description", ""),
+                    category=getattr(tool, "category", ""),
+                    parameters=getattr(tool, "parameters", {}),
+                )
+            )
         return metas
 
-    async def call_with_error_handling(self, tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+    async def call_with_error_handling(
+        self, tool_name: str, args: dict[str, Any]
+    ) -> dict[str, Any]:
         """带错误包装的工具调用。
         Args:
             tool_name: 工具名。
@@ -245,7 +257,11 @@ class MCPClient:
         try:
             tool = self._tools.get(tool_name)
             if tool is None:
-                return {"ok": False, "result": None, "reason": f"工具 {tool_name} 未注册"}
+                return {
+                    "ok": False,
+                    "result": None,
+                    "reason": f"工具 {tool_name} 未注册",
+                }
             result = await tool.execute(args)
             return {"ok": True, "result": result, "reason": "ok"}
         except KeyError as e:
@@ -286,10 +302,21 @@ class MCPClient:
         # 1. 工具存在性
         if tool is None:
             self._write_audit(
-                agent_id, tool_name, "unknown", params_sanitized,
-                "denied", "工具未注册", None, t0,
+                agent_id,
+                tool_name,
+                "unknown",
+                params_sanitized,
+                "denied",
+                "工具未注册",
+                None,
+                t0,
             )
-            return {"ok": False, "reason": f"工具 '{tool_name}' 未注册", "result": None, "report": None}
+            return {
+                "ok": False,
+                "reason": f"工具 '{tool_name}' 未注册",
+                "result": None,
+                "report": None,
+            }
 
         category = tool.category
 
@@ -297,29 +324,56 @@ class MCPClient:
         allowed, reason = self._guard.check_permission(agent_id, tool_name)
         if not allowed:
             self._write_audit(
-                agent_id, tool_name, category.value, params_sanitized,
-                "denied", reason, None, t0,
+                agent_id,
+                tool_name,
+                category.value,
+                params_sanitized,
+                "denied",
+                reason,
+                None,
+                t0,
             )
             return {"ok": False, "reason": reason, "result": None, "report": None}
 
         # 3. 操作安全校验（HAZARDOUS 白名单 + 静态扫描）
         allowed, report, reason = self._guard.check_operation(
-            tool_name, params, category,
+            tool_name,
+            params,
+            category,
         )
         report_dict = report.to_dict() if report else None
         if not allowed:
             self._write_audit(
-                agent_id, tool_name, category.value, params_sanitized,
-                "denied", reason, report, t0, report_dict,
+                agent_id,
+                tool_name,
+                category.value,
+                params_sanitized,
+                "denied",
+                reason,
+                report,
+                t0,
+                report_dict,
             )
-            return {"ok": False, "reason": reason, "result": None, "report": report_dict}
+            return {
+                "ok": False,
+                "reason": reason,
+                "result": None,
+                "report": report_dict,
+            }
 
         # 4. 执行工具
         try:
             result = await tool.execute(params)
             self._write_audit(
-                agent_id, tool_name, category.value, params_sanitized,
-                "success", "ok", report, t0, report_dict,
+                agent_id,
+                tool_name,
+                category.value,
+                params_sanitized,
+                "success",
+                "ok",
+                report,
+                t0,
+                report_dict,
                 result_summary=_summarize(result),
             )
             return {
@@ -331,8 +385,15 @@ class MCPClient:
         except Exception as e:
             logger.exception("MCP 工具 %s 执行失败", tool_name)
             self._write_audit(
-                agent_id, tool_name, category.value, params_sanitized,
-                "failed", f"执行异常: {e}", report, t0, report_dict,
+                agent_id,
+                tool_name,
+                category.value,
+                params_sanitized,
+                "failed",
+                f"执行异常: {e}",
+                report,
+                t0,
+                report_dict,
             )
             return {
                 "ok": False,

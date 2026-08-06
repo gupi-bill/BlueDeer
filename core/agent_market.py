@@ -15,7 +15,7 @@ import logging
 import os
 import shutil
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -32,30 +32,47 @@ class MarketAgent:
     info: AgentInfo
     installed_at: float = 0
     install_path: str = ""
-    stats: dict[str, Any] = field(default_factory=lambda: {
-        "total_tasks": 0, "success": 0, "failed": 0,
-        "avg_duration_ms": 0, "last_active": 0,
-    })
+    stats: dict[str, Any] = field(
+        default_factory=lambda: {
+            "total_tasks": 0,
+            "success": 0,
+            "failed": 0,
+            "avg_duration_ms": 0,
+            "last_active": 0,
+        }
+    )
     featured: bool = False
     category: str = "builtin"
 
 
 class AgentMarket:
-    def __init__(self, registry: AgentRegistry | None = None, market_file: str = _MARKET_FILE) -> None:
+    def __init__(
+        self, registry: AgentRegistry | None = None, market_file: str = _MARKET_FILE
+    ) -> None:
         self._registry = registry or AgentRegistry()
         self._market_file = market_file
         self._agents: dict[str, MarketAgent] = {}
         self._load()
         os.makedirs(os.path.dirname(self._market_file) or ".", exist_ok=True)
 
-    def register(self, agent_cls: type, *, source: str = "builtin", source_url: str = "", category: str = "builtin", featured: bool = False) -> None:
+    def register(
+        self,
+        agent_cls: type,
+        *,
+        source: str = "builtin",
+        source_url: str = "",
+        category: str = "builtin",
+        featured: bool = False,
+    ) -> None:
         self._registry.register(agent_cls, source=source, source_url=source_url)
         info = self._registry.get_agent(agent_cls.__name__)
         if not info:
             return
         if info.name not in self._agents:
             self._agents[info.name] = MarketAgent(
-                info=info, category=category, featured=featured,
+                info=info,
+                category=category,
+                featured=featured,
             )
         self._save()
 
@@ -103,7 +120,7 @@ class AgentMarket:
             self._save()
             logger.info("Agent %s 已安装到 %s", name, dst)
             return True
-        except Exception as e:
+        except Exception:
             logger.exception("安装 Agent %s 失败", name)
             return False
 
@@ -129,7 +146,9 @@ class AgentMarket:
                 self._agents[info.name] = MarketAgent(info=info)
         self._save()
 
-    def recommend(self, user_profile: list[str], top_k: int = 5) -> list[dict[str, Any]]:
+    def recommend(
+        self, user_profile: list[str], top_k: int = 5
+    ) -> list[dict[str, Any]]:
         """基于能力匹配推荐 Agent。"""
         if not user_profile or not self._agents:
             return []
@@ -141,7 +160,9 @@ class AgentMarket:
                 continue
             overlap = len(profile_set & caps)
             jaccard = overlap / len(profile_set | caps) if profile_set | caps else 0
-            score = jaccard * 0.7 + (overlap / len(profile_set)) * 0.3 if profile_set else 0
+            score = (
+                jaccard * 0.7 + (overlap / len(profile_set)) * 0.3 if profile_set else 0
+            )
             scored.append((score, agent))
         scored.sort(key=lambda x: -x[0])
         return [self._to_dict(a) for s, a in scored[:top_k]]

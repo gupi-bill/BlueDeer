@@ -13,6 +13,7 @@
 3. 普通消息走"小时汇总"：digest 字典按渠道缓存，到点一次性发送。
 4. 配置文件改动会被自动感知（每次发送前重读 mtime）。
 """
+
 from __future__ import annotations
 
 import datetime
@@ -61,10 +62,10 @@ def load_config(path: str = DEFAULT_CONFIG_PATH) -> dict:
             "channels": {"desktop_notify": {"enabled": True}},
             "quiet_hours": {"enabled": False, "start": "22:00", "end": "08:00"},
             "message_routing": {
-                "urgent":    ["desktop_notify"],
+                "urgent": ["desktop_notify"],
                 "important": ["desktop_notify"],
-                "normal":    ["desktop_notify"],
-                "social":    [],
+                "normal": ["desktop_notify"],
+                "social": [],
             },
             "digest": {"enabled": True, "interval_hours": 1},
         }
@@ -73,6 +74,7 @@ def load_config(path: str = DEFAULT_CONFIG_PATH) -> dict:
 # ====================================================================
 # MessageRouter 单例
 # ====================================================================
+
 
 class MessageRouter:
     """消息路由器（单例）。
@@ -137,6 +139,7 @@ class MessageRouter:
         if channels_cfg.get("desktop_notify", {}).get("enabled", False):
             try:
                 from core.digital_life.channels.desktop_notify import send as _send
+
                 senders["desktop_notify"] = _send
             except Exception:
                 pass
@@ -146,6 +149,7 @@ class MessageRouter:
             if ch.get("enabled") and ch.get("url"):
                 try:
                     from core.digital_life.channels.webhook_channel import make_sender
+
                     senders[key] = make_sender(key, ch)
                 except Exception:
                     pass
@@ -154,6 +158,7 @@ class MessageRouter:
         if tg.get("enabled") and tg.get("bot_token") and tg.get("chat_id"):
             try:
                 from core.digital_life.channels.telegram_bot import make_sender
+
                 senders["telegram"] = make_sender(tg)
             except Exception:
                 pass
@@ -162,6 +167,7 @@ class MessageRouter:
         if em.get("enabled") and em.get("smtp_host") and em.get("recipient"):
             try:
                 from core.digital_life.channels.email_digest import make_sender
+
                 senders["email"] = make_sender(em)
             except Exception:
                 pass
@@ -235,28 +241,36 @@ class MessageRouter:
             if sender is None:
                 # 渠道未启用或加载失败
                 continue
-            if use_digest and ch_name in ("email", "wechat_webhook",
-                                           "dingtalk_webhook", "feishu_webhook"):
+            if use_digest and ch_name in (
+                "email",
+                "wechat_webhook",
+                "dingtalk_webhook",
+                "feishu_webhook",
+            ):
                 # Webhook/邮件做汇总，避免消息轰炸
-                self._digest_buffer.setdefault(ch_name, []).append({
-                    "sender": message.get("sender", ""),
-                    "sender_species": message.get("sender_species", ""),
-                    "text": message.get("text", ""),
-                    "category": message.get("category", ""),
-                    "time": message.get("time", time.time()),
-                })
-                buffered.append(ch_name)
-            else:
-                # 立即发送（desktop_notify / telegram / 所有 urgent）
-                try:
-                    sender({
+                self._digest_buffer.setdefault(ch_name, []).append(
+                    {
                         "sender": message.get("sender", ""),
                         "sender_species": message.get("sender_species", ""),
                         "text": message.get("text", ""),
                         "category": message.get("category", ""),
-                        "priority": priority,
                         "time": message.get("time", time.time()),
-                    })
+                    }
+                )
+                buffered.append(ch_name)
+            else:
+                # 立即发送（desktop_notify / telegram / 所有 urgent）
+                try:
+                    sender(
+                        {
+                            "sender": message.get("sender", ""),
+                            "sender_species": message.get("sender_species", ""),
+                            "text": message.get("text", ""),
+                            "category": message.get("category", ""),
+                            "priority": priority,
+                            "time": message.get("time", time.time()),
+                        }
+                    )
                     dispatched.append(ch_name)
                 except Exception:
                     pass
@@ -298,20 +312,23 @@ class MessageRouter:
                 if ch_name == "email":
                     # 邮件走 daily_report 模板
                     from core.digital_life.channels.email_digest import send_digest
+
                     send_digest(self._config["channels"]["email"], msgs)
                 else:
                     # Webhook 类：合并为一条卡片
                     summary = self._format_webhook_digest(msgs)
-                    sender({
-                        "sender": "BlueDeer 汇总",
-                        "sender_species": "system",
-                        "text": summary,
-                        "category": "digest",
-                        "priority": "low",
-                        "time": now,
-                        "is_digest": True,
-                        "digest_count": len(msgs),
-                    })
+                    sender(
+                        {
+                            "sender": "BlueDeer 汇总",
+                            "sender_species": "system",
+                            "text": summary,
+                            "category": "digest",
+                            "priority": "low",
+                            "time": now,
+                            "is_digest": True,
+                            "digest_count": len(msgs),
+                        }
+                    )
                 flushed.append(ch_name)
                 total += len(msgs)
             except Exception:

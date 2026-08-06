@@ -8,29 +8,32 @@ evolution（数据维度 - R194）：
 - 与 B+树互补：B+树读优写劣，LSM 写优读劣
 - LevelDB/RocksDB/Cassandra/HBase 都基于 LSM
 """
+
 from __future__ import annotations
+
 import bisect
 import threading
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 from .bloom_filter import BloomFilter
-
 
 _TOMBSTONE = object()
 
 
 class CompactionStrategy:
     """合并策略配置。"""
+
     SIZE_TIERED = "size-tiered"
     LEVELED = "leveled"
 
     @staticmethod
     def tier_sizes(base: int, fan: int, levels: int) -> list[int]:
-        return [base * (fan ** i) for i in range(levels)]
+        return [base * (fan**i) for i in range(levels)]
 
 
 class _SSTable:
-    __slots__ = ("entries", "keys", "min_key", "max_key", "bloom", "level")
+    __slots__ = ("bloom", "entries", "keys", "level", "max_key", "min_key")
 
     def __init__(self, entries: list[tuple[Any, Any]], level: int = 0):
         self.entries = entries
@@ -95,7 +98,7 @@ class LsmTree:
     def __len__(self) -> int:
         return self._size
 
-    def put(self, key, value) -> None:
+    def put(self, key: Any, value) -> None:
         with self._lock:
             is_new = key not in self._memtable
             self._memtable[key] = value

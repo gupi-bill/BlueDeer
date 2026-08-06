@@ -13,12 +13,14 @@
     g.add_edge("A", "B", 1)
     g.bfs("A")  # ["A", "B"]
 """
+
 from __future__ import annotations
 
 import heapq
 import threading
 from collections import deque
-from typing import Any, Dict, Hashable, Iterator, List, Optional, Set, Tuple
+from collections.abc import Hashable
+from typing import Any
 
 V = Hashable  # 顶点类型：可哈希即可
 
@@ -27,7 +29,7 @@ class Graph:
     """带权图（可指定有向/无向）。"""
 
     def __init__(self, directed: bool = False) -> None:
-        self._adj: Dict = {}  # {v: [(neighbor, weight), ...]}
+        self._adj: dict = {}  # {v: [(neighbor, weight), ...]}
         self._directed = directed
         self._edge_count = 0
         self._lock = threading.RLock()
@@ -44,7 +46,7 @@ class Graph:
             if v not in self._adj:
                 self._adj[v] = []
 
-    def add_edge(self, u, v, weight: float = 1.0) -> None:
+    def add_edge(self, u: Any, v: Any, weight: float = 1.0) -> None:
         with self._lock:
             if u not in self._adj:
                 self._adj[u] = []
@@ -55,7 +57,7 @@ class Graph:
                 self._adj[v].append((u, weight))
             self._edge_count += 1
 
-    def remove_edge(self, u, v) -> bool:
+    def remove_edge(self, u: Any, v) -> bool:
         with self._lock:
             if u not in self._adj:
                 return False
@@ -71,20 +73,20 @@ class Graph:
                     return True
             return False
 
-    def neighbors(self, v) -> List[Tuple]:
+    def neighbors(self, v) -> list[tuple]:
         return list(self._adj.get(v, []))
 
-    def vertices(self) -> List:
+    def vertices(self) -> list:
         return list(self._adj.keys())
 
-    def edges(self) -> List[Tuple]:
+    def edges(self) -> list[tuple]:
         result = []
         for u in self._adj:
             for v, w in self._adj[u]:
                 result.append((u, v, w))
         return result
 
-    def bfs(self, start) -> List:
+    def bfs(self, start) -> list:
         """广度优先遍历，返回访问顺序。"""
         with self._lock:
             if start not in self._adj:
@@ -101,7 +103,7 @@ class Graph:
                         q.append(v)
             return order
 
-    def dfs(self, start) -> List:
+    def dfs(self, start) -> list:
         """深度优先遍历（显式栈）。"""
         with self._lock:
             if start not in self._adj:
@@ -123,7 +125,7 @@ class Graph:
                     stack.pop()
             return order
 
-    def bfs_shortest_path(self, start, end) -> Optional[List]:
+    def bfs_shortest_path(self, start: Any, end) -> list | None:
         """BFS 求无权图最短路径。"""
         with self._lock:
             if start not in self._adj or end not in self._adj:
@@ -149,7 +151,7 @@ class Graph:
                 cur = parent[cur]
             return list(reversed(path))
 
-    def dijkstra(self, start) -> Dict:
+    def dijkstra(self, start) -> dict:
         """Dijkstra 单源最短路径，返回 {v: dist}。"""
         with self._lock:
             if start not in self._adj:
@@ -167,7 +169,7 @@ class Graph:
                         heapq.heappush(pq, (nd, v))
             return dist
 
-    def dijkstra_path(self, start, end) -> Optional[List]:
+    def dijkstra_path(self, start: Any, end) -> list | None:
         """Dijkstra 带路径回溯。"""
         with self._lock:
             if start not in self._adj or end not in self._adj:
@@ -203,7 +205,7 @@ class Graph:
                 WHITE, GRAY, BLACK = 0, 1, 2
                 color = {v: WHITE for v in self._adj}
 
-                def dfs(u):
+                def dfs(u) -> Any:
                     color[u] = GRAY
                     for v, _ in self._adj[u]:
                         if color[v] == GRAY:
@@ -217,7 +219,7 @@ class Graph:
             else:
                 visited = set()
 
-                def dfs(u, parent):
+                def dfs(u: Any, parent) -> Any:
                     visited.add(u)
                     for v, _ in self._adj[u]:
                         if v not in visited:
@@ -229,7 +231,7 @@ class Graph:
 
                 return any(v not in visited and dfs(v, None) for v in self._adj)
 
-    def topological_sort(self) -> Optional[List]:
+    def topological_sort(self) -> list | None:
         """拓扑排序（Kahn 入度法）。无环返回顺序，有环返回 None。"""
         if not self._directed:
             return None
@@ -249,7 +251,7 @@ class Graph:
                         q.append(v)
             return order if len(order) == len(self._adj) else None
 
-    def connected_components(self) -> List[List]:
+    def connected_components(self) -> list[list]:
         """连通分量（无向）。"""
         if self._directed:
             # 简化：弱连通分量
@@ -273,11 +275,11 @@ class Graph:
                 comps.append(comp)
             return comps
 
-    def shortest_path(self, a, b) -> Optional[List]:
+    def shortest_path(self, a: Any, b) -> list | None:
         """求 a 到 b 的最短路径（委托 dijkstra_path）。"""
         return self.dijkstra_path(a, b)
 
-    def minimum_spanning_tree(self) -> Optional[List[Tuple]]:
+    def minimum_spanning_tree(self) -> list[tuple] | None:
         """Kruskal 最小生成树（仅无向图）。"""
         if self._directed:
             return None
@@ -289,15 +291,18 @@ class Graph:
                         edges.append((w, u, v))
             edges.sort(key=lambda x: x[0])
             parent: dict = {}
-            def find(x):
+
+            def find(x) -> Any:
                 while parent.get(x, x) != x:
                     parent[x] = parent.get(parent.get(x, x), x)
                     x = parent[x]
                 return x
-            def union(x, y):
+
+            def union(x: Any, y) -> None:
                 rx, ry = find(x), find(y)
                 if rx != ry:
                     parent[rx] = ry
+
             mst: list[tuple] = []
             for w, u, v in edges:
                 if find(u) != find(v):

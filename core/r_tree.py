@@ -7,10 +7,13 @@ evolution（数据维度 - R201）：
 - 应用：GIS 空间索引、数据库空间查询、碰撞检测
 - 与 KD-Tree 互补：KD-Tree 点近邻，R-Tree 矩形范围
 """
+
 from __future__ import annotations
+
 import math
 import threading
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 
 def _area(rect) -> float:
@@ -18,13 +21,16 @@ def _area(rect) -> float:
 
 
 def _mbr(a, b):
-    return (min(a[0], b[0]), min(a[1], b[1]),
-            max(a[2], b[2]), max(a[3], b[3]))
+    return (min(a[0], b[0]), min(a[1], b[1]), max(a[2], b[2]), max(a[3], b[3]))
 
 
 def _contains(outer, inner) -> bool:
-    return (outer[0] <= inner[0] and outer[1] <= inner[1]
-            and outer[2] >= inner[2] and outer[3] >= inner[3])
+    return (
+        outer[0] <= inner[0]
+        and outer[1] <= inner[1]
+        and outer[2] >= inner[2]
+        and outer[3] >= inner[3]
+    )
 
 
 def _intersects(a, b) -> bool:
@@ -42,7 +48,7 @@ def _point_dist2(pt, rect):
 
 
 class _Entry:
-    __slots__ = ("mbr", "value", "child")
+    __slots__ = ("child", "mbr", "value")
 
     def __init__(self, mbr, value=None, child=None):
         self.mbr = mbr
@@ -57,7 +63,7 @@ class _Node:
         self.entries: list[_Entry] = []
         self.is_leaf = is_leaf
 
-    def mbr(self):
+    def mbr(self) -> Any:
         if not self.entries:
             return None
         m = self.entries[0].mbr
@@ -90,7 +96,7 @@ class RTree:
     def __len__(self) -> int:
         return self._size
 
-    def insert(self, rect, value: Any = None) -> None:
+    def insert(self, rect: Any, value: Any = None) -> None:
         if len(rect) != 4:
             raise ValueError("rect 长度 4")
         if rect[0] > rect[2] or rect[1] > rect[3]:
@@ -108,7 +114,7 @@ class RTree:
                 ]
                 self._root = new_root
 
-    def insert_point(self, point, value: Any = None) -> None:
+    def insert_point(self, point: Any, value: Any = None) -> None:
         x, y = point
         self.insert((x, y, x, y), value)
 
@@ -147,17 +153,19 @@ class RTree:
             slice_idx = idx[start:end]
             slice_idx.sort(key=lambda i: _rect_center(rects[i])[1])
             for t in range(0, len(slice_idx), s):
-                tile = slice_idx[t:t + s]
+                tile = slice_idx[t : t + s]
                 if len(tile) <= fanout:
                     leaf = _Node(is_leaf=True)
                     leaf.entries = [_Entry(rects[i], value=data[i]) for i in tile]
                     slices.append(leaf)
                 else:
-                    slices.extend(self._str_build(
-                        [rects[i] for i in tile],
-                        [data[i] for i in tile],
-                        fanout,
-                    ))
+                    slices.extend(
+                        self._str_build(
+                            [rects[i] for i in tile],
+                            [data[i] for i in tile],
+                            fanout,
+                        )
+                    )
         return slices
 
     def _str_make_internal(self, children: list[_Node]) -> _Node:
@@ -176,7 +184,7 @@ class RTree:
             group = children[start:end]
             group.sort(key=lambda c: _rect_center(c.mbr())[1])
             for t in range(0, len(group), s):
-                tile = group[t:t + s]
+                tile = group[t : t + s]
                 if len(tile) <= self._M:
                     node = _Node(is_leaf=False)
                     node.entries = [_Entry(c.mbr(), child=c) for c in tile]
@@ -243,7 +251,7 @@ class RTree:
             else:
                 self._search(e.child, rect, result)
 
-    def nearest_neighbors(self, pt, k: int = 1) -> list[tuple]:
+    def nearest_neighbors(self, pt: Any, k: int = 1) -> list[tuple]:
         """k 最近邻查询。返回 [(rect, value, distance), ...] 按距离升序。"""
         if k < 1:
             raise ValueError("k >= 1")
@@ -253,6 +261,7 @@ class RTree:
                 return result
             heap = []  # [(-dist2, entry, node, is_leaf), ...] 最大堆
             import heapq
+
             for e in self._root.entries:
                 d2 = _point_dist2(pt, e.mbr)
                 heapq.heappush(heap, (d2, 0, e, self._root.is_leaf, id(e)))
@@ -279,6 +288,7 @@ class RTree:
 
     def status(self) -> dict:
         with self._lock:
+
             def count(n: _Node) -> tuple[int, int, int]:
                 if n.is_leaf:
                     return (1, 1, 0)
@@ -291,10 +301,12 @@ class RTree:
                     leaves += l
                     internals += i
                 return (total, leaves, internals + 1)
+
             def depth(n: _Node) -> int:
                 if n.is_leaf:
                     return 1
                 return 1 + max(depth(e.child) for e in n.entries)
+
             total_nodes, leaves, internals = count(self._root)
             return {
                 "size": self._size,

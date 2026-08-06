@@ -8,7 +8,9 @@ evolution（数据维度 - R196）：
 - 默克尔证明：给定叶子，提供兄弟路径，无需全量数据即可验证归属
 - 应用：Git、区块链、分布式存储、文件同步
 """
+
 from __future__ import annotations
+
 import hashlib
 import threading
 from typing import Any
@@ -30,7 +32,8 @@ def _to_bytes(item: Any) -> bytes:
 
 class _Node:
     """默克尔树节点。"""
-    __slots__ = ("hash", "left", "right", "is_leaf", "data")
+
+    __slots__ = ("data", "hash", "is_leaf", "left", "right")
 
     def __init__(self, hash_val: str, is_leaf: bool, data: Any = None):
         self.hash = hash_val
@@ -157,7 +160,9 @@ class MerkleTree:
         if index < left_count:
             path.extend(self._find_path(node.left, index, left_count))
         else:
-            path.extend(self._find_path(node.right, index - left_count, leaf_count - left_count))
+            path.extend(
+                self._find_path(node.right, index - left_count, leaf_count - left_count)
+            )
         return path
 
     def _leaf_count(self, node: _Node | None) -> int:
@@ -195,7 +200,7 @@ class MerkleTree:
             other = MerkleTree(items)
             return other.root_hash() == self.root_hash()
 
-    def diff(self, other: "MerkleTree") -> list[int]:
+    def diff(self, other: MerkleTree) -> list[int]:
         """找出与 other 不同的叶子索引列表。
 
         利用默克尔树特性：子树哈希相同则该子树无差异。
@@ -208,7 +213,9 @@ class MerkleTree:
             self._diff_nodes(self._root, other._root, diffs, 0)
             return diffs
 
-    def _diff_nodes(self, a: _Node | None, b: _Node | None, diffs: list, base: int) -> None:
+    def _diff_nodes(
+        self, a: _Node | None, b: _Node | None, diffs: list, base: int
+    ) -> None:
         if a is None and b is None:
             return
         if a is None or b is None:
@@ -223,10 +230,10 @@ class MerkleTree:
         self._diff_nodes(a.left, b.left, diffs, base)
         self._diff_nodes(a.right, b.right, diffs, base + left_count)
 
-    def generate_proof(self, index):
+    def generate_proof(self, index) -> Any:
         return self.get_proof(index)
 
-    def diff_sync(self, other):
+    def diff_sync(self, other) -> Any:
         with self._lock:
             if len(self._leaves) != len(other._leaves):
                 self.build([n.data for n in other._leaves])
@@ -240,12 +247,14 @@ class MerkleTree:
 
     def status(self) -> dict:
         with self._lock:
-            def depth(n):
+
+            def depth(n) -> Any:
                 if n is None:
                     return 0
                 if n.is_leaf:
                     return 1
                 return 1 + max(depth(n.left), depth(n.right))
+
             return {
                 "leaf_count": len(self._leaves),
                 "root_hash": self.root_hash()[:16] + "..." if self._root else "",

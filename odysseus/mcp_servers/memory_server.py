@@ -13,7 +13,7 @@ from pathlib import Path
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
+from mcp.types import TextContent, Tool
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -59,12 +59,14 @@ def _scope_entries() -> tuple[str | None, list[dict], list[dict], str | None]:
         return None, entries, [], _OWNER_SCOPE_ERROR
     if owner is None:
         visible = [
-            entry for entry in entries
+            entry
+            for entry in entries
             if isinstance(entry, dict) and _entry_owner(entry) is None
         ]
     else:
         visible = [
-            entry for entry in entries
+            entry
+            for entry in entries
             if isinstance(entry, dict) and _entry_owner(entry) == owner
         ]
     return owner, entries, visible, None
@@ -83,10 +85,12 @@ def _ensure_init():
 
     from src.constants import DATA_DIR
     from src.memory import MemoryManager
+
     _memory_manager = MemoryManager(DATA_DIR)
 
     try:
         from src.memory_vector import MemoryVectorStore
+
         _memory_vector = MemoryVectorStore(DATA_DIR)
         if not _memory_vector.healthy:
             _memory_vector = None
@@ -108,8 +112,14 @@ async def list_tools() -> list[Tool]:
                         "enum": ["list", "add", "edit", "delete", "search"],
                         "description": "The action to perform",
                     },
-                    "text": {"type": "string", "description": "Memory text (add/edit) or search query (search)"},
-                    "memory_id": {"type": "string", "description": "Memory ID (edit/delete)"},
+                    "text": {
+                        "type": "string",
+                        "description": "Memory text (add/edit) or search query (search)",
+                    },
+                    "memory_id": {
+                        "type": "string",
+                        "description": "Memory ID (edit/delete)",
+                    },
                     "category": {
                         "type": "string",
                         "enum": ["fact", "event", "contact", "preference"],
@@ -139,7 +149,11 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         if scope_error:
             return _text_result(scope_error)
         if category_filter:
-            memories = [m for m in memories if m.get("category", "").lower() == category_filter.lower()]
+            memories = [
+                m
+                for m in memories
+                if m.get("category", "").lower() == category_filter.lower()
+            ]
         if not memories:
             msg = "No memories found"
             if category_filter:
@@ -164,7 +178,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         owner, memories, _visible, scope_error = _scope_entries()
         if scope_error:
             return _text_result(scope_error)
-        entry = _memory_manager.add_entry(text, source="ai_agent", category=category, owner=owner)
+        entry = _memory_manager.add_entry(
+            text, source="ai_agent", category=category, owner=owner
+        )
         memories.append(entry)
         _memory_manager.save(memories)
         if _memory_vector and _memory_vector.healthy:
@@ -172,7 +188,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 _memory_vector.add(entry["id"], text)
             except Exception:
                 pass
-        return _text_result(f"Memory added: [{category}] {text} (id: {entry['id'][:8]})")
+        return _text_result(
+            f"Memory added: [{category}] {text} (id: {entry['id'][:8]})"
+        )
 
     elif action == "edit":
         memory_id = arguments.get("memory_id", "")
@@ -229,7 +247,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             except Exception:
                 pass
         cat = f"[{deleted_category}] " if deleted_category else ""
-        snippet = deleted_text if len(deleted_text) <= 120 else deleted_text[:117] + "..."
+        snippet = (
+            deleted_text if len(deleted_text) <= 120 else deleted_text[:117] + "..."
+        )
         return _text_result(f"Memory deleted: {cat}{snippet} (id: {memory_id})")
 
     elif action == "search":
@@ -239,11 +259,15 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         _owner, _all_memories, memories, scope_error = _scope_entries()
         if scope_error:
             return _text_result(scope_error)
-        if hasattr(_memory_manager, 'get_relevant_memories'):
-            results = _memory_manager.get_relevant_memories(query, memories, threshold=0.05, max_items=20)
+        if hasattr(_memory_manager, "get_relevant_memories"):
+            results = _memory_manager.get_relevant_memories(
+                query, memories, threshold=0.05, max_items=20
+            )
         else:
             query_lower = query.lower()
-            results = [m for m in memories if query_lower in m.get("text", "").lower()][:20]
+            results = [m for m in memories if query_lower in m.get("text", "").lower()][
+                :20
+            ]
         if not results:
             return _text_result(f"No memories found matching '{query}'.")
         lines = [f"Found {len(results)} matching memories:\n"]
@@ -255,12 +279,16 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         return _text_result("\n".join(lines))
 
     else:
-        return _text_result(f"Error: Unknown action '{action}'. Use: list, add, edit, delete, search")
+        return _text_result(
+            f"Error: Unknown action '{action}'. Use: list, add, edit, delete, search"
+        )
 
 
 async def run():
     async with stdio_server() as (read_stream, write_stream):
-        await server.run(read_stream, write_stream, server.create_initialization_options())
+        await server.run(
+            read_stream, write_stream, server.create_initialization_options()
+        )
 
 
 if __name__ == "__main__":

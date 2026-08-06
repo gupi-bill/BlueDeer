@@ -5,7 +5,9 @@ evolution（网络维度 - R170）：
 - 桶容量 = 突发上限；速率 = 平均上限
 - 多 key：按 用户/IP/接口 分别维护独立桶
 """
+
 from __future__ import annotations
+
 import logging
 import threading
 import time
@@ -14,7 +16,7 @@ logger = logging.getLogger("bluedeer.ratelimit")
 
 
 class _Bucket:
-    __slots__ = ("tokens", "last_refill", "capacity", "rate")
+    __slots__ = ("capacity", "last_refill", "rate", "tokens")
 
     def __init__(self, capacity: float, rate: float, now: float) -> None:
         self.capacity = capacity
@@ -168,7 +170,8 @@ class TokenBucketLimiter:
         with self._lock:
             before = len(self._buckets)
             self._buckets = {
-                k: b for k, b in self._buckets.items()
+                k: b
+                for k, b in self._buckets.items()
                 if now - b.last_refill < idle_seconds
             }
             return before - len(self._buckets)
@@ -196,6 +199,9 @@ class TokenBucketLimiter:
                 return None
             b.refill(now)
             return {
-                "key": key, "capacity": b.capacity, "rate": b.rate,
-                "tokens": b.tokens, "last_refill": b.last_refill,
+                "key": key,
+                "capacity": b.capacity,
+                "rate": b.rate,
+                "tokens": b.tokens,
+                "last_refill": b.last_refill,
             }

@@ -12,6 +12,6 @@ canonical file by path.
 
 import sys as _sys
 
-from routes.research import research_routes as _canonical  # noqa: F401
+from routes.research import research_routes as _canonical
 
 _sys.modules[__name__] = _canonical

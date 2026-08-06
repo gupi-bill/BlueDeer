@@ -13,8 +13,8 @@ from typing import Any
 
 from modules.soft_rabbit.pixel_render import PALETTE_16, Color
 
-
 # ============== 进度条 ==============
+
 
 @dataclass
 class ProgressBar:
@@ -22,6 +22,7 @@ class ProgressBar:
 
     全平台统一字符块表示。
     """
+
     filled_char: str = "█"
     empty_char: str = "░"
     color: Color = None  # type: ignore  # 默认在 __post_init__ 设置
@@ -50,12 +51,14 @@ class ProgressBar:
 
 # ============== 条形图 ==============
 
+
 @dataclass
 class BarChart:
     """横向字符条形图。
 
     数据：[(label, value), ...]，每项一行字符条。
     """
+
     bar_char: str = "█"
     color: Color = None  # type: ignore
 
@@ -84,9 +87,11 @@ class BarChart:
 
 # ============== KPI 星级 ==============
 
+
 @dataclass
 class KpiStars:
     """KPI 星级面板：★★★☆☆。"""
+
     filled_star: str = "★"
     empty_star: str = "☆"
     color: Color = None  # type: ignore
@@ -121,12 +126,14 @@ class KpiStars:
 
 # ============== 占比色块 ==============
 
+
 @dataclass
 class RatioBlock:
     """占比色块：用字符块表示比例。
 
     例：5:3 占比 → ████████░░░░░░（5 绿 + 3 红 + 余灰）
     """
+
     def render(
         self,
         segments: list[tuple[float, Color]],
@@ -173,6 +180,7 @@ class RatioBlock:
 
 # ============== 趋势图 ==============
 
+
 class TrendChart:
     """字符趋势折线图：用 ╱╲─ 字符表示折线走势。
 
@@ -209,9 +217,7 @@ class TrendChart:
         sampled = [values[min(int(i * step), len(values) - 1)] for i in range(width)]
 
         # 归一化到 0..height-1
-        normalized = [
-            int((v - v_min) / v_range * (height - 1)) for v in sampled
-        ]
+        normalized = [int((v - v_min) / v_range * (height - 1)) for v in sampled]
 
         # 从顶到底渲染
         lines: list[str] = []
@@ -229,6 +235,7 @@ class TrendChart:
 
 
 # ============== 可视化面板注册表 ==============
+
 
 class ChartRegistry:
     """可视化组件注册表。
@@ -251,7 +258,9 @@ class ChartRegistry:
         """创建指定类型图表实例。"""
         cls = self._TYPES.get(chart_type)
         if cls is None:
-            raise ValueError(f"未知图表类型: {chart_type}（可选: {self.available_types()}）")
+            raise ValueError(
+                f"未知图表类型: {chart_type}（可选: {self.available_types()}）"
+            )
         return cls()
 
 
@@ -276,7 +285,6 @@ class Widget:
 
     def update(self, dt: float) -> None:
         """更新阶段：每帧逻辑更新，dt 为帧间隔秒数。"""
-        pass
 
     def destroy(self) -> None:
         """销毁阶段：资源释放、反注册。"""

@@ -10,12 +10,12 @@
     - import: importlib.import_module，无副作用要求（纯导入）
 退出码: 0 = 全绿, 1 = 有失败
 """
+
 from __future__ import annotations
 
 import ast
 import importlib
 import sys
-import traceback
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -74,7 +74,9 @@ def main() -> int:
             import_fail.append((mod, f"{type(e).__name__}: {e}"))
 
     total = len(files)
-    print(f"== 冒烟结果: {len(ok)} OK / {len(import_fail)} import失败 / {len(syntax_fail)} 语法失败 (共 {total}) ==")
+    print(
+        f"== 冒烟结果: {len(ok)} OK / {len(import_fail)} import失败 / {len(syntax_fail)} 语法失败 (共 {total}) =="
+    )
     if syntax_fail:
         print("\n--- 语法失败 ---")
         for s in syntax_fail:

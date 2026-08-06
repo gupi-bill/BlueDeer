@@ -9,7 +9,6 @@ fired in February, April, June, September or November.
 from datetime import datetime
 
 import pytest
-
 from src.task_scheduler import compute_next_run
 
 

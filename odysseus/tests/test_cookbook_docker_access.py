@@ -2,13 +2,11 @@ import socket
 from unittest.mock import AsyncMock
 
 import pytest
-
 from fastapi import HTTPException
-from starlette.requests import Request
-
-import routes.cookbook_routes as cookbook_routes
+from routes import cookbook_routes
 from routes.cookbook_helpers import ServeRequest, _validate_serve_cmd
 from src.host_docker_access import HOST_DOCKER_ACCESS_HINT
+from starlette.requests import Request
 
 
 def _model_serve_endpoint():
@@ -35,7 +33,9 @@ def _admin_request() -> Request:
 
 @pytest.mark.asyncio
 async def test_container_cli_only_is_rejected(monkeypatch, tmp_path):
-    monkeypatch.setattr(cookbook_routes.shutil, "which", lambda binary: "/usr/bin/docker")
+    monkeypatch.setattr(
+        cookbook_routes.shutil, "which", lambda binary: "/usr/bin/docker"
+    )
 
     available = await cookbook_routes._binary_available(
         "docker",
@@ -58,7 +58,9 @@ async def test_container_cli_only_is_rejected(monkeypatch, tmp_path):
 
 @pytest.mark.asyncio
 async def test_container_opt_in_with_unix_socket_is_allowed(monkeypatch, tmp_path):
-    monkeypatch.setattr(cookbook_routes.shutil, "which", lambda binary: "/usr/bin/docker")
+    monkeypatch.setattr(
+        cookbook_routes.shutil, "which", lambda binary: "/usr/bin/docker"
+    )
     socket_path = tmp_path / "docker.sock"
 
     with socket.socket(socket.AF_UNIX) as unix_socket:
@@ -77,7 +79,9 @@ async def test_container_opt_in_with_unix_socket_is_allowed(monkeypatch, tmp_pat
 
 @pytest.mark.asyncio
 async def test_native_local_docker_still_uses_cli_presence(monkeypatch, tmp_path):
-    monkeypatch.setattr(cookbook_routes.shutil, "which", lambda binary: "/usr/bin/docker")
+    monkeypatch.setattr(
+        cookbook_routes.shutil, "which", lambda binary: "/usr/bin/docker"
+    )
 
     available = await cookbook_routes._binary_available(
         "docker",
@@ -148,7 +152,9 @@ async def test_local_container_serve_returns_host_docker_opt_in_hint(
         "host_docker_access_enabled",
         lambda: False,
     )
-    monkeypatch.setattr(cookbook_routes.shutil, "which", lambda binary: "/usr/bin/docker")
+    monkeypatch.setattr(
+        cookbook_routes.shutil, "which", lambda binary: "/usr/bin/docker"
+    )
     monkeypatch.setattr(cookbook_routes, "TMUX_LOG_DIR", tmp_path)
     monkeypatch.setattr(
         cookbook_routes,
@@ -282,24 +288,36 @@ def test_generated_ollama_show_shape_is_narrowly_allowed():
     )
 
 
-def test_local_ollama_docker_access_blocked_in_container_cli_only(monkeypatch, tmp_path):
-    monkeypatch.setattr(cookbook_routes.shutil, "which", lambda binary: "/usr/bin/docker")
+def test_local_ollama_docker_access_blocked_in_container_cli_only(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr(
+        cookbook_routes.shutil, "which", lambda binary: "/usr/bin/docker"
+    )
 
-    assert cookbook_routes._local_ollama_docker_access_blocked(
-        in_container=True,
-        environ={},
-        socket_path=str(tmp_path / "missing.sock"),
-    ) is True
+    assert (
+        cookbook_routes._local_ollama_docker_access_blocked(
+            in_container=True,
+            environ={},
+            socket_path=str(tmp_path / "missing.sock"),
+        )
+        is True
+    )
 
 
 def test_local_ollama_docker_access_not_blocked_for_native_cli(monkeypatch, tmp_path):
-    monkeypatch.setattr(cookbook_routes.shutil, "which", lambda binary: "/usr/bin/docker")
+    monkeypatch.setattr(
+        cookbook_routes.shutil, "which", lambda binary: "/usr/bin/docker"
+    )
 
-    assert cookbook_routes._local_ollama_docker_access_blocked(
-        in_container=False,
-        environ={},
-        socket_path=str(tmp_path / "missing.sock"),
-    ) is False
+    assert (
+        cookbook_routes._local_ollama_docker_access_blocked(
+            in_container=False,
+            environ={},
+            socket_path=str(tmp_path / "missing.sock"),
+        )
+        is False
+    )
 
 
 def test_local_ollama_download_probe_omits_docker_commands_when_blocked():

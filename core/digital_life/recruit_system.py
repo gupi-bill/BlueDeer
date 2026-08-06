@@ -15,6 +15,7 @@
     ALIVE（活着）→ DEAD（死亡）→ PENDING（等待招募）→
     RECRUITING（招募中，60秒）→ ALIVE（新个体入职）
 """
+
 from __future__ import annotations
 
 import enum
@@ -26,14 +27,15 @@ from typing import Any
 
 class SpeciesState(enum.Enum):
     """物种招募状态。"""
-    ALIVE = "ALIVE"              # 当前有活体
-    DEAD = "DEAD"                # 死亡，等待监工招募
-    PENDING = "PENDING"          # 监工已触发招募，等待冷却
-    RECRUITING = "RECRUITING"    # 招募中（走入动画期间）
+
+    ALIVE = "ALIVE"  # 当前有活体
+    DEAD = "DEAD"  # 死亡，等待监工招募
+    PENDING = "PENDING"  # 监工已触发招募，等待冷却
+    RECRUITING = "RECRUITING"  # 招募中（走入动画期间）
 
 
 # 默认招募参数
-DEFAULT_RECRUIT_COOLDOWN = 60.0       # 招募冷却 60 秒
+DEFAULT_RECRUIT_COOLDOWN = 60.0  # 招募冷却 60 秒
 DEFAULT_AUTO_RECRUIT_TIMEOUT = 86400.0  # 24 小时现实时间自动招募
 
 # 冷却池参数
@@ -80,7 +82,8 @@ class RecruitSystem:
             auto_timeout: 死亡后多少秒自动招募（默认 24 小时）。
         """
         self._states: dict[str, SpeciesState] = {
-            sp: SpeciesState.ALIVE for sp in species_cls_map}
+            sp: SpeciesState.ALIVE for sp in species_cls_map
+        }
         self._death_times: dict[str, float] = {}
         self._recruit_start_times: dict[str, float] = {}
         self._lock = threading.RLock()
@@ -158,21 +161,25 @@ class RecruitSystem:
                     if now - death_time >= self._auto_timeout:
                         self._states[species] = SpeciesState.PENDING
                         self._recruit_start_times[species] = now
-                        completed.append({
-                            "type": "auto_recruit_started",
-                            "species": species,
-                            "reason": "24h_timeout",
-                        })
+                        completed.append(
+                            {
+                                "type": "auto_recruit_started",
+                                "species": species,
+                                "reason": "24h_timeout",
+                            }
+                        )
                 elif state == SpeciesState.PENDING:
                     # 检查冷却是否到
                     start = self._recruit_start_times.get(species, 0)
                     if now - start >= self._recruit_cooldown:
                         # 冷却结束 → RECRUITING（短暂状态，立即生成新个体）
                         self._states[species] = SpeciesState.RECRUITING
-                        completed.append({
-                            "type": "recruit_complete",
-                            "species": species,
-                        })
+                        completed.append(
+                            {
+                                "type": "recruit_complete",
+                                "species": species,
+                            }
+                        )
         return completed
 
     def complete_recruit(self, species: str) -> Any:
@@ -282,10 +289,8 @@ class RecruitSystem:
                     "species": species,
                     "state": state.value,
                     "elapsed_sec": round(elapsed, 1),
-                    "remaining_sec": max(
-                        0.0, self._recruit_cooldown - elapsed),
-                    "progress_pct": min(
-                        100.0, elapsed / self._recruit_cooldown * 100),
+                    "remaining_sec": max(0.0, self._recruit_cooldown - elapsed),
+                    "progress_pct": min(100.0, elapsed / self._recruit_cooldown * 100),
                 }
             if state == SpeciesState.DEAD:
                 death_time = self._death_times.get(species, 0)
@@ -294,8 +299,7 @@ class RecruitSystem:
                     "species": species,
                     "state": state.value,
                     "since_death_sec": round(elapsed, 1),
-                    "auto_recruit_in_sec": max(
-                        0.0, self._auto_timeout - elapsed),
+                    "auto_recruit_in_sec": max(0.0, self._auto_timeout - elapsed),
                 }
             return {"species": species, "state": state.value}
 
@@ -303,17 +307,15 @@ class RecruitSystem:
         """返回招募系统状态。"""
         with self._lock:
             alive_count = sum(
-                1 for s in self._states.values()
-                if s == SpeciesState.ALIVE)
-            dead_count = sum(
-                1 for s in self._states.values()
-                if s == SpeciesState.DEAD)
+                1 for s in self._states.values() if s == SpeciesState.ALIVE
+            )
+            dead_count = sum(1 for s in self._states.values() if s == SpeciesState.DEAD)
             pending_count = sum(
-                1 for s in self._states.values()
-                if s == SpeciesState.PENDING)
+                1 for s in self._states.values() if s == SpeciesState.PENDING
+            )
             recruiting_count = sum(
-                1 for s in self._states.values()
-                if s == SpeciesState.RECRUITING)
+                1 for s in self._states.values() if s == SpeciesState.RECRUITING
+            )
             return {
                 "total_species": len(self._states),
                 "alive": alive_count,

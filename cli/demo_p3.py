@@ -21,7 +21,7 @@ from core.context import ContextManager
 from core.dream import DreamSystem
 from core.event_bus import EventBus
 from core.harness import Harness
-from core.rag import RAGSystem, SCOPE_AGENT, SCOPE_GLOBAL
+from core.rag import SCOPE_AGENT, SCOPE_GLOBAL, RAGSystem
 from core.task import Task, TaskStatus
 from core.tracer import Tracer
 from models.router import Router
@@ -91,9 +91,11 @@ async def run_demo() -> None:
     context.set_global("project", "BlueDeer")
     context.set_global("phase", "P3")
 
-    print(f"  RAG        ✓ (全局库: {rag.get_store_size(SCOPE_GLOBAL)} 条, 松鼠库: {rag.get_store_size(SCOPE_AGENT, 'squirrel')} 条)")
-    print(f"  Dream      ✓ (梦境系统就绪)")
-    print(f"  Squirrel   ✓ (带 RAG 检索的较真松鼠)")
+    print(
+        f"  RAG        ✓ (全局库: {rag.get_store_size(SCOPE_GLOBAL)} 条, 松鼠库: {rag.get_store_size(SCOPE_AGENT, 'squirrel')} 条)"
+    )
+    print("  Dream      ✓ (梦境系统就绪)")
+    print("  Squirrel   ✓ (带 RAG 检索的较真松鼠)")
 
     # 2. 下发任务
     print("\n[2] 下发代码生成任务（带 RAG 检索）...")
@@ -113,25 +115,27 @@ async def run_demo() -> None:
     print("\n[3] 等待较真松鼠处理（RAG 检索 + 代码生成 + 写入 + 校验）...")
     result = await harness.submit_and_wait(task, timeout=30.0)
 
-    print(f"\n[4] 任务结果:")
+    print("\n[4] 任务结果:")
     print(f"  Status:     {result.status.value}")
     if result.output:
         print(f"  模型:       {result.output.get('model_used', 'N/A')}")
-        print(f"  语法校验:   {'通过' if result.output.get('syntax_check', {}).get('valid') else '失败'}")
+        print(
+            f"  语法校验:   {'通过' if result.output.get('syntax_check', {}).get('valid') else '失败'}"
+        )
         print(f"  写入字节:   {result.output.get('write_result', {}).get('bytes', 0)}")
 
     # 4. RAG 验证
-    print(f"\n[5] RAG 验证:")
+    print("\n[5] RAG 验证:")
     agent_size = rag.get_store_size(SCOPE_AGENT, "squirrel")
     print(f"  松鼠岗位库文档数: {agent_size}（含历史 1 + 新增 1）")
 
     search_results = rag.retrieve("加法函数 add", SCOPE_AGENT, "squirrel", top_k=3)
-    print(f"  检索 '加法函数 add' 结果:")
+    print("  检索 '加法函数 add' 结果:")
     for r in search_results:
         print(f"    - id={r.id}, score={r.score:.4f}, text={r.text[:50]}...")
 
     # 5. 梦境系统
-    print(f"\n[6] 触发梦境系统...")
+    print("\n[6] 触发梦境系统...")
     all_results = list(harness._task_board.values())
     report, memories = dream.dream(
         results=all_results,
@@ -152,22 +156,28 @@ async def run_demo() -> None:
             sub_id=memory.agent_id,
         )
 
-    print(f"\n[7] 梦境报告:")
+    print("\n[7] 梦境报告:")
     print("  " + "-" * 50)
     for line in report.summary().split("\n"):
         print(f"  | {line}")
     print("  " + "-" * 50)
 
     # 6. 最终汇总
-    print(f"\n[8] 最终汇总:")
-    print(f"  松鼠岗位库文档数: {rag.get_store_size(SCOPE_AGENT, 'squirrel')}（含梦境固化）")
+    print("\n[8] 最终汇总:")
+    print(
+        f"  松鼠岗位库文档数: {rag.get_store_size(SCOPE_AGENT, 'squirrel')}（含梦境固化）"
+    )
     board = harness.aggregate()
-    print(f"  任务看板: 总{board['total']} 成功{board['success']} 失败{board['failed']}")
+    print(
+        f"  任务看板: 总{board['total']} 成功{board['success']} 失败{board['failed']}"
+    )
 
     print("\n" + "=" * 60)
     if result.status == TaskStatus.SUCCESS and report.memories_persisted > 0:
         print("✓ P3 端到端链路验证通过！")
-        print("  RAG 注入 → SquirrelAgent 检索历史 → 代码生成 → 写入 → 校验 → 方案回写 RAG")
+        print(
+            "  RAG 注入 → SquirrelAgent 检索历史 → 代码生成 → 写入 → 校验 → 方案回写 RAG"
+        )
         print("  梦境系统: 浅睡分拣 → REM 推演 → 深睡固化 → 噩梦告警")
     else:
         print("✗ P3 端到端链路验证失败！")

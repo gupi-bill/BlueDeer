@@ -13,14 +13,13 @@ Design rules:
 
 from __future__ import annotations
 
-import os
 import ntpath
+import os
+import platform
 import shutil
 import subprocess
-from pathlib import Path
 import sys
-from typing import List, Optional
-import platform
+from pathlib import Path
 
 IS_WINDOWS = os.name == "nt"
 IS_POSIX = not IS_WINDOWS
@@ -72,7 +71,7 @@ def detached_popen_kwargs() -> dict:
     return {"start_new_session": True}
 
 
-def pid_alive(pid: Optional[int]) -> bool:
+def pid_alive(pid: int | None) -> bool:
     """True if a process with ``pid`` is currently running.
 
     POSIX uses the classic ``os.kill(pid, 0)`` probe. That is **unsafe on
@@ -109,7 +108,7 @@ def pid_alive(pid: Optional[int]) -> bool:
         return False
 
 
-def kill_process_tree(pid: Optional[int]) -> None:
+def kill_process_tree(pid: int | None) -> None:
     """Terminate ``pid`` and all of its descendants.
 
     POSIX: signal the whole process group (``killpg``), falling back to a plain
@@ -142,7 +141,7 @@ def kill_process_tree(pid: Optional[int]) -> None:
 
 
 # ── Shell / executable resolution ───────────────────────────────────────────
-_BASH_CACHE: Optional[str] = None
+_BASH_CACHE: str | None = None
 _BASH_PROBED = False
 
 # Common Git-for-Windows install locations to probe when bash isn't on PATH.
@@ -166,7 +165,7 @@ _SSH_PATH_MEMBERS = (
     "/usr/bin",
     "/usr/local/bin",
     "/usr/local/cuda/bin",
-    "/usr/lib/wsl/lib"
+    "/usr/lib/wsl/lib",
 )
 # Fallback locations for nvidia-smi on WSL and other Linux distros where it may not be on PATH.
 NVIDIA_PATH_CANDIDATES = (
@@ -185,8 +184,8 @@ def _ssh_path_override() -> str:
 SSH_PATH_OVERRIDE = _ssh_path_override()
 
 
-def _windows_bash_fallbacks() -> List[str]:
-    roots: List[str] = []
+def _windows_bash_fallbacks() -> list[str]:
+    roots: list[str] = []
     for env_name in _WINDOWS_BASH_ROOT_ENV_VARS:
         base = os.environ.get(env_name)
         if base:
@@ -195,7 +194,7 @@ def _windows_bash_fallbacks() -> List[str]:
                 roots.append(ntpath.join(base, "Programs", "Git"))
     roots.extend(_WINDOWS_BASH_DEFAULT_ROOTS)
 
-    paths: List[str] = []
+    paths: list[str] = []
     seen = set()
     for root in roots:
         for rel in _WINDOWS_BASH_RELATIVE_PATHS:
@@ -230,8 +229,7 @@ def git_bash_path(path: str | Path) -> str:
     return p_str
 
 
-
-def find_bash() -> Optional[str]:
+def find_bash() -> str | None:
     """Locate a real ``bash`` interpreter, or None.
 
     On Windows this is typically Git Bash / WSL. Many Odysseus features (the
@@ -259,7 +257,7 @@ def has_bash() -> bool:
     return find_bash() is not None
 
 
-def which_tool(name: str) -> Optional[str]:
+def which_tool(name: str) -> str | None:
     """``shutil.which`` that also tries Windows executable suffixes.
 
     On Windows, Node/npm shims are ``npx.cmd``/``npm.cmd`` and binaries end in
@@ -277,7 +275,7 @@ def which_tool(name: str) -> Optional[str]:
     return None
 
 
-def run_script_argv(script_path) -> List[str]:
+def run_script_argv(script_path) -> list[str]:
     """argv to execute a shell *script file*.
 
     Prefers bash (so existing ``.sh`` wrappers work verbatim, including on
@@ -297,7 +295,6 @@ def run_script_argv(script_path) -> List[str]:
 
 def is_wsl() -> bool:
     """True if running inside Windows Subsystem for Linux (WSL)."""
-    import sys
     if sys.platform.startswith("linux") or os.name == "posix":
         try:
             with open("/proc/version", "r", encoding="utf-8", errors="ignore") as f:
@@ -321,6 +318,7 @@ def translate_path(path_str: str) -> str:
     if is_wsl():
         path_str = path_str.replace("\\", "/")
         import re
+
         m = re.match(r"^([a-zA-Z]):(.*)", path_str)
         if m:
             drive = m.group(1).lower()
@@ -335,7 +333,7 @@ def translate_path(path_str: str) -> str:
         return path_str
 
 
-def get_wsl_windows_user_profile() -> Optional[str]:
+def get_wsl_windows_user_profile() -> str | None:
     """Retrieve the Windows host User Profile path from inside WSL."""
     if not is_wsl():
         return None
@@ -350,7 +348,13 @@ def get_wsl_windows_user_profile() -> Optional[str]:
         users_dir = "/mnt/c/Users"
         if os.path.isdir(users_dir):
             for entry in os.listdir(users_dir):
-                if entry not in ("All Users", "Default", "Default User", "desktop.ini", "Public"):
+                if entry not in (
+                    "All Users",
+                    "Default",
+                    "Default User",
+                    "desktop.ini",
+                    "Public",
+                ):
                     path = os.path.join(users_dir, entry)
                     if os.path.isdir(path):
                         return path
@@ -370,7 +374,12 @@ def _ssh_exec_argv(
     """Build a consistent ssh argv for remote command execution."""
     remote_value = str(remote or "").strip()
     remote_host = remote_value.rsplit("@", 1)[-1]
-    if not remote_value or remote_value.startswith("-") or not remote_host or remote_host.startswith("-"):
+    if (
+        not remote_value
+        or remote_value.startswith("-")
+        or not remote_host
+        or remote_host.startswith("-")
+    ):
         raise ValueError("Invalid SSH remote host")
     argv = ["ssh"]
     if connect_timeout is not None:
@@ -379,9 +388,11 @@ def _ssh_exec_argv(
         argv.extend(
             [
                 "-o",
-                "StrictHostKeyChecking=yes"
-                if strict_host_key_checking
-                else "StrictHostKeyChecking=no",
+                (
+                    "StrictHostKeyChecking=yes"
+                    if strict_host_key_checking
+                    else "StrictHostKeyChecking=no"
+                ),
             ]
         )
     if ssh_port and ssh_port != "22":
@@ -422,8 +433,8 @@ def _windows_powershell_argv(
     *,
     no_profile: bool = True,
     non_interactive: bool = True,
-) -> List[str]:
-    argv: List[str] = ["powershell.exe"]
+) -> list[str]:
+    argv: list[str] = ["powershell.exe"]
     if no_profile:
         argv.append("-NoProfile")
     if non_interactive:

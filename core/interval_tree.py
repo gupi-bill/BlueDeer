@@ -7,9 +7,12 @@ evolution（数据维度 - R197）：
 - 应用：日程冲突检测、内存分配、IP 范围查找、基因组重叠
 - 与 B+树互补：B+树点查询，区间树区间查询
 """
+
 from __future__ import annotations
+
 import threading
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 
 def _overlaps(a_low, a_high, b_low, b_high) -> bool:
@@ -19,7 +22,8 @@ def _overlaps(a_low, a_high, b_low, b_high) -> bool:
 
 class _Node:
     """区间树节点。"""
-    __slots__ = ("low", "high", "value", "max_end", "left", "right")
+
+    __slots__ = ("high", "left", "low", "max_end", "right", "value")
 
     def __init__(self, low, high, value):
         self.low = low
@@ -50,7 +54,7 @@ class IntervalTree:
     def __len__(self) -> int:
         return self._size
 
-    def insert(self, low, high, value: Any = None) -> None:
+    def insert(self, low: Any, high: Any, value: Any = None) -> None:
         """插入区间 [low, high]。"""
         if low > high:
             raise ValueError("low 不能大于 high")
@@ -66,11 +70,10 @@ class IntervalTree:
         else:
             node.right = self._insert(node.right, low, high, value)
         # 更新 max_end
-        if high > node.max_end:
-            node.max_end = high
+        node.max_end = max(node.max_end, high)
         return node
 
-    def query(self, low, high) -> list[tuple]:
+    def query(self, low: Any, high) -> list[tuple]:
         """查询与 [low, high] 重叠的所有区间。返回 [(low, high, value), ...]。"""
         if low > high:
             raise ValueError("low 不能大于 high")
@@ -97,7 +100,7 @@ class IntervalTree:
         """查询包含 point 的所有区间。"""
         return self.query(point, point)
 
-    def remove(self, low, high) -> bool:
+    def remove(self, low: Any, high) -> bool:
         """删除区间 [low, high]（按 low+high 匹配）。"""
         with self._lock:
             found = [False]
@@ -166,7 +169,7 @@ class IntervalTree:
         yield (node.low, node.high, node.value)
         yield from self._inorder_walk(node.right)
 
-    def merge_overlaps(self):
+    def merge_overlaps(self) -> Any:
         with self._lock:
             items = list(self._inorder_walk(self._root))
             if not items:
@@ -184,7 +187,7 @@ class IntervalTree:
             merged.append((cur_low, cur_high, cur_vals))
             return merged
 
-    def covering(self, target_low, target_high):
+    def covering(self, target_low: Any, target_high) -> Any:
         with self._lock:
             items = sorted(self._inorder_walk(self._root), key=lambda x: x[0])
             cover = []
@@ -205,10 +208,12 @@ class IntervalTree:
 
     def status(self) -> dict:
         with self._lock:
-            def depth(n):
+
+            def depth(n) -> Any:
                 if n is None:
                     return 0
                 return 1 + max(depth(n.left), depth(n.right))
+
             return {
                 "size": self._size,
                 "depth": depth(self._root),

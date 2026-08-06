@@ -13,7 +13,6 @@ import sys
 import uuid
 
 import pytest
-
 from tests.helpers.import_state import clear_fake_database_modules
 from tests.helpers.sqlite_db import make_temp_sqlite
 
@@ -48,14 +47,17 @@ async def _create_with_reminder(reminder, owner):
     return await do_manage_calendar(json.dumps(payload), owner=owner)
 
 
-@pytest.mark.parametrize("reminder,expected", [
-    ("5 mins", 5),
-    ("10 mins", 10),
-    ("2 hrs", 120),
-    ("1 hr", 60),
-    ("15 minutes", 15),   # regression: long form still works
-    ("30m", 30),          # regression: bare unit still works
-])
+@pytest.mark.parametrize(
+    "reminder,expected",
+    [
+        ("5 mins", 5),
+        ("10 mins", 10),
+        ("2 hrs", 120),
+        ("1 hr", 60),
+        ("15 minutes", 15),  # regression: long form still works
+        ("30m", 30),  # regression: bare unit still works
+    ],
+)
 async def test_reminder_minutes_accepts_abbreviations(reminder, expected):
     owner = "tester-" + uuid.uuid4().hex[:6]
     res = await _create_with_reminder(reminder, owner)

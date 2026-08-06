@@ -9,14 +9,17 @@ evolution（数据维度 - R204）：
 - 应用：全文索引、序列压缩、基因组分析
 - 与后缀数组互补：后缀数组子串搜索，Wavelet Tree 字符频率
 """
+
 from __future__ import annotations
+
 import threading
 from typing import Any
 
 
 class _WaveletNode:
     """Wavelet Tree 节点。"""
-    __slots__ = ("bits", "left", "right", "lo", "hi")
+
+    __slots__ = ("bits", "hi", "left", "lo", "right")
 
     def __init__(self, lo, hi):
         self.lo = lo  # 字符范围下界
@@ -176,24 +179,22 @@ class WaveletTree:
 
     def range_count(self, l: int, r: int, c) -> int:
         """[l, r) 中 c 的数量。"""
-        if l < 0:
-            l = 0
-        if r > len(self._data):
-            r = len(self._data)
+        l = max(l, 0)
+        r = min(r, len(self._data))
         if l >= r:
             return 0
         with self._lock:
             return self._rank(self._root, r, c) - self._rank(self._root, l, c)
 
-    def rank_c(self, c, pos: int) -> int:
+    def rank_c(self, c: Any, pos: int) -> int:
         """(c, pos) 接口的 rank。"""
         return self.rank(pos, c)
 
-    def select_c(self, c, k: int) -> int:
+    def select_c(self, c: Any, k: int) -> int:
         """(c, k) 接口的 select。"""
         return self.select(k, c)
 
-    def range_count_c(self, c, l: int, r: int) -> int:
+    def range_count_c(self, c: Any, l: int, r: int) -> int:
         """(c, l, r) 接口的 range_count。"""
         return self.range_count(l, r, c)
 
@@ -206,14 +207,17 @@ class WaveletTree:
 
     def status(self) -> dict:
         with self._lock:
-            def count_nodes(n):
+
+            def count_nodes(n) -> Any:
                 if n is None:
                     return 0
                 return 1 + count_nodes(n.left) + count_nodes(n.right)
-            def depth(n):
+
+            def depth(n) -> Any:
                 if n is None:
                     return 0
                 return 1 + max(depth(n.left), depth(n.right))
+
             return {
                 "length": len(self._data),
                 "nodes": count_nodes(self._root),

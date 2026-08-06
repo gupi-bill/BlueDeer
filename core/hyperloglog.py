@@ -9,11 +9,14 @@ evolution（数据维度 - R188）：
 - 支持 merge（多实例合并）、reset、序列化
 - 典型用途：UV 统计、独立访客计数、Distinct 计数
 """
+
 from __future__ import annotations
+
 import hashlib
 import math
 import threading
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 
 class HyperLogLog:
@@ -94,8 +97,7 @@ class HyperLogLog:
             idx = h >> (64 - self._b)  # 前 b 位作桶索引
             w = h & ((1 << (64 - self._b)) - 1)  # 剩余位
             rho = self._rho(w)
-            if rho > self._registers[idx]:
-                self._registers[idx] = rho
+            self._registers[idx] = max(self._registers[idx], rho)
             self._added += 1
 
     def add_many(self, items: Iterator[Any]) -> int:
@@ -107,8 +109,7 @@ class HyperLogLog:
                 idx = h >> (64 - self._b)
                 w = h & ((1 << (64 - self._b)) - 1)
                 rho = self._rho(w)
-                if rho > self._registers[idx]:
-                    self._registers[idx] = rho
+                self._registers[idx] = max(self._registers[idx], rho)
                 n += 1
         self._added += n
         return n
@@ -137,14 +138,13 @@ class HyperLogLog:
                 E = -(1 << 32) * math.log(1 - E / (1 << 32))
             return int(E)
 
-    def merge(self, other: "HyperLogLog") -> None:
+    def merge(self, other: HyperLogLog) -> None:
         """合并另一个 HLL（用于分片合并）。"""
         if self._b != other._b:
             raise ValueError("precision 不一致，无法合并")
         with self._lock:
             for i in range(self._m):
-                if other._registers[i] > self._registers[i]:
-                    self._registers[i] = other._registers[i]
+                self._registers[i] = max(self._registers[i], other._registers[i])
             self._added += other._added
 
     def reset(self) -> None:
@@ -159,7 +159,7 @@ class HyperLogLog:
             return bytes([self._b]) + bytes(self._registers)
 
     @classmethod
-    def deserialize(cls, data: bytes) -> "HyperLogLog":
+    def deserialize(cls, data: bytes) -> HyperLogLog:
         if len(data) < 1:
             raise ValueError("空数据")
         precision = data[0]
@@ -169,7 +169,7 @@ class HyperLogLog:
         hll._registers = bytearray(data[1:])
         return hll
 
-    def __or__(self, other: "HyperLogLog") -> "HyperLogLog":
+    def __or__(self, other: HyperLogLog) -> HyperLogLog:
         """并集（合并两个 HLL）。"""
         result = HyperLogLog(precision=self._b)
         result.merge(self)

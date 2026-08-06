@@ -10,11 +10,14 @@ evolution（数据维度 - R189）：
 - 模仿 Redis Stream 的 ID 格式："{毫秒时间戳}-{序号}"
 - 典型用途：事件日志、任务分发、可靠消费
 """
+
 from __future__ import annotations
+
 import threading
 import time
 from collections import defaultdict, deque
-from typing import Any, Iterator, Iterable, TypeVar
+from collections.abc import Iterable, Iterator
+from typing import Any, TypeVar
 
 T = TypeVar("T")
 
@@ -132,7 +135,7 @@ class Stream:
         self._entries: list[tuple[str, dict]] = []
         self._last_id = "0-0"
         self._lock = threading.RLock()
-        self._groups: dict[str, "ConsumerGroup"] = {}
+        self._groups: dict[str, ConsumerGroup] = {}
 
     def __len__(self) -> int:
         return len(self._entries)
@@ -172,7 +175,10 @@ class Stream:
         return _id_str(ms, seq)
 
     def range(
-        self, start: str = "-", end: str = "+", count: int = -1,
+        self,
+        start: str = "-",
+        end: str = "+",
+        count: int = -1,
     ) -> list[tuple[str, dict]]:
         """返回 [start, end] 范围内的消息。"""
         with self._lock:
@@ -188,7 +194,10 @@ class Stream:
             return result
 
     def revrange(
-        self, start: str = "+", end: str = "-", count: int = -1,
+        self,
+        start: str = "+",
+        end: str = "-",
+        count: int = -1,
     ) -> list[tuple[str, dict]]:
         """反向范围查询。"""
         with self._lock:
@@ -224,7 +233,7 @@ class Stream:
             self._entries = self._entries[n:]
             return n
 
-    def create_group(self, name: str, start: str = "0-0") -> "ConsumerGroup":
+    def create_group(self, name: str, start: str = "0-0") -> ConsumerGroup:
         """创建消费者组。"""
         with self._lock:
             if name in self._groups:
@@ -233,7 +242,7 @@ class Stream:
             self._groups[name] = g
             return g
 
-    def get_group(self, name: str) -> "ConsumerGroup | None":
+    def get_group(self, name: str) -> ConsumerGroup | None:
         with self._lock:
             return self._groups.get(name)
 
@@ -286,7 +295,10 @@ class ConsumerGroup:
         return self._stream
 
     def read(
-        self, consumer: str, count: int = 10, block: float | None = None,
+        self,
+        consumer: str,
+        count: int = 10,
+        block: float | None = None,
     ) -> list[tuple[str, dict]]:
         """从未消费位置读取 count 条消息。block=None 立即返回。"""
         with self._lock:
@@ -296,11 +308,14 @@ class ConsumerGroup:
                 # 从 stream 拉 _last_delivered 之后的 count 条
                 start_id = self._last_delivered
                 entries = self._stream.range(
-                    start=start_id, end="+", count=count - len(result) + 1,
+                    start=start_id,
+                    end="+",
+                    count=count - len(result) + 1,
                 )
                 # 跳过 start_id 自己（如果已存在）
                 entries = [
-                    (mid, fields) for mid, fields in entries
+                    (mid, fields)
+                    for mid, fields in entries
                     if _parse_id(mid) > _parse_id(start_id)
                 ]
                 if not entries:
@@ -356,13 +371,15 @@ class ConsumerGroup:
             for mid, (c, fields, t) in self._pel.items():
                 if consumer is not None and c != consumer:
                     continue
-                result.append({
-                    "id": mid,
-                    "consumer": c,
-                    "fields": fields,
-                    "delivered_at": t,
-                    "idle": time.time() - t,
-                })
+                result.append(
+                    {
+                        "id": mid,
+                        "consumer": c,
+                        "fields": fields,
+                        "delivered_at": t,
+                        "idle": time.time() - t,
+                    }
+                )
             return result
 
     def claim(self, consumer_to: str, *ids: str) -> int:
@@ -413,9 +430,7 @@ class ConsumerGroup:
                 "name": self._name,
                 "last_delivered": self._last_delivered,
                 "pel_size": len(self._pel),
-                "consumers": {
-                    c: len(p) for c, p in self._consumer_pel.items()
-                },
+                "consumers": {c: len(p) for c, p in self._consumer_pel.items()},
                 "delivered": self._delivered_count,
                 "acked": self._acked_count,
             }

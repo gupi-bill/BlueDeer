@@ -12,7 +12,6 @@ Harness 下发代码任务 → SquirrelAgent 接收 → LLM 生成代码 → 写
 from __future__ import annotations
 
 import asyncio
-import json
 
 from core.context import ContextManager
 from core.event_bus import EventBus
@@ -61,7 +60,7 @@ async def run_demo() -> None:
     mode = "真实 Doubao API" if router.use_real_api else "MockClient（无 API Key）"
     print(f"  Router     ✓ ({mode})")
     print(f"  Tools      ✓ (已注册: {tools.list_tools()})")
-    print(f"  Harness    ✓ (忧郁鹿总经理)")
+    print("  Harness    ✓ (忧郁鹿总经理)")
     print(f"  Squirrel   ✓ (较真松鼠, topic={squirrel.topic})")
 
     # 2. 构造并下发任务
@@ -98,17 +97,21 @@ async def run_demo() -> None:
 
     if result.output:
         print(f"  模型:         {result.output.get('model_used', 'N/A')}")
-        print(f"  写入路径:     {result.output.get('write_result', {}).get('path', 'N/A')}")
-        print(f"  写入字节:     {result.output.get('write_result', {}).get('bytes', 0)}")
-        check = result.output.get('syntax_check', {})
+        print(
+            f"  写入路径:     {result.output.get('write_result', {}).get('path', 'N/A')}"
+        )
+        print(
+            f"  写入字节:     {result.output.get('write_result', {}).get('bytes', 0)}"
+        )
+        check = result.output.get("syntax_check", {})
         print(f"  语法校验:     {'通过' if check.get('valid') else '失败'}")
-        if check.get('error'):
+        if check.get("error"):
             print(f"  校验错误:     {check.get('error')}")
 
         print("\n  生成的代码:")
         print("  " + "-" * 50)
-        code = result.output.get('generated_code', '')
-        for line in code.split('\n'):
+        code = result.output.get("generated_code", "")
+        for line in code.split("\n"):
             print(f"  | {line}")
         print("  " + "-" * 50)
 
@@ -124,7 +127,9 @@ async def run_demo() -> None:
     print("\n" + "=" * 60)
     if result.status == TaskStatus.SUCCESS:
         print("✓ P2 端到端链路验证通过！")
-        print("  Harness 下发 → SquirrelAgent 接收 → LLM 生成代码 → 文件写入 → 语法校验 → 自检通过")
+        print(
+            "  Harness 下发 → SquirrelAgent 接收 → LLM 生成代码 → 文件写入 → 语法校验 → 自检通过"
+        )
     else:
         print("✗ P2 端到端链路验证失败！")
         print(f"  错误: {result.error}")

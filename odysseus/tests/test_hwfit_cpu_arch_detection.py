@@ -1,7 +1,6 @@
 """CPU architecture normalization for HW Fit hardware detection."""
 
 import pytest
-
 from services.hwfit import hardware
 
 
@@ -28,15 +27,19 @@ def _stub_common_probe(monkeypatch, machine):
 def test_detect_system_reports_cpu_arch_for_gpu_backends(monkeypatch):
     """GPU-backed systems still need CPU architecture for cpu_only estimates."""
     _stub_common_probe(monkeypatch, "aarch64")
-    monkeypatch.setattr(hardware, "_detect_nvidia", lambda: {
-        "gpu_name": "NVIDIA GB10",
-        "gpu_vram_gb": 64.0,
-        "gpu_count": 1,
-        "gpus": [],
-        "gpu_groups": [],
-        "homogeneous": True,
-        "backend": "cuda",
-    })
+    monkeypatch.setattr(
+        hardware,
+        "_detect_nvidia",
+        lambda: {
+            "gpu_name": "NVIDIA GB10",
+            "gpu_vram_gb": 64.0,
+            "gpu_count": 1,
+            "gpus": [],
+            "gpu_groups": [],
+            "homogeneous": True,
+            "backend": "cuda",
+        },
+    )
 
     system = hardware.detect_system(fresh=True)
 

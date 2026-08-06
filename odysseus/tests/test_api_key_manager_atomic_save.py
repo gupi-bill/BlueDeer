@@ -1,8 +1,10 @@
 """Test that APIKeyManager.save() uses atomic write to prevent data loss."""
-import os
+
 import json
+import os
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, mock_open
 from src.api_key_manager import APIKeyManager
 
 
@@ -67,9 +69,8 @@ def test_save_cleans_up_tmp_on_failure(tmp_path):
             raise OSError("simulated write failure")
         return f
 
-    with patch("builtins.open", side_effect=failing_open):
-        with pytest.raises(OSError):
-            mgr.save("anthropic", "sk-new")
+    with patch("builtins.open", side_effect=failing_open), pytest.raises(OSError):
+        mgr.save("anthropic", "sk-new")
 
     # Temp file should be cleaned up
     assert not os.path.exists(tmp_file)

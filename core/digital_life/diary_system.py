@@ -9,6 +9,7 @@
 
 文件存储路径：data/memory/{agent_id}_diary.json
 """
+
 from __future__ import annotations
 
 import datetime
@@ -25,21 +26,22 @@ from typing import Any
 
 DIARY_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "data", "memory",
+    "data",
+    "memory",
 )
 
-DIARY_DAILY_HOUR = 22             # 每天 22:00 写日记
-DIARY_KEEP_DAYS = 90              # 保留最近 90 天日记
-PEEK_TRUST_COST = 0.05            # 每次偷看扣 trust 0.05
-PEEK_DISCOVERY_PROB = 0.15        # 反复点击 3 次发现日记本的概率
+DIARY_DAILY_HOUR = 22  # 每天 22:00 写日记
+DIARY_KEEP_DAYS = 90  # 保留最近 90 天日记
+PEEK_TRUST_COST = 0.05  # 每次偷看扣 trust 0.05
+PEEK_DISCOVERY_PROB = 0.15  # 反复点击 3 次发现日记本的概率
 SPECIAL_DIARY_TYPES = (
-    "first_day",          # 入职第一天
-    "retirement_wish",    # 退休愿望
-    "best_friend",        # 挚友达成
-    "bereavement",        # 同事死亡悼念
-    "special_gift",       # 收到监工特殊礼物
-    "illness_recovery",   # 大病初愈
-    "rescue_rebirth",     # 急救重生
+    "first_day",  # 入职第一天
+    "retirement_wish",  # 退休愿望
+    "best_friend",  # 挚友达成
+    "bereavement",  # 同事死亡悼念
+    "special_gift",  # 收到监工特殊礼物
+    "illness_recovery",  # 大病初愈
+    "rescue_rebirth",  # 急救重生
 )
 
 
@@ -65,12 +67,21 @@ DIARY_PROMPT_TEMPLATE: str = """你是 BlueDeer 森林公司的智能体 {name}�
 """
 
 
-def _build_diary_prompt(name: str, species: str, events: str,
-                          top_emotion: str, mood_score: float,
-                          interact_text: str, fondness: float) -> str:
+def _build_diary_prompt(
+    name: str,
+    species: str,
+    events: str,
+    top_emotion: str,
+    mood_score: float,
+    interact_text: str,
+    fondness: float,
+) -> str:
     return DIARY_PROMPT_TEMPLATE.format(
-        name=name, species=species, events=events or "今天过得平淡",
-        top_emotion=top_emotion, mood_score=mood_score,
+        name=name,
+        species=species,
+        events=events or "今天过得平淡",
+        top_emotion=top_emotion,
+        mood_score=mood_score,
         interact_text=interact_text or "今天没有与监工互动",
         fondness=fondness,
     )
@@ -128,18 +139,21 @@ FALLBACK_DIARY_TEMPLATES: dict[str, list[str]] = {
 }
 
 
-def _fallback_diary(name: str, species: str, events: str,
-                     interact_text: str) -> str:
-    templates = FALLBACK_DIARY_TEMPLATES.get(species,
-        ["{events}。{interact}。今天就这样过去了。晚安。"])
+def _fallback_diary(name: str, species: str, events: str, interact_text: str) -> str:
+    templates = FALLBACK_DIARY_TEMPLATES.get(
+        species, ["{events}。{interact}。今天就这样过去了。晚安。"]
+    )
     tpl = random.choice(templates)
-    return tpl.format(events=events or "今天没什么特别的事",
-                       interact=interact_text or "今天没见到监工")
+    return tpl.format(
+        events=events or "今天没什么特别的事",
+        interact=interact_text or "今天没见到监工",
+    )
 
 
 # ----------------------------------------------------------------------
 # 单个智能体的日记本
 # ----------------------------------------------------------------------
+
 
 class AgentDiary:
     """一个智能体的私密日记本。"""
@@ -160,12 +174,12 @@ class AgentDiary:
         self.agent_id = agent_id
         self.agent_name = agent_name
         self.species = species
-        self.entries: list[dict] = []            # 普通日记
-        self.special_entries: list[dict] = []    # 特殊日记（入职/悼念等）
+        self.entries: list[dict] = []  # 普通日记
+        self.special_entries: list[dict] = []  # 特殊日记（入职/悼念等）
         self._lock = threading.RLock()
         self._dirty = False
-        self.last_diary_date: str = ""           # YYYY-MM-DD，避免一天写两篇
-        self.peek_count: int = 0                 # 被偷看次数
+        self.last_diary_date: str = ""  # YYYY-MM-DD，避免一天写两篇
+        self.peek_count: int = 0  # 被偷看次数
 
     # ---------------- 文件路径 ----------------
 
@@ -217,8 +231,9 @@ class AgentDiary:
 
     # ---------------- 写入 ----------------
 
-    def add_entry(self, text: str, weather: str = "sunny",
-                   mood_snapshot: dict | None = None) -> None:
+    def add_entry(
+        self, text: str, weather: str = "sunny", mood_snapshot: dict | None = None
+    ) -> None:
         with self._lock:
             entry = {
                 "text": text,
@@ -236,8 +251,7 @@ class AgentDiary:
             self.entries = [e for e in self.entries if e.get("ts", 0) >= cutoff]
             self._dirty = True
 
-    def add_special_entry(self, kind: str, text: str,
-                            meta: dict | None = None) -> None:
+    def add_special_entry(self, kind: str, text: str, meta: dict | None = None) -> None:
         """特殊日记：入职/挚友/悼念/重病康复/急救重生/特殊礼物。"""
         if kind not in SPECIAL_DIARY_TYPES:
             return
@@ -283,19 +297,33 @@ class AgentDiary:
                 "total_special": len(self.special_entries),
                 "last_diary_date": self.last_diary_date,
                 "peek_count": self.peek_count,
-                "recent": ([e for e in self.entries[-7:]] if include_text
-                            else [{"date": e.get("date"), "ts": e.get("ts"),
-                                    "peeked": e.get("peeked", False)}
-                                   for e in self.entries[-7:]]),
-                "special": (list(self.special_entries) if include_text
-                             else [{"kind": e.get("kind"), "ts": e.get("ts")}
-                                    for e in self.special_entries]),
+                "recent": (
+                    [e for e in self.entries[-7:]]
+                    if include_text
+                    else [
+                        {
+                            "date": e.get("date"),
+                            "ts": e.get("ts"),
+                            "peeked": e.get("peeked", False),
+                        }
+                        for e in self.entries[-7:]
+                    ]
+                ),
+                "special": (
+                    list(self.special_entries)
+                    if include_text
+                    else [
+                        {"kind": e.get("kind"), "ts": e.get("ts")}
+                        for e in self.special_entries
+                    ]
+                ),
             }
 
 
 # ----------------------------------------------------------------------
 # 全局管理器（单例）
 # ----------------------------------------------------------------------
+
 
 class DiaryManager:
     _instance: DiaryManager | None = None
@@ -315,8 +343,9 @@ class DiaryManager:
                     cls._instance = cls()
         return cls._instance
 
-    def get_or_create(self, agent_id: str, agent_name: str = "",
-                       species: str = "") -> AgentDiary:
+    def get_or_create(
+        self, agent_id: str, agent_name: str = "", species: str = ""
+    ) -> AgentDiary:
         with self._lock:
             if agent_id not in self._store:
                 diary = AgentDiary(agent_id, agent_name, species)
@@ -341,8 +370,9 @@ class DiaryManager:
 
     # ---------------- 日记生成触发 ----------------
 
-    def maybe_write_daily(self, agent: Any, router: Any = None,
-                           force: bool = False) -> str | None:
+    def maybe_write_daily(
+        self, agent: Any, router: Any = None, force: bool = False
+    ) -> str | None:
         """检查并触发每日日记。返回日记文本（None 表示未触发）。"""
         if agent is None or not getattr(agent, "_alive", False):
             return None
@@ -351,9 +381,11 @@ class DiaryManager:
         if not force and now.hour < DIARY_DAILY_HOUR:
             return None
         agent_id = agent.get_agent_id()
-        diary = self.get_or_create(agent_id,
-                                    agent_name=getattr(agent, "_name_obj", ""),
-                                    species=getattr(agent, "species", ""))
+        diary = self.get_or_create(
+            agent_id,
+            agent_name=getattr(agent, "_name_obj", ""),
+            species=getattr(agent, "species", ""),
+        )
         today = now.date().isoformat()
         if diary.last_diary_date == today:
             return None  # 今天已经写过了
@@ -399,11 +431,15 @@ class DiaryManager:
         # 写入持久记忆长期摘要
         try:
             from core.digital_life.persistent_memory import get_memory_manager
-            mem = get_memory_manager().get_or_create(agent_id,
+
+            mem = get_memory_manager().get_or_create(
+                agent_id,
                 agent_name=getattr(agent, "_name_obj", ""),
-                species=getattr(agent, "species", ""))
-            mem.add_long_summary(f"今日日记：{text[:80]}...",
-                                  important=False, tags=["diary"])
+                species=getattr(agent, "species", ""),
+            )
+            mem.add_long_summary(
+                f"今日日记：{text[:80]}...", important=False, tags=["diary"]
+            )
         except Exception:
             pass
 
@@ -411,15 +447,18 @@ class DiaryManager:
 
     # ---------------- 特殊日记 ----------------
 
-    def write_special(self, agent: Any, kind: str, text: str,
-                       meta: dict | None = None) -> bool:
+    def write_special(
+        self, agent: Any, kind: str, text: str, meta: dict | None = None
+    ) -> bool:
         """写入特殊日记。"""
         if agent is None or kind not in SPECIAL_DIARY_TYPES:
             return False
         agent_id = agent.get_agent_id()
-        diary = self.get_or_create(agent_id,
-                                    agent_name=getattr(agent, "_name_obj", ""),
-                                    species=getattr(agent, "species", ""))
+        diary = self.get_or_create(
+            agent_id,
+            agent_name=getattr(agent, "_name_obj", ""),
+            species=getattr(agent, "species", ""),
+        )
         diary.add_special_entry(kind, text, meta=meta)
         diary.save()
         return True
@@ -434,17 +473,20 @@ class DiaryManager:
         if agent is None:
             return {"error": "agent not found"}
         agent_id = agent.get_agent_id()
-        diary = self.get_or_create(agent_id,
-                                    agent_name=getattr(agent, "_name_obj", ""),
-                                    species=getattr(agent, "species", ""))
+        diary = self.get_or_create(
+            agent_id,
+            agent_name=getattr(agent, "_name_obj", ""),
+            species=getattr(agent, "species", ""),
+        )
         # trust 下降
         try:
             rels = getattr(agent, "relationships", {})
             # 监工的 other_id 通常是 "supervisor" 或 "监工"
             sup_id = "supervisor"
             if sup_id in rels:
-                rels[sup_id]["trust"] = max(0.0,
-                    rels[sup_id].get("trust", 0.5) - PEEK_TRUST_COST)
+                rels[sup_id]["trust"] = max(
+                    0.0, rels[sup_id].get("trust", 0.5) - PEEK_TRUST_COST
+                )
         except Exception:
             pass
         # 偷看计数
@@ -476,6 +518,7 @@ class DiaryManager:
             return 0
         try:
             from core.digital_life.memory_fragment import MemoryFragmentSystem
+
             sys = MemoryFragmentSystem()
             x = getattr(agent, "x", 0)
             y = getattr(agent, "y", 0)
@@ -508,8 +551,9 @@ class DiaryManager:
             return None
         return d.to_dict(include_text=True)
 
-    def tick(self, dt: float = 1.0, population: list = None,
-              router: Any = None) -> list[dict]:
+    def tick(
+        self, dt: float = 1.0, population: list = None, router: Any = None
+    ) -> list[dict]:
         """每秒调用：检查并生成每日日记。返回生成事件列表。"""
         events: list[dict] = []
         now = datetime.datetime.now()
@@ -521,12 +565,14 @@ class DiaryManager:
                     try:
                         text = self.maybe_write_daily(lf, router=router)
                         if text:
-                            events.append({
-                                "type": "diary_written",
-                                "agent_name": getattr(lf, "_name_obj", ""),
-                                "species": getattr(lf, "species", ""),
-                                "preview": text[:60],
-                            })
+                            events.append(
+                                {
+                                    "type": "diary_written",
+                                    "agent_name": getattr(lf, "_name_obj", ""),
+                                    "species": getattr(lf, "species", ""),
+                                    "preview": text[:60],
+                                }
+                            )
                     except Exception:
                         pass
         now_ts = time.time()
@@ -540,8 +586,10 @@ class DiaryManager:
 # 辅助函数
 # ----------------------------------------------------------------------
 
+
 def _generate_via_llm(router: Any, prompt: str, timeout: float = 8.0) -> str | None:
     import asyncio
+
     if router is None:
         return None
     try:
@@ -556,7 +604,7 @@ def _generate_via_llm(router: Any, prompt: str, timeout: float = 8.0) -> str | N
             else:
                 return None
             text = getattr(resp, "content", None) or str(resp)
-            text = text.strip().strip('"\'“”‘’')
+            text = text.strip().strip("\"'“”‘’")
             if 30 <= len(text) <= 800:
                 return text
             return None
@@ -570,6 +618,7 @@ def _collect_today_events(agent: Any) -> str:
     """收集今天的关键事件。"""
     try:
         from core.digital_life.persistent_memory import get_memory_manager
+
         mem = get_memory_manager().get_or_create(agent.get_agent_id())
         cutoff = time.time() - 86400
         recent = [e for e in getattr(mem, "long", []) if e.get("ts", 0) >= cutoff]
@@ -608,12 +657,14 @@ def _get_weather(agent: Any) -> str:
 # 模块级便捷函数
 # ----------------------------------------------------------------------
 
+
 def get_diary_manager() -> DiaryManager:
     return DiaryManager.get_instance()
 
 
-def tick_diary(dt: float = 1.0, population: list = None,
-                router: Any = None) -> list[dict]:
+def tick_diary(
+    dt: float = 1.0, population: list = None, router: Any = None
+) -> list[dict]:
     return get_diary_manager().tick(dt, population=population, router=router)
 
 
@@ -644,8 +695,9 @@ def try_discover_diary(agent: Any) -> bool:
     return get_diary_manager().try_discover(agent)
 
 
-def write_special_diary(agent: Any, kind: str, text: str,
-                         meta: dict | None = None) -> bool:
+def write_special_diary(
+    agent: Any, kind: str, text: str, meta: dict | None = None
+) -> bool:
     return get_diary_manager().write_special(agent, kind, text, meta=meta)
 
 
@@ -662,6 +714,7 @@ def force_write_diary(agent: Any, router: Any = None) -> str | None:
     diary = mgr.get_or_create(
         agent_id,
         agent_name=getattr(agent, "_name_obj", ""),
-        species=getattr(agent, "species", ""))
+        species=getattr(agent, "species", ""),
+    )
     diary.last_diary_date = ""
     return mgr.maybe_write_daily(agent, router=router, force=True)

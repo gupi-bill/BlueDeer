@@ -9,7 +9,6 @@ from pathlib import Path
 
 from src.constants import DATA_DIR
 
-
 HF_COLLECTIONS_URL = "https://huggingface.co/api/collections"
 HW_FIT_CACHE_DIR = Path(DATA_DIR) / "hwfit"
 MLX_COMMUNITY_CACHE = HW_FIT_CACHE_DIR / "mlx_community_models.json"
@@ -178,7 +177,19 @@ def _quant_bytes_per_param(quant):
 
 def _infer_context(repo_id, pipeline_tag):
     text = f"{repo_id or ''} {pipeline_tag or ''}".lower()
-    if any(k in text for k in ("whisper", "asr", "speech-recognition", "tts", "audio", "image", "video", "diffusion")):
+    if any(
+        k in text
+        for k in (
+            "whisper",
+            "asr",
+            "speech-recognition",
+            "tts",
+            "audio",
+            "image",
+            "video",
+            "diffusion",
+        )
+    ):
         return 4096
     if any(k in text for k in ("glm-5.2", "deepseek-v4", "minimax-m3")):
         return 1_000_000
@@ -193,7 +204,9 @@ def _infer_use_case(repo_id, pipeline_tag):
         return "stt"
     if any(k in text for k in ("tts", "text-to-speech", "kokoro", "audio")):
         return "tts"
-    if any(k in text for k in ("image-text", "vision", "vlm", "vl-", "ocr", "multimodal")):
+    if any(
+        k in text for k in ("image-text", "vision", "vlm", "vl-", "ocr", "multimodal")
+    ):
         return "multimodal"
     if any(k in text for k in ("code", "coder")):
         return "coding"
@@ -219,7 +232,9 @@ def _entry_from_collection_item(collection, item, source):
 
     quant = _infer_quant(repo_id, source)
     pipeline_tag = item.get("pipeline_tag") or ""
-    min_ram = round((raw_params / 1_000_000_000) * _quant_bytes_per_param(quant) + 0.8, 1)
+    min_ram = round(
+        (raw_params / 1_000_000_000) * _quant_bytes_per_param(quant) + 0.8, 1
+    )
     last_modified = item.get("lastModified") or collection.get("lastUpdated") or ""
     release_date = ""
     if last_modified:
@@ -272,11 +287,13 @@ def _next_link(header):
 
 
 def fetch_collection_models(source, timeout=20, max_pages=20):
-    params = urllib.parse.urlencode({
-        "owner": source["owner"],
-        "limit": "100",
-        "expand": "true",
-    })
+    params = urllib.parse.urlencode(
+        {
+            "owner": source["owner"],
+            "limit": "100",
+            "expand": "true",
+        }
+    )
     url = f"{HF_COLLECTIONS_URL}?{params}"
     models = {}
     pages = 0
@@ -298,7 +315,10 @@ def fetch_collection_models(source, timeout=20, max_pages=20):
                 if entry and entry["name"] not in models:
                     models[entry["name"]] = entry
     rows = list(models.values())
-    rows.sort(key=lambda x: (x.get("hf_downloads") or 0, x.get("release_date") or ""), reverse=True)
+    rows.sort(
+        key=lambda x: (x.get("hf_downloads") or 0, x.get("release_date") or ""),
+        reverse=True,
+    )
     return rows
 
 
@@ -345,7 +365,9 @@ def refresh_mlx_community_cache(force=False):
         return load_cached_mlx_community_models()
     source = next(s for s in HF_COLLECTION_SOURCES if s["key"] == "mlx_community")
     rows = fetch_collection_models(source)
-    _write_cache(MLX_COMMUNITY_CACHE, "https://huggingface.co/mlx-community/collections", rows)
+    _write_cache(
+        MLX_COMMUNITY_CACHE, "https://huggingface.co/mlx-community/collections", rows
+    )
     return rows
 
 
@@ -369,6 +391,8 @@ def refresh_hf_collection_models_cache(force=False):
         reverse=True,
     )
     if rows:
-        _write_cache(HF_COLLECTION_MODELS_CACHE, "https://huggingface.co/collections", rows)
+        _write_cache(
+            HF_COLLECTION_MODELS_CACHE, "https://huggingface.co/collections", rows
+        )
         return rows
     return load_cached_hf_collection_models()

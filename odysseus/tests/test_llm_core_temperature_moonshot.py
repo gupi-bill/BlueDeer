@@ -5,9 +5,9 @@ builder must detect the Moonshot provider and omit temperature for the affected
 model family. Self-hosted Kimi deployments (non-Moonshot URL) must keep the
 caller-specified temperature unchanged.
 """
+
 import httpx
 import pytest
-
 from src import llm_core
 
 

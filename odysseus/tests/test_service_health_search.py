@@ -1,7 +1,6 @@
 """Tests for searxng_health — probe logic, status classification, and sanitization."""
-import types
 
-import pytest
+import types
 
 from src import service_health as sh
 
@@ -58,8 +57,10 @@ def test_searxng_down_on_5xx():
 
 def test_searxng_meta_redacts_instance_url():
     s = sh.searxng_health(
-        {"search_provider": "searxng",
-         "search_url": "http://user:s3cr3t@searx.local:8080/?token=zzz"},
+        {
+            "search_provider": "searxng",
+            "search_url": "http://user:s3cr3t@searx.local:8080/?token=zzz",
+        },
         http_get=lambda url, timeout: _resp(200),
     )
     blob = repr(s)
@@ -69,11 +70,14 @@ def test_searxng_meta_redacts_instance_url():
 
 def test_searxng_down_uses_error_category_not_raw_exception():
     def boom(url, timeout):
-        raise RuntimeError("failed connecting to http://user:pw@searx.local secret-token")
+        raise RuntimeError(
+            "failed connecting to http://user:pw@searx.local secret-token"
+        )
+
     s = sh.searxng_health(
         {"search_provider": "searxng", "search_url": "http://searx.local"},
         http_get=boom,
     )
     assert s["status"] == sh.DOWN
-    assert s["meta"]["error"] == "error"           # controlled category token
+    assert s["meta"]["error"] == "error"  # controlled category token
     assert "secret-token" not in repr(s) and "pw@" not in repr(s)

@@ -2,10 +2,9 @@ import asyncio
 
 import pytest
 from fastapi import HTTPException
-from starlette.requests import Request
-
-import routes.cookbook_routes as cookbook_routes
+from routes import cookbook_routes
 from routes.cookbook_helpers import ServeRequest
+from starlette.requests import Request
 
 
 def _route_endpoint(path: str, method: str):

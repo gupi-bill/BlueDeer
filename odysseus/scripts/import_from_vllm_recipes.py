@@ -20,6 +20,7 @@ Usage:
 
 Auth: set HF_TOKEN to access gated repos when --add-missing.
 """
+
 import argparse
 import json
 import os
@@ -44,7 +45,13 @@ except ImportError:
     HfHubHTTPError = Exception
 
 
-CATALOG_PATH = Path(__file__).resolve().parent.parent / "services" / "hwfit" / "data" / "hf_models.json"
+CATALOG_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "services"
+    / "hwfit"
+    / "data"
+    / "hf_models.json"
+)
 RECIPES_TREE_URL = (
     "https://api.github.com/repos/vllm-project/recipes/git/trees/main?recursive=1"
 )
@@ -86,7 +93,7 @@ def _parse_param_count(s) -> int:
     if s is None:
         return 0
     s = str(s).strip().replace(",", "")
-    m = re.match(r"^([\d.]+)\s*([KMBT]?)$", s, re.I)
+    m = re.match(r"^([\d.]+)\s*([KMBT]?)$", s, re.IGNORECASE)
     if not m:
         return 0
     num = float(m.group(1))
@@ -95,7 +102,9 @@ def _parse_param_count(s) -> int:
     return int(num * mult)
 
 
-def _capabilities_for(arch: str, hardware: dict, ctx_len: int, has_reasoning: bool) -> list[str]:
+def _capabilities_for(
+    arch: str, hardware: dict, ctx_len: int, has_reasoning: bool
+) -> list[str]:
     caps = []
     if "moe" in (arch or "").lower():
         caps.append("moe")
@@ -109,14 +118,16 @@ def _capabilities_for(arch: str, hardware: dict, ctx_len: int, has_reasoning: bo
 
 
 def _fetch_manifest(client: httpx.Client) -> set[str]:
-    r = client.get(RECIPES_TREE_URL, headers={"Accept": "application/vnd.github+json"}, timeout=15)
+    r = client.get(
+        RECIPES_TREE_URL, headers={"Accept": "application/vnd.github+json"}, timeout=15
+    )
     r.raise_for_status()
     tree = (r.json() or {}).get("tree") or []
     out: set[str] = set()
     for e in tree:
         path = (e or {}).get("path") or ""
         if path.startswith("models/") and path.endswith(".yaml"):
-            body = path[len("models/"):-len(".yaml")]
+            body = path[len("models/") : -len(".yaml")]
             if "/" in body:
                 out.add(body)
     return out
@@ -194,7 +205,9 @@ def _build_new_entry(repo: str, recipe: dict, hf_info=None) -> dict | None:
 
     arch = (model.get("architecture") or "").lower()
     use_case = _ARCH_USE_CASE.get(arch, "General-purpose chat")
-    caps = _capabilities_for(arch, meta.get("hardware") or {}, ctx, bool(features.get("reasoning")))
+    caps = _capabilities_for(
+        arch, meta.get("hardware") or {}, ctx, bool(features.get("reasoning"))
+    )
 
     rel_date = ""
     downloads = 0
@@ -206,7 +219,9 @@ def _build_new_entry(repo: str, recipe: dict, hf_info=None) -> dict | None:
         downloads = int(getattr(hf_info, "downloads", 0) or 0)
         likes = int(getattr(hf_info, "likes", 0) or 0)
     if not rel_date:
-        rel_date = str(meta.get("date_updated") or datetime.utcnow().strftime("%Y-%m-%d"))
+        rel_date = str(
+            meta.get("date_updated") or datetime.utcnow().strftime("%Y-%m-%d")
+        )
 
     entry: dict = {
         "name": repo,
@@ -243,12 +258,26 @@ def _build_new_entry(repo: str, recipe: dict, hf_info=None) -> dict | None:
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--update-existing", action="store_true", help="Stamp min_vllm_version + vllm_recipe on existing rows.")
-    p.add_argument("--add-missing", action="store_true", help="Add new rows for recipe models not in the catalog.")
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p.add_argument(
+        "--update-existing",
+        action="store_true",
+        help="Stamp min_vllm_version + vllm_recipe on existing rows.",
+    )
+    p.add_argument(
+        "--add-missing",
+        action="store_true",
+        help="Add new rows for recipe models not in the catalog.",
+    )
     p.add_argument("--limit", type=int, default=0, help="Stop after N recipe fetches.")
-    p.add_argument("--dry-run", action="store_true", help="Don't write back; just report.")
-    p.add_argument("--sleep", type=float, default=0.05, help="Seconds between HTTP requests.")
+    p.add_argument(
+        "--dry-run", action="store_true", help="Don't write back; just report."
+    )
+    p.add_argument(
+        "--sleep", type=float, default=0.05, help="Seconds between HTTP requests."
+    )
     args = p.parse_args()
     if not args.update_existing and not args.add_missing:
         args.update_existing = args.add_missing = True
@@ -305,7 +334,10 @@ def main():
                     hf_info = hf_api.model_info(repo, files_metadata=False)
                 except HfHubHTTPError as e:
                     code = getattr(getattr(e, "response", None), "status_code", "?")
-                    print(f"  HF {code} for {repo} — building from recipe only", file=sys.stderr)
+                    print(
+                        f"  HF {code} for {repo} — building from recipe only",
+                        file=sys.stderr,
+                    )
                 except Exception as e:
                     print(f"  HF error for {repo}: {e}", file=sys.stderr)
             new_entry = _build_new_entry(repo, recipe, hf_info)
@@ -313,7 +345,9 @@ def main():
                 catalog.append(new_entry)
                 by_name[repo] = new_entry
                 added += 1
-                print(f"[{n}/{len(targets)}] {repo:55} added ({new_entry.get('parameter_count','?')}, {new_entry.get('quantization','?')})")
+                print(
+                    f"[{n}/{len(targets)}] {repo:55} added ({new_entry.get('parameter_count','?')}, {new_entry.get('quantization','?')})"
+                )
             else:
                 skipped += 1
                 print(f"[{n}/{len(targets)}] {repo:55} skip (couldn't build entry)")
@@ -321,7 +355,9 @@ def main():
 
     elapsed = time.time() - started
     print()
-    print(f"Done in {elapsed:.1f}s — added={added}, updated={updated}, skipped={skipped}")
+    print(
+        f"Done in {elapsed:.1f}s — added={added}, updated={updated}, skipped={skipped}"
+    )
 
     if args.dry_run:
         print("Dry run — no write.")

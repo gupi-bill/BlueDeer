@@ -7,7 +7,6 @@ must opt into truncating/replacing from the selected message.
 
 from pathlib import Path
 
-
 _REPO = Path(__file__).resolve().parent.parent
 _CHAT_JS = _REPO / "static" / "js" / "chat.js"
 _CHAT_RENDERER_JS = _REPO / "static" / "js" / "chatRenderer.js"
@@ -40,4 +39,7 @@ def test_only_regenerate_callers_opt_into_replace_from_here():
     renderer = _CHAT_RENDERER_JS.read_text(encoding="utf-8")
 
     assert "window.chatModule.resendUserMessage(msgElement);" in renderer
-    assert "window.chatModule.resendUserMessage(userMsgEl, { replaceFromHere: true });" in renderer
+    assert (
+        "window.chatModule.resendUserMessage(userMsgEl, { replaceFromHere: true });"
+        in renderer
+    )

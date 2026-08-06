@@ -6,6 +6,7 @@ application package, write to data/, call an LLM, or apply anything. It turns
 common agent export shapes into a portable JSON manifest that Odysseus can
 preview or import later.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -13,11 +14,11 @@ import hashlib
 import json
 import mimetypes
 import sys
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterable
-
+from typing import Any
 
 SCHEMA_VERSION = "agent-migration.v1"
 TEXT_EXTENSIONS = {
@@ -44,7 +45,7 @@ class InputWarning:
 
 
 def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def sha256_text(text: str) -> str:
@@ -95,7 +96,15 @@ def memory_metadata(item: Any, source_path: Path, index: int) -> dict[str, Any]:
         "source_index": index,
     }
     if isinstance(item, dict):
-        for key in ("id", "timestamp", "created_at", "updated_at", "source", "tags", "pinned"):
+        for key in (
+            "id",
+            "timestamp",
+            "created_at",
+            "updated_at",
+            "source",
+            "tags",
+            "pinned",
+        ):
             if key in item:
                 metadata[f"source_{key}"] = item.get(key)
     return metadata
@@ -109,7 +118,9 @@ def payload_items(payload: Any, keys: tuple[str, ...]) -> Any:
     return payload
 
 
-def collect_memory_json(path: Path, source_name: str) -> tuple[list[dict[str, Any]], list[InputWarning]]:
+def collect_memory_json(
+    path: Path, source_name: str
+) -> tuple[list[dict[str, Any]], list[InputWarning]]:
     warnings: list[InputWarning] = []
     try:
         payload = read_json(path)
@@ -119,22 +130,38 @@ def collect_memory_json(path: Path, source_name: str) -> tuple[list[dict[str, An
     payload = payload_items(payload, ("memories", "memory", "items", "data"))
 
     if not isinstance(payload, list):
-        return [], [InputWarning(str(path), "expected a JSON list or an object containing a memory list")]
+        return [], [
+            InputWarning(
+                str(path), "expected a JSON list or an object containing a memory list"
+            )
+        ]
 
     items: list[dict[str, Any]] = []
     seen: set[str] = set()
     for index, item in enumerate(payload):
         text = normalize_memory_text(item)
         if not text:
-            warnings.append(InputWarning(str(path), f"skipped memory at index {index}: missing text"))
+            warnings.append(
+                InputWarning(
+                    str(path), f"skipped memory at index {index}: missing text"
+                )
+            )
             continue
         digest = sha256_text(text.strip().lower())
         if digest in seen:
-            warnings.append(InputWarning(str(path), f"skipped duplicate memory at index {index}"))
+            warnings.append(
+                InputWarning(str(path), f"skipped duplicate memory at index {index}")
+            )
             continue
         seen.add(digest)
-        category = normalize_category(item.get("category") if isinstance(item, dict) else "fact")
-        source = str(item.get("source") or source_name) if isinstance(item, dict) else source_name
+        category = normalize_category(
+            item.get("category") if isinstance(item, dict) else "fact"
+        )
+        source = (
+            str(item.get("source") or source_name)
+            if isinstance(item, dict)
+            else source_name
+        )
         items.append(
             {
                 "id": stable_id("memory", source_name, path, index, digest),
@@ -154,7 +181,7 @@ def normalize_timestamp(value: Any) -> str | None:
     if isinstance(value, (int, float)):
         try:
             return (
-                datetime.fromtimestamp(float(value), timezone.utc)
+                datetime.fromtimestamp(float(value), UTC)
                 .replace(microsecond=0)
                 .isoformat()
                 .replace("+00:00", "Z")
@@ -193,11 +220,19 @@ def normalize_message_text(message: dict[str, Any]) -> str:
     if isinstance(content, str):
         return content
     if isinstance(content, list):
-        return "\n".join(text for text in (content_part_text(part).strip() for part in content) if text)
+        return "\n".join(
+            text
+            for text in (content_part_text(part).strip() for part in content)
+            if text
+        )
     if isinstance(content, dict):
         parts = content.get("parts")
         if isinstance(parts, list):
-            return "\n".join(text for text in (content_part_text(part).strip() for part in parts) if text)
+            return "\n".join(
+                text
+                for text in (content_part_text(part).strip() for part in parts)
+                if text
+            )
         for key in ("text", "content", "value"):
             value = content.get(key)
             if isinstance(value, str):
@@ -225,7 +260,11 @@ def normalize_message(message: dict[str, Any]) -> dict[str, Any] | None:
         "role": normalize_role(role),
         "text": text,
     }
-    timestamp = normalize_timestamp(message.get("created_at") or message.get("create_time") or message.get("timestamp"))
+    timestamp = normalize_timestamp(
+        message.get("created_at")
+        or message.get("create_time")
+        or message.get("timestamp")
+    )
     if timestamp:
         normalized["created_at"] = timestamp
     message_id = message.get("id")
@@ -254,7 +293,9 @@ def chatgpt_mapping_messages(conversation: dict[str, Any]) -> list[dict[str, Any
     return [row[2] for row in sorted(rows, key=lambda row: (row[0], row[1]))]
 
 
-def conversation_messages(conversation: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
+def conversation_messages(
+    conversation: dict[str, Any],
+) -> tuple[list[dict[str, Any]], str]:
     mapped = chatgpt_mapping_messages(conversation)
     if mapped:
         return mapped, "chatgpt_mapping"
@@ -297,20 +338,40 @@ def collect_conversation_json(
     if isinstance(payload, dict):
         payload = [payload]
     if not isinstance(payload, list):
-        return [], [InputWarning(str(path), "expected a JSON list or an object containing a conversation list")]
+        return [], [
+            InputWarning(
+                str(path),
+                "expected a JSON list or an object containing a conversation list",
+            )
+        ]
 
     items: list[dict[str, Any]] = []
     for index, conversation in enumerate(payload):
         if not isinstance(conversation, dict):
-            warnings.append(InputWarning(str(path), f"skipped conversation at index {index}: expected object"))
+            warnings.append(
+                InputWarning(
+                    str(path), f"skipped conversation at index {index}: expected object"
+                )
+            )
             continue
         messages, format_hint = conversation_messages(conversation)
         if not messages:
-            warnings.append(InputWarning(str(path), f"skipped conversation at index {index}: no text messages found"))
+            warnings.append(
+                InputWarning(
+                    str(path),
+                    f"skipped conversation at index {index}: no text messages found",
+                )
+            )
             continue
         title = conversation_title(conversation, index)
-        source_id = conversation.get("id") or conversation.get("uuid") or conversation.get("conversation_id")
-        text_digest = sha256_text("\n".join(f"{msg['role']}:{msg['text']}" for msg in messages))
+        source_id = (
+            conversation.get("id")
+            or conversation.get("uuid")
+            or conversation.get("conversation_id")
+        )
+        text_digest = sha256_text(
+            "\n".join(f"{msg['role']}:{msg['text']}" for msg in messages)
+        )
         metadata: dict[str, Any] = {
             "source_path": str(path),
             "source_index": index,
@@ -326,7 +387,9 @@ def collect_conversation_json(
             if timestamp:
                 metadata[f"source_{key}"] = timestamp
         item: dict[str, Any] = {
-            "id": stable_id("conversation", source_name, path, source_id or index, text_digest),
+            "id": stable_id(
+                "conversation", source_name, path, source_id or index, text_digest
+            ),
             "kind": "conversation_thread",
             "title": title,
             "source": source_name,
@@ -365,7 +428,9 @@ def parse_skill_frontmatter(text: str) -> dict[str, Any]:
     return frontmatter
 
 
-def collect_skill_dir(path: Path, source_name: str) -> tuple[list[dict[str, Any]], list[InputWarning]]:
+def collect_skill_dir(
+    path: Path, source_name: str
+) -> tuple[list[dict[str, Any]], list[InputWarning]]:
     warnings: list[InputWarning] = []
     if path.is_symlink():
         return [], [InputWarning(str(path), "skills path is a symlink; skipped")]
@@ -377,15 +442,22 @@ def collect_skill_dir(path: Path, source_name: str) -> tuple[list[dict[str, Any]
     items: list[dict[str, Any]] = []
     for skill_path in sorted(path.rglob("SKILL.md")):
         if skill_path.is_symlink():
-            warnings.append(InputWarning(str(skill_path), "skipped symlinked skill file"))
+            warnings.append(
+                InputWarning(str(skill_path), "skipped symlinked skill file")
+            )
             continue
         try:
             text = skill_path.read_text(encoding="utf-8")
         except Exception as exc:
-            warnings.append(InputWarning(str(skill_path), f"could not read skill: {exc}"))
+            warnings.append(
+                InputWarning(str(skill_path), f"could not read skill: {exc}")
+            )
             continue
         frontmatter = parse_skill_frontmatter(text)
-        name = str(frontmatter.get("name") or skill_path.parent.name).strip() or skill_path.parent.name
+        name = (
+            str(frontmatter.get("name") or skill_path.parent.name).strip()
+            or skill_path.parent.name
+        )
         items.append(
             {
                 "id": stable_id("skill", source_name, skill_path, sha256_text(text)),
@@ -409,7 +481,9 @@ def looks_textual(path: Path) -> bool:
     if path.suffix.lower() in TEXT_EXTENSIONS:
         return True
     guessed, _ = mimetypes.guess_type(str(path))
-    return bool(guessed and (guessed.startswith("text/") or guessed in {"application/json"}))
+    return bool(
+        guessed and (guessed.startswith("text/") or guessed in {"application/json"})
+    )
 
 
 def iter_archive_dir(path: Path) -> Iterable[Path | InputWarning]:
@@ -451,13 +525,17 @@ def collect_archive_paths(
     existing_paths: list[Path] = []
     for path in paths:
         if path.is_symlink():
-            warnings.append(InputWarning(str(path), "archive path is a symlink; skipped"))
+            warnings.append(
+                InputWarning(str(path), "archive path is a symlink; skipped")
+            )
             continue
         if not path.exists():
             warnings.append(InputWarning(str(path), "archive path does not exist"))
             continue
         if not path.is_file() and not path.is_dir():
-            warnings.append(InputWarning(str(path), "archive path is not a file or directory"))
+            warnings.append(
+                InputWarning(str(path), "archive path is not a file or directory")
+            )
             continue
         existing_paths.append(path)
 
@@ -472,16 +550,24 @@ def collect_archive_paths(
         try:
             st = path.stat()
         except Exception as exc:
-            warnings.append(InputWarning(str(path), f"could not stat archive file: {exc}"))
+            warnings.append(
+                InputWarning(str(path), f"could not stat archive file: {exc}")
+            )
             continue
         size = st.st_size
         try:
             file_hash = sha256_path(path)
         except Exception as exc:
-            warnings.append(InputWarning(str(path), f"could not hash archive file: {exc}"))
+            warnings.append(
+                InputWarning(str(path), f"could not hash archive file: {exc}")
+            )
             continue
         if include_content and size > max_bytes:
-            warnings.append(InputWarning(str(path), f"skipped archive content over {max_bytes} bytes"))
+            warnings.append(
+                InputWarning(
+                    str(path), f"skipped archive content over {max_bytes} bytes"
+                )
+            )
         archive_item: dict[str, Any] = {
             "id": stable_id("archive", source_name, path, file_hash),
             "kind": "archive_document",
@@ -497,7 +583,9 @@ def collect_archive_paths(
             try:
                 archive_item["content"] = path.read_text(encoding="utf-8")
             except UnicodeDecodeError:
-                archive_item["content"] = path.read_text(encoding="utf-8", errors="replace")
+                archive_item["content"] = path.read_text(
+                    encoding="utf-8", errors="replace"
+                )
                 archive_item["metadata"]["decoded_with_replacement"] = True
         items.append(archive_item)
     return items, warnings
@@ -554,14 +642,24 @@ def build_manifest(args) -> dict[str, Any]:
             "warning_count": len(warnings),
         },
         "items": items,
-        "warnings": [{"path": warning.path, "message": warning.message} for warning in warnings],
+        "warnings": [
+            {"path": warning.path, "message": warning.message} for warning in warnings
+        ],
     }
 
 
 def parse_args(argv: list[str] | None = None):
-    parser = argparse.ArgumentParser(description="Build a neutral Odysseus agent migration manifest.")
-    parser.add_argument("--source-name", default="agent-export", help="Human-readable source name.")
-    parser.add_argument("--source-kind", default="generic", help="Source adapter kind, e.g. generic, openclaw, hermes.")
+    parser = argparse.ArgumentParser(
+        description="Build a neutral Odysseus agent migration manifest."
+    )
+    parser.add_argument(
+        "--source-name", default="agent-export", help="Human-readable source name."
+    )
+    parser.add_argument(
+        "--source-kind",
+        default="generic",
+        help="Source adapter kind, e.g. generic, openclaw, hermes.",
+    )
     parser.add_argument(
         "--memory-json",
         action="append",
@@ -612,16 +710,24 @@ def parse_args(argv: list[str] | None = None):
         default=2000,
         help="Maximum messages to embed per conversation when --include-conversation-content is used.",
     )
-    parser.add_argument("--output", type=Path, help="Write manifest JSON to this path instead of stdout.")
-    parser.add_argument("--compact", action="store_true", help="Write compact JSON without indentation.")
+    parser.add_argument(
+        "--output",
+        type=Path,
+        help="Write manifest JSON to this path instead of stdout.",
+    )
+    parser.add_argument(
+        "--compact", action="store_true", help="Write compact JSON without indentation."
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     manifest = build_manifest(args)
-    text = json.dumps(manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":")) if args.compact else (
-        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    text = (
+        json.dumps(manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        if args.compact
+        else (json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
     )
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

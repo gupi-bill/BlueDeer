@@ -9,6 +9,7 @@
 
 commit 28：行为池——巡视领地 / 月光冥想 / 鹿鸣
 """
+
 from __future__ import annotations
 
 import random
@@ -24,10 +25,10 @@ class Deer(DigitalLifeForm):
     SPECIES_TEMPLATE: dict = {
         "species": "deer",
         "default_name": "忧郁鹿",
-        "metabolic_rate": 0.5,                  # 每小时能量消耗
-        "hunger_rate": 0.4,                     # 每小时饥饿增长
-        "max_age_days": 365 * 30,                # 寿命 30 年
-        "reproduction_age_min_days": 365 * 4,   # 4 岁起可繁殖
+        "metabolic_rate": 0.5,  # 每小时能量消耗
+        "hunger_rate": 0.4,  # 每小时饥饿增长
+        "max_age_days": 365 * 30,  # 寿命 30 年
+        "reproduction_age_min_days": 365 * 4,  # 4 岁起可繁殖
         "reproduction_age_max_days": 365 * 20,  # 繁殖到 20 岁
         "litter_size_min": 1,
         "litter_size_max": 2,
@@ -50,8 +51,8 @@ class Deer(DigitalLifeForm):
                 "life_stages": ["ADULT", "MIDDLE", "ELDERLY"],
                 "probability": 0.06,
             },
-            "duration_sec": 300,       # 5 分钟
-            "cooldown_sec": 7200,      # 2 小时一次
+            "duration_sec": 300,  # 5 分钟
+            "cooldown_sec": 7200,  # 2 小时一次
             "animation": "walk",
             "particles": "sparkle",
         },
@@ -74,14 +75,14 @@ class Deer(DigitalLifeForm):
             "name": "moon_meditation",
             "label": "月光冥想",
             "trigger": {
-                "time_range": [22, 2],   # 跨夜 22-02
+                "time_range": [22, 2],  # 跨夜 22-02
                 "energy_min": 20,
                 "hunger_max": 70,
                 "life_stages": ["ADULT", "MIDDLE", "ELDERLY"],
                 "probability": 0.04,
             },
-            "duration_sec": 900,       # 15 分钟
-            "cooldown_sec": 10800,     # 3 小时一次
+            "duration_sec": 900,  # 15 分钟
+            "cooldown_sec": 10800,  # 3 小时一次
             "animation": "idle",
             "particles": "feather_shine",
         },
@@ -92,9 +93,9 @@ class Deer(DigitalLifeForm):
                 "energy_min": 30,
                 "hunger_max": 70,
                 "life_stages": ["ADULT", "MIDDLE"],
-                "probability": 0.008,    # 稀有
+                "probability": 0.008,  # 稀有
             },
-            "duration_sec": 10,        # 即时
+            "duration_sec": 10,  # 即时
             "cooldown_sec": 1800,
             "animation": "react",
             "particles": "story_bubble",
@@ -143,9 +144,13 @@ class Deer(DigitalLifeForm):
         if cfg["name"] == "deer_call" and self._environment is not None:
             # 找两个 mood 最低的清醒同事当"冲突双方"
             with self._environment._lock:
-                others = [lf for lf in self._environment.population
-                          if lf is not self and getattr(lf, "_alive", False)
-                          and not getattr(lf, "sleeping", False)]
+                others = [
+                    lf
+                    for lf in self._environment.population
+                    if lf is not self
+                    and getattr(lf, "_alive", False)
+                    and not getattr(lf, "sleeping", False)
+                ]
             others.sort(key=lambda x: getattr(x, "mood_score", 50))
             self._deer_call_targets = others[:2]
 
@@ -156,9 +161,13 @@ class Deer(DigitalLifeForm):
             # 巡视：能量消耗，遇同事点头（mood +0.5）
             self.energy = max(0.0, self.energy - 0.1)
             if self._environment is not None and random.random() < 0.1:
-                others = [lf for lf in self._environment.population
-                          if lf is not self and getattr(lf, "_alive", False)
-                          and getattr(lf, "current_zone_id", "") == self.current_zone_id]
+                others = [
+                    lf
+                    for lf in self._environment.population
+                    if lf is not self
+                    and getattr(lf, "_alive", False)
+                    and getattr(lf, "current_zone_id", "") == self.current_zone_id
+                ]
                 if others:
                     target = random.choice(others)
                     try:

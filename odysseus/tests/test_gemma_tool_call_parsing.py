@@ -50,10 +50,10 @@ def test_strip_raw_openai_function_json_leak():
 
 def test_strip_raw_openai_function_json_array_leak():
     raw = (
-        'Before\n['
+        "Before\n["
         '{"function":{"arguments":"{\\"action\\":\\"add\\",\\"text\\":\\"x\\"}",'
         '"name":"manage_memory"},"id":"call_memory_add1","type":"function"}'
-        ']\nAfter'
+        "]\nAfter"
     )
 
     assert strip_tool_blocks(raw) == "Before\nAfter"

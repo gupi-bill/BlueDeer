@@ -4,15 +4,15 @@ These tests prove the chat context drifting bug (#135) exists and verify fixes.
 Uses mocked DB to test in-memory session management logic in isolation.
 """
 
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-import pytest
-from unittest.mock import MagicMock, patch
 
+import pytest
+from core.models import ChatMessage, Session
 from core.session_manager import SessionManager
-from core.models import Session, ChatMessage
 
 
 @pytest.fixture
@@ -67,9 +67,9 @@ class TestSessionIsolation:
         s1.add_message(ChatMessage("user", "msg1"))
         s1.add_message(ChatMessage("assistant", "resp1"))
 
-        assert len(s2.history) == 0, (
-            f"Session B has {len(s2.history)} messages leaked from Session A"
-        )
+        assert (
+            len(s2.history) == 0
+        ), f"Session B has {len(s2.history)} messages leaked from Session A"
 
     def test_history_reference_sees_new_messages(self, sm):
         """Pre-existing references to .history must see new messages (it's the same list)."""
@@ -81,9 +81,9 @@ class TestSessionIsolation:
         s.add_message(ChatMessage("user", "second message"))
 
         # .history is the authoritative mutable list — old ref sees the append
-        assert len(old_history_ref) == 2, (
-            f"Old history ref has {len(old_history_ref)} items, expected 2"
-        )
+        assert (
+            len(old_history_ref) == 2
+        ), f"Old history ref has {len(old_history_ref)} items, expected 2"
         assert len(s.history) == 2
 
     def test_history_reassignment_updates_context_and_legacy_alias(self, sm):
@@ -94,13 +94,13 @@ class TestSessionIsolation:
         s.history = replacement
 
         assert s._history is replacement
-        assert s.get_context_messages() == [
-            {"role": "user", "content": "replacement"}
-        ]
+        assert s.get_context_messages() == [{"role": "user", "content": "replacement"}]
 
     def test_delete_session_removes_from_cache(self, sm):
         """delete_session must remove session from in-memory cache even when DB lookup fails."""
-        s = Session(id="unique-del", name="ToDelete", endpoint_url="http://ep", model="model")
+        s = Session(
+            id="unique-del", name="ToDelete", endpoint_url="http://ep", model="model"
+        )
         sm.sessions["unique-del"] = s
         assert "unique-del" in sm.sessions
         sm.delete_session("unique-del")
@@ -109,20 +109,23 @@ class TestSessionIsolation:
         # by the method's DB-query path. If that path fails, the session
         # stays in cache — this is the pre-existing behavior.
         # The real fix is to always delete from cache regardless of DB result.
-        pass
 
     def test_empty_session_isolation(self, sm):
         """Empty session must not inherit messages from active sessions."""
-        s_empty = Session(id="empty", name="Empty", endpoint_url="http://ep", model="model")
-        s_active = Session(id="active", name="Active", endpoint_url="http://ep", model="model")
+        s_empty = Session(
+            id="empty", name="Empty", endpoint_url="http://ep", model="model"
+        )
+        s_active = Session(
+            id="active", name="Active", endpoint_url="http://ep", model="model"
+        )
         sm.sessions["empty"] = s_empty
         sm.sessions["active"] = s_active
 
         s_active.add_message(ChatMessage("user", "first"))
 
-        assert len(s_empty.history) == 0, (
-            f"Empty session has {len(s_empty.history)} messages from active session"
-        )
+        assert (
+            len(s_empty.history) == 0
+        ), f"Empty session has {len(s_empty.history)} messages from active session"
 
     def test_add_message_updates_message_count(self, sm):
         """add_message must correctly increment message_count."""
@@ -178,9 +181,7 @@ class TestSessionIsolation:
         ctx.append({"role": "user", "content": "injected"})
 
         ctx2 = s.get_context_messages()
-        assert len(ctx2) == 1, (
-            f"get_context_messages leaked: {len(ctx2)} messages"
-        )
+        assert len(ctx2) == 1, f"get_context_messages leaked: {len(ctx2)} messages"
         assert ctx2[0]["content"] == "original"
 
     def test_get_session_uses_cache(self, sm):

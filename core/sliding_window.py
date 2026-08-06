@@ -5,7 +5,9 @@ evolution（网络维度 - R171）：
 - 每个请求记录时间戳，滑出窗口的丢弃
 - 支持加权：不同请求消耗不同配额
 """
+
 from __future__ import annotations
+
 import logging
 import threading
 import time
@@ -28,8 +30,7 @@ class _Window:
             self.timestamps.popleft()
             removed += self.weights.popleft()
         self.total_weight -= removed
-        if self.total_weight < 0:
-            self.total_weight = 0
+        self.total_weight = max(self.total_weight, 0)
         return removed
 
     def add(self, weight: float, now: float) -> None:
@@ -39,8 +40,9 @@ class _Window:
 
 
 class SlidingWindowLimiter:
-    def __init__(self, window: float, max_requests: float,
-                 precision: float = 0.001) -> None:
+    def __init__(
+        self, window: float, max_requests: float, precision: float = 0.001
+    ) -> None:
         if window <= 0:
             raise ValueError("window 必须 > 0")
         if max_requests <= 0:
@@ -133,7 +135,8 @@ class SlidingWindowLimiter:
         with self._lock:
             before = len(self._windows)
             self._windows = {
-                k: w for k, w in self._windows.items()
+                k: w
+                for k, w in self._windows.items()
                 if w.timestamps and (now - w.timestamps[-1]) < idle_seconds
             }
             return before - len(self._windows)
@@ -163,7 +166,9 @@ class SlidingWindowLimiter:
                 return None
             w.prune(w_size, now)
             return {
-                "key": key, "current": w.total_weight, "max": self._max,
+                "key": key,
+                "current": w.total_weight,
+                "max": self._max,
                 "window": w_size,
                 "remaining": max(0, self._max - w.total_weight),
                 "count": len(w.timestamps),

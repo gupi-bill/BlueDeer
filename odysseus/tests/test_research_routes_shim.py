@@ -37,8 +37,8 @@ def test_string_targeted_monkeypatch_reaches_canonical(monkeypatch):
 
     sentinel = "/tmp/shim-test-sentinel"
     monkeypatch.setattr("routes.research_routes.DEEP_RESEARCH_DIR", sentinel)
-    assert canonical.DEEP_RESEARCH_DIR == sentinel, (
-        "string-targeted monkeypatch via legacy path did not reach the canonical module"
-    )
+    assert (
+        canonical.DEEP_RESEARCH_DIR == sentinel
+    ), "string-targeted monkeypatch via legacy path did not reach the canonical module"
     # restore is handled by monkeypatch fixture teardown
     assert legacy is canonical

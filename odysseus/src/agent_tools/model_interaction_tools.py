@@ -10,9 +10,9 @@ Shared helpers that still live in ``src.ai_interaction`` and are used by tools
 not yet migrated (``_resolve_model``, ``AI_CHAT_TIMEOUT``) are imported lazily
 inside the functions to avoid an import cycle at module load.
 """
+
 import asyncio
 import logging
-from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -27,14 +27,16 @@ _TEACHER_SYSTEM_PROMPT = (
 )
 
 
-async def chat_with_model(content: str, session_id: Optional[str] = None, owner: Optional[str] = None) -> Dict:
+async def chat_with_model(
+    content: str, session_id: str | None = None, owner: str | None = None
+) -> dict:
     """Send a message to a specific model and return its response.
 
     Content format:
       Line 1: model_name (or model_name@endpoint_name)
       Line 2+: the message to send
     """
-    from src.ai_interaction import _resolve_model, AI_CHAT_TIMEOUT
+    from src.ai_interaction import AI_CHAT_TIMEOUT, _resolve_model
     from src.llm_core import llm_call_async
 
     lines = content.strip().split("\n", 1)
@@ -47,13 +49,16 @@ async def chat_with_model(content: str, session_id: Optional[str] = None, owner:
         return {"error": "No message provided (line 2+ is the message)"}
 
     try:
-        url, model, headers = await asyncio.to_thread(_resolve_model, model_spec, owner=owner)
+        url, model, headers = await asyncio.to_thread(
+            _resolve_model, model_spec, owner=owner
+        )
     except ValueError as e:
         return {"error": str(e)}
 
     try:
         response = await llm_call_async(
-            url, model,
+            url,
+            model,
             [{"role": "user", "content": message}],
             headers=headers,
             timeout=AI_CHAT_TIMEOUT,
@@ -67,14 +72,16 @@ async def chat_with_model(content: str, session_id: Optional[str] = None, owner:
         return {"error": f"Failed to get response from {model_spec}: {e}"}
 
 
-async def ask_teacher(content: str, session_id: Optional[str] = None, owner: Optional[str] = None) -> Dict:
+async def ask_teacher(
+    content: str, session_id: str | None = None, owner: str | None = None
+) -> dict:
     """Ask a more capable model for help.
 
     Content format:
       Line 1: model_name (or 'auto')
       Line 2+: the problem description
     """
-    from src.ai_interaction import _resolve_model, AI_CHAT_TIMEOUT
+    from src.ai_interaction import AI_CHAT_TIMEOUT, _resolve_model
     from src.llm_core import llm_call_async
     from src.settings import get_setting
 
@@ -88,16 +95,21 @@ async def ask_teacher(content: str, session_id: Optional[str] = None, owner: Opt
     if model_spec.lower() in ("auto", ""):
         model_spec = get_setting("teacher_model", "")
         if not model_spec:
-            return {"error": "No teacher model configured. Specify a model name or set teacher_model in settings."}
+            return {
+                "error": "No teacher model configured. Specify a model name or set teacher_model in settings."
+            }
 
     try:
-        url, model, headers = await asyncio.to_thread(_resolve_model, model_spec, owner=owner)
+        url, model, headers = await asyncio.to_thread(
+            _resolve_model, model_spec, owner=owner
+        )
     except ValueError as e:
         return {"error": str(e)}
 
     try:
         response = await llm_call_async(
-            url, model,
+            url,
+            model,
             [
                 {"role": "system", "content": _TEACHER_SYSTEM_PROMPT},
                 {"role": "user", "content": f"Problem:\n{problem}"},
@@ -113,17 +125,24 @@ async def ask_teacher(content: str, session_id: Optional[str] = None, owner: Opt
         return {"error": f"Teacher call failed ({model_spec}): {e}"}
 
 
-async def list_models(content: str, session_id: Optional[str] = None, owner: Optional[str] = None) -> Dict:
+async def list_models(
+    content: str, session_id: str | None = None, owner: str | None = None
+) -> dict:
     """List all available models across configured endpoints.
 
     Content = optional filter keyword.
     """
     import json
+
     import httpx
-    from src.database import SessionLocal, ModelEndpoint
-    from src.llm_core import _detect_provider, ANTHROPIC_MODELS
     from src.auth_helpers import owner_filter
-    from src.endpoint_resolver import resolve_endpoint_runtime, build_headers, build_models_url
+    from src.database import ModelEndpoint, SessionLocal
+    from src.endpoint_resolver import (
+        build_headers,
+        build_models_url,
+        resolve_endpoint_runtime,
+    )
+    from src.llm_core import ANTHROPIC_MODELS, _detect_provider
 
     keyword = content.strip().lower() if content.strip() else None
 
@@ -157,7 +176,9 @@ async def list_models(content: str, session_id: Optional[str] = None, owner: Opt
                         r = httpx.get(models_url, headers=headers, timeout=5)
                         r.raise_for_status()
                         data = r.json()
-                        model_ids = [m.get("id") for m in (data.get("data") or []) if m.get("id")]
+                        model_ids = [
+                            m.get("id") for m in (data.get("data") or []) if m.get("id")
+                        ]
                         if not model_ids:
                             model_ids = [
                                 m.get("name") or m.get("model")
@@ -170,7 +191,11 @@ async def list_models(content: str, session_id: Optional[str] = None, owner: Opt
                     model_ids = ["(endpoint offline)"]
 
             if keyword:
-                model_ids = [m for m in model_ids if keyword in m.lower() or keyword in (ep.name or "").lower()]
+                model_ids = [
+                    m
+                    for m in model_ids
+                    if keyword in m.lower() or keyword in (ep.name or "").lower()
+                ]
 
             if model_ids:
                 result_lines.append(f"\n**{ep.name or base}** ({provider}):")
@@ -179,7 +204,11 @@ async def list_models(content: str, session_id: Optional[str] = None, owner: Opt
                     total_models += 1
 
         if not result_lines:
-            return {"results": "No models found" + (f" matching '{keyword}'" if keyword else "") + "."}
+            return {
+                "results": "No models found"
+                + (f" matching '{keyword}'" if keyword else "")
+                + "."
+            }
 
         header = f"Available models ({total_models} total):"
         return {"results": header + "\n".join(result_lines)}
@@ -194,16 +223,19 @@ async def list_models(content: str, session_id: Optional[str] = None, owner: Opt
 # Handler classes registered in TOOL_HANDLERS
 # ---------------------------------------------------------------------------
 
+
 class ChatWithModelTool:
-    async def execute(self, content: str, ctx: dict) -> Dict:
-        return await chat_with_model(content, ctx.get("session_id"), owner=ctx.get("owner"))
+    async def execute(self, content: str, ctx: dict) -> dict:
+        return await chat_with_model(
+            content, ctx.get("session_id"), owner=ctx.get("owner")
+        )
 
 
 class AskTeacherTool:
-    async def execute(self, content: str, ctx: dict) -> Dict:
+    async def execute(self, content: str, ctx: dict) -> dict:
         return await ask_teacher(content, ctx.get("session_id"), owner=ctx.get("owner"))
 
 
 class ListModelsTool:
-    async def execute(self, content: str, ctx: dict) -> Dict:
+    async def execute(self, content: str, ctx: dict) -> dict:
         return await list_models(content, ctx.get("session_id"), owner=ctx.get("owner"))

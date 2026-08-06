@@ -6,17 +6,41 @@ Reusable document actions callable from both REST routes and the task scheduler.
 
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
 
 _JUNK_TITLES = {
-    "untitled", "untitled document", "new document", "document",
-    "new email", "new mail", "new message", "reply", "fwd", "re:",
-    "test", "testing", "asdf", "asd", "foo", "bar", "baz",
-    "tmp", "temp", "scratch", "scratchpad", "draft", "delete",
-    "remove", "junk", "trash", "xxx", "abc", "qwerty",
+    "untitled",
+    "untitled document",
+    "new document",
+    "document",
+    "new email",
+    "new mail",
+    "new message",
+    "reply",
+    "fwd",
+    "re:",
+    "test",
+    "testing",
+    "asdf",
+    "asd",
+    "foo",
+    "bar",
+    "baz",
+    "tmp",
+    "temp",
+    "scratch",
+    "scratchpad",
+    "draft",
+    "delete",
+    "remove",
+    "junk",
+    "trash",
+    "xxx",
+    "abc",
+    "qwerty",
 }
 
 
@@ -35,8 +59,8 @@ def _content_fingerprint(content: str) -> str:
     collapsed and the result lowercased.
     """
     c = content if isinstance(content, str) else ""
-    c = re.sub(r'upload_id="[^"]*"', "upload_id", c)          # pdf_source re-imports
-    c = re.sub(r"\bid=ann-[A-Za-z0-9_-]+", "id=ann", c)        # annotation ids
+    c = re.sub(r'upload_id="[^"]*"', "upload_id", c)  # pdf_source re-imports
+    c = re.sub(r"\bid=ann-[A-Za-z0-9_-]+", "id=ann", c)  # annotation ids
     c = re.sub(r"\s+", " ", c).strip().lower()
     return c
 
@@ -61,7 +85,7 @@ async def run_document_tidy(owner: str) -> str:
       fingerprint (ignoring volatile upload/annotation ids). The most complete
       copy (longest real content, then most recent) is kept; the rest deleted.
     """
-    from core.database import SessionLocal, Document, Session as DbSession
+    from core.database import Document, SessionLocal
 
     db = SessionLocal()
     try:
@@ -77,12 +101,12 @@ async def run_document_tidy(owner: str) -> str:
         deleted = 0
         kept = 0
         survivors = []  # docs that pass the junk rules, considered for dedup
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for doc in docs:
             created = doc.created_at
             if created and created.tzinfo is None:
-                created = created.replace(tzinfo=timezone.utc)
+                created = created.replace(tzinfo=UTC)
 
             # Skip freshly created documents to avoid deleting them while the user is actively editing
             if created and (now - created).total_seconds() < 900:  # 15 minutes
@@ -109,9 +133,12 @@ async def run_document_tidy(owner: str) -> str:
             # Detect emails-saved-as-documents (quote chains with no original content)
             lines = [ln for ln in content.split("\n") if ln.strip()]
             quoted_lines = [ln for ln in lines if ln.lstrip().startswith(">")]
-            header_lines = [ln for ln in lines if re.match(r"^On .+ wrote:?\s*$", ln.strip())]
+            header_lines = [
+                ln for ln in lines if re.match(r"^On .+ wrote:?\s*$", ln.strip())
+            ]
             non_quote_content = "\n".join(
-                ln for ln in lines
+                ln
+                for ln in lines
                 if not ln.lstrip().startswith(">")
                 and not re.match(r"^On .+ wrote:?\s*$", ln.strip())
             ).strip()
@@ -131,7 +158,11 @@ async def run_document_tidy(owner: str) -> str:
                 should_delete = True
                 reason = "throwaway content"
             # No length-based deletion: short notes are legitimate content.
-            elif (quoted_lines or header_lines) and len(non_quote_content) < 50 and quote_ratio > 0.4:
+            elif (
+                (quoted_lines or header_lines)
+                and len(non_quote_content) < 50
+                and quote_ratio > 0.4
+            ):
                 # Email reply chain with no original content
                 should_delete = True
                 reason = "email quote-chain only"
@@ -156,9 +187,11 @@ async def run_document_tidy(owner: str) -> str:
             if len(members) < 2:
                 kept += 1
                 continue
+
             # Keep the most complete (longest real content), then most recent.
             def _updated(d):
                 return d.updated_at or d.created_at
+
             # Sort key must be total-order safe: a document with both
             # updated_at and created_at NULL would otherwise make Python
             # compare None against a datetime on a real-length tie, raising
@@ -189,9 +222,14 @@ async def run_document_tidy(owner: str) -> str:
         if deleted == 0:
             # Use sentinel so the scheduler can drop the run row entirely.
             from src.builtin_actions import TaskNoop
+
             raise TaskNoop(f"scanned {len(docs)} document(s), no junk")
         preview = "; ".join(deleted_examples)
-        extra = f" (+{deleted - len(deleted_examples)} more)" if deleted > len(deleted_examples) else ""
+        extra = (
+            f" (+{deleted - len(deleted_examples)} more)"
+            if deleted > len(deleted_examples)
+            else ""
+        )
         return f"Removed {deleted} of {len(docs)}: {preview}{extra} · {kept} kept"
     finally:
         db.close()

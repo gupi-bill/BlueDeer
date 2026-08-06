@@ -5,16 +5,17 @@
     bus.subscribe("agent.*", handler, priority=10)
     await bus.publish("agent.fox", message)
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 from collections import defaultdict
-from typing import Awaitable, Callable
+from collections.abc import Awaitable, Callable
 
+from core.config import get_config
 from core.task import Message, Task, TaskResult, TaskStatus
 from core.tracer import Tracer
-from core.config import get_config
 
 logger = logging.getLogger("bluedeer.event_bus")
 
@@ -23,10 +24,12 @@ Handler = Callable[[Message], Awaitable[None]]
 
 
 class _Subscription:
-    __slots__ = ("handler", "filter", "priority")
+    __slots__ = ("filter", "handler", "priority")
 
     def __init__(
-        self, handler: Handler, priority: int = 0,
+        self,
+        handler: Handler,
+        priority: int = 0,
         filter: MessageFilter | None = None,
     ) -> None:
         self.handler = handler
@@ -45,7 +48,10 @@ class EventBus:
         self._publish_count: dict[str, int] = defaultdict(int)
 
     def subscribe(
-        self, topic: str, handler: Handler, priority: int = 0,
+        self,
+        topic: str,
+        handler: Handler,
+        priority: int = 0,
         filter: MessageFilter | None = None,
     ) -> None:
         """订阅 topic。
@@ -63,30 +69,31 @@ class EventBus:
                 break
         subs.insert(insert_idx, sub)
 
+    def _wildcard_match(self, pattern: str, topic: str) -> bool:
+        """通配符匹配：`*` 必须匹配至少一个字符（防止 `a.*.b` 误匹配 `a.b`）。"""
+        if "*" not in pattern:
+            return pattern == topic
+        parts = pattern.split("*")
+        if len(parts) != 2:
+            return pattern == topic
+        prefix, suffix = parts
+        return (
+            topic.startswith(prefix)
+            and topic.endswith(suffix)
+            and len(topic) >= len(prefix) + len(suffix)
+        )
+
     def _match_topics(self, pattern: str) -> list[str]:
         if "*" not in pattern:
             return [pattern]
-        parts = pattern.split("*")
-        matched: list[str] = []
-        for t in self._subscribers:
-            if len(parts) == 2:
-                prefix, suffix = parts
-                if t.startswith(prefix) and t.endswith(suffix):
-                    matched.append(t)
-            elif len(parts) == 1:
-                if t == pattern:
-                    matched.append(t)
-        return matched
+        return [t for t in self._subscribers if self._wildcard_match(pattern, t)]
 
     def _find_subscribers(self, topic: str) -> list[_Subscription]:
         direct = list(self._subscribers.get(topic, []))
         for pattern, subs in self._subscribers.items():
             if "*" in pattern and pattern != topic:
-                parts = pattern.split("*")
-                if len(parts) == 2:
-                    prefix, suffix = parts
-                    if topic.startswith(prefix) and topic.endswith(suffix):
-                        direct.extend(subs)
+                if self._wildcard_match(pattern, topic):
+                    direct.extend(subs)
         direct.sort(key=lambda s: -s.priority)
         return direct
 
@@ -103,11 +110,14 @@ class EventBus:
     async def publish(self, topic: str, message: Message) -> None:
         if self._tracer:
             self._tracer.span(
-                message.trace_id, component="EventBus", action="publish", topic=topic,
+                message.trace_id,
+                component="EventBus",
+                action="publish",
+                topic=topic,
             )
         self._history[topic].append(message)
         if len(self._history[topic]) > self._max_history:
-            self._history[topic] = self._history[topic][-self._max_history:]
+            self._history[topic] = self._history[topic][-self._max_history :]
         self._publish_count[topic] += 1
 
         subs = self._find_subscribers(topic)
@@ -128,8 +138,11 @@ class EventBus:
         await self.publish(topic, message)
 
     async def publish_with_retry(
-        self, topic: str, message: Message,
-        max_retries: int = 3, filter: MessageFilter | None = None,
+        self,
+        topic: str,
+        message: Message,
+        max_retries: int = 3,
+        filter: MessageFilter | None = None,
     ) -> int:
         subs = self._subscribers.get(topic, [])
         completed = 0
@@ -149,13 +162,18 @@ class EventBus:
                 except Exception as e:
                     logger.warning(
                         "事件 handler 失败（第 %d/%d 次，topic=%s）: %s",
-                        attempt, max_retries, topic, e,
+                        attempt,
+                        max_retries,
+                        topic,
+                        e,
                     )
             if ok:
                 completed += 1
         return completed
 
-    async def publish_directed(self, topic: str, message: Message, recipient: Handler) -> bool:
+    async def publish_directed(
+        self, topic: str, message: Message, recipient: Handler
+    ) -> bool:
         subs = self._subscribers.get(topic, [])
         for sub in subs:
             if sub.handler == recipient:
@@ -179,27 +197,37 @@ class EventBus:
         if not target:
             return 0
         subs = self._find_subscribers(topic)
-        tasks = []
-        for msg in target:
-            for sub in subs:
-                if sub.filter is not None:
-                    try:
-                        if not sub.filter(msg):
-                            continue
-                    except Exception:
-                        pass
-                tasks.append(asyncio.create_task(sub.handler(msg)))
-        if tasks:
-            asyncio.get_event_loop().run_until_complete(
-                asyncio.gather(*tasks, return_exceptions=True)
-            )
+
+        async def _dispatch() -> None:
+            tasks = []
+            for msg in target:
+                for sub in subs:
+                    if sub.filter is not None:
+                        try:
+                            if not sub.filter(msg):
+                                continue
+                        except Exception:
+                            pass
+                    tasks.append(asyncio.create_task(sub.handler(msg)))
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            asyncio.run(_dispatch())
+        else:
+            asyncio.get_event_loop().run_until_complete(_dispatch())
         return len(target)
 
     def publish_stats(self) -> dict[str, int]:
         return dict(self._publish_count)
 
     async def request(
-        self, task: Task, assignee_topic: str, result_topic: str,
+        self,
+        task: Task,
+        assignee_topic: str,
+        result_topic: str,
         timeout: float | None = None,
     ) -> TaskResult:
         if timeout is None:
@@ -216,10 +244,12 @@ class EventBus:
 
         try:
             result = await asyncio.wait_for(future, timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             result = TaskResult(
-                trace_id=task.trace_id, task_id=task.id,
-                status=TaskStatus.FAILED, error=f"任务超时（{timeout}s）",
+                trace_id=task.trace_id,
+                task_id=task.id,
+                status=TaskStatus.FAILED,
+                error=f"任务超时（{timeout}s）",
             )
         finally:
             self.unsubscribe(result_topic, _result_handler)

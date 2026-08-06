@@ -74,4 +74,6 @@ class MockClient(ModelClient):
             content = f"[MockClient:{self._name}] 已接收 prompt（{len(prompt)} 字符），模拟推理完成。"
 
         tokens_out = max(1, len(content) // 4)
-        return ModelResponse(content=content, tokens_in=tokens_in, tokens_out=tokens_out)
+        return ModelResponse(
+            content=content, tokens_in=tokens_in, tokens_out=tokens_out
+        )

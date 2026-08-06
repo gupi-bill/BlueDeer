@@ -8,7 +8,8 @@ called `pc.strip()` / `q.startswith(...)` directly, so one such row raised
 AttributeError and aborted the whole ranking pass (params_b/is_prequantized
 run for every model). Non-strings are now treated as unknown.
 """
-from services.hwfit.models import params_b, is_prequantized
+
+from services.hwfit.models import is_prequantized, params_b
 
 
 def test_params_b_nonstring_count_does_not_raise():

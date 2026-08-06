@@ -3,6 +3,7 @@
 特殊行为：sing 广播事件，同物种≥3 时代谢减半。
 commit 28：行为池——洗澡 / 学舌 / 午间小睡
 """
+
 from __future__ import annotations
 
 import random
@@ -42,7 +43,7 @@ class Lark(DigitalLifeForm):
                 "life_stages": ["JUVENILE", "ADULT", "MIDDLE"],
                 "probability": 0.03,
             },
-            "duration_sec": 180,       # 3 分钟
+            "duration_sec": 180,  # 3 分钟
             "cooldown_sec": 7200,
             "animation": "react",
             "particles": "snow_puff",
@@ -56,7 +57,7 @@ class Lark(DigitalLifeForm):
                 "life_stages": ["JUVENILE", "ADULT", "MIDDLE"],
                 "probability": 0.02,
             },
-            "duration_sec": 30,        # 30 秒
+            "duration_sec": 30,  # 30 秒
             "cooldown_sec": 1200,
             "animation": "react",
             "particles": "story_bubble",
@@ -71,26 +72,41 @@ class Lark(DigitalLifeForm):
                 "life_stages": ["JUVENILE", "ADULT", "MIDDLE", "ELDERLY"],
                 "probability": 0.08,
             },
-            "duration_sec": 600,       # 10 分钟（一整个小时段）
+            "duration_sec": 600,  # 10 分钟（一整个小时段）
             "cooldown_sec": 7200,
             "animation": "idle",
             "particles": "feather_shine",
         },
     ]
 
-    def __init__(self, name="灵音雀", gender="female", environment=None,
-                 birth_time=None, genome_override=None):
+    def __init__(
+        self,
+        name="灵音雀",
+        gender="female",
+        environment=None,
+        birth_time=None,
+        genome_override=None,
+    ):
         genome = self._build_genome(genome_override)
-        super().__init__(name=name, species="lark", gender=gender,
-                         genome=genome, environment=environment, birth_time=birth_time)
+        super().__init__(
+            name=name,
+            species="lark",
+            gender=gender,
+            genome=genome,
+            environment=environment,
+            birth_time=birth_time,
+        )
 
     def sing(self, message: str) -> None:
         """鸣唱广播。"""
         if self._environment is not None:
-            self._environment.broadcast_event("lark_sing", {
-                "singer": self._name_obj,
-                "message": message,
-            })
+            self._environment.broadcast_event(
+                "lark_sing",
+                {
+                    "singer": self._name_obj,
+                    "message": message,
+                },
+            )
 
     def tick(self) -> None:
         """雀的 tick：同物种≥3 时代谢减半。"""
@@ -99,7 +115,8 @@ class Lark(DigitalLifeForm):
         if self._environment is not None:
             with self._environment._lock:
                 same_species = sum(
-                    1 for lf in self._environment.population
+                    1
+                    for lf in self._environment.population
                     if getattr(lf, "species", "") == "lark"
                     and getattr(lf, "_alive", False)
                 )
@@ -119,15 +136,20 @@ class Lark(DigitalLifeForm):
         if cfg["name"] == "mimicry" and self._environment is not None:
             # 从最近事件中挑一条 lark_sing / daily_event 当模仿内容
             recent = list(self._environment.event_log)[-20:]
-            candidates = [e for e in recent
-                          if e.get("type") in ("lark_sing", "daily_event")
-                          or "behavior" in e.get("type", "")]
+            candidates = [
+                e
+                for e in recent
+                if e.get("type") in ("lark_sing", "daily_event")
+                or "behavior" in e.get("type", "")
+            ]
             if candidates:
                 ev = random.choice(candidates)
-                self._mimicry_text = ev.get("data", {}).get("message") \
-                    or ev.get("data", {}).get("desc") \
-                    or ev.get("data", {}).get("label") \
+                self._mimicry_text = (
+                    ev.get("data", {}).get("message")
+                    or ev.get("data", {}).get("desc")
+                    or ev.get("data", {}).get("label")
                     or "叽叽喳喳"
+                )
             else:
                 self._mimicry_text = "叽叽喳喳"
 
@@ -142,10 +164,13 @@ class Lark(DigitalLifeForm):
             # 学舌：每 10 秒向同事广播一次模仿
             if self._environment is not None and random.random() < 0.1:
                 text = getattr(self, "_mimicry_text", "叽叽喳喳")
-                self._environment.broadcast_event("lark_mimicry", {
-                    "singer": self._name_obj,
-                    "message": f"(模仿) {text}",
-                })
+                self._environment.broadcast_event(
+                    "lark_mimicry",
+                    {
+                        "singer": self._name_obj,
+                        "message": f"(模仿) {text}",
+                    },
+                )
         elif bname == "noon_nap":
             # 午间小睡：能量恢复 +0.3/秒
             self.energy = min(100.0, self.energy + 0.3)
@@ -166,6 +191,7 @@ class Lark(DigitalLifeForm):
         return Lark(
             name=f"{self._name_obj}的幼崽",
             gender=random.choice(["male", "female"]),
-            environment=environment, birth_time=birth_time,
+            environment=environment,
+            birth_time=birth_time,
             genome_override=genome,
         )

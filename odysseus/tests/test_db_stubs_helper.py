@@ -4,9 +4,7 @@ from types import ModuleType
 from unittest.mock import MagicMock
 
 from pytest import MonkeyPatch
-
 from tests.helpers.db_stubs import make_core_db_stub
-
 
 _MISSING = object()
 _MODULE_NAMES = ("core", "core.database")
@@ -14,9 +12,7 @@ _MODULE_NAMES = ("core", "core.database")
 
 @contextmanager
 def _preserve_core_modules():
-    original_modules = {
-        name: sys.modules.get(name, _MISSING) for name in _MODULE_NAMES
-    }
+    original_modules = {name: sys.modules.get(name, _MISSING) for name in _MODULE_NAMES}
     try:
         yield
     finally:

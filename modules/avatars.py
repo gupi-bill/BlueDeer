@@ -16,19 +16,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
 
 from core.pixel_canvas import Color
 
-
 # ============== 动画状态枚举 ==============
+
 
 class AnimState(Enum):
     """员工动画状态。每状态配套 2 帧循环动画。"""
-    IDLE = "idle"          # 空闲：轻微呼吸
-    WORKING = "working"    # 工作：敲击动作
+
+    IDLE = "idle"  # 空闲：轻微呼吸
+    WORKING = "working"  # 工作：敲击动作
     SLEEPING = "sleeping"  # 休眠：闭眼波浪
-    ERROR = "error"        # 报错：抖动感叹
+    ERROR = "error"  # 报错：抖动感叹
 
 
 # 每状态动画帧数
@@ -38,12 +38,13 @@ _FRAMES_PER_STATE = 2
 @dataclass
 class Avatar:
     """员工头像定义（含 4 状态动画帧）。"""
-    agent_id: str          # 员工 ID
-    name: str              # 中文名
-    role: str              # 岗位
-    sprite: list[str]      # 静态主像素矩阵（向后兼容，等同 idle 帧 0）
-    color: int             # 主题色（ANSI 256）
-    glyph: str             # 单字标识（用于紧凑显示）
+
+    agent_id: str  # 员工 ID
+    name: str  # 中文名
+    role: str  # 岗位
+    sprite: list[str]  # 静态主像素矩阵（向后兼容，等同 idle 帧 0）
+    color: int  # 主题色（ANSI 256）
+    glyph: str  # 单字标识（用于紧凑显示）
     # P6 扩容：4 状态 × 2 帧动画。缺省回退到 sprite。
     frames: dict[str, list[list[str]]] = field(default_factory=dict)
     # 各状态配套气泡文本
@@ -84,6 +85,7 @@ class Avatar:
 # - sleeping 帧0：眼睛 'o'→'~'（闭眼）；帧1：顶行加 'z'（打鼾）
 # - error 帧0：眼睛 'o'→'!'；帧1：整体左偏 1（抖动）+ 顶行 'x'
 
+
 def _shift_rows(sprite: list[str], dx: int = 0, dy: int = 0) -> list[str]:
     """整体平移精灵，空位补空格。"""
     if not sprite:
@@ -93,7 +95,7 @@ def _shift_rows(sprite: list[str], dx: int = 0, dy: int = 0) -> list[str]:
     # 先做 dy（行方向）
     rows = list(sprite)
     if dy > 0:
-        rows = [" " * w] * dy + rows[:h - dy]
+        rows = [" " * w] * dy + rows[: h - dy]
     elif dy < 0:
         rows = rows[-dy:] + [" " * w] * (-dy)
     # 再做 dx（列方向）
@@ -101,7 +103,7 @@ def _shift_rows(sprite: list[str], dx: int = 0, dy: int = 0) -> list[str]:
     for r in rows:
         r = (r + " " * w)[:w]  # 补齐
         if dx > 0:
-            r = " " * dx + r[:w - dx]
+            r = " " * dx + r[: w - dx]
         elif dx < 0:
             r = r[-dx:] + " " * (-dx)
         out.append(r)
@@ -113,7 +115,9 @@ def _replace_char(sprite: list[str], old: str, new: str) -> list[str]:
     return [r.replace(old, new) for r in sprite]
 
 
-def _set_row_char(sprite: list[str], row: int, char: str, positions: list[int]) -> list[str]:
+def _set_row_char(
+    sprite: list[str], row: int, char: str, positions: list[int]
+) -> list[str]:
     """在指定行的指定列设置字符（越界忽略）。"""
     out = list(sprite)
     if 0 <= row < len(out):
@@ -135,7 +139,9 @@ def _gen_frames(base: list[str]) -> dict[str, list[list[str]]]:
         ],
         "working": [
             _replace_char(base, "o", "."),
-            _set_row_char(_replace_char(base, "o", "."), len(base) - 1, "-", [0, w - 1]),
+            _set_row_char(
+                _replace_char(base, "o", "."), len(base) - 1, "-", [0, w - 1]
+            ),
         ],
         "sleeping": [
             _replace_char(base, "o", "~"),
@@ -158,8 +164,12 @@ _DEFAULT_BUBBLES: dict[str, str] = {
 
 
 def _mk_avatar(
-    agent_id: str, name: str, role: str, glyph: str,
-    color: int, sprite: list[str],
+    agent_id: str,
+    name: str,
+    role: str,
+    glyph: str,
+    color: int,
+    sprite: list[str],
     bubbles: dict[str, str] | None = None,
 ) -> Avatar:
     """构造带动画帧的头像。"""
@@ -181,62 +191,110 @@ def _mk_avatar(
 
 _AVATARS: list[Avatar] = [
     _mk_avatar(
-        "squirrel", "较真松鼠", "全栈开发", "鼠", Color.ORANGE,
+        "squirrel",
+        "较真松鼠",
+        "全栈开发",
+        "鼠",
+        Color.ORANGE,
         [".o##o.", "#####o", "######", ".o##o."],
         {"working": "敲代码中", "error": "语法报错!"},
     ),
     _mk_avatar(
-        "fox", "狡黠狐狸", "测试质量", "狐", Color.ORANGE,
+        "fox",
+        "狡黠狐狸",
+        "测试质量",
+        "狐",
+        Color.ORANGE,
         ["o##.o.", "#####o", "######", ".o##o."],
         {"working": "跑测试中", "error": "用例失败!"},
     ),
     _mk_avatar(
-        "hedgehog", "戒备猬", "安全审计", "猬", Color.DARK_GREEN,
+        "hedgehog",
+        "戒备猬",
+        "安全审计",
+        "猬",
+        Color.DARK_GREEN,
         ["#.#.#.", "######", "##oo##", "#....#"],
         {"working": "扫描漏洞中", "error": "高危拦截!"},
     ),
     _mk_avatar(
-        "beaver", "勤恳海狸", "构建部署", "狸", Color.BROWN,
+        "beaver",
+        "勤恳海狸",
+        "构建部署",
+        "狸",
+        Color.BROWN,
         [".o##o.", "######", "######", "#o##o#"],
         {"working": "提交代码中", "error": "构建失败!"},
     ),
     _mk_avatar(
-        "owl", "夜枭猫头鹰", "架构设计", "鸮", Color.PURPLE,
+        "owl",
+        "夜枭猫头鹰",
+        "架构设计",
+        "鸮",
+        Color.PURPLE,
         [".####.", "#o##o#", "######", ".####."],
         {"working": "推演架构中", "sleeping": "睁眼睡觉"},
     ),
     _mk_avatar(
-        "soft_rabbit", "软耳兔", "像素美术", "兔", Color.PINK,
+        "soft_rabbit",
+        "软耳兔",
+        "像素美术",
+        "兔",
+        Color.PINK,
         ["o.##.o", ".####.", "######", ".o##o."],
         {"working": "绘制像素中", "error": "素材越界!"},
     ),
     _mk_avatar(
-        "fox_security", "安全测试狐", "安全测试", "狐", Color.RED,
+        "fox_security",
+        "安全测试狐",
+        "安全测试",
+        "狐",
+        Color.RED,
         ["o##.o.", "#####o", "######", ".o##o."],
         {"working": "安全扫描中", "error": "漏洞命中!"},
     ),
     _mk_avatar(
-        "fox_art", "美术规范狐", "美术规范测试", "狐", Color.PURPLE,
+        "fox_art",
+        "美术规范狐",
+        "美术规范测试",
+        "狐",
+        Color.PURPLE,
         ["o##.o.", "#####o", "######", ".o##o."],
         {"working": "校验规范中", "error": "素材违规!"},
     ),
     _mk_avatar(
-        "hedgehog_static", "静态扫描猬", "静态扫描", "猬", Color.DARK_GREEN,
+        "hedgehog_static",
+        "静态扫描猬",
+        "静态扫描",
+        "猬",
+        Color.DARK_GREEN,
         ["#.#.#.", "######", "##oo##", "#....#"],
         {"working": "静态扫描中", "error": "规则命中!"},
     ),
     _mk_avatar(
-        "hedgehog_runtime", "运行时审计猬", "运行时审计", "猬", Color.TEAL,
+        "hedgehog_runtime",
+        "运行时审计猬",
+        "运行时审计",
+        "猬",
+        Color.TEAL,
         ["#.#.#.", "######", "##oo##", "#....#"],
         {"working": "运行时审计中", "error": "拦截告警!"},
     ),
     _mk_avatar(
-        "hedgehog_keymgmt", "密钥管理猬", "密钥管理", "猬", Color.PURPLE,
+        "hedgehog_keymgmt",
+        "密钥管理猬",
+        "密钥管理",
+        "猬",
+        Color.PURPLE,
         ["#.#.#.", "######", "##oo##", "#....#"],
         {"working": "密钥检测中", "error": "密钥泄露!"},
     ),
     _mk_avatar(
-        "sparrow", "灵音雀", "状态播报", "雀", Color.LIME,
+        "sparrow",
+        "灵音雀",
+        "状态播报",
+        "雀",
+        Color.LIME,
         ["..o#..", ".o##o.", "o####o", "..o#.."],
         {"working": "播报状态中", "error": "播报中断!"},
     ),
@@ -266,22 +324,22 @@ def avatar_color_map(avatar: Avatar) -> dict[str, int]:
         "#": avatar.color,
         "o": Color.YELLOW,
         ".": Color.WHITE,
-        "~": Color.PURPLE,    # 闭眼
-        "!": Color.RED,       # 报错感叹
-        "-": Color.CYAN,      # 敲击
-        "z": Color.LIME,      # 打鼾
-        "x": Color.RED,       # 抖动
+        "~": Color.PURPLE,  # 闭眼
+        "!": Color.RED,  # 报错感叹
+        "-": Color.CYAN,  # 敲击
+        "z": Color.LIME,  # 打鼾
+        "x": Color.RED,  # 抖动
     }
 
 
 # 状态色（用于头像旁的状态标识）
 STATUS_COLORS: dict[str, int] = {
-    "idle": Color.GRAY,        # 空闲
-    "working": Color.GREEN,    # 工作中
-    "success": Color.CYAN,     # 成功
-    "failed": Color.RED,       # 失败
+    "idle": Color.GRAY,  # 空闲
+    "working": Color.GREEN,  # 工作中
+    "success": Color.CYAN,  # 成功
+    "failed": Color.RED,  # 失败
     "sleeping": Color.PURPLE,  # 梦境中
-    "error": Color.RED,        # 报错（failed 的动画别名）
+    "error": Color.RED,  # 报错（failed 的动画别名）
 }
 
 
@@ -306,12 +364,14 @@ def to_anim_state(task_status: str) -> str:
 # ============== 全局动画帧计数器 ==============
 # 用于驱动所有头像同步循环动画。render 时传入当前帧号即可。
 
+
 def anim_tick(global_frame: int) -> int:
     """取当前应显示的帧号（0/1 循环）。"""
     return global_frame % _FRAMES_PER_STATE
 
 
 # ============== Avatar LRU 缓存 ==============
+
 
 class AvatarCache:
     """LRU 缓存生成的 avatar，避免重复计算动画帧。"""
@@ -348,8 +408,12 @@ class AvatarCache:
         else:
             sprite = [".o##o.", "#####o", "######", ".o##o."]
         avatar = Avatar(
-            agent_id=name, name=name, role=style, sprite=sprite,
-            color=Color.LIME, glyph=name[0] if name else "?",
+            agent_id=name,
+            name=name,
+            role=style,
+            sprite=sprite,
+            color=Color.LIME,
+            glyph=name[0] if name else "?",
             frames=_gen_frames(sprite),
             bubbles=dict(_DEFAULT_BUBBLES),
         )

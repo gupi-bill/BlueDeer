@@ -21,13 +21,15 @@ def test_src_search_providers_aliases_services_providers():
     service_providers = importlib.import_module("services.search.providers")
 
     assert src_providers is service_providers
-    assert src_providers._resolve_ddg_redirect is service_providers._resolve_ddg_redirect
+    assert (
+        src_providers._resolve_ddg_redirect is service_providers._resolve_ddg_redirect
+    )
     assert src_providers._safesearch_for is service_providers._safesearch_for
 
 
 def test_src_search_package_exports_still_resolve():
-    import src.search as search
     import services.search as service_search
+    from src import search
 
     assert search.comprehensive_web_search is service_search.comprehensive_web_search
     assert search.searxng_search_results is service_search.searxng_search_results
@@ -39,4 +41,6 @@ def test_src_search_cache_content_query_alias_services():
     for name in ("cache", "content", "query"):
         src_mod = importlib.import_module(f"src.search.{name}")
         svc_mod = importlib.import_module(f"services.search.{name}")
-        assert src_mod is svc_mod, f"src.search.{name} should alias services.search.{name}"
+        assert (
+            src_mod is svc_mod
+        ), f"src.search.{name} should alias services.search.{name}"

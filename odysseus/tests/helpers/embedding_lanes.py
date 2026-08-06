@@ -83,7 +83,9 @@ class FakeCollection:
         if self.dim is None:
             self.dim = dim
         elif self.dim != dim:
-            raise RuntimeError(f"Collection expecting embedding with dimension of {self.dim}, got {dim}")
+            raise RuntimeError(
+                f"Collection expecting embedding with dimension of {self.dim}, got {dim}"
+            )
 
 
 class FakeChroma:
@@ -119,6 +121,6 @@ class FakeChroma:
 
 
 def patch_chroma(monkeypatch, fake):
-    import src.chroma_client as chroma_client
+    from src import chroma_client
 
     monkeypatch.setattr(chroma_client, "get_chroma_client", lambda: fake)

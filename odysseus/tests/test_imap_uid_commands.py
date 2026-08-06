@@ -6,6 +6,7 @@ sig-learner and daily-brief actions must use conn.uid("SEARCH", ...)
 and conn.uid("FETCH", ...) which address messages by their persistent
 RFC 3501 UID (§2.3.1.1, §6.4.8).
 """
+
 import pytest
 
 
@@ -26,16 +27,25 @@ class _SpyImap:
         if command == "FETCH":
             query = args[1] if len(args) > 1 else ""
             if "HEADER.FIELDS" in query:
-                return "OK", [(None, b"From: Writer <writer@example.com>\r\n"
-                                     b"Subject: Hello\r\n\r\n")]
+                return "OK", [
+                    (
+                        None,
+                        b"From: Writer <writer@example.com>\r\n"
+                        b"Subject: Hello\r\n\r\n",
+                    )
+                ]
             return "OK", [(None, b"Body text\r\n\r\nRegards,\r\nThe Writer\r\n")]
         return "OK", []
 
     def search(self, *args):
-        raise AssertionError("conn.search() called — must use conn.uid('SEARCH', ...) instead")
+        raise AssertionError(
+            "conn.search() called — must use conn.uid('SEARCH', ...) instead"
+        )
 
     def fetch(self, *args):
-        raise AssertionError("conn.fetch() called — must use conn.uid('FETCH', ...) instead")
+        raise AssertionError(
+            "conn.fetch() called — must use conn.uid('FETCH', ...) instead"
+        )
 
     def logout(self):
         pass
@@ -55,7 +65,9 @@ async def test_sig_learner_uses_uid_search(monkeypatch):
     message, ok = await action_learn_sender_signatures("alice")
 
     assert ok is False  # no LLM candidates — stops before LLM, after IMAP
-    assert any(c[0] == "SEARCH" for c in spy.uid_calls), "uid('SEARCH', ...) was not called"
+    assert any(
+        c[0] == "SEARCH" for c in spy.uid_calls
+    ), "uid('SEARCH', ...) was not called"
 
 
 @pytest.mark.asyncio
@@ -71,26 +83,39 @@ async def test_sig_learner_uses_uid_fetch(monkeypatch):
 
     await action_learn_sender_signatures("alice")
 
-    assert any(c[0] == "FETCH" for c in spy.uid_calls), "uid('FETCH', ...) was not called"
+    assert any(
+        c[0] == "FETCH" for c in spy.uid_calls
+    ), "uid('FETCH', ...) was not called"
 
 
 @pytest.mark.asyncio
 async def test_daily_brief_uses_uid_commands(monkeypatch):
     """action_daily_brief email section must use uid() not search()/fetch()."""
-    from core import database
-    from core import auth as _auth_mod
     from routes import email_helpers
     from src.builtin_actions import action_daily_brief
 
+    from core import auth as _auth_mod
+    from core import database
+
     class _Q:
-        def filter(self, *a, **kw): return self
-        def join(self, *a, **kw): return self
-        def order_by(self, *a): return self
-        def all(self): return []
+        def filter(self, *a, **kw):
+            return self
+
+        def join(self, *a, **kw):
+            return self
+
+        def order_by(self, *a):
+            return self
+
+        def all(self):
+            return []
 
     class _Db:
-        def query(self, *a): return _Q()
-        def close(self): pass
+        def query(self, *a):
+            return _Q()
+
+        def close(self):
+            pass
 
     class _FakeAuth:
         is_configured = False
@@ -104,5 +129,9 @@ async def test_daily_brief_uses_uid_commands(monkeypatch):
     message, ok = await action_daily_brief("")
 
     assert ok is True
-    assert any(c[0] == "SEARCH" for c in spy.uid_calls), "uid('SEARCH', ...) was not called"
-    assert any(c[0] == "FETCH" for c in spy.uid_calls), "uid('FETCH', ...) was not called"
+    assert any(
+        c[0] == "SEARCH" for c in spy.uid_calls
+    ), "uid('SEARCH', ...) was not called"
+    assert any(
+        c[0] == "FETCH" for c in spy.uid_calls
+    ), "uid('FETCH', ...) was not called"

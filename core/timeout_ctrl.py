@@ -14,7 +14,8 @@ from __future__ import annotations
 import functools
 import threading
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 
 class TimeoutError(Exception):
@@ -81,7 +82,7 @@ def race_call(
     exc_box: list = [None]
     done = threading.Event()
 
-    def runner():
+    def runner() -> None:
         try:
             result_box[0] = func(*args, **kwargs)
         except BaseException as e:
@@ -115,7 +116,9 @@ class timeout:
             ...
     """
 
-    def __init__(self, seconds: float, default: Any = ..., reraise: bool = True) -> None:
+    def __init__(
+        self, seconds: float, default: Any = ..., reraise: bool = True
+    ) -> None:
         if seconds < 0:
             raise ValueError("timeout 不能为负")
         self._seconds = seconds
@@ -123,7 +126,7 @@ class timeout:
         self._reraise = reraise
         self._timer: threading.Timer | None = None
 
-    def __enter__(self) -> "timeout":
+    def __enter__(self) -> timeout:
         self._timer = threading.Timer(self._seconds, self._raise_timeout)
         self._timer.daemon = True
         self._timer.start()
@@ -143,12 +146,18 @@ class timeout:
 
     def __call__(self, func: Callable) -> Callable:
         """作为装饰器使用。"""
+
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs) -> Any:
             return race_call(
-                func, *args, timeout=self._seconds,
-                default=self._default, reraise=self._reraise, **kwargs,
+                func,
+                *args,
+                timeout=self._seconds,
+                default=self._default,
+                reraise=self._reraise,
+                **kwargs,
             )
+
         return wrapper
 
 
@@ -178,7 +187,7 @@ class TimeoutGuard:
     def expired(self) -> bool:
         return self._deadline.expired()
 
-    def __enter__(self) -> "TimeoutGuard":
+    def __enter__(self) -> TimeoutGuard:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> bool:
@@ -199,7 +208,7 @@ class _timeout_ctx:
         self._seconds = seconds
         self._timer: threading.Timer | None = None
 
-    def __enter__(self) -> "_timeout_ctx":
+    def __enter__(self) -> _timeout_ctx:
         self._timer = threading.Timer(self._seconds, self._raise_timeout)
         self._timer.daemon = True
         self._timer.start()
@@ -223,18 +232,21 @@ def timeout_context(seconds: float) -> _timeout_ctx:
     return _timeout_ctx(seconds)
 
 
-def timeout_decorator(seconds: float):
+def timeout_decorator(seconds: float) -> Any:
     """装饰器：@timeout_decorator(5) 强制函数执行不超过秒数。
 
     与 timeout() 不同，使用 threading.Timer 中断而非 race_call。
     适合不需要返回值的场景。
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs) -> Any:
             with _timeout_ctx(seconds):
                 return func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
@@ -264,4 +276,7 @@ def wait_until(
 
 def status() -> dict:
     """模块状态（无状态，仅占位）。"""
-    return {"module": "timeout_ctrl", "strategies": ["deadline", "race", "guard", "context", "decorator"]}
+    return {
+        "module": "timeout_ctrl",
+        "strategies": ["deadline", "race", "guard", "context", "decorator"],
+    }

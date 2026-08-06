@@ -14,6 +14,7 @@
 5. 情绪         （低落→-10，开心→+5）
 6. 可用性       （不可接直接 0 分）
 """
+
 from __future__ import annotations
 
 import threading
@@ -32,6 +33,7 @@ NEGOTIATION_TIMEOUT_SEC = 5.0  # 单次协商超时
 # NegotiationEngine 单例
 # ----------------------------------------------------------------------
 
+
 class NegotiationEngine:
     """动态分工协商引擎（单例）。
 
@@ -45,7 +47,7 @@ class NegotiationEngine:
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._active: dict[str, dict] = {}  # {negotiation_id: state}
-        self._history: list[dict] = []      # 历史记录（最多 200 条）
+        self._history: list[dict] = []  # 历史记录（最多 200 条）
         self._biosphere_ref: Any = None
 
     @classmethod
@@ -62,9 +64,14 @@ class NegotiationEngine:
 
     # ---------------- 主入口 ----------------
 
-    def negotiate(self, pipeline_id: str, step_id: int, task: str,
-                  candidate_species: list[str],
-                  timeout: float = NEGOTIATION_TIMEOUT_SEC) -> dict:
+    def negotiate(
+        self,
+        pipeline_id: str,
+        step_id: int,
+        task: str,
+        candidate_species: list[str],
+        timeout: float = NEGOTIATION_TIMEOUT_SEC,
+    ) -> dict:
         """对一个任务发起协商。
 
         Args:
@@ -128,8 +135,10 @@ class NegotiationEngine:
             # 所有候选都不可接——走 fallback，指派第一个候选
             winner = candidate_species[0]
             winner_name = ""
-            reason = (f"所有候选都不可接（{len(bids)} 个竞标均 available=False），"
-                      f"默认指派给 {winner}")
+            reason = (
+                f"所有候选都不可接（{len(bids)} 个竞标均 available=False），"
+                f"默认指派给 {winner}"
+            )
             fallback = True
         else:
             reason = "无候选物种"
@@ -193,8 +202,10 @@ class NegotiationEngine:
                 "confidence": 0.0,
                 "estimated_min": 0,
                 "current_state": {
-                    "energy": 0, "emotion": "absent",
-                    "current_workload": "无", "mood_score": 0,
+                    "energy": 0,
+                    "emotion": "absent",
+                    "current_workload": "无",
+                    "mood_score": 0,
                     "pending_count": 0,
                 },
                 "relevant_experience_count": 0,
@@ -210,8 +221,10 @@ class NegotiationEngine:
                 "confidence": 0.0,
                 "estimated_min": 0,
                 "current_state": {
-                    "energy": 0, "emotion": "error",
-                    "current_workload": "无", "mood_score": 0,
+                    "energy": 0,
+                    "emotion": "error",
+                    "current_workload": "无",
+                    "mood_score": 0,
                     "pending_count": 0,
                 },
                 "relevant_experience_count": 0,
@@ -296,15 +309,16 @@ class NegotiationEngine:
     def list_history(self, limit: int = 50) -> list[dict]:
         """列出协商历史（按时间倒序）。"""
         with self._lock:
-            sorted_hist = sorted(self._history,
-                                 key=lambda x: x.get("ts", 0),
-                                 reverse=True)
+            sorted_hist = sorted(
+                self._history, key=lambda x: x.get("ts", 0), reverse=True
+            )
             return [dict(h) for h in sorted_hist[:limit]]
 
 
 # ----------------------------------------------------------------------
 # 模块级便捷 API
 # ----------------------------------------------------------------------
+
 
 def get_negotiation_engine() -> NegotiationEngine:
     return NegotiationEngine.get_instance()

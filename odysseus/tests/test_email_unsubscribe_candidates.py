@@ -9,8 +9,8 @@ from routes.email_routes import (
 
 def test_parse_list_unsubscribe_mailto_and_url():
     methods = _parse_list_unsubscribe_header(
-        '<mailto:list@example.com?subject=unsubscribe&body=remove%20me>, '
-        '<https://example.com/unsubscribe/token>'
+        "<mailto:list@example.com?subject=unsubscribe&body=remove%20me>, "
+        "<https://example.com/unsubscribe/token>"
     )
 
     assert methods == [

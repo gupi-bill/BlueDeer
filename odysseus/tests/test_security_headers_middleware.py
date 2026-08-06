@@ -12,10 +12,9 @@ hardening:
      own voice/STT flow (`getUserMedia({ audio: true })`) keeps working.
 """
 
+from core.middleware import SecurityHeadersMiddleware
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-from core.middleware import SecurityHeadersMiddleware
 
 
 def _build_app():

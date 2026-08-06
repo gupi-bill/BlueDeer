@@ -8,14 +8,11 @@ every successful research call).
 
 import asyncio
 
-import pytest
-
 from services.research.service import (
-    ResearchService,
     ResearchResult,
+    ResearchService,
     ResearchSource,
 )
-
 
 # A faithful slice of what ResearchHandler._format_research_report emits.
 SAMPLE_REPORT = """---
@@ -53,8 +50,9 @@ class _StubHandler:
         self._report = report
         self.called_with = None
 
-    async def call_research_service(self, topic, llm_endpoint, llm_model,
-                                    max_time=300, progress_callback=None):
+    async def call_research_service(
+        self, topic, llm_endpoint, llm_model, max_time=300, progress_callback=None
+    ):
         self.called_with = (topic, llm_endpoint, llm_model, max_time)
         return self._report
 
@@ -137,8 +135,12 @@ class TestDictBackCompat:
                 return {
                     "summary": "done",
                     "sources": [
-                        {"url": "https://x.example", "title": "X",
-                         "snippet": "s", "relevance": 0.9},
+                        {
+                            "url": "https://x.example",
+                            "title": "X",
+                            "snippet": "s",
+                            "relevance": 0.9,
+                        },
                         "bad source row",
                     ],
                     "sections": ["intro"],

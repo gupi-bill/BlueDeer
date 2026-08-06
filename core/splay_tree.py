@@ -10,27 +10,29 @@
     tree.insert(5, "v5")
     tree.get(5)  # "v5"（5 被 splay 到根）
 """
+
 from __future__ import annotations
 
 import threading
-from typing import Any, Iterator, List, Optional, Tuple
+from collections.abc import Iterator
+from typing import Any
 
 
 class _Node:
-    __slots__ = ("key", "value", "left", "right")
+    __slots__ = ("key", "left", "right", "value")
 
     def __init__(self, key, value=None):
         self.key = key
         self.value = value
-        self.left: Optional[_Node] = None
-        self.right: Optional[_Node] = None
+        self.left: _Node | None = None
+        self.right: _Node | None = None
 
 
 class SplayTree:
     """自底向上 Splay 伸展树（递归实现，简单可靠）。"""
 
     def __init__(self) -> None:
-        self._root: Optional[_Node] = None
+        self._root: _Node | None = None
         self._size = 0
         self._lock = threading.RLock()
 
@@ -49,7 +51,7 @@ class SplayTree:
         y.left = x
         return y
 
-    def _splay(self, node: Optional[_Node], key) -> _Node:
+    def _splay(self, node: _Node | None, key) -> _Node:
         """递归 splay：把 key 对应节点 splay 到根并返回。"""
         if node is None:
             return None
@@ -82,7 +84,7 @@ class SplayTree:
         else:
             return node
 
-    def insert(self, key, value: Any = None) -> None:
+    def insert(self, key: Any, value: Any = None) -> None:
         with self._lock:
             if self._root is None:
                 self._root = _Node(key, value)
@@ -104,7 +106,7 @@ class SplayTree:
             self._root = new
             self._size += 1
 
-    def get(self, key, default=None) -> Any:
+    def get(self, key: Any, default: Any = None) -> Any:
         with self._lock:
             if self._root is None:
                 return default
@@ -145,9 +147,9 @@ class SplayTree:
             self._root = self._splay(self._root, key)
             return self._root is not None and self._root.key == key
 
-    def items(self) -> Iterator[Tuple]:
+    def items(self) -> Iterator[tuple]:
         with self._lock:
-            stack: List[_Node] = []
+            stack: list[_Node] = []
             n = self._root
             while n is not None or stack:
                 while n is not None:
@@ -168,7 +170,7 @@ class SplayTree:
             return 0
         return 1 + SplayTree._count(node.left) + SplayTree._count(node.right)
 
-    def split(self, key):
+    def split(self, key) -> Any:
         with self._lock:
             if self._root is None:
                 return SplayTree(), SplayTree()
@@ -188,7 +190,7 @@ class SplayTree:
             return left, right
 
     @staticmethod
-    def merge(left, right):
+    def merge(left: Any, right) -> Any:
         if left._root is None:
             return right
         if right._root is None:

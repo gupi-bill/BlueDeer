@@ -7,21 +7,22 @@ command-allowlist guard. Each impl keeps its `do_*(content, owner)` shape;
 ADMIN_TOOL_HANDLERS wraps them into registry `execute(content, ctx)` adapters
 via one factory.
 """
+
 import json
+import logging
 import os
 import re
-import logging
-from typing import Optional, Dict
 
-from src.tool_utils import get_mcp_manager, _parse_tool_args
 from src.tool_security import BUILTIN_EMAIL_TOOLS
+from src.tool_utils import _parse_tool_args, get_mcp_manager
 
 logger = logging.getLogger(__name__)
 
 
-async def do_manage_endpoints(content: str, owner: Optional[str] = None) -> Dict:
+async def do_manage_endpoints(content: str, owner: str | None = None) -> dict:
     """Manage model endpoints: list, add, delete, enable, disable."""
-    from core.database import SessionLocal, ModelEndpoint
+    from core.database import ModelEndpoint, SessionLocal
+
     try:
         args = _parse_tool_args(content)
     except ValueError:
@@ -32,12 +33,24 @@ async def do_manage_endpoints(content: str, owner: Optional[str] = None) -> Dict
     try:
         if action == "list":
             eps = db.query(ModelEndpoint).all()
-            items = [{"id": e.id, "name": e.name, "base_url": e.base_url,
-                       "is_enabled": e.is_enabled} for e in eps]
-            return {"response": f"{len(items)} endpoints", "endpoints": items, "exit_code": 0}
+            items = [
+                {
+                    "id": e.id,
+                    "name": e.name,
+                    "base_url": e.base_url,
+                    "is_enabled": e.is_enabled,
+                }
+                for e in eps
+            ]
+            return {
+                "response": f"{len(items)} endpoints",
+                "endpoints": items,
+                "exit_code": 0,
+            }
 
         elif action == "add":
             import uuid as _uuid
+
             name = args.get("name", "")
             base_url = args.get("base_url", "")
             api_key = args.get("api_key", "")
@@ -45,12 +58,22 @@ async def do_manage_endpoints(content: str, owner: Optional[str] = None) -> Dict
                 return {"error": "base_url is required", "exit_code": 1}
             eid = str(_uuid.uuid4())[:8]
             from datetime import datetime
-            ep = ModelEndpoint(id=eid, name=name or base_url, base_url=base_url,
-                               api_key=api_key, is_enabled=True,
-                               created_at=datetime.utcnow(), updated_at=datetime.utcnow())
+
+            ep = ModelEndpoint(
+                id=eid,
+                name=name or base_url,
+                base_url=base_url,
+                api_key=api_key,
+                is_enabled=True,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
             db.add(ep)
             db.commit()
-            return {"response": f"Added endpoint '{name or base_url}' (id: {eid})", "exit_code": 0}
+            return {
+                "response": f"Added endpoint '{name or base_url}' (id: {eid})",
+                "exit_code": 0,
+            }
 
         elif action == "delete":
             eid = args.get("endpoint_id", "")
@@ -67,7 +90,7 @@ async def do_manage_endpoints(content: str, owner: Optional[str] = None) -> Dict
             ep = db.query(ModelEndpoint).filter(ModelEndpoint.id == eid).first()
             if not ep:
                 return {"error": f"Endpoint {eid} not found", "exit_code": 1}
-            ep.is_enabled = (action == "enable")
+            ep.is_enabled = action == "enable"
             db.commit()
             return {"response": f"Endpoint '{ep.name}' {action}d", "exit_code": 0}
 
@@ -94,42 +117,174 @@ async def do_manage_endpoints(content: str, owner: Optional[str] = None) -> Dict
 # are NEVER accepted on the manage_mcp agent path, even if an operator lists one
 # in ODYSSEUS_MCP_ALLOWED_COMMANDS -- a stdio server that genuinely needs an
 # interpreter or package runner must be registered via the trusted admin route.
-_MCP_DENIED_COMMANDS = frozenset({
-    "sh", "bash", "zsh", "fish", "dash", "ksh", "csh", "tcsh", "ash", "busybox",
-    "cmd", "command.com", "powershell", "pwsh",
-    "python", "pypy", "node", "nodejs", "deno", "bun", "ruby", "jruby",
-    "perl", "raku", "php", "lua", "luajit", "tclsh", "wish", "expect", "rscript",
-    "groovy", "scala", "elixir", "erl", "iex", "java", "javac", "jshell", "jbang",
-    "kotlin", "kotlinc", "dotnet", "mono", "swift", "osascript", "tsx", "ts-node",
-    "npx", "bunx", "uvx", "pipx", "npm", "pnpm", "yarn", "pip", "uv",
-    "gem", "cargo", "go", "bundle", "poetry", "conda", "mamba", "brew",
-    "apt", "apt-get", "yum", "dnf", "pacman", "apk",
-    "env", "xargs", "nohup", "setsid", "nice", "ionice", "time", "timeout",
-    "watch", "stdbuf", "unbuffer", "script", "ssh", "scp", "sshpass", "sudo",
-    "doas", "su", "make", "cmake", "docker", "podman", "kubectl", "find",
-    "awk", "gawk", "sed", "vi", "vim", "nvim", "emacs", "ed", "tee", "eval",
-})
+_MCP_DENIED_COMMANDS = frozenset(
+    {
+        "sh",
+        "bash",
+        "zsh",
+        "fish",
+        "dash",
+        "ksh",
+        "csh",
+        "tcsh",
+        "ash",
+        "busybox",
+        "cmd",
+        "command.com",
+        "powershell",
+        "pwsh",
+        "python",
+        "pypy",
+        "node",
+        "nodejs",
+        "deno",
+        "bun",
+        "ruby",
+        "jruby",
+        "perl",
+        "raku",
+        "php",
+        "lua",
+        "luajit",
+        "tclsh",
+        "wish",
+        "expect",
+        "rscript",
+        "groovy",
+        "scala",
+        "elixir",
+        "erl",
+        "iex",
+        "java",
+        "javac",
+        "jshell",
+        "jbang",
+        "kotlin",
+        "kotlinc",
+        "dotnet",
+        "mono",
+        "swift",
+        "osascript",
+        "tsx",
+        "ts-node",
+        "npx",
+        "bunx",
+        "uvx",
+        "pipx",
+        "npm",
+        "pnpm",
+        "yarn",
+        "pip",
+        "uv",
+        "gem",
+        "cargo",
+        "go",
+        "bundle",
+        "poetry",
+        "conda",
+        "mamba",
+        "brew",
+        "apt",
+        "apt-get",
+        "yum",
+        "dnf",
+        "pacman",
+        "apk",
+        "env",
+        "xargs",
+        "nohup",
+        "setsid",
+        "nice",
+        "ionice",
+        "time",
+        "timeout",
+        "watch",
+        "stdbuf",
+        "unbuffer",
+        "script",
+        "ssh",
+        "scp",
+        "sshpass",
+        "sudo",
+        "doas",
+        "su",
+        "make",
+        "cmake",
+        "docker",
+        "podman",
+        "kubectl",
+        "find",
+        "awk",
+        "gawk",
+        "sed",
+        "vi",
+        "vim",
+        "nvim",
+        "emacs",
+        "ed",
+        "tee",
+        "eval",
+    }
+)
 
 # Argv flags that make even an allowlisted binary execute inline code. Matched
 # by prefix so glued forms (-cimport os, --eval=...) are caught, not just the
 # exact-token form.
 _MCP_CODE_EXEC_SHORT_FLAGS = ("-c", "-e", "-m")
-_MCP_CODE_EXEC_LONG_FLAGS = ("--eval", "--exec", "--print", "--module", "--command", "--require")
+_MCP_CODE_EXEC_LONG_FLAGS = (
+    "--eval",
+    "--exec",
+    "--print",
+    "--module",
+    "--command",
+    "--require",
+)
 
-_MCP_URL_SCHEMES = ("http://", "https://", "ftp://", "ftps://", "file://", "data:", "jar:", "blob:")
+_MCP_URL_SCHEMES = (
+    "http://",
+    "https://",
+    "ftp://",
+    "ftps://",
+    "file://",
+    "data:",
+    "jar:",
+    "blob:",
+)
 
 # Shell metacharacters refused in command/args. Args are passed as an argv list
 # (no shell), but refusing these keeps the surface narrow and obvious.
 _MCP_SHELL_METACHARS = set(";|&$`><\n\r")
 
 # Env vars that let a child process load attacker-supplied code before main().
-_MCP_DANGEROUS_ENV = frozenset({
-    "LD_PRELOAD", "LD_LIBRARY_PATH", "LD_AUDIT", "DYLD_INSERT_LIBRARIES",
-    "DYLD_LIBRARY_PATH", "DYLD_FRAMEWORK_PATH", "PYTHONPATH", "PYTHONSTARTUP",
-    "PYTHONHOME", "PYTHONEXECUTABLE", "NODE_OPTIONS", "NODE_PATH", "BASH_ENV",
-    "ENV", "SHELLOPTS", "PERL5LIB", "PERL5OPT", "RUBYOPT", "RUBYLIB", "GEM_PATH",
-    "R_PROFILE", "R_HOME", "PATH", "IFS", "PROMPT_COMMAND",
-})
+_MCP_DANGEROUS_ENV = frozenset(
+    {
+        "LD_PRELOAD",
+        "LD_LIBRARY_PATH",
+        "LD_AUDIT",
+        "DYLD_INSERT_LIBRARIES",
+        "DYLD_LIBRARY_PATH",
+        "DYLD_FRAMEWORK_PATH",
+        "PYTHONPATH",
+        "PYTHONSTARTUP",
+        "PYTHONHOME",
+        "PYTHONEXECUTABLE",
+        "NODE_OPTIONS",
+        "NODE_PATH",
+        "BASH_ENV",
+        "ENV",
+        "SHELLOPTS",
+        "PERL5LIB",
+        "PERL5OPT",
+        "RUBYOPT",
+        "RUBYLIB",
+        "GEM_PATH",
+        "R_PROFILE",
+        "R_HOME",
+        "PATH",
+        "IFS",
+        "PROMPT_COMMAND",
+    }
+)
 
 
 def _mcp_allowed_commands() -> set:
@@ -141,7 +296,7 @@ def _mcp_allowed_commands() -> set:
     return {c.strip().lower() for c in raw.split(",") if c.strip()}
 
 
-def _validate_mcp_command(command, args, env) -> Optional[str]:
+def _validate_mcp_command(command, args, env) -> str | None:
     """Validate a model-supplied stdio MCP registration. Returns an error string
     if it must be rejected, else None.
 
@@ -193,7 +348,9 @@ def _validate_mcp_command(command, args, env) -> Optional[str]:
             low = s.lower()
             if any(s == f or s.startswith(f) for f in _MCP_CODE_EXEC_SHORT_FLAGS):
                 return f"arg '{a}' is a code-execution flag and is not allowed"
-            if any(low == f or low.startswith(f + "=") for f in _MCP_CODE_EXEC_LONG_FLAGS):
+            if any(
+                low == f or low.startswith(f + "=") for f in _MCP_CODE_EXEC_LONG_FLAGS
+            ):
                 return f"arg '{a}' is a code-execution flag and is not allowed"
             if any(low.startswith(u) for u in _MCP_URL_SCHEMES):
                 return f"arg '{a}' is a remote URL and is not allowed"
@@ -215,7 +372,7 @@ def _validate_mcp_command(command, args, env) -> Optional[str]:
     return None
 
 
-async def do_manage_mcp(content: str, owner: Optional[str] = None) -> Dict:
+async def do_manage_mcp(content: str, owner: str | None = None) -> dict:
     """Manage MCP servers: list, add, delete, enable, disable, reconnect."""
     try:
         args = _parse_tool_args(content)
@@ -227,8 +384,13 @@ async def do_manage_mcp(content: str, owner: Optional[str] = None) -> Dict:
     if action == "list":
         mcp = get_mcp_manager()
         if not mcp:
-            return {"response": "No MCP manager available", "servers": [], "exit_code": 0}
-        from core.database import SessionLocal, McpServer
+            return {
+                "response": "No MCP manager available",
+                "servers": [],
+                "exit_code": 0,
+            }
+        from core.database import McpServer, SessionLocal
+
         db = SessionLocal()
         try:
             servers = db.query(McpServer).all()
@@ -237,17 +399,30 @@ async def do_manage_mcp(content: str, owner: Optional[str] = None) -> Dict:
                 st = mcp.get_server_status(s.id)
                 status = st.get("status", "disconnected")
                 tool_count = st.get("tool_count", 0)
-                items.append({"id": s.id, "name": s.name, "transport": s.transport,
-                              "is_enabled": s.is_enabled, "status": status,
-                              "tool_count": tool_count})
-            return {"response": f"{len(items)} MCP servers", "servers": items, "exit_code": 0}
+                items.append(
+                    {
+                        "id": s.id,
+                        "name": s.name,
+                        "transport": s.transport,
+                        "is_enabled": s.is_enabled,
+                        "status": status,
+                        "tool_count": tool_count,
+                    }
+                )
+            return {
+                "response": f"{len(items)} MCP servers",
+                "servers": items,
+                "exit_code": 0,
+            }
         finally:
             db.close()
 
     elif action == "add":
-        from core.database import SessionLocal, McpServer
         import uuid as _uuid
         from datetime import datetime
+
+        from core.database import McpServer, SessionLocal
+
         name = args.get("name", "")
         command = args.get("command", "")
         cmd_args = args.get("args", [])
@@ -259,14 +434,24 @@ async def do_manage_mcp(content: str, owner: Optional[str] = None) -> Dict:
         # and must not attempt a connection.
         _mcp_err = _validate_mcp_command(command, cmd_args, env)
         if _mcp_err:
-            return {"error": f"manage_mcp: refused unsafe server registration: {_mcp_err}", "exit_code": 1}
+            return {
+                "error": f"manage_mcp: refused unsafe server registration: {_mcp_err}",
+                "exit_code": 1,
+            }
         sid = str(_uuid.uuid4())[:8]
         db = SessionLocal()
         try:
-            srv = McpServer(id=sid, name=name, transport="stdio", command=command,
-                            args=json.dumps(cmd_args) if isinstance(cmd_args, list) else cmd_args,
-                            env=json.dumps(env) if isinstance(env, dict) else env,
-                            is_enabled=True, created_at=datetime.utcnow(), updated_at=datetime.utcnow())
+            srv = McpServer(
+                id=sid,
+                name=name,
+                transport="stdio",
+                command=command,
+                args=json.dumps(cmd_args) if isinstance(cmd_args, list) else cmd_args,
+                env=json.dumps(env) if isinstance(env, dict) else env,
+                is_enabled=True,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
             db.add(srv)
             db.commit()
         finally:
@@ -277,19 +462,28 @@ async def do_manage_mcp(content: str, owner: Optional[str] = None) -> Dict:
         if mcp:
             try:
                 await mcp.connect_server(
-                    sid, name, "stdio", command=command,
-                    args=cmd_args if isinstance(cmd_args, list) else json.loads(cmd_args),
+                    sid,
+                    name,
+                    "stdio",
+                    command=command,
+                    args=(
+                        cmd_args if isinstance(cmd_args, list) else json.loads(cmd_args)
+                    ),
                     env=env if isinstance(env, dict) else json.loads(env),
                 )
                 st = mcp.get_server_status(sid)
                 tool_count = st.get("tool_count", 0)
             except Exception as e:
                 logger.warning(f"MCP connect failed for {name}: {e}")
-        return {"response": f"Added MCP server '{name}' ({tool_count} tools)", "exit_code": 0}
+        return {
+            "response": f"Added MCP server '{name}' ({tool_count} tools)",
+            "exit_code": 0,
+        }
 
     elif action == "delete":
         sid = args.get("server_id", "")
-        from core.database import SessionLocal, McpServer
+        from core.database import McpServer, SessionLocal
+
         db = SessionLocal()
         try:
             srv = db.query(McpServer).filter(McpServer.id == sid).first()
@@ -315,7 +509,8 @@ async def do_manage_mcp(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "MCP manager not available", "exit_code": 1}
         try:
             await mcp.disconnect_server(sid)
-            from core.database import SessionLocal, McpServer
+            from core.database import McpServer, SessionLocal
+
             db2 = SessionLocal()
             try:
                 srv = db2.query(McpServer).filter(McpServer.id == sid).first()
@@ -332,7 +527,10 @@ async def do_manage_mcp(content: str, owner: Optional[str] = None) -> Dict:
                         url=srv.url,
                     )
                     st = mcp.get_server_status(sid)
-                    return {"response": f"Reconnected '{srv.name}' ({st.get('tool_count', 0)} tools)", "exit_code": 0}
+                    return {
+                        "response": f"Reconnected '{srv.name}' ({st.get('tool_count', 0)} tools)",
+                        "exit_code": 0,
+                    }
                 return {"error": f"Server {sid} not found", "exit_code": 1}
             finally:
                 db2.close()
@@ -341,13 +539,14 @@ async def do_manage_mcp(content: str, owner: Optional[str] = None) -> Dict:
 
     elif action in ("enable", "disable"):
         sid = args.get("server_id", "")
-        from core.database import SessionLocal, McpServer
+        from core.database import McpServer, SessionLocal
+
         db = SessionLocal()
         try:
             srv = db.query(McpServer).filter(McpServer.id == sid).first()
             if not srv:
                 return {"error": f"Server {sid} not found", "exit_code": 1}
-            srv.is_enabled = (action == "enable")
+            srv.is_enabled = action == "enable"
             db.commit()
             return {"response": f"MCP server '{srv.name}' {action}d", "exit_code": 0}
         finally:
@@ -358,9 +557,19 @@ async def do_manage_mcp(content: str, owner: Optional[str] = None) -> Dict:
         if not mcp:
             return {"response": "No MCP manager", "tools": [], "exit_code": 0}
         tools = mcp.get_all_tools()
-        items = [{"name": t["name"], "server": t["server_name"],
-                  "description": t.get("description", "")[:100]} for t in tools]
-        return {"response": f"{len(items)} MCP tools available", "tools": items, "exit_code": 0}
+        items = [
+            {
+                "name": t["name"],
+                "server": t["server_name"],
+                "description": t.get("description", "")[:100],
+            }
+            for t in tools
+        ]
+        return {
+            "response": f"{len(items)} MCP tools available",
+            "tools": items,
+            "exit_code": 0,
+        }
 
     else:
         return {"error": f"Unknown action: {action}", "exit_code": 1}
@@ -370,9 +579,11 @@ async def do_manage_mcp(content: str, owner: Optional[str] = None) -> Dict:
 # Webhook management tool
 # ---------------------------------------------------------------------------
 
-async def do_manage_webhooks(content: str, owner: Optional[str] = None) -> Dict:
+
+async def do_manage_webhooks(content: str, owner: str | None = None) -> dict:
     """Manage webhooks: list, add, delete, enable, disable, test."""
     from core.database import SessionLocal
+
     try:
         args = _parse_tool_args(content)
     except ValueError:
@@ -382,16 +593,31 @@ async def do_manage_webhooks(content: str, owner: Optional[str] = None) -> Dict:
     db = SessionLocal()
     try:
         from core.database import Webhook
+
         if action == "list":
             hooks = db.query(Webhook).all()
-            items = [{"id": h.id, "name": h.name, "url": h.url,
-                       "events": h.events, "is_active": h.is_active} for h in hooks]
-            return {"response": f"{len(items)} webhooks", "webhooks": items, "exit_code": 0}
+            items = [
+                {
+                    "id": h.id,
+                    "name": h.name,
+                    "url": h.url,
+                    "events": h.events,
+                    "is_active": h.is_active,
+                }
+                for h in hooks
+            ]
+            return {
+                "response": f"{len(items)} webhooks",
+                "webhooks": items,
+                "exit_code": 0,
+            }
 
         elif action == "add":
             import uuid as _uuid
             from datetime import datetime
+
             from src.webhook_manager import validate_events, validate_webhook_url
+
             name = args.get("name", "")
             url = args.get("url", "")
             events = args.get("events", "chat.completed")
@@ -403,9 +629,15 @@ async def do_manage_webhooks(content: str, owner: Optional[str] = None) -> Dict:
             except ValueError as e:
                 return {"error": str(e), "exit_code": 1}
             wid = str(_uuid.uuid4())[:8]
-            hook = Webhook(id=wid, name=name or url, url=url,
-                           events=events, is_active=True,
-                           created_at=datetime.utcnow(), updated_at=datetime.utcnow())
+            hook = Webhook(
+                id=wid,
+                name=name or url,
+                url=url,
+                events=events,
+                is_active=True,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
             db.add(hook)
             db.commit()
             return {"response": f"Added webhook '{name or url}'", "exit_code": 0}
@@ -425,7 +657,7 @@ async def do_manage_webhooks(content: str, owner: Optional[str] = None) -> Dict:
             hook = db.query(Webhook).filter(Webhook.id == wid).first()
             if not hook:
                 return {"error": f"Webhook {wid} not found", "exit_code": 1}
-            hook.is_active = (action == "enable")
+            hook.is_active = action == "enable"
             db.commit()
             return {"response": f"Webhook '{hook.name}' {action}d", "exit_code": 0}
 
@@ -442,9 +674,11 @@ async def do_manage_webhooks(content: str, owner: Optional[str] = None) -> Dict:
 # API token management tool
 # ---------------------------------------------------------------------------
 
-async def do_manage_tokens(content: str, owner: Optional[str] = None) -> Dict:
+
+async def do_manage_tokens(content: str, owner: str | None = None) -> dict:
     """Manage API tokens: list, create, delete."""
-    from core.database import SessionLocal, ApiToken
+    from core.database import ApiToken, SessionLocal
+
     try:
         args = _parse_tool_args(content)
     except ValueError:
@@ -455,23 +689,48 @@ async def do_manage_tokens(content: str, owner: Optional[str] = None) -> Dict:
     try:
         if action == "list":
             tokens = db.query(ApiToken).all()
-            items = [{"id": t.id, "name": t.name, "token_prefix": t.token_prefix + "...",
-                       "is_active": t.is_active} for t in tokens]
-            return {"response": f"{len(items)} API tokens", "tokens": items, "exit_code": 0}
+            items = [
+                {
+                    "id": t.id,
+                    "name": t.name,
+                    "token_prefix": t.token_prefix + "...",
+                    "is_active": t.is_active,
+                }
+                for t in tokens
+            ]
+            return {
+                "response": f"{len(items)} API tokens",
+                "tokens": items,
+                "exit_code": 0,
+            }
 
         elif action == "create":
-            import uuid as _uuid, secrets, bcrypt
+            import secrets
+            import uuid as _uuid
             from datetime import datetime
+
+            import bcrypt
+
             name = args.get("name", "API Token")
             raw_token = secrets.token_urlsafe(32)
             token_hash = bcrypt.hashpw(raw_token.encode(), bcrypt.gensalt()).decode()
             tid = str(_uuid.uuid4())[:8]
-            t = ApiToken(id=tid, name=name, token_hash=token_hash,
-                         token_prefix=raw_token[:8], is_active=True,
-                         created_at=datetime.utcnow(), updated_at=datetime.utcnow())
+            t = ApiToken(
+                id=tid,
+                name=name,
+                token_hash=token_hash,
+                token_prefix=raw_token[:8],
+                is_active=True,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
             db.add(t)
             db.commit()
-            return {"response": f"Created token '{name}'", "token": raw_token, "exit_code": 0}
+            return {
+                "response": f"Created token '{name}'",
+                "token": raw_token,
+                "exit_code": 0,
+            }
 
         elif action == "delete":
             tid = args.get("token_id", "")
@@ -491,11 +750,13 @@ async def do_manage_tokens(content: str, owner: Optional[str] = None) -> Dict:
     finally:
         db.close()
 
+
 # ---------------------------------------------------------------------------
 # Settings/preferences management tool
 # ---------------------------------------------------------------------------
 
-async def do_manage_settings(content: str, owner: Optional[str] = None) -> Dict:
+
+async def do_manage_settings(content: str, owner: str | None = None) -> dict:
     """Manage user settings and preferences."""
     try:
         args = _parse_tool_args(content)
@@ -505,19 +766,25 @@ async def do_manage_settings(content: str, owner: Optional[str] = None) -> Dict:
     action = args.get("action", "list")
 
     from core.database import SessionLocal
+
     db = SessionLocal()
     try:
         # set/get/list/delete operate on the REAL app settings (the same store
         # the Settings panel writes), so changing a model / voice / search
         # engine / reminder channel from chat actually takes effect.
-        from src.settings import load_settings, save_settings, DEFAULT_SETTINGS
+        from src.settings import DEFAULT_SETTINGS, load_settings, save_settings
 
         # Secrets/credentials the agent must NOT write: kept read-only (masked)
         # so API keys never flow through chat. User sets these in the panel.
         _SECRET_KEYS = {
-            "brave_api_key", "google_pse_key", "google_pse_cx",
-            "tavily_api_key", "serper_api_key", "app_public_url",
+            "brave_api_key",
+            "google_pse_key",
+            "google_pse_cx",
+            "tavily_api_key",
+            "serper_api_key",
+            "app_public_url",
         }
+
         def _is_secret(k):
             # `token` must be a suffix, not a substring: otherwise the int
             # setting `agent_input_token_budget` (which even has a "token budget"
@@ -530,32 +797,53 @@ async def do_manage_settings(content: str, owner: Optional[str] = None) -> Dict:
 
         # Friendly aliases → real keys, so natural phrasing resolves.
         _ALIASES_SET = {
-            "voice": "tts_voice", "tts voice": "tts_voice", "tts": "tts_enabled",
-            "text to speech": "tts_enabled", "tts provider": "tts_provider",
-            "speech speed": "tts_speed", "voice speed": "tts_speed",
-            "stt": "stt_enabled", "speech to text": "stt_enabled", "transcription": "stt_enabled",
-            "search engine": "search_provider", "search provider": "search_provider",
-            "search results": "search_result_count", "result count": "search_result_count",
-            "default model": "default_model", "chat model": "default_model",
+            "voice": "tts_voice",
+            "tts voice": "tts_voice",
+            "tts": "tts_enabled",
+            "text to speech": "tts_enabled",
+            "tts provider": "tts_provider",
+            "speech speed": "tts_speed",
+            "voice speed": "tts_speed",
+            "stt": "stt_enabled",
+            "speech to text": "stt_enabled",
+            "transcription": "stt_enabled",
+            "search engine": "search_provider",
+            "search provider": "search_provider",
+            "search results": "search_result_count",
+            "result count": "search_result_count",
+            "default model": "default_model",
+            "chat model": "default_model",
             "default endpoint": "default_endpoint_id",
-            "task model": "task_model", "background model": "task_model",
-            "teacher model": "teacher_model", "teacher": "teacher_enabled",
-            "utility model": "utility_model", "research model": "research_model",
+            "task model": "task_model",
+            "background model": "task_model",
+            "teacher model": "teacher_model",
+            "teacher": "teacher_enabled",
+            "utility model": "utility_model",
+            "research model": "research_model",
             "research max tokens": "research_max_tokens",
-            "vision model": "vision_model", "vision": "vision_enabled",
-            "image model": "image_model", "image quality": "image_quality",
-            "image gen": "image_gen_enabled", "image generation": "image_gen_enabled",
-            "reminder channel": "reminder_channel", "reminders": "reminder_channel",
+            "vision model": "vision_model",
+            "vision": "vision_enabled",
+            "image model": "image_model",
+            "image quality": "image_quality",
+            "image gen": "image_gen_enabled",
+            "image generation": "image_gen_enabled",
+            "reminder channel": "reminder_channel",
+            "reminders": "reminder_channel",
             "ntfy topic": "reminder_ntfy_topic",
             "webhook integration": "reminder_webhook_integration_id",
-            "webhook template": "reminder_webhook_payload_template", "webhook payload": "reminder_webhook_payload_template",
-            "agent tool calls": "agent_max_tool_calls", "max tool calls": "agent_max_tool_calls",
-            "agent timeout": "agent_stream_timeout_seconds", "stream timeout": "agent_stream_timeout_seconds",
-            "token budget": "agent_input_token_budget", "input budget": "agent_input_token_budget",
+            "webhook template": "reminder_webhook_payload_template",
+            "webhook payload": "reminder_webhook_payload_template",
+            "agent tool calls": "agent_max_tool_calls",
+            "max tool calls": "agent_max_tool_calls",
+            "agent timeout": "agent_stream_timeout_seconds",
+            "stream timeout": "agent_stream_timeout_seconds",
+            "token budget": "agent_input_token_budget",
+            "input budget": "agent_input_token_budget",
             "hard max": "agent_input_token_hard_max",
             "token budget cap": "agent_input_token_hard_max",
             "input budget cap": "agent_input_token_hard_max",
         }
+
         def _resolve(k):
             k2 = (k or "").strip().lower()
             if k2 in DEFAULT_SETTINGS:
@@ -566,15 +854,22 @@ async def do_manage_settings(content: str, owner: Optional[str] = None) -> Dict:
             "image_quality": ["low", "medium", "high"],
             "reminder_channel": ["browser", "email", "ntfy", "webhook"],
         }
+
         def _coerce(value, default):
             if isinstance(default, bool):
-                return value if isinstance(value, bool) else str(value).strip().lower() in ("true", "on", "yes", "1", "enable", "enabled")
+                return (
+                    value
+                    if isinstance(value, bool)
+                    else str(value).strip().lower()
+                    in ("true", "on", "yes", "1", "enable", "enabled")
+                )
             if isinstance(default, int):
                 return int(value)
             return value
 
         def _model_slug(value: str) -> str:
             import re as _re
+
             return _re.sub(r"[^a-z0-9]+", "", (value or "").lower())
 
         def _endpoint_model_from_cache(model_query: str):
@@ -586,16 +881,21 @@ async def do_manage_settings(content: str, owner: Optional[str] = None) -> Dict:
             """
             import json as _json
             import re as _re
+
             from core.database import ModelEndpoint
 
             wanted = (model_query or "").strip()
             wanted_slug = _model_slug(wanted)
-            wanted_tokens = [_model_slug(t) for t in _re.findall(r"[A-Za-z0-9]+", wanted)]
+            wanted_tokens = [
+                _model_slug(t) for t in _re.findall(r"[A-Za-z0-9]+", wanted)
+            ]
             wanted_tokens = [t for t in wanted_tokens if t]
             if not wanted_slug:
                 return None
             best = None
-            for ep in db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled == True).all():
+            for ep in (
+                db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled == True).all()
+            ):
                 raw_models = []
                 try:
                     raw_models = _json.loads(ep.cached_models or "[]") or []
@@ -610,7 +910,9 @@ async def do_manage_settings(content: str, owner: Optional[str] = None) -> Dict:
                         continue
                     exact = mid.lower() == wanted.lower()
                     compact_match = wanted_slug in mid_slug or mid_slug in wanted_slug
-                    token_match = bool(wanted_tokens) and all(tok in mid_slug for tok in wanted_tokens)
+                    token_match = bool(wanted_tokens) and all(
+                        tok in mid_slug for tok in wanted_tokens
+                    )
                     if exact or compact_match or token_match:
                         score = 3 if exact else (2 if compact_match else 1)
                         if not best or score > best[0]:
@@ -624,17 +926,32 @@ async def do_manage_settings(content: str, owner: Optional[str] = None) -> Dict:
 
         if action == "list":
             s = load_settings()
-            shown = {k: _mask(k, v) for k, v in s.items() if k in DEFAULT_SETTINGS and not isinstance(v, dict)}
-            return {"response": f"{len(shown)} settings (use get/set with a key)", "settings": shown, "exit_code": 0}
+            shown = {
+                k: _mask(k, v)
+                for k, v in s.items()
+                if k in DEFAULT_SETTINGS and not isinstance(v, dict)
+            }
+            return {
+                "response": f"{len(shown)} settings (use get/set with a key)",
+                "settings": shown,
+                "exit_code": 0,
+            }
 
         elif action == "get":
             key = _resolve(args.get("key", ""))
             if not key:
                 return {"error": "key is required", "exit_code": 1}
             if key not in DEFAULT_SETTINGS:
-                return {"error": f"Unknown setting '{args.get('key')}'. Use action='list' to see them.", "exit_code": 1}
+                return {
+                    "error": f"Unknown setting '{args.get('key')}'. Use action='list' to see them.",
+                    "exit_code": 1,
+                }
             val = load_settings().get(key, DEFAULT_SETTINGS.get(key))
-            return {"response": f"{key} = {_mask(key, val)}", "value": _mask(key, val), "exit_code": 0}
+            return {
+                "response": f"{key} = {_mask(key, val)}",
+                "value": _mask(key, val),
+                "exit_code": 0,
+            }
 
         elif action == "set":
             raw = args.get("key", "")
@@ -643,25 +960,47 @@ async def do_manage_settings(content: str, owner: Optional[str] = None) -> Dict:
                 return {"error": "key is required", "exit_code": 1}
             key = _resolve(raw)
             if key not in DEFAULT_SETTINGS:
-                return {"error": f"Unknown setting '{raw}'. Use action='list' to see available settings.", "exit_code": 1}
+                return {
+                    "error": f"Unknown setting '{raw}'. Use action='list' to see available settings.",
+                    "exit_code": 1,
+                }
             if _is_secret(key):
-                return {"response": f"'{key}' is a credential/secret. For security I can't set it from chat. Open Settings and set it there.", "exit_code": 0}
+                return {
+                    "response": f"'{key}' is a credential/secret. For security I can't set it from chat. Open Settings and set it there.",
+                    "exit_code": 0,
+                }
             # Structured settings (dicts/lists like keybinds, default_model_fallbacks)
             # have no safe scalar coercion; _coerce would pass a bare string
             # straight through and clobber the structure. Refuse them here; they're
             # edited in their dedicated panels. (reset/delete still restore the
             # default structure, which is safe.)
             if isinstance(DEFAULT_SETTINGS[key], (dict, list)):
-                return {"response": f"'{key}' is a structured setting. Edit it in its panel, not from chat. (You can reset it to default here.)", "exit_code": 0}
+                return {
+                    "response": f"'{key}' is a structured setting. Edit it in its panel, not from chat. (You can reset it to default here.)",
+                    "exit_code": 0,
+                }
             try:
                 value = _coerce(value, DEFAULT_SETTINGS[key])
             except (ValueError, TypeError):
-                return {"error": f"'{value}' isn't a valid value for {key} (expected {type(DEFAULT_SETTINGS[key]).__name__}).", "exit_code": 1}
+                return {
+                    "error": f"'{value}' isn't a valid value for {key} (expected {type(DEFAULT_SETTINGS[key]).__name__}).",
+                    "exit_code": 1,
+                }
             if key in _ENUMS and str(value).lower() not in _ENUMS[key]:
-                return {"error": f"{key} must be one of: {', '.join(_ENUMS[key])}.", "exit_code": 1}
+                return {
+                    "error": f"{key} must be one of: {', '.join(_ENUMS[key])}.",
+                    "exit_code": 1,
+                }
             s = load_settings()
             s[key] = value
-            if key in {"default_model", "research_model", "utility_model", "task_model", "vision_model", "image_model"}:
+            if key in {
+                "default_model",
+                "research_model",
+                "utility_model",
+                "task_model",
+                "vision_model",
+                "image_model",
+            }:
                 resolved = _endpoint_model_from_cache(str(value))
                 if resolved:
                     prefix = key[:-6]
@@ -670,19 +1009,31 @@ async def do_manage_settings(content: str, owner: Optional[str] = None) -> Dict:
                     value = resolved["model"]
             save_settings(s)
             if key.endswith("_model") and s.get(f"{key[:-6]}_endpoint_id"):
-                return {"response": f"Set {key} = {value} (endpoint {s.get(f'{key[:-6]}_endpoint_id')}).", "exit_code": 0}
+                return {
+                    "response": f"Set {key} = {value} (endpoint {s.get(f'{key[:-6]}_endpoint_id')}).",
+                    "exit_code": 0,
+                }
             return {"response": f"Set {key} = {value}.", "exit_code": 0}
 
         elif action == "delete" or action == "reset":
             key = _resolve(args.get("key", ""))
             if key not in DEFAULT_SETTINGS:
-                return {"error": f"Unknown setting '{args.get('key')}'.", "exit_code": 1}
+                return {
+                    "error": f"Unknown setting '{args.get('key')}'.",
+                    "exit_code": 1,
+                }
             if _is_secret(key):
-                return {"response": f"'{key}' is a credential. Reset it in the panel.", "exit_code": 0}
+                return {
+                    "response": f"'{key}' is a credential. Reset it in the panel.",
+                    "exit_code": 0,
+                }
             s = load_settings()
             s[key] = DEFAULT_SETTINGS[key]
             save_settings(s)
-            return {"response": f"Reset {key} to default ({DEFAULT_SETTINGS[key]}).", "exit_code": 0}
+            return {
+                "response": f"Reset {key} to default ({DEFAULT_SETTINGS[key]}).",
+                "exit_code": 0,
+            }
 
         elif action in ("disable_tool", "enable_tool", "list_tools"):
             # Tool-toggle actions. These edit settings.json:disabled_tools
@@ -691,15 +1042,26 @@ async def do_manage_settings(content: str, owner: Optional[str] = None) -> Dict:
             # "search" -> "web_search", "browser" -> "builtin_browser",
             # "documents" -> the document tool set, "memory" ->
             # manage_memory, etc.
-            from src.settings import get_setting, save_settings, load_settings
+            from src.settings import get_setting, load_settings, save_settings
+
             _ALIASES = {
                 "shell": ["bash"],
                 "terminal": ["bash"],
                 "search": ["web_search", "web_fetch"],
                 "web": ["web_search", "web_fetch"],
                 "browser": ["builtin_browser"],
-                "documents": ["create_document", "edit_document", "update_document", "suggest_document"],
-                "doc": ["create_document", "edit_document", "update_document", "suggest_document"],
+                "documents": [
+                    "create_document",
+                    "edit_document",
+                    "update_document",
+                    "suggest_document",
+                ],
+                "doc": [
+                    "create_document",
+                    "edit_document",
+                    "update_document",
+                    "suggest_document",
+                ],
                 "memory": ["manage_memory"],
                 "skills": ["manage_skills"],
                 "images": ["generate_image"],
@@ -714,8 +1076,11 @@ async def do_manage_settings(content: str, owner: Optional[str] = None) -> Dict:
                 # keeps the toggle covering every tool the email server
                 # exposes instead of a hand-picked subset.
                 "email": sorted(BUILTIN_EMAIL_TOOLS)
-                         + [f"mcp__email__{t}" for t in sorted(BUILTIN_EMAIL_TOOLS)],
-                "research": ["web_search", "web_fetch"],  # research is a per-request flag, not a tool (closest analog)
+                + [f"mcp__email__{t}" for t in sorted(BUILTIN_EMAIL_TOOLS)],
+                "research": [
+                    "web_search",
+                    "web_fetch",
+                ],  # research is a per-request flag, not a tool (closest analog)
             }
 
             if action == "list_tools":
@@ -732,7 +1097,10 @@ async def do_manage_settings(content: str, owner: Optional[str] = None) -> Dict:
 
             tool_name = (args.get("tool") or args.get("name") or "").strip().lower()
             if not tool_name:
-                return {"error": "tool name required (e.g. 'shell', 'search', 'bash')", "exit_code": 1}
+                return {
+                    "error": "tool name required (e.g. 'shell', 'search', 'bash')",
+                    "exit_code": 1,
+                }
             targets = _ALIASES.get(tool_name, [tool_name])
 
             settings = load_settings()
@@ -774,12 +1142,13 @@ async def do_manage_settings(content: str, owner: Optional[str] = None) -> Dict:
 # ---------------------------------------------------------------------------
 
 
-
 # ── registry adapters ────────────────────────────────────────────────────────
 def _owner_adapter(fn):
     """Wrap a do_*(content, owner) impl as a registry execute(content, ctx)."""
+
     async def _execute(content: str, ctx: dict) -> dict:
         return await fn(content, ctx.get("owner"))
+
     return _execute
 
 

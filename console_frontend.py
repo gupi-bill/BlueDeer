@@ -11,41 +11,56 @@
 
 from __future__ import annotations
 
-
 # 11 物种深蓝色表（与 game_frontend.py EMPLOYEE_COLOR_MAP 同源）
 SPECIES_COLORS = {
-    "deer":      "#0B1A33",
-    "squirrel":  "#1A3B5C",
+    "deer": "#0B1A33",
+    "squirrel": "#1A3B5C",
     "butterfly": "#1C2E4A",
-    "fox":       "#132A4A",
-    "hedgehog":  "#091626",
-    "beaver":    "#1A3B5C",
-    "raven":     "#040B17",
-    "hare":      "#2B4C7E",
-    "badger":    "#12304D",
-    "lark":      "#1A4870",
-    "kite":      "#213A5C",
+    "fox": "#132A4A",
+    "hedgehog": "#091626",
+    "beaver": "#1A3B5C",
+    "raven": "#040B17",
+    "hare": "#2B4C7E",
+    "badger": "#12304D",
+    "lark": "#1A4870",
+    "kite": "#213A5C",
 }
 
 # 物种中文名（用于头像首字）
 SPECIES_CN = {
-    "deer": "鹿", "squirrel": "鼠", "butterfly": "蝶", "fox": "狐",
-    "hedgehog": "猬", "beaver": "狸", "raven": "鸦", "hare": "兔",
-    "badger": "獾", "lark": "雀", "kite": "鸢",
+    "deer": "鹿",
+    "squirrel": "鼠",
+    "butterfly": "蝶",
+    "fox": "狐",
+    "hedgehog": "猬",
+    "beaver": "狸",
+    "raven": "鸦",
+    "hare": "兔",
+    "badger": "獾",
+    "lark": "雀",
+    "kite": "鸢",
 }
 
 # 物种职位（用于面板标题）
 SPECIES_JOB = {
-    "deer": "调度官", "squirrel": "前端工程师", "butterfly": "视觉设计师",
-    "fox": "测试工程师", "hedgehog": "安全工程师", "beaver": "基建工程师",
-    "raven": "记忆管理员", "hare": "快递员", "badger": "矿工",
-    "lark": "播音员", "kite": "瞭望员",
+    "deer": "调度官",
+    "squirrel": "前端工程师",
+    "butterfly": "视觉设计师",
+    "fox": "测试工程师",
+    "hedgehog": "安全工程师",
+    "beaver": "基建工程师",
+    "raven": "记忆管理员",
+    "hare": "快递员",
+    "badger": "矿工",
+    "lark": "播音员",
+    "kite": "瞭望员",
 }
 
 
 def render_index() -> str:
     """渲染极简控制台首页 HTML。"""
     import json
+
     colors_json = json.dumps(SPECIES_COLORS)
     cn_json = json.dumps(SPECIES_CN)
     job_json = json.dumps(SPECIES_JOB)

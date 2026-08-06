@@ -8,13 +8,15 @@ evolution（数据维度 - R200）：
 - 误差可控，内存固定，是工业级分位数估算标准
 - 与 Count-Min Sketch 互补：CMS 估算频率，T-Digest 估算分位数
 """
+
 from __future__ import annotations
-import math
+
 import threading
 
 
 class _Centroid:
     """质心：均值 + 权重。"""
+
     __slots__ = ("mean", "weight")
 
     def __init__(self, mean: float, weight: int = 1):
@@ -63,10 +65,8 @@ class TDigest:
             raise ValueError("weight > 0")
         with self._lock:
             # 更新 min/max
-            if value < self._min:
-                self._min = value
-            if value > self._max:
-                self._max = value
+            self._min = min(self._min, value)
+            self._max = max(self._max, value)
             # 新质心
             self._centroids.append(_Centroid(value, weight))
             self._total_weight += weight
@@ -141,16 +141,14 @@ class TDigest:
                 cumulative = next_cum
             return self._centroids[-1].mean
 
-    def merge(self, other: "TDigest") -> None:
+    def merge(self, other: TDigest) -> None:
         """合并另一个 digest。"""
         with self._lock:
             for c in other._centroids:
                 self._centroids.append(_Centroid(c.mean, c.weight))
                 self._total_weight += c.weight
-            if other._min < self._min:
-                self._min = other._min
-            if other._max > self._max:
-                self._max = other._max
+            self._min = min(self._min, other._min)
+            self._max = max(self._max, other._max)
             self._compress()
 
     def min(self) -> float:

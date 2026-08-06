@@ -3,6 +3,7 @@
 特殊行为：一夫一妻（partner_id），build_dam 修水坝。
 commit 28：行为池——修补水坝 / 游泳 / 啃咬磨牙
 """
+
 from __future__ import annotations
 
 import random
@@ -41,8 +42,8 @@ class Beaver(DigitalLifeForm):
                 "life_stages": ["ADULT", "MIDDLE"],
                 "probability": 0.02,
             },
-            "duration_sec": 600,       # 10 分钟
-            "cooldown_sec": 7200,      # 2 小时一次
+            "duration_sec": 600,  # 10 分钟
+            "cooldown_sec": 7200,  # 2 小时一次
             "animation": "work",
             "particles": "nut_bury",
         },
@@ -56,7 +57,7 @@ class Beaver(DigitalLifeForm):
                 "life_stages": ["JUVENILE", "ADULT", "MIDDLE"],
                 "probability": 0.025,
             },
-            "duration_sec": 300,       # 5 分钟
+            "duration_sec": 300,  # 5 分钟
             "cooldown_sec": 3600,
             "animation": "react",
             "particles": "snow_puff",
@@ -70,18 +71,30 @@ class Beaver(DigitalLifeForm):
                 "life_stages": ["ADULT", "MIDDLE"],
                 "probability": 0.015,
             },
-            "duration_sec": 180,       # 3 分钟
+            "duration_sec": 180,  # 3 分钟
             "cooldown_sec": 1800,
             "animation": "work",
             "particles": "nut_bury",
         },
     ]
 
-    def __init__(self, name="勤恳海狸", gender="male", environment=None,
-                 birth_time=None, genome_override=None):
+    def __init__(
+        self,
+        name="勤恳海狸",
+        gender="male",
+        environment=None,
+        birth_time=None,
+        genome_override=None,
+    ):
         genome = self._build_genome(genome_override)
-        super().__init__(name=name, species="beaver", gender=gender,
-                         genome=genome, environment=environment, birth_time=birth_time)
+        super().__init__(
+            name=name,
+            species="beaver",
+            gender=gender,
+            genome=genome,
+            environment=environment,
+            birth_time=birth_time,
+        )
 
     def reproduce(self, partner):
         """海狸一夫一妻：必须已绑定 partner。"""
@@ -93,7 +106,8 @@ class Beaver(DigitalLifeForm):
         if self._environment is not None:
             with self._environment._lock:
                 self._environment.food_available = min(
-                    2000.0, self._environment.food_available + 5.0)
+                    2000.0, self._environment.food_available + 5.0
+                )
             self._remember("修水坝 +5 资源")
 
     def job_skill(self) -> None:
@@ -112,7 +126,8 @@ class Beaver(DigitalLifeForm):
             if random.random() < 0.05 and self._environment is not None:
                 with self._environment._lock:
                     self._environment.food_available = min(
-                        2000.0, self._environment.food_available + 1.0)
+                        2000.0, self._environment.food_available + 1.0
+                    )
         elif bname == "swim":
             # 游泳：能量恢复，mood +0.1
             self.energy = min(100.0, self.energy + 0.1)
@@ -139,6 +154,7 @@ class Beaver(DigitalLifeForm):
         return Beaver(
             name=f"{self._name_obj}的幼崽",
             gender=random.choice(["male", "female"]),
-            environment=environment, birth_time=birth_time,
+            environment=environment,
+            birth_time=birth_time,
             genome_override=genome,
         )

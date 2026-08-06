@@ -8,6 +8,7 @@
 
 所有语料都是中文短句，保证零基础可读。
 """
+
 from __future__ import annotations
 
 import random
@@ -188,9 +189,18 @@ RETIREMENT_WISHES: dict[str, str] = {
 # ====================================================================
 
 RELIC_DEFS: dict[str, dict] = {
-    "deer": {"name": "脱落的鹿角碎片", "desc": "一小块脱落的鹿角，上面还残留着淡蓝光痕。"},
-    "squirrel": {"name": "代码坚果", "desc": "一颗从未被找到的坚果，刻着一段完美代码。"},
-    "butterfly": {"name": "鳞粉翅膀残片", "desc": "一片最美的翅膀鳞粉，阳光下泛着结构色。"},
+    "deer": {
+        "name": "脱落的鹿角碎片",
+        "desc": "一小块脱落的鹿角，上面还残留着淡蓝光痕。",
+    },
+    "squirrel": {
+        "name": "代码坚果",
+        "desc": "一颗从未被找到的坚果，刻着一段完美代码。",
+    },
+    "butterfly": {
+        "name": "鳞粉翅膀残片",
+        "desc": "一片最美的翅膀鳞粉，阳光下泛着结构色。",
+    },
     "fox": {"name": "机械尾尖零件", "desc": "九尾中一根的尾尖微零件，表面有微光残留。"},
     "hedgehog": {"name": "额头装甲片", "desc": "一块矩形装甲板，已褪去警戒的红色。"},
     "beaver": {"name": "门牙磨片", "desc": "一颗磨损的钛白门牙，曾啃过无数光缆。"},
@@ -217,8 +227,10 @@ RELATIONSHIP_TAGS = {
 # 工具函数
 # ====================================================================
 
-def pick_dialogue(sp1: str, sp2: str, emotion: dict | None = None,
-                  relationship: dict | None = None) -> tuple[str, str] | None:
+
+def pick_dialogue(
+    sp1: str, sp2: str, emotion: dict | None = None, relationship: dict | None = None
+) -> tuple[str, str] | None:
     """按物种对选一句对话。
 
     Args:

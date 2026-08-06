@@ -13,11 +13,10 @@ from typing import TYPE_CHECKING, Any
 
 from packaging.version import Version
 
-from core.exceptions import PluginLoadError, PluginNotFoundError
-from core.plugin import PluginBase, PluginContext, PluginManifest
+from core.exceptions import PluginLoadError
+from core.plugin import PluginBase, PluginContext
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
 
     from core.event_bus import EventBus
 
@@ -32,6 +31,7 @@ class VersionConflict(Exception):
 
 
 import enum
+
 
 class LifecycleStage(enum.Enum):
     CREATED = "created"
@@ -291,7 +291,8 @@ class PluginManager:
                 module = importlib.import_module(f"{pdir.name}.{name}")
             elif (pdir / f"{name}.py").is_file():
                 spec = importlib.util.spec_from_file_location(
-                    f"_plugin_{name}", str(pdir / f"{name}.py"),
+                    f"_plugin_{name}",
+                    str(pdir / f"{name}.py"),
                 )
                 if spec and spec.loader:
                     module = importlib.util.module_from_spec(spec)
@@ -335,7 +336,9 @@ class PluginManager:
             raise PluginLoadError(f"on_load 异常: {e}") from e
 
         self._contexts[name] = ctx
-        logger.info("插件 %s v%s 加载成功", plugin.manifest.name, plugin.manifest.version)
+        logger.info(
+            "插件 %s v%s 加载成功", plugin.manifest.name, plugin.manifest.version
+        )
         return plugin
 
     def _check_version_conflict(self, plugin: PluginBase) -> None:
@@ -345,7 +348,10 @@ class PluginManager:
             if v.major != ev.major and v.minor != ev.minor:
                 logger.warning(
                     "版本冲突: %s v%s vs %s v%s (major/minor 不匹配)",
-                    plugin.manifest.name, v, existing.manifest.name, ev,
+                    plugin.manifest.name,
+                    v,
+                    existing.manifest.name,
+                    ev,
                 )
                 raise VersionConflict(
                     f"{plugin.manifest.name} v{v} 与 {existing.manifest.name} v{ev} 冲突"
@@ -373,13 +379,18 @@ class PluginManager:
     def _find_plugin_class(self, module: Any, name: str) -> type[PluginBase] | None:
         for attr_name in dir(module):
             obj = getattr(module, attr_name)
-            if isinstance(obj, type) and issubclass(obj, PluginBase) and obj is not PluginBase:
+            if (
+                isinstance(obj, type)
+                and issubclass(obj, PluginBase)
+                and obj is not PluginBase
+            ):
                 return obj
         return None
 
     def _load_state(self) -> None:
         try:
             from core.database import Database
+
             self._states = Database().load_plugin_states_bool()
         except Exception as e:
             logger.warning("从数据库加载插件状态失败: %s", e)
@@ -395,6 +406,7 @@ class PluginManager:
     def _save_state(self) -> None:
         try:
             from core.database import Database
+
             Database().save_plugin_states_bool(self._states)
         except Exception as e:
             logger.warning("保存插件状态到数据库失败: %s", e)

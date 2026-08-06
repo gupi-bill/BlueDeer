@@ -1,19 +1,17 @@
 """Kimi Code User-Agent fallback list and 403 detection."""
-import pytest
 
+import pytest
 from src import llm_core
 from src.llm_core import (
-    KIMI_CODE_USER_AGENTS,
     KIMI_CODE_USER_AGENT,
+    KIMI_CODE_USER_AGENTS,
     _is_kimi_code_access_denied,
-    _is_kimi_code_url,
     _kimi_code_base_key,
     _kimi_code_ua_cache,
     _kimi_code_ua_candidates,
     _remember_kimi_code_user_agent,
     httpx_post_kimi_aware,
 )
-
 
 KIMI_CHAT_URL = "https://api.kimi.com/coding/v1/chat/completions"
 
@@ -71,9 +69,9 @@ class TestKimiCodeUserAgents:
         assert _kimi_code_ua_candidates("https://api.openai.com/v1") == []
 
     def test_base_key_normalizes_chat_url(self):
-        assert _kimi_code_base_key("https://api.kimi.com/coding/v1/chat/completions") == (
-            "https://api.kimi.com/coding/v1"
-        )
+        assert _kimi_code_base_key(
+            "https://api.kimi.com/coding/v1/chat/completions"
+        ) == ("https://api.kimi.com/coding/v1")
 
     def test_post_retries_next_user_agent_on_403(self, monkeypatch):
         _kimi_code_ua_cache.clear()
@@ -85,7 +83,9 @@ class TestKimiCodeUserAgents:
                 return _Resp(403, '{"error":{"type":"access_terminated_error"}}')
             return _Resp(200, "{}")
 
-        monkeypatch.setattr(llm_core.httpx, "get", lambda *a, **k: (_ for _ in ()).throw(RuntimeError()))
+        monkeypatch.setattr(
+            llm_core.httpx, "get", lambda *a, **k: (_ for _ in ()).throw(RuntimeError())
+        )
         monkeypatch.setattr("src.llm_core.httpx.post", fake_post)
         r = httpx_post_kimi_aware(KIMI_CHAT_URL, {"Authorization": "Bearer x"}, json={})
         assert r.status_code == 200
@@ -126,9 +126,15 @@ class TestKimiCodeUserAgents:
         )
 
         assert r.status_code == 200
-        assert client.get_user_agents == [KIMI_CODE_USER_AGENTS[0], KIMI_CODE_USER_AGENTS[1]]
+        assert client.get_user_agents == [
+            KIMI_CODE_USER_AGENTS[0],
+            KIMI_CODE_USER_AGENTS[1],
+        ]
         assert client.post_user_agents == [KIMI_CODE_USER_AGENTS[1]]
-        assert _kimi_code_ua_cache[_kimi_code_base_key(KIMI_CHAT_URL)] == KIMI_CODE_USER_AGENTS[1]
+        assert (
+            _kimi_code_ua_cache[_kimi_code_base_key(KIMI_CHAT_URL)]
+            == KIMI_CODE_USER_AGENTS[1]
+        )
         _kimi_code_ua_cache.clear()
 
     @pytest.mark.asyncio
@@ -162,8 +168,14 @@ class TestKimiCodeUserAgents:
         )
 
         assert r.status_code == 200
-        assert client.post_user_agents == [KIMI_CODE_USER_AGENTS[0], KIMI_CODE_USER_AGENTS[1]]
-        assert _kimi_code_ua_cache[_kimi_code_base_key(KIMI_CHAT_URL)] == KIMI_CODE_USER_AGENTS[1]
+        assert client.post_user_agents == [
+            KIMI_CODE_USER_AGENTS[0],
+            KIMI_CODE_USER_AGENTS[1],
+        ]
+        assert (
+            _kimi_code_ua_cache[_kimi_code_base_key(KIMI_CHAT_URL)]
+            == KIMI_CODE_USER_AGENTS[1]
+        )
         _kimi_code_ua_cache.clear()
 
     @pytest.mark.asyncio
@@ -192,7 +204,9 @@ class TestKimiCodeUserAgents:
         monkeypatch.setattr(llm_core.httpx, "get", forbidden_sync_get)
         monkeypatch.setattr(llm_core, "_get_http_client", lambda: client)
         monkeypatch.setattr(llm_core, "_is_host_dead", lambda url: False)
-        monkeypatch.setattr(llm_core, "note_model_activity", lambda *args, **kwargs: None)
+        monkeypatch.setattr(
+            llm_core, "note_model_activity", lambda *args, **kwargs: None
+        )
         monkeypatch.setattr(llm_core, "_clear_host_dead", lambda *args, **kwargs: None)
 
         chunks = [
@@ -206,7 +220,13 @@ class TestKimiCodeUserAgents:
         ]
 
         assert chunks == ["data: [DONE]\n\n"]
-        assert client.get_user_agents == [KIMI_CODE_USER_AGENTS[0], KIMI_CODE_USER_AGENTS[1]]
+        assert client.get_user_agents == [
+            KIMI_CODE_USER_AGENTS[0],
+            KIMI_CODE_USER_AGENTS[1],
+        ]
         assert client.stream_headers[0]["User-Agent"] == KIMI_CODE_USER_AGENTS[1]
-        assert _kimi_code_ua_cache[_kimi_code_base_key(KIMI_CHAT_URL)] == KIMI_CODE_USER_AGENTS[1]
+        assert (
+            _kimi_code_ua_cache[_kimi_code_base_key(KIMI_CHAT_URL)]
+            == KIMI_CODE_USER_AGENTS[1]
+        )
         _kimi_code_ua_cache.clear()

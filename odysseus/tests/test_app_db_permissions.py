@@ -1,6 +1,6 @@
 import os
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -48,7 +48,9 @@ def test_app_db_created_with_0600(tmp_path):
         cwd=repo_root,
         check=True,
     )
-    assert db_file.stat().st_mode & 0o777 == 0o600, "existing 0644 DB not re-locked on startup"
+    assert (
+        db_file.stat().st_mode & 0o777 == 0o600
+    ), "existing 0644 DB not re-locked on startup"
 
 
 def test_normalize_sqlite_url_preserves_sqlite_uri_filename():
@@ -75,8 +77,13 @@ def test_sqlite_db_path_handles_driver_and_query_forms():
     # A driver qualifier must not defeat detection...
     assert _sqlite_db_path(make_url("sqlite+pysqlite:///data/app.db")) == "data/app.db"
     # ...and query args must be stripped from the path.
-    assert _sqlite_db_path(make_url("sqlite:///data/app.db?cache=shared")) == "data/app.db"
-    assert _sqlite_db_path(make_url("sqlite+pysqlite:////abs/app.db?mode=ro")) == "/abs/app.db"
+    assert (
+        _sqlite_db_path(make_url("sqlite:///data/app.db?cache=shared")) == "data/app.db"
+    )
+    assert (
+        _sqlite_db_path(make_url("sqlite+pysqlite:////abs/app.db?mode=ro"))
+        == "/abs/app.db"
+    )
     # Nothing to lock for non-file-backed or non-sqlite databases.
     assert _sqlite_db_path(make_url("sqlite:///:memory:")) is None
     assert _sqlite_db_path(make_url("sqlite://")) is None
@@ -128,41 +135,34 @@ def test_sqlite_db_path_handles_file_uri_forms(tmp_path):
 
     db_file = tmp_path / "uri-app.db"
 
-    assert (
-        _sqlite_db_path(make_url(f"sqlite+pysqlite:///file:{db_file}?mode=rwc&uri=true"))
-        == str(db_file)
-    )
-    assert (
-        _sqlite_db_path(make_url(f"sqlite:///file:{db_file}?cache=shared&uri=true"))
-        == str(db_file)
-    )
+    assert _sqlite_db_path(
+        make_url(f"sqlite+pysqlite:///file:{db_file}?mode=rwc&uri=true")
+    ) == str(db_file)
+    assert _sqlite_db_path(
+        make_url(f"sqlite:///file:{db_file}?cache=shared&uri=true")
+    ) == str(db_file)
 
     localhost_db = tmp_path / "localhost-uri.db"
-    assert (
-        _sqlite_db_path(
-            make_url(
-                f"sqlite+pysqlite:///file://localhost{localhost_db}"
-                "?mode=rwc&uri=true"
-            )
+    assert _sqlite_db_path(
+        make_url(
+            f"sqlite+pysqlite:///file://localhost{localhost_db}" "?mode=rwc&uri=true"
         )
-        == str(localhost_db)
-    )
+    ) == str(localhost_db)
 
     non_uri_mode_db = tmp_path / "mode-query-file.db"
+    assert _sqlite_db_path(
+        make_url(f"sqlite+pysqlite:///{non_uri_mode_db}?mode=memory")
+    ) == str(non_uri_mode_db)
     assert (
         _sqlite_db_path(
-            make_url(
-                f"sqlite+pysqlite:///{non_uri_mode_db}?mode=memory"
-            )
+            make_url("sqlite+pysqlite:///file::memory:?cache=shared&uri=true")
         )
-        == str(non_uri_mode_db)
-    )
-    assert (
-        _sqlite_db_path(make_url("sqlite+pysqlite:///file::memory:?cache=shared&uri=true"))
         is None
     )
     assert (
-        _sqlite_db_path(make_url("sqlite+pysqlite:///file:memdb1?mode=memory&cache=shared&uri=true"))
+        _sqlite_db_path(
+            make_url("sqlite+pysqlite:///file:memdb1?mode=memory&cache=shared&uri=true")
+        )
         is None
     )
 
@@ -191,6 +191,7 @@ def test_app_db_file_uri_created_with_0600(tmp_path):
     mode = db_file.stat().st_mode & 0o777
     assert mode == 0o600, f"expected 0o600, got 0o{mode:o}"
 
+
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="POSIX mode bits (0o600) don't exist on Windows; safe_chmod no-ops there.",
@@ -201,8 +202,7 @@ def test_app_db_localhost_file_uri_created_with_0600(tmp_path):
     env = {
         **os.environ,
         "DATABASE_URL": (
-            f"sqlite+pysqlite:///file://localhost{db_file}"
-            "?mode=rwc&uri=true"
+            f"sqlite+pysqlite:///file://localhost{db_file}" "?mode=rwc&uri=true"
         ),
     }
     repo_root = Path(__file__).resolve().parents[1]
@@ -242,6 +242,7 @@ def test_app_db_non_uri_mode_query_created_with_0600(tmp_path):
     assert db_file.exists()
     mode = db_file.stat().st_mode & 0o777
     assert mode == 0o600, f"expected 0o600, got 0o{mode:o}"
+
 
 @pytest.mark.skipif(
     sys.platform == "win32",

@@ -15,6 +15,7 @@
   所以先在 env._lock 内拷贝 population 快照，释放锁后再逐个加 life._lock。
 - force_breed 临时调 birth_time 到成年期，try/finally 恢复。
 """
+
 from __future__ import annotations
 
 import threading
@@ -37,8 +38,8 @@ class Observer:
         self._env = environment
         self._naming = naming if naming is not None else NamingSystem()
         self._lock = threading.RLock()
-        self._action_log = []           # 历史干预动作
-        self._isolated = {}             # life_id -> life_form（隔离区）
+        self._action_log = []  # 历史干预动作
+        self._isolated = {}  # life_id -> life_form（隔离区）
 
     # ------------------------------------------------------------------
     # 内部：日志
@@ -124,10 +125,13 @@ class Observer:
             "ok": True,
         }
         self._log(result)
-        self._env.broadcast_event("intervene_cold_wave", {
-            "duration_hours": duration_hours,
-            "affected": affected,
-        })
+        self._env.broadcast_event(
+            "intervene_cold_wave",
+            {
+                "duration_hours": duration_hours,
+                "affected": affected,
+            },
+        )
         return result
 
     # ------------------------------------------------------------------
@@ -188,9 +192,14 @@ class Observer:
             # 能量不恢复（已被消耗）
 
         self._log(result)
-        self._env.broadcast_event("intervene_force_breed", {
-            "parent_a": id_a, "parent_b": id_b, "ok": result["ok"],
-        })
+        self._env.broadcast_event(
+            "intervene_force_breed",
+            {
+                "parent_a": id_a,
+                "parent_b": id_b,
+                "ok": result["ok"],
+            },
+        )
         return result
 
     # ------------------------------------------------------------------
@@ -248,8 +257,11 @@ class Observer:
             lf.health = min(100.0, lf.health + amount)
             after = lf.health
         result = {
-            "action": "heal", "life_id": life_id,
-            "before": before, "after": after, "ok": True,
+            "action": "heal",
+            "life_id": life_id,
+            "before": before,
+            "after": after,
+            "ok": True,
         }
         self._log(result)
         return result
@@ -267,8 +279,11 @@ class Observer:
             lf.energy = min(100.0, lf.energy + amount)
             after = lf.energy
         result = {
-            "action": "energize", "life_id": life_id,
-            "before": before, "after": after, "ok": True,
+            "action": "energize",
+            "life_id": life_id,
+            "before": before,
+            "after": after,
+            "ok": True,
         }
         self._log(result)
         return result

@@ -15,7 +15,7 @@ import logging
 import os
 import secrets
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 logger = logging.getLogger("bluedeer.auth")
@@ -71,7 +71,9 @@ def _generate_token() -> str:
 
 
 class AuthSystem:
-    def __init__(self, users_file: str = _USERS_FILE, sessions_file: str = _SESSIONS_FILE) -> None:
+    def __init__(
+        self, users_file: str = _USERS_FILE, sessions_file: str = _SESSIONS_FILE
+    ) -> None:
         self._users_file = users_file
         self._sessions_file = sessions_file
         self._users: dict[str, User] = {}
@@ -87,8 +89,11 @@ class AuthSystem:
         if "admin" not in self._users:
             h, s = _hash_password("bluedeer888")
             self._users["admin"] = User(
-                username="admin", password_hash=h, password_salt=s,
-                role="admin", display_name="管理员",
+                username="admin",
+                password_hash=h,
+                password_salt=s,
+                role="admin",
+                display_name="管理员",
             )
             self._save_users()
 
@@ -141,22 +146,41 @@ class AuthSystem:
         self._sessions.pop(token_str, None)
         self._save_sessions()
 
-    def create_user(self, username: str, password: str, role: str = "viewer",
-                    display_name: str = "", email: str = "") -> User:
+    def create_user(
+        self,
+        username: str,
+        password: str,
+        role: str = "viewer",
+        display_name: str = "",
+        email: str = "",
+    ) -> User:
         if username in self._users:
             raise ValueError(f"用户 {username} 已存在")
         if role not in VALID_ROLES:
             raise ValueError(f"无效角色: {role}")
         h, s = _hash_password(password)
-        user = User(username=username, password_hash=h, password_salt=s,
-                     role=role, display_name=display_name or username, email=email)
+        user = User(
+            username=username,
+            password_hash=h,
+            password_salt=s,
+            role=role,
+            display_name=display_name or username,
+            email=email,
+        )
         self._users[username] = user
         self._save_users()
         return user
 
-    def update_user(self, username: str, *, role: str | None = None,
-                    display_name: str | None = None, email: str | None = None,
-                    enabled: bool | None = None, password: str | None = None) -> bool:
+    def update_user(
+        self,
+        username: str,
+        *,
+        role: str | None = None,
+        display_name: str | None = None,
+        email: str | None = None,
+        enabled: bool | None = None,
+        password: str | None = None,
+    ) -> bool:
         user = self._users.get(username)
         if not user:
             return False
@@ -183,7 +207,9 @@ class AuthSystem:
         if username in self._users:
             del self._users[username]
             # 清理该用户的 API token
-            self._api_tokens = {k: v for k, v in self._api_tokens.items() if v.username != username}
+            self._api_tokens = {
+                k: v for k, v in self._api_tokens.items() if v.username != username
+            }
             self._save_users()
             self._save_sessions()
             return True
@@ -191,9 +217,15 @@ class AuthSystem:
 
     def list_users(self) -> list[dict[str, Any]]:
         return [
-            {"username": u.username, "role": u.role, "display_name": u.display_name,
-             "email": u.email, "enabled": u.enabled, "created_at": u.created_at,
-             "last_login": u.last_login}
+            {
+                "username": u.username,
+                "role": u.role,
+                "display_name": u.display_name,
+                "email": u.email,
+                "enabled": u.enabled,
+                "created_at": u.created_at,
+                "last_login": u.last_login,
+            }
             for u in self._users.values()
         ]
 
@@ -214,8 +246,14 @@ class AuthSystem:
         if username:
             tokens = [t for t in tokens if t.username == username]
         return [
-            {"token": t.token[:12] + "...", "name": t.name, "username": t.username,
-             "created_at": t.created_at, "last_used": t.last_used, "enabled": t.enabled}
+            {
+                "token": t.token[:12] + "...",
+                "name": t.name,
+                "username": t.username,
+                "created_at": t.created_at,
+                "last_used": t.last_used,
+                "enabled": t.enabled,
+            }
             for t in tokens
         ]
 
@@ -274,7 +312,12 @@ class AuthSystem:
         )
         self._api_tokens[new_token_str] = new_at
         self._save_users()
-        logger.info("API Key 轮换: %s -> %s (grace=%ds)", old_key[:12], new_token_str[:12], grace_sec)
+        logger.info(
+            "API Key 轮换: %s -> %s (grace=%ds)",
+            old_key[:12],
+            new_token_str[:12],
+            grace_sec,
+        )
         return new_at
 
     def revoke_api_token(self, token_str: str) -> bool:
@@ -344,9 +387,16 @@ class AuthSystem:
                 for u in self._users.values():
                     d = asdict(u)
                     d["api_tokens"] = [
-                        {"token": at.token, "name": at.name, "username": at.username,
-                         "created_at": at.created_at, "last_used": at.last_used, "enabled": at.enabled}
-                        for at in self._api_tokens.values() if at.username == u.username
+                        {
+                            "token": at.token,
+                            "name": at.name,
+                            "username": at.username,
+                            "created_at": at.created_at,
+                            "last_used": at.last_used,
+                            "enabled": at.enabled,
+                        }
+                        for at in self._api_tokens.values()
+                        if at.username == u.username
                     ]
                     f.write(json.dumps(d, ensure_ascii=False) + "\n")
         except Exception as e:
@@ -355,8 +405,10 @@ class AuthSystem:
     def _save_sessions(self) -> None:
         try:
             with open(self._sessions_file, "w", encoding="utf-8") as f:
-                for s in self._sessions.values():
-                    f.write(json.dumps(asdict(s), ensure_ascii=False) + "\n")
+                f.writelines(
+                    json.dumps(asdict(s), ensure_ascii=False) + "\n"
+                    for s in self._sessions.values()
+                )
         except Exception as e:
             logger.warning("保存会话数据失败: %s", e)
 
@@ -372,15 +424,15 @@ def get_auth() -> AuthSystem:
     return _auth
 
 
-def role_required(required_role: str):
+def role_required(required_role: str) -> Any:
     """路由级权限装饰器（用法：装饰 API 路由函数）。
     要求 request.state 中已设置 user 和 role。
     """
     from functools import wraps
 
-    def decorator(func):
+    def decorator(func) -> Any:
         @wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             # 找 request 参数
             request = None
             for arg in args:
@@ -394,10 +446,16 @@ def role_required(required_role: str):
                         break
             if not request or not request.state.user:
                 from fastapi.responses import JSONResponse
+
                 return JSONResponse({"error": "未认证"}, status_code=401)
-            if ROLE_HIERARCHY.get(request.state.role, 0) < ROLE_HIERARCHY.get(required_role, 0):
+            if ROLE_HIERARCHY.get(request.state.role, 0) < ROLE_HIERARCHY.get(
+                required_role, 0
+            ):
                 from fastapi.responses import JSONResponse
+
                 return JSONResponse({"error": "权限不足"}, status_code=403)
             return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator

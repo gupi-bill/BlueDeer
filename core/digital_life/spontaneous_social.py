@@ -14,6 +14,7 @@
 4. 对话气泡通过 env.push_dialogue_bubble 推送（复用现有机制）。
 5. 联动：情感→社交（sadness 提升概率）；社交→碎片（重要对话生成）；碎片→情感（暂未实现）。
 """
+
 from __future__ import annotations
 
 import random
@@ -23,12 +24,12 @@ import time
 # ====================================================================
 # 触发参数
 # ====================================================================
-SCAN_INTERVAL_SEC = 600          # 每 10 分钟扫描一次
-TRIGGER_PROBABILITY = 0.15       # 15% 概率触发
-SAME_PAIR_COOLDOWN = 7200        # 同一对 2 小时冷却
-DISTANCE_THRESHOLD = 5.0         # 距离阈值（格）
-SADNESS_BOOST_THRESHOLD = 0.6    # 悲伤阈值（提升概率）
-SADNESS_BOOST_PROB = 0.35        # 悲伤时概率提升到 35%
+SCAN_INTERVAL_SEC = 600  # 每 10 分钟扫描一次
+TRIGGER_PROBABILITY = 0.15  # 15% 概率触发
+SAME_PAIR_COOLDOWN = 7200  # 同一对 2 小时冷却
+DISTANCE_THRESHOLD = 5.0  # 距离阈值（格）
+SADNESS_BOOST_THRESHOLD = 0.6  # 悲伤阈值（提升概率）
+SADNESS_BOOST_PROB = 0.35  # 悲伤时概率提升到 35%
 
 # 对话气泡显示间隔（秒）
 BUBBLE_INTERVAL_SEC = 3.0
@@ -36,26 +37,26 @@ BUBBLE_INTERVAL_SEC = 3.0
 # ====================================================================
 # 互动类型
 # ====================================================================
-INTERACTION_DIALOGUE = "dialogue"            # 闲聊（默认）
-INTERACTION_COOPERATION = "cooperation"      # 合作：效率加成
-INTERACTION_GOSSIP = "gossip"                # 八卦：信息传播
-INTERACTION_SHARING = "resource_sharing"     # 资源共享
+INTERACTION_DIALOGUE = "dialogue"  # 闲聊（默认）
+INTERACTION_COOPERATION = "cooperation"  # 合作：效率加成
+INTERACTION_GOSSIP = "gossip"  # 八卦：信息传播
+INTERACTION_SHARING = "resource_sharing"  # 资源共享
 
 # ====================================================================
 # 物种亲疏矩阵（稀疏：只记 notable 关系）
 # 正值 = 倾向于合作互补，负值 = 竞争/紧张
 # ====================================================================
 SPECIES_AFFINITY: dict[tuple[str, str], float] = {
-    ("butterfly", "squirrel"): 0.6,    # 设计+码农
-    ("beaver", "raven"): 0.5,           # 建筑+匠人
-    ("deer", "kite"): 0.5,              # 领导+战略
-    ("badger", "hare"): 0.4,            # 文化+财务
-    ("deer", "lark"): 0.3,              # 领导指导雀创作
-    ("fox", "squirrel"): 0.3,           # PM+码农
-    ("butterfly", "fox"): 0.3,          # 设计+PM
-    ("beaver", "hedgehog"): -0.4,       # 建筑动土 vs 运维稳定
-    ("kite", "fox"): -0.3,              # 战略 vs PM路线之争
-    ("squirrel", "hare"): -0.2,         # 花钱 vs 管钱
+    ("butterfly", "squirrel"): 0.6,  # 设计+码农
+    ("beaver", "raven"): 0.5,  # 建筑+匠人
+    ("deer", "kite"): 0.5,  # 领导+战略
+    ("badger", "hare"): 0.4,  # 文化+财务
+    ("deer", "lark"): 0.3,  # 领导指导雀创作
+    ("fox", "squirrel"): 0.3,  # PM+码农
+    ("butterfly", "fox"): 0.3,  # 设计+PM
+    ("beaver", "hedgehog"): -0.4,  # 建筑动土 vs 运维稳定
+    ("kite", "fox"): -0.3,  # 战略 vs PM路线之争
+    ("squirrel", "hare"): -0.2,  # 花钱 vs 管钱
 }
 
 
@@ -159,6 +160,7 @@ def format_dialogue(tpl: dict, name_a: str, name_b: str) -> list[dict]:
 # SpontaneousSocialSystem 单例
 # ====================================================================
 
+
 class SpontaneousSocialSystem:
     """自发社交系统（单例）。"""
 
@@ -191,7 +193,7 @@ class SpontaneousSocialSystem:
         self._last_gossip_ts: dict[str, float] = {}
         # 设置
         self._settings: dict = {
-            "frequency": "medium",     # low/medium/high
+            "frequency": "medium",  # low/medium/high
             "bubble_speed": "medium",  # slow/medium/fast
         }
 
@@ -240,8 +242,10 @@ class SpontaneousSocialSystem:
                 continue
             if getattr(lf, "sleeping", False):
                 continue
-            if getattr(lf, "current_action", None) and \
-               str(getattr(lf, "current_action", "")) == "ActionState.WORK":
+            if (
+                getattr(lf, "current_action", None)
+                and str(getattr(lf, "current_action", "")) == "ActionState.WORK"
+            ):
                 continue
             candidates.append(lf)
 
@@ -255,11 +259,13 @@ class SpontaneousSocialSystem:
         for i, a in enumerate(candidates):
             if a._name_obj in used:
                 continue
-            for b in candidates[i + 1:]:
+            for b in candidates[i + 1 :]:
                 if b._name_obj in used:
                     continue
                 # 距离检查（用 zone 是否相同近似，因为这里拿不到精确坐标）
-                if getattr(a, "current_zone_id", "") != getattr(b, "current_zone_id", ""):
+                if getattr(a, "current_zone_id", "") != getattr(
+                    b, "current_zone_id", ""
+                ):
                     continue
                 pair = tuple(sorted([a._name_obj, b._name_obj]))
                 # 冷却检查
@@ -290,6 +296,7 @@ class SpontaneousSocialSystem:
 
     def _start_interaction(self, a, b, ia_type: str, env, router) -> None:
         """启动一次互动（异步，不阻塞主循环）。"""
+
         def _generate():
             lines = self._generate_dialogue_lines(a, b, router)
             if not lines:
@@ -333,6 +340,7 @@ class SpontaneousSocialSystem:
     def _generate_via_llm(self, a, b, router) -> list[dict] | None:
         """通过 LLM 生成对话。返回 [{speaker, text}, ...] 或 None。"""
         import asyncio
+
         prompt = self._build_llm_prompt(a, b)
         try:
             loop = asyncio.new_event_loop()
@@ -415,7 +423,11 @@ class SpontaneousSocialSystem:
                         self._on_dialogue_finished(d)
                 still_active.append(d)
             # 移除已完成的（保留一会儿供状态查询，10 分钟后归档）
-            self._active_dialogues = [d for d in still_active if not (d["finished"] and now - d.get("end_ts", now) > 600)]
+            self._active_dialogues = [
+                d
+                for d in still_active
+                if not (d["finished"] and now - d.get("end_ts", now) > 600)
+            ]
 
     def _on_dialogue_finished(self, d: dict) -> None:
         """互动结束后的处理：按类型分派效果。"""
@@ -438,9 +450,13 @@ class SpontaneousSocialSystem:
         """闲聊效果：情感改善 + 关系微升（原有逻辑）。"""
         a, b = d["a"], d["b"]
         try:
-            a.emotional_state["sadness"] = max(0, a.emotional_state.get("sadness", 0) - 0.1)
+            a.emotional_state["sadness"] = max(
+                0, a.emotional_state.get("sadness", 0) - 0.1
+            )
             a.emotional_state["joy"] = min(1.0, a.emotional_state.get("joy", 0) + 0.08)
-            b.emotional_state["sadness"] = max(0, b.emotional_state.get("sadness", 0) - 0.1)
+            b.emotional_state["sadness"] = max(
+                0, b.emotional_state.get("sadness", 0) - 0.1
+            )
             b.emotional_state["joy"] = min(1.0, b.emotional_state.get("joy", 0) + 0.08)
         except Exception:
             pass
@@ -510,17 +526,22 @@ class SpontaneousSocialSystem:
         # 联动：在对话地点生成记忆碎片（social_dialogue 类型）
         try:
             from core.digital_life.memory_fragment import spawn_fragment
+
             # 用 a 的当前 zone 作为坐标（简化处理，前端会在 zone 中心附近显示）
             zone_id = getattr(a, "current_zone_id", "outdoor")
             # 坐标用 zone 哈希生成伪坐标（实际显示由前端按 zone 中心+随机偏移）
             import hashlib
+
             hash_val = int(hashlib.md5(zone_id.encode()).hexdigest()[:8], 16)
             fx = (hash_val % 100) * 0.5
             fy = ((hash_val >> 8) % 100) * 0.5
             spawn_fragment(
                 frag_type="social_dialogue",
-                x=fx, y=fy, zone_id=zone_id,
-                agent_name=a._name_obj, agent_species=a.species,
+                x=fx,
+                y=fy,
+                zone_id=zone_id,
+                agent_name=a._name_obj,
+                agent_species=a.species,
                 detail=b._name_obj,
                 related_agent_name=b._name_obj,
             )
@@ -549,8 +570,10 @@ class SpontaneousSocialSystem:
         with self._lock:
             available = [
                 {
-                    "a": d["a"], "a_species": d["a_species"],
-                    "b": d["b"], "b_species": d["b_species"],
+                    "a": d["a"],
+                    "a_species": d["a_species"],
+                    "b": d["b"],
+                    "b_species": d["b_species"],
                     "lines": d["lines"],
                     "time": d["time"],
                     "summary": d["summary"],

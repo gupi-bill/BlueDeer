@@ -8,6 +8,7 @@ read-only fix the alias gate requires). The wider advertising/registry
 consolidation (schemas, prompt sections, RAG index, UI selector, assistant
 seed) lives in a follow-up PR with its own sync tests.
 """
+
 import re
 from pathlib import Path
 
@@ -51,13 +52,25 @@ def test_plan_mode_classifies_every_email_tool():
     from src.tool_security import plan_mode_disabled_tools
 
     denied = plan_mode_disabled_tools()
-    readonly = {"list_email_accounts", "list_emails", "read_email", "search_emails", "scan_email_unsubscribes"}
+    readonly = {
+        "list_email_accounts",
+        "list_emails",
+        "read_email",
+        "search_emails",
+        "scan_email_unsubscribes",
+    }
     for tool in sorted(BUILTIN_EMAIL_TOOLS):
         if tool in readonly:
-            assert tool in PLAN_MODE_READONLY_TOOLS, f"{tool} must be explicit read-only"
-            assert tool not in denied, f"read-only {tool} must not be denied in plan mode"
+            assert (
+                tool in PLAN_MODE_READONLY_TOOLS
+            ), f"{tool} must be explicit read-only"
+            assert (
+                tool not in denied
+            ), f"read-only {tool} must not be denied in plan mode"
         else:
-            assert tool in denied, f"mutating {tool} missing from the plan-mode denylist"
+            assert (
+                tool in denied
+            ), f"mutating {tool} missing from the plan-mode denylist"
 
 
 def test_plan_mode_allows_qualified_readonly_email_discovery():
@@ -74,13 +87,19 @@ def test_email_policy_name_aliases():
     from src.tool_security import email_tool_policy_names
 
     assert email_tool_policy_names("list_emails") == {
-        "list_emails", "mcp__email__list_emails",
+        "list_emails",
+        "mcp__email__list_emails",
     }
     assert email_tool_policy_names("mcp__email__delete_email") == {
-        "delete_email", "mcp__email__delete_email",
+        "delete_email",
+        "mcp__email__delete_email",
     }
     # Non-email names alias only to themselves — including mcp__email__
     # spellings of tools the email server doesn't expose.
     assert email_tool_policy_names("bash") == {"bash"}
-    assert email_tool_policy_names("mcp__email__not_a_tool") == {"mcp__email__not_a_tool"}
-    assert email_tool_policy_names("mcp__other__list_emails") == {"mcp__other__list_emails"}
+    assert email_tool_policy_names("mcp__email__not_a_tool") == {
+        "mcp__email__not_a_tool"
+    }
+    assert email_tool_policy_names("mcp__other__list_emails") == {
+        "mcp__other__list_emails"
+    }

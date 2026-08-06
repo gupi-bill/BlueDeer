@@ -60,6 +60,7 @@ def _find_npx() -> str:
             return npx_candidate
     return "npx"  # fallback, will fail with a clear error
 
+
 # Server definitions: id -> (script path relative to project root, display name)
 #
 # bash / python / filesystem / web_search were folded into native in-process
@@ -70,10 +71,10 @@ def _find_npx() -> str:
 # carries hundreds of LOC of unique IMAP / HTTP / manager logic not worth
 # duplicating into the native path right now.
 _BUILTIN_SERVERS = {
-    "image_gen":  ("mcp_servers/image_gen_server.py",  "Built-in: Image Generation"),
-    "memory":     ("mcp_servers/memory_server.py",     "Built-in: Memory"),
-    "rag":        ("mcp_servers/rag_server.py",        "Built-in: RAG"),
-    "email":      ("mcp_servers/email_server.py",      "Built-in: Email"),
+    "image_gen": ("mcp_servers/image_gen_server.py", "Built-in: Image Generation"),
+    "memory": ("mcp_servers/memory_server.py", "Built-in: Memory"),
+    "rag": ("mcp_servers/rag_server.py", "Built-in: RAG"),
+    "email": ("mcp_servers/email_server.py", "Built-in: Email"),
 }
 
 # NPX-based built-in servers (run via npx, not Python)
@@ -86,8 +87,14 @@ _BUILTIN_NPX_SERVERS = {
 }
 
 # Global flag to disable MCP if there are compatibility issues
-MCP_DISABLED = os.environ.get("ODYSSEUS_DISABLE_MCP", "").lower() in ("1", "true", "yes")
-BROWSER_MCP_REQUIRE_CACHE = os.environ.get("ODYSSEUS_BROWSER_MCP_REQUIRE_CACHE", "").lower() in ("1", "true", "yes")
+MCP_DISABLED = os.environ.get("ODYSSEUS_DISABLE_MCP", "").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+BROWSER_MCP_REQUIRE_CACHE = os.environ.get(
+    "ODYSSEUS_BROWSER_MCP_REQUIRE_CACHE", ""
+).lower() in ("1", "true", "yes")
 
 
 # Strong references to the fire-and-forget startup tasks scheduled below.
@@ -103,6 +110,7 @@ def _spawn_bg(coro) -> asyncio.Task:
     _BG_TASKS.add(task)
     task.add_done_callback(_BG_TASKS.discard)
     return task
+
 
 def _find_browser_executable() -> str:
     """Find a browser binary for the built-in Playwright MCP server.
@@ -136,10 +144,18 @@ def _browser_mcp_args(args: list[str]) -> list[str]:
         browser = _find_browser_executable()
         if browser:
             out.extend(["--executable-path", browser])
-    if os.environ.get("ODYSSEUS_BROWSER_ISOLATED", "1").lower() not in ("0", "false", "no"):
+    if os.environ.get("ODYSSEUS_BROWSER_ISOLATED", "1").lower() not in (
+        "0",
+        "false",
+        "no",
+    ):
         if "--isolated" not in out and "--user-data-dir" not in out:
             out.append("--isolated")
-    if os.environ.get("ODYSSEUS_BROWSER_NO_SANDBOX", "1").lower() not in ("0", "false", "no"):
+    if os.environ.get("ODYSSEUS_BROWSER_NO_SANDBOX", "1").lower() not in (
+        "0",
+        "false",
+        "no",
+    ):
         if "--no-sandbox" not in out and "--sandbox" not in out:
             out.append("--no-sandbox")
     return out
@@ -207,9 +223,17 @@ async def register_builtin_servers(mcp_manager):
             # lets `npx -y` install @playwright/mcp on first start. Locked-down
             # installs can opt back into the old no-network startup behavior
             # with ODYSSEUS_BROWSER_MCP_REQUIRE_CACHE=1.
-            args = _browser_mcp_args(cfg["args"]) if server_id == "builtin_browser" else list(cfg["args"])
+            args = (
+                _browser_mcp_args(cfg["args"])
+                if server_id == "builtin_browser"
+                else list(cfg["args"])
+            )
             pkg_spec = _npx_package_from_args(args)
-            if BROWSER_MCP_REQUIRE_CACHE and pkg_spec and not await _is_npx_package_cached(npx_path, pkg_spec):
+            if (
+                BROWSER_MCP_REQUIRE_CACHE
+                and pkg_spec
+                and not await _is_npx_package_cached(npx_path, pkg_spec)
+            ):
                 logger.warning(
                     f"{cfg['name']} is not available.\n"
                     f"  Reason: npm package {pkg_spec!r} is not installed in the npx cache.\n"
@@ -221,7 +245,9 @@ async def register_builtin_servers(mcp_manager):
                 )
                 continue
 
-            logger.info(f"Starting NPX server: {cfg['name']} ({npx_path} {' '.join(args)})")
+            logger.info(
+                f"Starting NPX server: {cfg['name']} ({npx_path} {' '.join(args)})"
+            )
             try:
                 env = None
                 if server_id == "builtin_browser":
@@ -232,7 +258,9 @@ async def register_builtin_servers(mcp_manager):
                     os.makedirs(cache_home, exist_ok=True)
                     env = {
                         "XDG_CACHE_HOME": cache_home,
-                        "PLAYWRIGHT_BROWSERS_PATH": os.path.join(cache_home, "browsers"),
+                        "PLAYWRIGHT_BROWSERS_PATH": os.path.join(
+                            cache_home, "browsers"
+                        ),
                     }
                 ok = await mcp_manager.connect_server(
                     server_id=server_id,
@@ -245,11 +273,15 @@ async def register_builtin_servers(mcp_manager):
                 if ok:
                     logger.info(f"Built-in NPX server registered: {cfg['name']}")
                 else:
-                    logger.warning(f"Built-in NPX server failed to connect: {cfg['name']}")
+                    logger.warning(
+                        f"Built-in NPX server failed to connect: {cfg['name']}"
+                    )
             except asyncio.CancelledError:
                 raise
             except BaseException as e:
-                logger.warning(f"Built-in NPX server {cfg['name']} error: {type(e).__name__}: {e}")
+                logger.warning(
+                    f"Built-in NPX server {cfg['name']} error: {type(e).__name__}: {e}"
+                )
 
     _spawn_bg(_start_npx_servers())
 
@@ -284,7 +316,10 @@ async def _is_npx_package_cached(npx_path, package_spec, timeout_s=5):
 
     try:
         proc = await asyncio.create_subprocess_exec(
-            npx_path, "--no-install", package_spec, "--version",
+            npx_path,
+            "--no-install",
+            package_spec,
+            "--version",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -302,7 +337,7 @@ async def _is_npx_package_cached(npx_path, package_spec, timeout_s=5):
         return False
     try:
         stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout_s)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         try:
             proc.kill()
             await proc.wait()
@@ -361,7 +396,9 @@ def _npm_cache_roots():
 def _npx_cache_contains_package(npx_root, package_name):
     if not os.path.isdir(npx_root):
         return False
-    package_path = os.path.join("node_modules", *package_name.split("/"), "package.json")
+    package_path = os.path.join(
+        "node_modules", *package_name.split("/"), "package.json"
+    )
     try:
         entries = list(os.scandir(npx_root))
     except OSError:

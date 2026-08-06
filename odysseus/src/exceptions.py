@@ -7,16 +7,17 @@ routes/chat_routes.py). To kill the drift, this now simply re-exports the
 exception classes from core.exceptions so there is exactly one place that
 defines them. Existing `from src.exceptions import ...` callers keep working.
 """
-from core.exceptions import (  # noqa: F401
-    SessionNotFoundError,
+
+from core.exceptions import (
     InvalidFileUploadError,
     LLMServiceError,
+    SessionNotFoundError,
     WebSearchError,
 )
 
 __all__ = [
-    "SessionNotFoundError",
     "InvalidFileUploadError",
     "LLMServiceError",
+    "SessionNotFoundError",
     "WebSearchError",
 ]

@@ -16,6 +16,7 @@
 - 谁生了孩子、谁去世了都记下来。
 - 算一下公司里各种动物的多样性。
 """
+
 from __future__ import annotations
 
 import datetime
@@ -101,29 +102,21 @@ class EvolutionTracker:
             self._species_births[species] += 1
             # 世代判定
             if parents:
-                # 子代世代 = 父代最大世代 + 1
-                parent_gens = []
-                for p in parents:
-                    p_id = id(p)
-                    p_gen = 0
-                    # 找父代在 lineage 中的世代
-                    for cid, (pa, pb) in self._lineage.items():
-                        if p_id in (pa, pb):
-                            parent_gens.append(self._get_generation(cid))
-                    if not parent_gens:
-                        p_gen = 1  # 父代是初代
-                    else:
-                        p_gen = max(parent_gens) if parent_gens else 1
-                gen = max(parent_gens) + 1 if parent_gens else 2
+                # 子代世代 = 父代最大世代 + 1；父代不在谱系中视为初代(1)
+                p_gens = [self._get_generation(id(p)) for p in parents]
+                gen = max(p_gens) + 1
             else:
                 gen = 1
             self._max_generation_per_species[species] = max(
-                self._max_generation_per_species[species], gen)
+                self._max_generation_per_species[species], gen
+            )
             self._generation = max(self._generation, gen)
             # 谱系
             if parents:
-                self._lineage[id(life_form)] = (id(parents[0]),
-                                                id(parents[1]) if len(parents) > 1 else None)
+                self._lineage[id(life_form)] = (
+                    id(parents[0]),
+                    id(parents[1]) if len(parents) > 1 else None,
+                )
 
     def record_death(self, life_form) -> None:
         """记录死亡事件。"""
@@ -138,10 +131,26 @@ class EvolutionTracker:
             self._species_reproductions[parent_species] += 1
 
     def _get_generation(self, life_id: int) -> int:
-        """通过 life_id 查世代号（简化版）。"""
-        # ponytail: 总是返回 1 — 真实谱系递归查询未实现
-        # upgrade: 用 self._lineage 做递归向上查找，给 biodiversity scoring 提供准确世代数据
-        return 1
+        """通过 life_id 查世代号：沿 _lineage 递归向上查找。
+
+        初代（无 parents 或不在谱系中）返回 1；
+        子代世代 = max(父代世代各 + 1) 递归计算。
+        """
+        if life_id is None or life_id not in self._lineage:
+            return 1
+        visited: set = set()
+
+        def walk(cid: int) -> int:
+            if cid is None or cid in visited:
+                return 1
+            visited.add(cid)
+            parents = self._lineage.get(cid)
+            if parents is None:
+                return 1
+            pa, pb = parents
+            return max(walk(pa), walk(pb)) + 1
+
+        return walk(life_id)
 
     # ------------------------------------------------------------------
     # 快照
@@ -220,8 +229,7 @@ class EvolutionTracker:
     # 分析
     # ------------------------------------------------------------------
 
-    def get_gene_drift(self, species: str, gene_name: str,
-                       last_n: int = 20) -> list:
+    def get_gene_drift(self, species: str, gene_name: str, last_n: int = 20) -> list:
         """获取某物种某基因在最近 N 张快照中的漂移。
 
         简化版：返回每张快照该物种的平均能量（作为代理指标）。
@@ -348,7 +356,8 @@ class EvolutionTracker:
             self._species_births = defaultdict(int, counters.get("species_births", {}))
             self._species_deaths = defaultdict(int, counters.get("species_deaths", {}))
             self._species_reproductions = defaultdict(
-                int, counters.get("species_reproductions", {}))
+                int, counters.get("species_reproductions", {})
+            )
 
     # ------------------------------------------------------------------
     # 状态
@@ -365,8 +374,7 @@ class EvolutionTracker:
                 "species_births": dict(self._species_births),
                 "species_deaths": dict(self._species_deaths),
                 "species_reproductions": dict(self._species_reproductions),
-                "max_generation_per_species": dict(
-                    self._max_generation_per_species),
+                "max_generation_per_species": dict(self._max_generation_per_species),
                 "lineage_size": len(self._lineage),
                 "history_path": self.HISTORY_PATH,
             }

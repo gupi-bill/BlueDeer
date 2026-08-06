@@ -111,7 +111,7 @@ class Canvas:
         for s in summaries:
             # trace 入口节点
             trace_node = f"trace_{s.trace_id[:8]}"
-            lines.append(f"    {trace_node}([\"Trace {s.trace_id[:8]}\"]):::event")
+            lines.append(f'    {trace_node}(["Trace {s.trace_id[:8]}"]):::event')
             node_ids.add(trace_node)
 
             prev_node = trace_node
@@ -120,10 +120,10 @@ class Canvas:
             for comp in comp_order:
                 comp_node = f"comp_{s.trace_id[:8]}_{comp.replace(':', '_')}"
                 safe_label = comp.replace(":", "<br>")
-                lines.append(f"    {comp_node}[\"{safe_label}\"]:::agent")
+                lines.append(f'    {comp_node}["{safe_label}"]:::agent')
                 node_ids.add(comp_node)
                 edges.append(f"    {prev_node} --> {comp_node}")
-                edges.append(f"    {prev_node} -- \"→\" --> {comp_node}")
+                edges.append(f'    {prev_node} -- "→" --> {comp_node}')
 
                 spans = s.agent_spans[comp]
                 inner_prev = comp_node
@@ -133,7 +133,7 @@ class Canvas:
                     page_idx += 1
                     label = self._span_label(span)
                     if span.error:
-                        lines.append(f"    {span_id}{{\"{label}\"}}:::error")
+                        lines.append(f'    {span_id}{{"{label}"}}:::error')
                         errors.append(span_id)
                     elif "model" in span.action or "complete" in span.action:
                         lines.append(f"    {span_id}[{label}]:::model")
@@ -161,7 +161,7 @@ class Canvas:
             if s.errors:
                 err_node = f"err_{s.trace_id[:8]}"
                 err_count = len(s.errors)
-                lines.append(f"    {err_node}{{\"✗ {err_count} errors\"}}:::error")
+                lines.append(f'    {err_node}{{"✗ {err_count} errors"}}:::error')
                 node_ids.add(err_node)
                 edges.append(f"    {prev_node} --> {err_node}")
 

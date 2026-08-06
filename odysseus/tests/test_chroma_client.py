@@ -4,11 +4,11 @@ Covers the fast-fail preflight (so an unreachable ChromaDB doesn't block
 startup for the full OS connection timeout) and the rule that a failed
 connection must not poison the cached singleton.
 """
+
 import socket
 import time
 
 import pytest
-
 import src.chroma_client as cc
 
 

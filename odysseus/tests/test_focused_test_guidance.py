@@ -79,9 +79,7 @@ def test_format_report_shell_quotes_path_with_spaces():
     report = guidance.format_report(["tests/path with spaces/test_beta.py"])
 
     assert "- `tests/path with spaces/test_beta.py`" in report
-    assert (
-        "python3 -m pytest -q 'tests/path with spaces/test_beta.py'"
-    ) in report
+    assert ("python3 -m pytest -q 'tests/path with spaces/test_beta.py'") in report
 
 
 def test_format_report_handles_no_changed_test_paths():
@@ -89,6 +87,7 @@ def test_format_report_handles_no_changed_test_paths():
 
     assert "No changed paths under `tests/`." in report
     assert "No directly runnable pytest files changed." in report
+
 
 def _git(repo: Path, *args: str) -> str:
     return subprocess.check_output(["git", *args], cwd=repo, text=True).strip()
@@ -99,7 +98,9 @@ def _write(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def test_changed_paths_from_merge_base_excludes_base_only_test_changes(tmp_path, monkeypatch):
+def test_changed_paths_from_merge_base_excludes_base_only_test_changes(
+    tmp_path, monkeypatch
+):
     repo = tmp_path / "repo"
     repo.mkdir()
 

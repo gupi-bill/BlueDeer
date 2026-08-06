@@ -6,6 +6,7 @@
 - 所有操作都走 ExternalManager 审批
 - 输出和耗时都记录
 """
+
 from __future__ import annotations
 
 import os
@@ -16,19 +17,37 @@ from typing import Any
 
 # 允许的 git 子命令白名单
 _GIT_WHITELIST: set[str] = {
-    "status", "add", "commit", "push", "pull", "fetch",
-    "branch", "checkout", "merge", "log", "diff", "show",
-    "stash", "tag", "remote", "rev-parse", "config",
+    "status",
+    "add",
+    "commit",
+    "push",
+    "pull",
+    "fetch",
+    "branch",
+    "checkout",
+    "merge",
+    "log",
+    "diff",
+    "show",
+    "stash",
+    "tag",
+    "remote",
+    "rev-parse",
+    "config",
 }
 
 # 危险子命令（默认拒绝，需用户在配置中显式允许）
 _GIT_DANGEROUS: set[str] = {
-    "reset", "clean", "force-push", "rebase",
+    "reset",
+    "clean",
+    "force-push",
+    "rebase",
 }
 
 
 class GitResult:
     """git 命令执行结果。"""
+
     __slots__ = (
         "command",
         "duration_ms",
@@ -39,9 +58,16 @@ class GitResult:
         "stdout",
     )
 
-    def __init__(self, ok: bool, command: str = "", stdout: str = "",
-                 stderr: str = "", returncode: int = 0,
-                 duration_ms: float = 0, repo_path: str = "") -> None:
+    def __init__(
+        self,
+        ok: bool,
+        command: str = "",
+        stdout: str = "",
+        stderr: str = "",
+        returncode: int = 0,
+        duration_ms: float = 0,
+        repo_path: str = "",
+    ) -> None:
         self.ok = ok
         self.command = command
         self.stdout = stdout
@@ -104,12 +130,16 @@ class GitIntegration:
             "repo_path": self._repo_path,
             "require_approval": self._require_approval,
             "allow_dangerous": self._allow_dangerous,
-            "repo_exists": bool(self._repo_path and os.path.isdir(self._repo_path)
-                                 and os.path.isdir(os.path.join(self._repo_path, ".git"))),
+            "repo_exists": bool(
+                self._repo_path
+                and os.path.isdir(self._repo_path)
+                and os.path.isdir(os.path.join(self._repo_path, ".git"))
+            ),
         }
 
-    def execute(self, args: list[str], caller: Any = None,
-                 timeout: float = 30.0) -> GitResult:
+    def execute(
+        self, args: list[str], caller: Any = None, timeout: float = 30.0
+    ) -> GitResult:
         """执行 git 命令。args 是 ["status"] / ["add", "."] / ["commit", "-m", "xxx"] 等。
 
         Args:
@@ -118,8 +148,9 @@ class GitIntegration:
             timeout: 超时秒数
         """
         if not self._enabled:
-            return GitResult(False, command="git " + " ".join(args),
-                              stderr="Git 集成未启用")
+            return GitResult(
+                False, command="git " + " ".join(args), stderr="Git 集成未启用"
+            )
         if not args:
             return GitResult(False, stderr="空命令")
         subcmd = args[0]
@@ -127,19 +158,24 @@ class GitIntegration:
             if subcmd in _GIT_DANGEROUS and self._allow_dangerous:
                 pass  # 危险命令但用户显式允许
             else:
-                return GitResult(False, command=f"git {subcmd}",
-                                  stderr=f"子命令 {subcmd} 不在白名单")
+                return GitResult(
+                    False, command=f"git {subcmd}", stderr=f"子命令 {subcmd} 不在白名单"
+                )
         if not self._repo_path or not os.path.isdir(self._repo_path):
-            return GitResult(False, command="git " + " ".join(args),
-                              stderr="仓库路径未配置或不存在")
+            return GitResult(
+                False, command="git " + " ".join(args), stderr="仓库路径未配置或不存在"
+            )
         # 拼完整命令
         full_cmd = ["git"] + list(args)
         start = time.time()
         try:
             proc = subprocess.run(
-                full_cmd, cwd=self._repo_path,
-                capture_output=True, text=True,
-                timeout=timeout, check=False,
+                full_cmd,
+                cwd=self._repo_path,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
             )
             dur = (time.time() - start) * 1000
             ok = proc.returncode == 0
@@ -153,16 +189,23 @@ class GitIntegration:
                 repo_path=self._repo_path,
             )
         except subprocess.TimeoutExpired:
-            return GitResult(False, command=" ".join(full_cmd),
-                              stderr=f"超时（{timeout}s）",
-                              returncode=-1, duration_ms=timeout * 1000,
-                              repo_path=self._repo_path)
+            return GitResult(
+                False,
+                command=" ".join(full_cmd),
+                stderr=f"超时（{timeout}s）",
+                returncode=-1,
+                duration_ms=timeout * 1000,
+                repo_path=self._repo_path,
+            )
         except Exception as e:
-            return GitResult(False, command=" ".join(full_cmd),
-                              stderr=f"执行异常: {e}",
-                              returncode=-1,
-                              duration_ms=(time.time() - start) * 1000,
-                              repo_path=self._repo_path)
+            return GitResult(
+                False,
+                command=" ".join(full_cmd),
+                stderr=f"执行异常: {e}",
+                returncode=-1,
+                duration_ms=(time.time() - start) * 1000,
+                repo_path=self._repo_path,
+            )
 
     # ---------------- 便捷方法 ----------------
 

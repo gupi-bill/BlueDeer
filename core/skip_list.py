@@ -7,15 +7,19 @@ evolution（数据维度 - R181）：
 - 支持 score + member（成员唯一，score 可重复）
 - 范围查询：[min, max] 内的元素
 """
+
 from __future__ import annotations
+
 import random
 import threading
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 
 class _Node:
     """跳表节点。"""
-    __slots__ = ("score", "member", "forward", "backward")
+
+    __slots__ = ("backward", "forward", "member", "score")
 
     def __init__(self, score: float, member: Any, level: int):
         self.score = score
@@ -76,10 +80,13 @@ class SkipList:
             update = [self._head] * self.MAX_LEVEL
             x = self._head
             for i in range(self._level - 1, -1, -1):
-                while (x.forward[i] is not None
-                       and (x.forward[i].score < score
-                            or (x.forward[i].score == score
-                                and self._cmp_member(x.forward[i].member, member) < 0))):
+                while x.forward[i] is not None and (
+                    x.forward[i].score < score
+                    or (
+                        x.forward[i].score == score
+                        and self._cmp_member(x.forward[i].member, member) < 0
+                    )
+                ):
                     x = x.forward[i]
                 update[i] = x
             # 提升层数
@@ -117,10 +124,10 @@ class SkipList:
         update: list[_Node | None] = [None] * self.MAX_LEVEL
         x = self._head
         for i in range(self._level - 1, -1, -1):
-            while (x.forward[i] is not None
-                   and (x.forward[i].score < node.score
-                        or (x.forward[i].score == node.score
-                            and x.forward[i] is not node))):
+            while x.forward[i] is not None and (
+                x.forward[i].score < node.score
+                or (x.forward[i].score == node.score and x.forward[i] is not node)
+            ):
                 x = x.forward[i]
             update[i] = x
         # 断链
@@ -180,7 +187,9 @@ class SkipList:
         return result
 
     def range_by_member(
-        self, start_member: Any, end_member: Any,
+        self,
+        start_member: Any,
+        end_member: Any,
     ) -> list[tuple[float, Any]]:
         """按成员顺序返回 [start, end]（按 score+member 排序）。"""
         with self._lock:
@@ -260,10 +269,10 @@ class SkipList:
                 yield (x.score, x.member)
                 x = x.forward[0]
 
-    def range_query(self, lo, hi, limit=-1):
+    def range_query(self, lo: Any, hi: Any, limit: Any = -1) -> Any:
         return self.range(lo, hi, limit)
 
-    def iter_reverse(self):
+    def iter_reverse(self) -> Any:
         with self._lock:
             x = self._tail
             while x is not None and x is not self._head:

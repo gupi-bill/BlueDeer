@@ -13,12 +13,14 @@
     # 合并
     bf.merge(other_bf)
 """
+
 from __future__ import annotations
+
 import hashlib
 import math
 import struct
 import threading
-from typing import Iterable
+from collections.abc import Iterable
 
 
 class BloomFilter:
@@ -38,7 +40,9 @@ class BloomFilter:
             raise ValueError("error_rate 必须在 (0, 1)")
         self._capacity = capacity
         self._error_rate = error_rate
-        self._m = max(8, int(math.ceil(-capacity * math.log(error_rate) / (math.log(2) ** 2))))
+        self._m = max(
+            8, int(math.ceil(-capacity * math.log(error_rate) / (math.log(2) ** 2)))
+        )
         self._k = max(1, int(round((self._m / capacity) * math.log(2))))
         self._bits = bytearray((self._m + 7) // 8)
         self._count = 0
@@ -83,7 +87,7 @@ class BloomFilter:
             for pos in positions:
                 byte_idx = pos >> 3
                 bit_idx = pos & 7
-                self._bits[byte_idx] |= (1 << bit_idx)
+                self._bits[byte_idx] |= 1 << bit_idx
             self._count += 1
 
     def add_many(self, items: Iterable) -> int:
@@ -94,7 +98,7 @@ class BloomFilter:
                 for pos in positions:
                     byte_idx = pos >> 3
                     bit_idx = pos & 7
-                    self._bits[byte_idx] |= (1 << bit_idx)
+                    self._bits[byte_idx] |= 1 << bit_idx
                 n += 1
             self._count += n
         return n
@@ -142,8 +146,12 @@ class BloomFilter:
     def to_bytes(self) -> bytes:
         """序列化为字节流。"""
         header = struct.pack(
-            "!4sIIII", self._MAGIC, self._VERSION, self._capacity,
-            int(self._error_rate * 1_000_000), self._count,
+            "!4sIIII",
+            self._MAGIC,
+            self._VERSION,
+            self._capacity,
+            int(self._error_rate * 1_000_000),
+            self._count,
         )
         return header + bytes(self._bits)
 
@@ -160,10 +168,12 @@ class BloomFilter:
         bf = cls.__new__(cls)
         bf._capacity = capacity
         bf._error_rate = error_rate
-        bf._m = max(8, int(math.ceil(-capacity * math.log(error_rate) / (math.log(2) ** 2))))
+        bf._m = max(
+            8, int(math.ceil(-capacity * math.log(error_rate) / (math.log(2) ** 2)))
+        )
         bf._k = max(1, int(round((bf._m / capacity) * math.log(2))))
         bits_len = (bf._m + 7) // 8
-        bf._bits = bytearray(data[20:20 + bits_len])
+        bf._bits = bytearray(data[20 : 20 + bits_len])
         bf._count = count
         bf._lock = threading.RLock()
         return bf

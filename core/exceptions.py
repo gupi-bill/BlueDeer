@@ -6,6 +6,7 @@
     from core.exceptions import ConfigError
     raise ConfigError(code=4001, message="配置缺失")
 """
+
 from __future__ import annotations
 
 
@@ -51,6 +52,7 @@ class ResourceNotFound(BlueDeerError):
 
 
 # ── 保留原有兼容别名 ──
+
 
 class ConfigurationError(ConfigError):
     """（兼容）配置错误。"""

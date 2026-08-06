@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-
 _REPO = Path(__file__).resolve().parent.parent
 
 
@@ -18,9 +17,11 @@ def test_document_library_research_preview_whitelists_source_hrefs():
 
 
 def test_research_panel_whitelists_source_hrefs():
-    src = (_REPO / "static" / "js" / "research" / "panel.js").read_text(encoding="utf-8")
+    src = (_REPO / "static" / "js" / "research" / "panel.js").read_text(
+        encoding="utf-8"
+    )
 
     assert "function _safeSourceHref(raw)" in src
     assert "parsed.protocol === 'http:' || parsed.protocol === 'https:'" in src
     assert "const url = _safeSourceHref(s.url);" in src
-    assert 'const url = _esc(s.url || \'\');' not in src
+    assert "const url = _esc(s.url || '');" not in src

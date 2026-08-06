@@ -1,7 +1,8 @@
 """User preferences API — per-user key/value store backed by a JSON file."""
+
 import json
 import os
-from typing import Optional
+
 from fastapi import APIRouter, Request
 from src.auth_helpers import get_current_user
 from src.constants import USER_PREFS_FILE
@@ -29,7 +30,7 @@ def _save(prefs):
     os.replace(tmp, PREFS_FILE)
 
 
-def _load_for_user(user: Optional[str] = None) -> dict:
+def _load_for_user(user: str | None = None) -> dict:
     """Load preferences for a specific user."""
     all_prefs = _load()
     if "_users" in all_prefs:
@@ -42,7 +43,7 @@ def _load_for_user(user: Optional[str] = None) -> dict:
     return dict(all_prefs)
 
 
-def _save_for_user(user: Optional[str], prefs: dict):
+def _save_for_user(user: str | None, prefs: dict):
     """Save preferences for a specific user."""
     all_prefs = _load()
     if user is None:

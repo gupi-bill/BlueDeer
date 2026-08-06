@@ -6,13 +6,16 @@ evolution（数据维度 - R183）：
 - 典型用途：路由表（"/api/users" 与 "/api/posts" 共享 "/api/" 前缀）
 - 支持：插入/查找/删除/最长前缀匹配/前缀枚举
 """
+
 from __future__ import annotations
+
 import threading
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 
 class _Node:
-    __slots__ = ("edge", "children", "value", "has_value")
+    __slots__ = ("children", "edge", "has_value", "value")
 
     def __init__(self, edge: str = "") -> None:
         # edge: 从父节点到本节点的字符串片段
@@ -126,7 +129,7 @@ class RadixTree:
             return None
         if not key.startswith(child.edge):
             return None
-        return self._find_exact(child, key[len(child.edge):])
+        return self._find_exact(child, key[len(child.edge) :])
 
     def __contains__(self, key: str) -> bool:
         with self._lock:
@@ -150,7 +153,7 @@ class RadixTree:
                     # 部分匹配，无法继续
                     break
                 accumulated += child.edge
-                remaining = remaining[len(child.edge):]
+                remaining = remaining[len(child.edge) :]
                 node = child
                 if node.has_value:
                     best = accumulated
@@ -190,7 +193,10 @@ class RadixTree:
         return result
 
     def _find_prefix_with_base(
-        self, node: _Node, prefix: str, accumulated: str,
+        self,
+        node: _Node,
+        prefix: str,
+        accumulated: str,
     ) -> tuple[_Node | None, str]:
         """返回 (前缀所在节点, 该节点的完整 key)。"""
         if not prefix:
@@ -233,7 +239,7 @@ class RadixTree:
                 if child is None or not remaining.startswith(child.edge):
                     return False
                 path.append((node, child))
-                remaining = remaining[len(child.edge):]
+                remaining = remaining[len(child.edge) :]
                 node = child
             if not node.has_value:
                 return False
@@ -260,7 +266,7 @@ class RadixTree:
             self._collect(self._root, "", result, 1 << 30)
             return iter(result)
 
-    def delete_prefix(self, prefix):
+    def delete_prefix(self, prefix) -> Any:
         with self._lock:
             keys_to_delete = self.keys_with_prefix(prefix, limit=1 << 30)
             if not keys_to_delete:

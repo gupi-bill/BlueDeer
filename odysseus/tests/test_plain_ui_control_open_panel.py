@@ -25,5 +25,7 @@ def test_plain_ui_control_open_panel_strips_executed_line_only():
 
 
 def test_plain_ui_control_rescue_does_not_run_other_commands():
-    assert parse_tool_blocks("ui_control switch_model gemma4:31b", skip_fenced=True) == []
+    assert (
+        parse_tool_blocks("ui_control switch_model gemma4:31b", skip_fenced=True) == []
+    )
     assert parse_tool_blocks("bash ls", skip_fenced=True) == []

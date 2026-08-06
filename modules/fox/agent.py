@@ -221,8 +221,12 @@ class FoxAgent(BaseAgent, RagCapable):
                 status=status,
                 output=output,
                 token_usage=total_tokens,
-                error=None if final_passed else (
-                    f"测试修复后仍失败: {heal_result.get('failures_count', 0)} 个失败"
+                error=(
+                    None
+                    if final_passed
+                    else (
+                        f"测试修复后仍失败: {heal_result.get('failures_count', 0)} 个失败"
+                    )
                 ),
             )
 
@@ -341,6 +345,7 @@ class FoxAgent(BaseAgent, RagCapable):
 
 
 # ============== P7 扩容：测试角色拆分子类 ==============
+
 
 class SecurityFoxAgent(FoxAgent):
     """安全测试员工（P7 扩容）。

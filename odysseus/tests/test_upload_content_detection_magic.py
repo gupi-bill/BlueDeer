@@ -9,11 +9,11 @@ rather than in the shared requirements.txt. These tests pin:
   2. when libmagic is actually present, detect_content_type sniffs the MIME
      from the bytes and overrides a misleading/missing extension.
 """
+
 import io
 import os
 
 import pytest
-
 from src.upload_handler import UploadHandler
 
 # 1x1 PNG (header is enough for libmagic to report image/png).

@@ -6,13 +6,16 @@ evolution（数据维度 - R182）：
 - 支持：插入/精确查找/前缀判定/自动补全/最长前缀匹配/删除
 - 可挂 value（实现 key-value 字典），无 value 则视为集合
 """
+
 from __future__ import annotations
+
 import threading
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 
 class _Node:
-    __slots__ = ("children", "value", "has_value", "prefix_count")
+    __slots__ = ("children", "has_value", "prefix_count", "value")
 
     def __init__(self) -> None:
         self.children: dict[str, _Node] = {}
@@ -147,7 +150,12 @@ class Trie:
             # 从尾到头删空节点
             for parent, ch in reversed(path):
                 child = parent.children.get(ch)
-                if child is not None and child.prefix_count <= 0 and not child.has_value and not child.children:
+                if (
+                    child is not None
+                    and child.prefix_count <= 0
+                    and not child.has_value
+                    and not child.children
+                ):
                     del parent.children[ch]
             return True
 
@@ -166,7 +174,7 @@ class Trie:
         for ch in sorted(node.children.keys()):
             yield from self._iter(node.children[ch], prefix + ch)
 
-    def fuzzy_search(self, pattern):
+    def fuzzy_search(self, pattern) -> Any:
         results = []
         with self._lock:
             self._fuzzy(self._root, pattern, 0, "", results)
@@ -178,11 +186,11 @@ class Trie:
                 results.append(cur)
             return
         ch = pattern[idx]
-        if ch == '*':
+        if ch == "*":
             self._fuzzy(node, pattern, idx + 1, cur, results)
             for c in sorted(node.children.keys()):
                 self._fuzzy(node.children[c], pattern, idx, cur + c, results)
-        elif ch == '?':
+        elif ch == "?":
             for c in sorted(node.children.keys()):
                 self._fuzzy(node.children[c], pattern, idx + 1, cur + c, results)
         else:

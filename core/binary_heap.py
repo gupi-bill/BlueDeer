@@ -13,10 +13,12 @@
     h.push(1, "v1")
     h.pop()  # (1, "v1")
 """
+
 from __future__ import annotations
 
 import threading
-from typing import Any, Iterator, List, Optional, Tuple
+from collections.abc import Iterator
+from typing import Any
 
 
 class _Entry:
@@ -31,7 +33,7 @@ class BinaryHeap:
     """小顶二叉堆。"""
 
     def __init__(self) -> None:
-        self._data: List[_Entry] = []
+        self._data: list[_Entry] = []
         self._lock = threading.RLock()
 
     def __len__(self) -> int:
@@ -64,12 +66,12 @@ class BinaryHeap:
             i = child
         data[i] = item
 
-    def push(self, key, value: Any = None) -> None:
+    def push(self, key: Any, value: Any = None) -> None:
         with self._lock:
             self._data.append(_Entry(key, value))
             self._sift_up(len(self._data) - 1)
 
-    def pop(self) -> Tuple:
+    def pop(self) -> tuple:
         """弹出最小元素。"""
         with self._lock:
             if not self._data:
@@ -82,14 +84,14 @@ class BinaryHeap:
                 self._sift_down(0)
             return (top.key, top.value)
 
-    def peek(self) -> Tuple:
+    def peek(self) -> tuple:
         with self._lock:
             if not self._data:
                 raise IndexError("peek from empty heap")
             e = self._data[0]
             return (e.key, e.value)
 
-    def replace(self, key, value: Any = None) -> Tuple:
+    def replace(self, key: Any, value: Any = None) -> tuple:
         """弹出最小并插入新元素（比 pop+push 快）。"""
         with self._lock:
             if not self._data:
@@ -117,7 +119,7 @@ class BinaryHeap:
             for i in range((len(self._data) >> 1) - 1, -1, -1):
                 self._sift_down(i)
 
-    def sorted_items(self) -> Iterator[Tuple]:
+    def sorted_items(self) -> Iterator[tuple]:
         """返回排序后的元素（不破坏原堆，拷贝）。"""
         with self._lock:
             data = list(self._data)
@@ -137,16 +139,17 @@ class BinaryHeap:
         return {"size": len(self._data)}
 
     @staticmethod
-    def make_heap(arr: list[Tuple]) -> BinaryHeap:
+    def make_heap(arr: list[tuple]) -> BinaryHeap:
         """O(n) 从任意 (key, value) 列表构建堆。"""
         h = BinaryHeap()
         h.heapify(arr)
         return h
 
     @staticmethod
-    def k_way_merge(*heaps: BinaryHeap) -> Iterator[Tuple]:
+    def k_way_merge(*heaps: BinaryHeap) -> Iterator[tuple]:
         """合并 k 个有序堆的输出为一个有序迭代器。"""
-        from heapq import heappush, heappop
+        from heapq import heappop, heappush
+
         heap = []
         for hi, h in enumerate(heaps):
             if len(h) > 0:

@@ -6,15 +6,14 @@ import os
 import threading
 import uuid
 
-import pytest
-from sqlalchemy import event
-
-import core.database as cdb
 import core.session_manager as session_manager_module
+import pytest
 from core.models import ChatMessage
+from sqlalchemy import event
 from src.upload_handler import UploadHandler
 from tests.helpers.sqlite_db import make_temp_sqlite
 
+import core.database as cdb
 
 OLD_TIMESTAMP = "2000-01-01T00:00:00"
 
@@ -43,22 +42,26 @@ def _seed_session(SessionLocal, *, owner="alice", content="existing durable hist
     session_id = "replace-" + uuid.uuid4().hex
     db = SessionLocal()
     try:
-        db.add(cdb.Session(
-            id=session_id,
-            owner=owner,
-            name="Compaction reservation regression",
-            model="test-model",
-            endpoint_url="http://localhost:11434",
-            archived=False,
-            message_count=1,
-        ))
-        db.add(cdb.ChatMessage(
-            id="message-" + uuid.uuid4().hex,
-            session_id=session_id,
-            role="user",
-            content=content,
-            meta_data=json.dumps({"source": "before-replacement"}),
-        ))
+        db.add(
+            cdb.Session(
+                id=session_id,
+                owner=owner,
+                name="Compaction reservation regression",
+                model="test-model",
+                endpoint_url="http://localhost:11434",
+                archived=False,
+                message_count=1,
+            )
+        )
+        db.add(
+            cdb.ChatMessage(
+                id="message-" + uuid.uuid4().hex,
+                session_id=session_id,
+                role="user",
+                content=content,
+                meta_data=json.dumps({"source": "before-replacement"}),
+            )
+        )
         db.commit()
     finally:
         db.close()
@@ -70,12 +73,14 @@ def _attachment_message(upload_id, text):
         role="user",
         content=text,
         metadata={
-            "attachments": [{
-                "id": upload_id,
-                "name": f"{text}.txt",
-                "mime": "text/plain",
-                "size": len(text),
-            }]
+            "attachments": [
+                {
+                    "id": upload_id,
+                    "name": f"{text}.txt",
+                    "mime": "text/plain",
+                    "size": len(text),
+                }
+            ]
         },
     )
 
@@ -110,13 +115,14 @@ def test_replace_messages_reserves_every_incoming_attachment_before_delete(
 
     def record_sql(_conn, _cursor, statement, _parameters, _context, _executemany):
         normalized = statement.lstrip().upper()
-        if normalized.startswith(("DELETE FROM CHAT_MESSAGES", "INSERT INTO CHAT_MESSAGES")):
+        if normalized.startswith(
+            ("DELETE FROM CHAT_MESSAGES", "INSERT INTO CHAT_MESSAGES")
+        ):
             message_mutations.append(normalized.split(maxsplit=1)[0])
 
     def reserve(handler, owner, content, metadata):
         assert message_mutations == []
         reservation_calls.append((handler, owner, content, metadata))
-        return None
 
     event.listen(engine, "before_cursor_execute", record_sql)
     monkeypatch.setattr(
@@ -153,7 +159,9 @@ def test_replace_messages_reservation_failure_leaves_durable_history_unchanged(
 
     def record_sql(_conn, _cursor, statement, _parameters, _context, _executemany):
         normalized = statement.lstrip().upper()
-        if normalized.startswith(("DELETE FROM CHAT_MESSAGES", "INSERT INTO CHAT_MESSAGES")):
+        if normalized.startswith(
+            ("DELETE FROM CHAT_MESSAGES", "INSERT INTO CHAT_MESSAGES")
+        ):
             message_mutations.append(normalized.split(maxsplit=1)[0])
 
     def reserve(_handler, _owner, content, _metadata):

@@ -11,8 +11,8 @@ bounds and raises "can't compare offset-naive and offset-aware datetimes".
 
 The fallback now normalizes to UTC and strips tz, exactly like the ISO path.
 """
-import pytest
 
+import pytest
 from tests.helpers.calendar_routes import import_calendar_routes
 
 # Inputs datetime.fromisoformat() rejects (so they hit the dateutil fallback)

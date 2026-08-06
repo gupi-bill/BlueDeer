@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import random
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -45,7 +46,9 @@ class RetryManager:
             state.exhausted = True
             logger.info(
                 "任务 %s 重试已达上限 %d/%d",
-                task_id, state.attempt, cfg.retry_max_attempts,
+                task_id,
+                state.attempt,
+                cfg.retry_max_attempts,
             )
             return state
 
@@ -53,7 +56,10 @@ class RetryManager:
         state.next_retry_time = state.last_attempt_time + delay
         logger.info(
             "任务 %s 第 %d/%d 次重试，等待 %.1fs",
-            task_id, state.attempt, cfg.retry_max_attempts, delay,
+            task_id,
+            state.attempt,
+            cfg.retry_max_attempts,
+            delay,
         )
         return state
 
@@ -63,7 +69,8 @@ class RetryManager:
     def due_for_retry(self) -> list[RetryState]:
         now = time.time()
         return [
-            s for s in self._states.values()
+            s
+            for s in self._states.values()
             if not s.exhausted and s.next_retry_time <= now
         ]
 
@@ -81,21 +88,46 @@ class RetryManager:
 
     @staticmethod
     def _compute_delay(attempt: int, cfg: Any) -> float:
-        delay = cfg.retry_base_delay * (2 ** (attempt - 1))
-        delay = min(delay, cfg.retry_max_delay)
-        if cfg.retry_jitter:
-            delay *= 0.5 + random.random()
-        return delay
+        return compute_backoff_delay(
+            attempt,
+            cfg.retry_base_delay,
+            cfg.retry_max_delay,
+            cfg.retry_jitter,
+        )
+
+
+def compute_backoff_delay(
+    attempt: int,
+    base_delay: float,
+    max_delay: float,
+    jitter: bool = True,
+) -> float:
+    """指数退避 + full jitter 延迟计算。
+
+    Args:
+        attempt: 第几次尝试（从 1 开始）。
+        base_delay: 基础延迟秒数。
+        max_delay: 最大延迟上限秒数。
+        jitter: 是否添加 0.5x~1.5x 随机抖动（默认 True）。
+
+    Returns:
+        本次应等待的秒数。
+    """
+    delay = base_delay * (2 ** (attempt - 1))
+    delay = min(delay, max_delay)
+    if jitter:
+        delay *= 0.5 + random.random()
+    return delay
 
 
 def retry_with_backoff(
-    func,
-    *args,
+    func: Callable[..., Any],
+    *args: Any,
     max_retries: int = 3,
     base_delay: float = 1.0,
     max_delay: float = 60.0,
     jitter: bool = True,
-    **kwargs,
+    **kwargs: Any,
 ) -> tuple[Any, int, float]:
     """指数退避重试包装。
 
@@ -119,10 +151,8 @@ def retry_with_backoff(
             last_exc = e
             if attempt >= max_retries:
                 elapsed = time.time() - start
-                raise RuntimeError(
-                    f"重试 {max_retries} 次后仍失败: {e}"
-                ) from e
-            delay = base_delay * (2 ** attempt)
+                raise RuntimeError(f"重试 {max_retries} 次后仍失败: {e}") from e
+            delay = base_delay * (2**attempt)
             delay = min(delay, max_delay)
             if jitter:
                 delay *= random.uniform(0.9, 1.1)

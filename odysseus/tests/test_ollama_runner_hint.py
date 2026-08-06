@@ -10,12 +10,12 @@ without ollama the script downloaded and ran the system-wide installer
 now lives in OLLAMA_MISSING_HINT, contains no substitution tokens, and is
 emitted single-quoted.
 """
+
 import os
 import shutil
 import subprocess
 
 import pytest
-
 from routes.cookbook_helpers import OLLAMA_MISSING_HINT, _bash_squote
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -34,7 +34,9 @@ def test_hint_still_tells_the_user_how_to_install():
 def test_no_runner_echo_line_uses_backticks_in_double_quotes():
     # Source-level guard: generated-script echo lines must never carry
     # backticks inside a double-quoted bash string again.
-    src = open(os.path.join(ROOT, "routes", "cookbook_routes.py"), encoding="utf-8").read()
+    src = open(
+        os.path.join(ROOT, "routes", "cookbook_routes.py"), encoding="utf-8"
+    ).read()
     offenders = [
         line.strip()
         for line in src.splitlines()

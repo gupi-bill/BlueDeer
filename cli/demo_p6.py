@@ -20,10 +20,8 @@ import time
 from core.context import ContextManager
 from core.event_bus import EventBus
 from core.harness import Harness
-from core.mcp import AuditLogger, MCPClient
-from core.pixel_canvas import Color
 from core.reward import RewardSystem
-from core.security import SecurityGuard, SecurityScanner
+from core.security import SecurityScanner
 from core.task import Task, TaskStatus
 from core.token_auditor import TokenAuditor
 from core.tracer import Tracer
@@ -54,24 +52,28 @@ def build_state(
     for avatar in all_avatars():
         profile = reward.get_profile(avatar.agent_id)
         status = (agent_status_override or {}).get(avatar.agent_id, "idle")
-        agents_state.append({
-            "agent_id": avatar.agent_id,
-            "name": avatar.name,
-            "role": avatar.role,
-            "status": status,
-            "level": profile.level,
-            "coins": profile.coins,
-        })
+        agents_state.append(
+            {
+                "agent_id": avatar.agent_id,
+                "name": avatar.name,
+                "role": avatar.role,
+                "status": status,
+                "level": profile.level,
+                "coins": profile.coins,
+            }
+        )
 
     # 任务看板
     tasks_state = []
     for tid, info in board.get("tasks", {}).items():
-        tasks_state.append({
-            "task_id": tid,
-            "status": info["status"],
-            "tokens": info["tokens"],
-            "assignee": "squirrel",  # demo 简化
-        })
+        tasks_state.append(
+            {
+                "task_id": tid,
+                "status": info["status"],
+                "tokens": info["tokens"],
+                "assignee": "squirrel",  # demo 简化
+            }
+        )
 
     # 排行榜
     leaderboard = board.get("rewards", [])
@@ -153,12 +155,18 @@ async def run_demo() -> None:
     context.set_global("phase", "P6")
 
     squirrel = SquirrelAgent(
-        event_bus=bus, router=router, tool_registry=tools,
-        context=context, tracer=tracer,
+        event_bus=bus,
+        router=router,
+        tool_registry=tools,
+        context=context,
+        tracer=tracer,
     )
     hedgehog = HedgehogAgent(
-        event_bus=bus, router=router, tool_registry=tools,
-        context=context, tracer=tracer,
+        event_bus=bus,
+        router=router,
+        tool_registry=tools,
+        context=context,
+        tracer=tracer,
     )
 
     renderer = TUIRenderer(width=80, height=24)
@@ -167,9 +175,11 @@ async def run_demo() -> None:
     async def squirrel_handler(task: Task):
         result = await squirrel.handle(task)
         await bus.publish("harness.result", result)
+
     async def hedgehog_handler(task: Task):
         result = await hedgehog.handle(task)
         await bus.publish("harness.result", result)
+
     bus.subscribe("agent.squirrel", squirrel_handler)
     bus.subscribe("agent.hedgehog", hedgehog_handler)
 
@@ -215,7 +225,13 @@ async def run_demo() -> None:
 
     # 逐个跑任务，每步刷新一帧
     print("\n[初始化] 渲染初始空看板...")
-    state = build_state(harness, reward, token_auditor, "初始化", {"squirrel": "idle", "hedgehog": "idle"})
+    state = build_state(
+        harness,
+        reward,
+        token_auditor,
+        "初始化",
+        {"squirrel": "idle", "hedgehog": "idle"},
+    )
     frame = renderer.render_frame_plain(state)
     print(frame)
     time.sleep(0.3)
@@ -234,7 +250,11 @@ async def run_demo() -> None:
         result = await harness.submit_and_wait(task, timeout=30)
 
         # 标记员工结果状态
-        override = {task.assignee: "success" if result.status == TaskStatus.SUCCESS else "failed"}
+        override = {
+            task.assignee: (
+                "success" if result.status == TaskStatus.SUCCESS else "failed"
+            )
+        }
         state = build_state(harness, reward, token_auditor, f"{phase} 完成", override)
         print(renderer.render_frame_plain(state))
         time.sleep(0.2)
@@ -264,8 +284,8 @@ async def run_demo() -> None:
     progress = reward.achievement_progress("squirrel")
     print("\n" + "=" * 60)
     print("P6 像素沙盒前端验证:")
-    print(f"  画布尺寸: 80×24")
-    print(f"  11 员工头像墙: ✓")
+    print("  画布尺寸: 80×24")
+    print("  11 员工头像墙: ✓")
     print(f"  任务看板流转: {board['total']} 个任务")
     print(f"  排行榜: {len(board.get('rewards', []))} 位员工")
     print(f"  成就墙: {progress['unlocked']}/{progress['total']} 解锁")

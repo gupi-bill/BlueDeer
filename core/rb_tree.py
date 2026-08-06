@@ -7,13 +7,16 @@ evolution（数据维度 - R206）：
 - 应用：Linux CFS 调度、C++ std::map、Java TreeMap、epoll
 - 与 AVL 互补：AVL 严格平衡查找快，红黑树宽松平衡写入快
 """
+
 from __future__ import annotations
+
 import threading
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 
 class _Node:
-    __slots__ = ("key", "value", "color", "left", "right", "parent")
+    __slots__ = ("color", "key", "left", "parent", "right", "value")
 
     def __init__(self, key, value=None, color="RED"):
         self.key = key
@@ -117,7 +120,7 @@ class RBTree:
                     self._rotate_left(z.parent.parent)
         self._root.color = self.BLACK
 
-    def insert(self, key, value: Any = None) -> bool:
+    def insert(self, key: Any, value: Any = None) -> bool:
         """插入 key-value。返回是否新增（False 表示更新已有）。"""
         with self._lock:
             z = _Node(key, value, self.RED)
@@ -145,7 +148,7 @@ class RBTree:
             self._insert_fixup(z)
             return True
 
-    def get(self, key, default=None) -> Any:
+    def get(self, key: Any, default: Any = None) -> Any:
         with self._lock:
             n = self._find(key)
             return n.value if n is not self._nil else default
@@ -291,10 +294,12 @@ class RBTree:
 
     def height(self) -> int:
         with self._lock:
+
             def h(n: _Node) -> int:
                 if n is self._nil:
                     return 0
                 return 1 + max(h(n.left), h(n.right))
+
             return h(self._root)
 
     def _bh(self, n: _Node) -> int:

@@ -13,6 +13,7 @@
 4. 渲染数据生成：snapshot() 返回前端可直接绘制的数据结构。
 5. 性能：仅在情感值变化 > 0.1 时重新计算；粒子总数上限 50。
 """
+
 from __future__ import annotations
 
 import random
@@ -24,12 +25,12 @@ import time
 # ====================================================================
 # 6 维情感对应的 RGB（前端用 rgba 显示，alpha 由强度决定）
 EMOTION_COLORS: dict[str, tuple[int, int, int]] = {
-    "joy":         (255, 196, 87),   # 暖金色
-    "sadness":     (130, 170, 230),  # 淡蓝色
-    "anxiety":     (160, 160, 170),  # 灰色
+    "joy": (255, 196, 87),  # 暖金色
+    "sadness": (130, 170, 230),  # 淡蓝色
+    "anxiety": (160, 160, 170),  # 灰色
     "contentment": (140, 210, 150),  # 柔绿色
-    "loneliness":  (180, 180, 200),  # 灰蓝
-    "curiosity":   (200, 150, 220),  # 紫色
+    "loneliness": (180, 180, 200),  # 灰蓝
+    "curiosity": (200, 150, 220),  # 紫色
 }
 
 # 主导情感触发阈值（超过该值才显现为光环）
@@ -60,7 +61,9 @@ def get_dominant_emotion(emotional_state: dict) -> tuple[str, float] | None:
     return candidates[0]
 
 
-def get_secondary_emotion(emotional_state: dict, exclude: str) -> tuple[str, float] | None:
+def get_secondary_emotion(
+    emotional_state: dict, exclude: str
+) -> tuple[str, float] | None:
     """返回次要情感（用于光环边缘渐变）。"""
     candidates: list[tuple[str, float]] = []
     for emo, val in emotional_state.items():
@@ -118,6 +121,7 @@ class AtmosphereParticle:
 # AtmosphereSystem 单例
 # ====================================================================
 
+
 class AtmosphereSystem:
     """情感氛围系统（单例）。
 
@@ -132,8 +136,8 @@ class AtmosphereSystem:
 
     # 默认设置（可被用户覆盖）
     DEFAULT_SETTINGS: dict = {
-        "aura_intensity": 0.7,        # 光环强度 0-1
-        "particle_density": "medium", # 少/中/多
+        "aura_intensity": 0.7,  # 光环强度 0-1
+        "particle_density": "medium",  # 少/中/多
         "show_aura": True,
         "show_particles": True,
         "show_zone_aura": True,
@@ -173,7 +177,9 @@ class AtmosphereSystem:
     _mood_transition_cache: dict = {}
     _mood_transition_speed: float = 0.05
 
-    def mood_transition(self, agent_name: str, target_mood: dict, speed: float = 0.05) -> dict:
+    def mood_transition(
+        self, agent_name: str, target_mood: dict, speed: float = 0.05
+    ) -> dict:
         with self._lock:
             prev = self._mood_transition_cache.get(agent_name, {})
             if not prev:
@@ -205,10 +211,18 @@ class AtmosphereSystem:
                 else:
                     dom = "neutral"
                     score = 0.5
-                zone_scores[zid] = {"dominant": dom, "score": round(score, 3), "raw": dict(aura)}
+                zone_scores[zid] = {
+                    "dominant": dom,
+                    "score": round(score, 3),
+                    "raw": dict(aura),
+                }
                 all_scores.append(score)
             global_score = sum(all_scores) / len(all_scores) if all_scores else 0.5
-            global_dominant = max(emotion_total, key=emotion_total.get) if emotion_total else "neutral"
+            global_dominant = (
+                max(emotion_total, key=emotion_total.get)
+                if emotion_total
+                else "neutral"
+            )
             return {
                 "dominant": global_dominant,
                 "score": round(global_score, 3),
@@ -243,7 +257,9 @@ class AtmosphereSystem:
 
         with self._lock:
             new_auras: dict[str, dict] = {}
-            zone_emotion_accum: dict[str, dict[str, float]] = {}  # {zone_id: {emo: total_intensity}}
+            zone_emotion_accum: dict[str, dict[str, float]] = (
+                {}
+            )  # {zone_id: {emo: total_intensity}}
 
             for lf in population:
                 if not getattr(lf, "_alive", False):
@@ -266,8 +282,10 @@ class AtmosphereSystem:
                     zone_id = getattr(lf, "current_zone_id", "") or "outdoor"
                     if aura.get("emo"):
                         zone_emotion_accum.setdefault(zone_id, {})
-                        zone_emotion_accum[zone_id][aura["emo"]] = \
-                            zone_emotion_accum[zone_id].get(aura["emo"], 0) + aura["intensity"]
+                        zone_emotion_accum[zone_id][aura["emo"]] = (
+                            zone_emotion_accum[zone_id].get(aura["emo"], 0)
+                            + aura["intensity"]
+                        )
                     continue
 
                 # 重新计算光环
@@ -284,7 +302,9 @@ class AtmosphereSystem:
                 # 光环半径：3-5 格，按情感强度
                 radius = 3.0 + dom_val * 2.0
                 # 光环颜色
-                color = emotion_to_rgba(dom_emo, dom_val, self._settings["aura_intensity"])
+                color = emotion_to_rgba(
+                    dom_emo, dom_val, self._settings["aura_intensity"]
+                )
 
                 # 获取位置（用 zone 中心 + 偏移，这里用 ix/iy 模拟）
                 # 前端会从 emp._wx/_wy 拿到真实位置，这里仅传 species+name
@@ -308,8 +328,9 @@ class AtmosphereSystem:
 
                 # 累积到 zone
                 zone_emotion_accum.setdefault(zone_id, {})
-                zone_emotion_accum[zone_id][dom_emo] = \
+                zone_emotion_accum[zone_id][dom_emo] = (
                     zone_emotion_accum[zone_id].get(dom_emo, 0) + dom_val
+                )
 
             self._aura_cache = new_auras
 
@@ -331,8 +352,10 @@ class AtmosphereSystem:
                         del self._zone_aura[zone_id]
 
             # ---------------- 粒子生成 ----------------
-            if self._settings.get("show_particles", True) and \
-               len(self._particles) < self.PARTICLE_LIMIT:
+            if (
+                self._settings.get("show_particles", True)
+                and len(self._particles) < self.PARTICLE_LIMIT
+            ):
                 self._spawn_particles(zone_emotion_accum, dt)
 
             # 更新粒子位置
@@ -373,7 +396,7 @@ class AtmosphereSystem:
             y = base_y + (random.random() - 0.5) * 4
             self._particles.append(AtmosphereParticle(x, y, kind))
         if len(self._particles) > self.PARTICLE_LIMIT:
-            self._particles = self._particles[-self.PARTICLE_LIMIT:]
+            self._particles = self._particles[-self.PARTICLE_LIMIT :]
 
     def _update_particles(self, dt: float) -> None:
         """更新粒子位置 + 生命周期。"""
@@ -411,8 +434,12 @@ class AtmosphereSystem:
             zone_aura = {z: dict(e) for z, e in self._zone_aura.items()}
             particles = [
                 {
-                    "x": p.x, "y": p.y, "kind": p.kind,
-                    "life": p.life, "max_life": p.max_life, "size": p.size,
+                    "x": p.x,
+                    "y": p.y,
+                    "kind": p.kind,
+                    "life": p.life,
+                    "max_life": p.max_life,
+                    "size": p.size,
                 }
                 for p in self._particles
             ]

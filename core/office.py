@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from core.reward import RewardSystem, get_level_perks
+from core.reward import get_level_perks
 from core.task import Task
 
 logger = logging.getLogger("bluedeer.office")
@@ -23,16 +23,18 @@ logger = logging.getLogger("bluedeer.office")
 
 class WorkStatus(Enum):
     """工作状态。"""
-    ONLINE = "online"          # 在线
-    BUSY = "busy"              # 忙碌
-    RESTING = "resting"        # 休息
-    DREAMING = "dreaming"      # 梦境中
-    IDLE = "idle"              # 空闲
+
+    ONLINE = "online"  # 在线
+    BUSY = "busy"  # 忙碌
+    RESTING = "resting"  # 休息
+    DREAMING = "dreaming"  # 梦境中
+    IDLE = "idle"  # 空闲
 
 
 @dataclass
 class Badge:
     """员工工牌信息。"""
+
     agent_id: str
     name: str
     role: str
@@ -45,6 +47,7 @@ class Badge:
 @dataclass
 class WorkDesk:
     """办公桌 - 当前任务列表。"""
+
     current_task: Task | None = None
     completed_today: int = 0
     pending_count: int = 0
@@ -147,8 +150,9 @@ class Office:
             },
             "status": self._status.value,
             "desk": {
-                "current_task_id": self._desk.current_task.id[:8]
-                    if self._desk.current_task else None,
+                "current_task_id": (
+                    self._desk.current_task.id[:8] if self._desk.current_task else None
+                ),
                 "completed_today": self._desk.completed_today,
                 "pending_count": self._desk.pending_count,
             },
@@ -183,10 +187,18 @@ class OfficeManager:
         """办公室统计。"""
         return {
             "total_offices": len(self._offices),
-            "online": sum(1 for o in self._offices.values() if o.status == WorkStatus.ONLINE),
-            "busy": sum(1 for o in self._offices.values() if o.status == WorkStatus.BUSY),
-            "idle": sum(1 for o in self._offices.values() if o.status == WorkStatus.IDLE),
-            "resting": sum(1 for o in self._offices.values() if o.status == WorkStatus.RESTING),
+            "online": sum(
+                1 for o in self._offices.values() if o.status == WorkStatus.ONLINE
+            ),
+            "busy": sum(
+                1 for o in self._offices.values() if o.status == WorkStatus.BUSY
+            ),
+            "idle": sum(
+                1 for o in self._offices.values() if o.status == WorkStatus.IDLE
+            ),
+            "resting": sum(
+                1 for o in self._offices.values() if o.status == WorkStatus.RESTING
+            ),
         }
 
     # ---- 会议室管理 ----

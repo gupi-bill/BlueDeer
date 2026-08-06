@@ -1,7 +1,6 @@
 """CardDAV outbound URL hardening tests."""
 
 import pytest
-
 import routes.contacts_routes as contacts
 
 
@@ -31,7 +30,11 @@ def test_abs_url_pins_cross_origin_href_to_configured_carddav_origin(monkeypatch
     monkeypatch.setattr(
         contacts,
         "_get_carddav_config",
-        lambda: {"url": "https://dav.example.com/addressbooks/alice", "username": "", "password": ""},
+        lambda: {
+            "url": "https://dav.example.com/addressbooks/alice",
+            "username": "",
+            "password": "",
+        },
     )
     monkeypatch.setattr(
         contacts,
@@ -50,7 +53,11 @@ def test_vcard_url_validates_base_and_quotes_uid(monkeypatch):
     monkeypatch.setattr(
         contacts,
         "_get_carddav_config",
-        lambda: {"url": "https://dav.example.com/addressbooks/alice/", "username": "", "password": ""},
+        lambda: {
+            "url": "https://dav.example.com/addressbooks/alice/",
+            "username": "",
+            "password": "",
+        },
     )
 
     def _safe(url, *, block_private=False):

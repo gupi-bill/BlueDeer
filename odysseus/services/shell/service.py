@@ -1,15 +1,16 @@
 # services/shell/service.py
 """Shell service — safe command execution."""
 
-from dataclasses import dataclass
-from typing import Optional, AsyncIterator
 import asyncio
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from pathlib import Path
 
 
 @dataclass
 class ShellResult:
     """Result of a shell command."""
+
     stdout: str
     stderr: str
     exit_code: int
@@ -34,8 +35,8 @@ class ShellService:
     async def execute(
         self,
         command: str,
-        timeout: Optional[int] = None,
-        cwd: Optional[str] = None,
+        timeout: int | None = None,
+        cwd: str | None = None,
     ) -> ShellResult:
         """
         Execute a shell command.
@@ -62,14 +63,14 @@ class ShellService:
             stdout_b, stderr_b = await asyncio.wait_for(
                 proc.communicate(), timeout=timeout
             )
-            stdout = stdout_b.decode(errors="replace")[:self.max_output]
-            stderr = stderr_b.decode(errors="replace")[:self.max_output]
+            stdout = stdout_b.decode(errors="replace")[: self.max_output]
+            stderr = stderr_b.decode(errors="replace")[: self.max_output]
             return ShellResult(
                 stdout=stdout,
                 stderr=stderr,
                 exit_code=proc.returncode,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             if proc:
                 try:
                     proc.kill()
@@ -131,11 +132,13 @@ class ShellService:
             while finished < 2:
                 remaining = deadline - loop.time()
                 if remaining <= 0:
-                    raise asyncio.TimeoutError()
+                    raise TimeoutError()
 
                 try:
-                    name, text = await asyncio.wait_for(q.get(), timeout=min(remaining, 2.0))
-                except asyncio.TimeoutError:
+                    name, text = await asyncio.wait_for(
+                        q.get(), timeout=min(remaining, 2.0)
+                    )
+                except TimeoutError:
                     continue
 
                 if text is None:
@@ -146,7 +149,7 @@ class ShellService:
             await proc.wait()
             yield {"exit_code": proc.returncode}
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             if proc:
                 try:
                     proc.kill()

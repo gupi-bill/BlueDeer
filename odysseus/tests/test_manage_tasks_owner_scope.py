@@ -18,14 +18,14 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
-
 from tests.helpers.import_state import clear_fake_database_modules
 
 clear_fake_database_modules()
 
+from src.tools.system import do_manage_tasks
+
 import core.database as cdb
 from core.database import ScheduledTask
-from src.tools.system import do_manage_tasks
 
 _TMPDB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
 _ENGINE = create_engine(
@@ -43,11 +43,18 @@ cdb.SessionLocal = _TS
 def _seed(task_id, owner):
     db = _TS()
     try:
-        db.add(ScheduledTask(
-            id=task_id, owner=owner, name=task_id, prompt="original",
-            task_type="llm", trigger_type="webhook", status="active",
-            output_target="session",
-        ))
+        db.add(
+            ScheduledTask(
+                id=task_id,
+                owner=owner,
+                name=task_id,
+                prompt="original",
+                task_type="llm",
+                trigger_type="webhook",
+                status="active",
+                output_target="session",
+            )
+        )
         db.commit()
     finally:
         db.close()

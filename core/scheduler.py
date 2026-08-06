@@ -13,7 +13,7 @@ import json
 import logging
 import os
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from core.event_bus import EventBus
@@ -21,6 +21,8 @@ from core.harness import Harness
 from core.task import Task, TaskStatus
 
 logger = logging.getLogger("bluedeer.scheduler")
+
+__all__ = ["JobDef", "Scheduler", "TimingWheel"]
 
 _JOB_FILE = "data/scheduler_jobs.json"
 
@@ -33,6 +35,7 @@ class JobDef:
     每段支持: 数字 / * / , / - / step(/)。
     interval_seconds 可选：设为 >0 时按固定间隔运行（替代 cron）。
     """
+
     id: str
     cron: str = ""
     interval_seconds: int = 0
@@ -41,6 +44,47 @@ class JobDef:
     assignee: str = ""
     enabled: bool = True
     description: str = ""
+
+
+class TimingWheel:
+    """时间轮：高效管理大量定时任务的到期触发。
+
+    将时间划分为固定大小的槽（wheel slots），每个槽对应一个时间窗口。
+    任务根据其 next_run_ts 被散列到对应槽中，时间轮以固定 tick 间隔前进。
+    """
+
+    def __init__(self, tick_interval: float = 1.0, num_slots: int = 86400) -> None:
+        self._tick_interval = tick_interval
+        self._num_slots = num_slots
+        self._slots: list[list[tuple[str, float]]] = [[] for _ in range(num_slots)]
+        self._cursor = 0
+        self._epoch = time.time()
+
+    def _slot_for(self, ts: float) -> int:
+        if ts == float("inf"):
+            return self._num_slots - 1
+        return int((ts - self._epoch) // self._tick_interval) % self._num_slots
+
+    def insert(self, job_id: str, next_ts: float) -> None:
+        self._slots[self._slot_for(next_ts)].append((job_id, next_ts))
+
+    def remove(self, job_id: str, next_ts: float) -> None:
+        slot = self._slots[self._slot_for(next_ts)]
+        slot[:] = [(jid, ts) for jid, ts in slot if jid != job_id]
+
+    def advance(self) -> list[tuple[str, float]]:
+        due = self._slots[self._cursor]
+        self._slots[self._cursor] = []
+        self._cursor = (self._cursor + 1) % self._num_slots
+        return due
+
+    def next_tick_in(self) -> float:
+        slot_start = self._epoch + self._cursor * self._tick_interval
+        elapsed = time.time() - slot_start
+        return max(0.0, self._tick_interval - elapsed)
+
+    def has_due(self) -> bool:
+        return bool(self._slots[self._cursor])
 
 
 class Scheduler:
@@ -58,10 +102,14 @@ class Scheduler:
         self._bus = event_bus
         self._harness = harness
         self._jobs: dict[str, JobDef] = {}
+        self._timing_wheel = TimingWheel()
+        self._next_run: dict[str, float] = {}
         self._task: asyncio.Task[None] | None = None
         self._running = False
         self._dag: Any = None
         self._load_jobs()
+        for job in self._jobs.values():
+            self._reschedule(job, time.time())
 
     def set_dag(self, dag: Any) -> None:
         """绑定 DAG 依赖图。"""
@@ -76,16 +124,18 @@ class Scheduler:
             任务 ID。
         """
         self._jobs[job.id] = job
+        self._reschedule(job, time.time())
         self._save_jobs()
-        logger.info("调度任务已添加: %s [%s]", job.id, job.cron)
+        logger.info("scheduler job added: %s [%s]", job.id, job.cron)
         return job.id
 
     def remove_job(self, job_id: str) -> bool:
         """删除定时任务。"""
         if job_id in self._jobs:
             del self._jobs[job_id]
+            self._drop(job_id)
             self._save_jobs()
-            logger.info("调度任务已删除: %s", job_id)
+            logger.info("scheduler job removed: %s", job_id)
             return True
         return False
 
@@ -100,6 +150,7 @@ class Scheduler:
         if job is None:
             return False
         job.enabled = True
+        self._reschedule(job, time.time())
         self._save_jobs()
         return True
 
@@ -108,6 +159,7 @@ class Scheduler:
         if job is None:
             return False
         job.enabled = False
+        self._defer(job_id)
         self._save_jobs()
         return True
 
@@ -136,23 +188,72 @@ class Scheduler:
     # ---- 内部循环 ----
 
     async def _run_loop(self) -> None:
-        last_interval: dict[str, float] = {}
         while self._running:
-            now = time.localtime()
+            due = self._timing_wheel.advance()
             now_ts = time.time()
-            for job in list(self._jobs.values()):
-                if not job.enabled:
+            for job_id, due_ts in due:
+                job = self._jobs.get(job_id)
+                if job is None or not job.enabled:
                     continue
+                if due_ts > now_ts:
+                    self._timing_wheel.insert(job_id, due_ts)
+                    continue
+                now = time.localtime()
                 if job.interval_seconds > 0:
-                    last = last_interval.get(job.id, 0.0)
-                    if now_ts - last >= job.interval_seconds:
-                        last_interval[job.id] = now_ts
-                        logger.info("触发间隔任务: %s (每 %ds)", job.id, job.interval_seconds)
-                        await self._fire(job)
+                    logger.info("触发间隔任务: %s (每 %ds)", job.id, job.interval_seconds)
+                    await self._safe_fire(job)
+                    self._reschedule(job, now_ts)
                 elif job.cron and self._match_cron(job.cron, now):
                     logger.info("触发定时任务: %s [%s]", job.id, job.cron)
-                    await self._fire(job)
-            await asyncio.sleep(60)
+                    await self._safe_fire(job)
+                    self._reschedule(job, now_ts)
+                else:
+                    self._reschedule(job, now_ts)
+            if not self._timing_wheel.has_due():
+                await asyncio.sleep(self._timing_wheel.next_tick_in())
+
+    async def _safe_fire(self, job: JobDef) -> None:
+        """触发任务并隔离异常：单个 job 失败不让调度循环死掉。"""
+        try:
+            await self._fire(job)
+        except Exception as e:
+            logger.error("调度任务 %s 触发失败（已隔离，继续运行）: %s", job.id, e)
+
+    # ---- Treap 优先队列（key=(next_run_ts, job_id)，value=job_id）----
+
+    @staticmethod
+    def _next_cron_checkpoint(now_ts: float) -> float:
+        """cron 任务下一检查点：对齐到下一分钟整点。"""
+        return (int(now_ts // 60) + 1) * 60
+
+    def _reschedule(self, job: JobDef, now_ts: float) -> None:
+        """按任务类型计算 next_run 并插入/更新时间轮。"""
+        if not job.enabled:
+            self._defer(job.id)
+            return
+        if job.interval_seconds > 0:
+            next_ts = now_ts + job.interval_seconds
+        else:
+            next_ts = self._next_cron_checkpoint(now_ts)
+        old = self._next_run.get(job.id)
+        if old is not None:
+            self._timing_wheel.remove(job.id, old)
+        self._timing_wheel.insert(job.id, next_ts)
+        self._next_run[job.id] = next_ts
+
+    def _defer(self, job_id: str) -> None:
+        """停用任务：推入无限远。"""
+        old = self._next_run.pop(job_id, None)
+        if old is not None:
+            self._timing_wheel.remove(job_id, old)
+        self._timing_wheel.insert(job_id, float("inf"))
+        self._next_run[job_id] = float("inf")
+
+    def _drop(self, job_id: str) -> None:
+        """彻底移出时间轮。"""
+        old = self._next_run.pop(job_id, None)
+        if old is not None:
+            self._timing_wheel.remove(job_id, old)
 
     async def _fire(self, job: JobDef) -> None:
         task = Task(
@@ -162,10 +263,15 @@ class Scheduler:
         )
         # DAG 依赖检查：前置未完成则跳过本轮
         if self._dag is not None and self._dag.has_node(job.id):
-            completed = {
-                tid for tid, r in self._harness._task_board.items()
-                if r.status == TaskStatus.SUCCESS
-            } if self._harness else set()
+            completed = (
+                {
+                    tid
+                    for tid, r in self._harness._task_board.items()
+                    if r.status == TaskStatus.SUCCESS
+                }
+                if self._harness
+                else set()
+            )
             if not self._dag.ready(job.id, completed):
                 logger.info("调度任务 %s 前置依赖未就绪，跳过本轮", job.id)
                 return
@@ -182,8 +288,12 @@ class Scheduler:
             logger.warning("cron 表达式格式错误（需要 6 段）: %s", expr)
             return False
         now_vals = [
-            t.tm_sec, t.tm_min, t.tm_hour, t.tm_mday,
-            t.tm_mon, t.tm_wday,
+            t.tm_sec,
+            t.tm_min,
+            t.tm_hour,
+            t.tm_mday,
+            t.tm_mon,
+            t.tm_wday,
         ]
         for i, (field, val) in enumerate(zip(parts, now_vals)):
             if not self._match_field(field, val):
@@ -200,11 +310,18 @@ class Scheduler:
                 step_n = int(step)
                 if base == "*":
                     base_start = 0
+                    base_end = None
                 elif "-" in base:
                     base_start = int(base.split("-")[0])
+                    base_end = int(base.split("-")[1])
                 else:
                     base_start = int(base)
-                if (val - base_start) % step_n == 0 and val >= base_start:
+                    base_end = base_start
+                if val < base_start:
+                    continue
+                if base_end is not None and val > base_end:
+                    continue
+                if (val - base_start) % step_n == 0:
                     return True
             elif "-" in part:
                 lo, hi = part.split("-", 1)
@@ -220,6 +337,7 @@ class Scheduler:
     def _load_jobs(self) -> None:
         try:
             from core.database import Database
+
             rows = Database().load_scheduler_jobs()
             for item in rows:
                 job = JobDef(**item)
@@ -236,6 +354,7 @@ class Scheduler:
         try:
             raw = {jid: asdict(j) for jid, j in self._jobs.items()}
             from core.database import Database
+
             Database().save_scheduler_jobs(raw)
         except Exception as e:
             logger.warning("保存调度任务到数据库失败: %s", e)

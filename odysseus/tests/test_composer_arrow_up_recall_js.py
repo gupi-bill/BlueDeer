@@ -11,6 +11,7 @@ not hijacked; Shift/Alt/Ctrl/Meta+ArrowUp are ignored; IME composition does not
 trigger recall; messages are read from #chat-history (dataset.raw), not session
 sidebar metadata.
 """
+
 import json
 import shutil
 import subprocess
@@ -117,11 +118,15 @@ def test_empty_composer_recalls_last_user_message():
 
 @pytest.mark.skipif(not _HAS_NODE, reason="node binary not on PATH")
 def test_repeated_arrow_up_cycles_current_chat_prompts_newest_first():
-    out = _run([{
-        "initial": "",
-        "history": ["third prompt", "second prompt", "first prompt"],
-        "events": [{}, {}, {}, {}],
-    }])[0]
+    out = _run(
+        [
+            {
+                "initial": "",
+                "history": ["third prompt", "second prompt", "first prompt"],
+                "events": [{}, {}, {}, {}],
+            }
+        ]
+    )[0]
     assert out["value"] == "first prompt"
     assert out["selectionStart"] == len("first prompt")
     assert out["prevented"] == [True, True, True, True]
@@ -305,4 +310,7 @@ def test_integration_recalls_from_chat_history_dom():
         timeout=30,
     )
     assert proc.returncode == 0, proc.stderr
-    assert json.loads(proc.stdout.strip()) == {"value": "stored prompt", "prevented": True}
+    assert json.loads(proc.stdout.strip()) == {
+        "value": "stored prompt",
+        "prevented": True,
+    }

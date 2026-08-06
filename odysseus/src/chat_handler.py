@@ -1,45 +1,48 @@
 # src/chat_handler.py
 """Handler for chat endpoint operations."""
-import os
+
 import asyncio
 import logging
-from typing import Dict, List, Optional, Any
+import os
+from typing import Any
 
+from core.models import ChatMessage
 from fastapi import HTTPException
-
+from src.chat_helpers import extract_urls, model_supports_vision
 from src.constants import (
-    MAX_CONTEXT_MESSAGES,
-    DEFAULT_TEMPERATURE,
     DEFAULT_MAX_TOKENS,
+    DEFAULT_TEMPERATURE,
+    MAX_CONTEXT_MESSAGES,
     UPLOAD_DIR,
 )
-from core.models import ChatMessage
-from src.chat_helpers import extract_urls, model_supports_vision
-from src.document_processor import build_user_content, analyze_image_with_vl_result
+from src.document_processor import analyze_image_with_vl_result, build_user_content
 from src.youtube_handler import (
-    is_youtube_url,
-    extract_youtube_id,
+    YOUTUBE_INSTRUCTION_PROMPT,
     extract_transcript_async,
-    format_transcript_for_context,
+    extract_youtube_id,
     fetch_youtube_comments,
     format_comments_for_context,
-    YOUTUBE_INSTRUCTION_PROMPT,
+    format_transcript_for_context,
+    is_youtube_url,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def _sync_upload_vision_to_gallery(file_info: Dict[str, Any], owner: Optional[str], text: str) -> None:
+def _sync_upload_vision_to_gallery(
+    file_info: dict[str, Any], owner: str | None, text: str
+) -> None:
     file_hash = (file_info or {}).get("hash")
     if not file_hash or not text:
         return
     try:
         from core.database import GalleryImage, SessionLocal
+
         db = SessionLocal()
         try:
             q = db.query(GalleryImage).filter(
                 GalleryImage.file_hash == file_hash,
-                GalleryImage.is_active == True,  # noqa: E712
+                GalleryImage.is_active == True,
             )
             if owner:
                 q = q.filter(GalleryImage.owner == owner)
@@ -80,7 +83,7 @@ class ChatHandler:
     # Preset helpers
     # ------------------------------------------------------------------
 
-    def validate_and_extract_preset(self, preset_id: Optional[str]) -> tuple:
+    def validate_and_extract_preset(self, preset_id: str | None) -> tuple:
         """Returns (temperature, max_tokens, preset_system_prompt, character_name)."""
         if preset_id and preset_id not in self.preset_manager.presets:
             raise HTTPException(400, f"Invalid preset_id: {preset_id}")
@@ -123,9 +126,9 @@ class ChatHandler:
     async def preprocess_message(
         self,
         message: str,
-        att_ids: List[str],
+        att_ids: list[str],
         sess,
-        auto_opened_docs: Optional[List[Dict[str, Any]]] = None,
+        auto_opened_docs: list[dict[str, Any]] | None = None,
         allow_tool_preprocessing: bool = True,
     ) -> tuple:
         """
@@ -138,11 +141,11 @@ class ChatHandler:
         new doc so the caller can announce it to the frontend before streaming.
         """
         enhanced_message = message
-        attachment_meta: List[Dict[str, Any]] = []
+        attachment_meta: list[dict[str, Any]] = []
 
         # Extract URLs and process YouTube transcripts
         urls = extract_urls(enhanced_message) if allow_tool_preprocessing else []
-        youtube_transcripts: List[str] = []
+        youtube_transcripts: list[str] = []
 
         has_youtube = False
         for url in urls:
@@ -174,7 +177,7 @@ class ChatHandler:
 
         # Resolve uploads once with the session owner. Attachment IDs are
         # bearer-like references; never trust them without an owner check.
-        files_by_id: Dict[str, Dict] = {}
+        files_by_id: dict[str, dict] = {}
         owner = getattr(sess, "owner", None)
         effective_att_ids = att_ids if allow_tool_preprocessing else []
         if effective_att_ids:
@@ -186,16 +189,21 @@ class ChatHandler:
             for att_id in effective_att_ids:
                 fi = files_by_id.get(att_id)
                 if fi:
-                    attachment_meta.append({
-                        "id": fi["id"],
-                        "name": fi.get("name") or fi.get("original_name") or fi["id"],
-                        "mime": fi.get("mime", ""),
-                        "size": fi.get("size", 0),
-                        "checksum_sha256": fi.get("checksum_sha256") or fi.get("hash"),
-                        "created_at": fi.get("created_at") or fi.get("uploaded_at"),
-                        "width": fi.get("width"),
-                        "height": fi.get("height"),
-                    })
+                    attachment_meta.append(
+                        {
+                            "id": fi["id"],
+                            "name": fi.get("name")
+                            or fi.get("original_name")
+                            or fi["id"],
+                            "mime": fi.get("mime", ""),
+                            "size": fi.get("size", 0),
+                            "checksum_sha256": fi.get("checksum_sha256")
+                            or fi.get("hash"),
+                            "created_at": fi.get("created_at") or fi.get("uploaded_at"),
+                            "width": fi.get("width"),
+                            "height": fi.get("height"),
+                        }
+                    )
 
         # Analyze images only when attachment preprocessing is actually
         # allowed. The vision capability check can probe local model endpoints,
@@ -204,6 +212,7 @@ class ChatHandler:
         main_is_vision = False
         if effective_att_ids:
             from src.settings import get_setting
+
             vision_enabled = get_setting("vision_enabled", True)
             if vision_enabled:
                 main_is_vision = await asyncio.to_thread(
@@ -237,7 +246,9 @@ class ChatHandler:
                                     _vtext = _vf.read().strip()
                                 if _vtext:
                                     enhanced_message += f"\n[User-corrected caption / OCR for this image — treat as authoritative]:\n{_vtext}"
-                                    _sync_upload_vision_to_gallery(file_info, owner, _vtext)
+                                    _sync_upload_vision_to_gallery(
+                                        file_info, owner, _vtext
+                                    )
                                     _m = meta_by_id.get(att_id)
                                     if _m is not None:
                                         _m["vision"] = _vtext
@@ -257,19 +268,28 @@ class ChatHandler:
                                     cached_desc = _vf.read().strip()
                                 if cached_desc and not cached_desc.startswith("["):
                                     vl_desc = cached_desc
-                                    _sync_upload_vision_to_gallery(file_info, owner, vl_desc)
+                                    _sync_upload_vision_to_gallery(
+                                        file_info, owner, vl_desc
+                                    )
                             except Exception:
                                 vl_desc = None
                         if not vl_desc:
-                            vl_result = analyze_image_with_vl_result(file_info["path"], owner=owner)
+                            vl_result = analyze_image_with_vl_result(
+                                file_info["path"], owner=owner
+                            )
                             vl_desc = vl_result.get("text", "")
                             vl_model = vl_result.get("model", "")
                             if vl_desc and not vl_desc.startswith("["):
                                 try:
-                                    os.makedirs(os.path.join(UPLOAD_DIR, ".vision"), exist_ok=True)
+                                    os.makedirs(
+                                        os.path.join(UPLOAD_DIR, ".vision"),
+                                        exist_ok=True,
+                                    )
                                     with open(_vcache, "w", encoding="utf-8") as _vf:
                                         _vf.write(vl_desc)
-                                    _sync_upload_vision_to_gallery(file_info, owner, vl_desc)
+                                    _sync_upload_vision_to_gallery(
+                                        file_info, owner, vl_desc
+                                    )
                                 except Exception:
                                     pass
                         enhanced_message = f"{enhanced_message}\n\n[Image: {file_info['name']}]\n{vl_desc}"
@@ -282,7 +302,10 @@ class ChatHandler:
                             _m["vision_model"] = vl_model
 
         user_content = build_user_content(
-            enhanced_message, effective_att_ids, UPLOAD_DIR, self.upload_handler,
+            enhanced_message,
+            effective_att_ids,
+            UPLOAD_DIR,
+            self.upload_handler,
             session_id=getattr(sess, "id", None),
             auto_opened_docs=auto_opened_docs,
             owner=owner,
@@ -290,18 +313,20 @@ class ChatHandler:
         )
 
         # Strip image_url entries for text-only models (VL description is already in the text)
-        if not vision_enabled and isinstance(user_content, list):
+        if (
+            not vision_enabled
+            and isinstance(user_content, list)
+            or not main_is_vision
+            and isinstance(user_content, list)
+        ):
             text_parts = [
-                item.get("text", "") for item in user_content
+                item.get("text", "")
+                for item in user_content
                 if isinstance(item, dict) and item.get("type") == "text"
             ]
-            user_content = "\n".join(text_parts).strip() if text_parts else enhanced_message
-        elif not main_is_vision and isinstance(user_content, list):
-            text_parts = [
-                item.get("text", "") for item in user_content
-                if isinstance(item, dict) and item.get("type") == "text"
-            ]
-            user_content = "\n".join(text_parts).strip() if text_parts else enhanced_message
+            user_content = (
+                "\n".join(text_parts).strip() if text_parts else enhanced_message
+            )
 
         # Extract text portion for naming / context
         if isinstance(user_content, list):
@@ -312,7 +337,13 @@ class ChatHandler:
         else:
             text_for_context = user_content
 
-        return enhanced_message, user_content, text_for_context, youtube_transcripts, attachment_meta
+        return (
+            enhanced_message,
+            user_content,
+            text_for_context,
+            youtube_transcripts,
+            attachment_meta,
+        )
 
     # ------------------------------------------------------------------
     # Session helpers
@@ -327,7 +358,7 @@ class ChatHandler:
         if len(session.history) > MAX_CONTEXT_MESSAGES:
             session.history = session.history[-MAX_CONTEXT_MESSAGES:]
 
-    async def handle_memory_command(self, session, message: str) -> Optional[str]:
+    async def handle_memory_command(self, session, message: str) -> str | None:
         """Process inline memory commands. Returns response string or None."""
         is_memory_cmd, memory_text = self.memory_manager.process_inline_memory_command(
             message

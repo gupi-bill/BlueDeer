@@ -8,7 +8,6 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-
 from src.preset_manager import PresetManager
 
 
@@ -130,7 +129,7 @@ def _install_core_middleware_stub(monkeypatch):
 
 def test_providers_requires_admin_before_discovery_and_cache(monkeypatch):
     _install_model_route_import_stubs(monkeypatch)
-    import routes.model_routes as model_routes
+    from routes import model_routes
 
     class _Discovery:
         def __init__(self):
@@ -149,7 +148,9 @@ def test_providers_requires_admin_before_discovery_and_cache(monkeypatch):
     )
     request = SimpleNamespace()
 
-    assert endpoint(request, refresh=True) == {"providers": [{"host": "internal.example"}]}
+    assert endpoint(request, refresh=True) == {
+        "providers": [{"host": "internal.example"}]
+    }
     assert discovery.calls == 1
 
     def deny_admin(_request):
@@ -166,8 +167,7 @@ def test_providers_requires_admin_before_discovery_and_cache(monkeypatch):
 
 def test_default_chat_does_not_auto_pick_shared_endpoint_for_fresh_user(monkeypatch):
     _install_model_route_import_stubs(monkeypatch)
-    import routes.model_routes as model_routes
-    import routes.prefs_routes as prefs_routes
+    from routes import model_routes, prefs_routes
 
     shared_ep = SimpleNamespace(
         id="shared",
@@ -179,24 +179,29 @@ def test_default_chat_does_not_auto_pick_shared_endpoint_for_fresh_user(monkeypa
 
     def scoped_owner_filter(query, model_cls, user, *, include_shared=True):
         query.rows = [
-            row for row in query.rows
+            row
+            for row in query.rows
             if row.owner == user or (include_shared and row.owner is None)
         ]
         return query
 
     monkeypatch.setattr(model_routes, "ModelEndpoint", _FakeModelEndpoint)
     monkeypatch.setattr(model_routes, "SessionLocal", lambda: _FakeDb([shared_ep]))
-    monkeypatch.setattr(model_routes, "_load_settings", lambda: {})
+    monkeypatch.setattr(model_routes, "_load_settings", dict)
     monkeypatch.setattr(model_routes, "owner_filter", scoped_owner_filter)
     monkeypatch.setattr(model_routes, "_normalize_base", lambda base: base.rstrip("/"))
-    monkeypatch.setattr(model_routes, "build_chat_url", lambda base: f"{base}/chat/completions")
+    monkeypatch.setattr(
+        model_routes, "build_chat_url", lambda base: f"{base}/chat/completions"
+    )
     monkeypatch.setattr(prefs_routes, "_load_for_user", lambda user: {})
 
     request = SimpleNamespace(
         state=SimpleNamespace(current_user="fresh"),
-        app=SimpleNamespace(state=SimpleNamespace(
-            auth_manager=SimpleNamespace(is_admin=lambda user: False)
-        )),
+        app=SimpleNamespace(
+            state=SimpleNamespace(
+                auth_manager=SimpleNamespace(is_admin=lambda user: False)
+            )
+        ),
     )
 
     assert _default_chat_endpoint()(request) == {
@@ -208,8 +213,7 @@ def test_default_chat_does_not_auto_pick_shared_endpoint_for_fresh_user(monkeypa
 
 def test_default_chat_uses_owned_endpoint_as_regular_user_last_resort(monkeypatch):
     _install_model_route_import_stubs(monkeypatch)
-    import routes.model_routes as model_routes
-    import routes.prefs_routes as prefs_routes
+    from routes import model_routes, prefs_routes
 
     owned_ep = SimpleNamespace(
         id="owned",
@@ -221,24 +225,29 @@ def test_default_chat_uses_owned_endpoint_as_regular_user_last_resort(monkeypatc
 
     def scoped_owner_filter(query, model_cls, user, *, include_shared=True):
         query.rows = [
-            row for row in query.rows
+            row
+            for row in query.rows
             if row.owner == user or (include_shared and row.owner is None)
         ]
         return query
 
     monkeypatch.setattr(model_routes, "ModelEndpoint", _FakeModelEndpoint)
     monkeypatch.setattr(model_routes, "SessionLocal", lambda: _FakeDb([owned_ep]))
-    monkeypatch.setattr(model_routes, "_load_settings", lambda: {})
+    monkeypatch.setattr(model_routes, "_load_settings", dict)
     monkeypatch.setattr(model_routes, "owner_filter", scoped_owner_filter)
     monkeypatch.setattr(model_routes, "_normalize_base", lambda base: base.rstrip("/"))
-    monkeypatch.setattr(model_routes, "build_chat_url", lambda base: f"{base}/chat/completions")
+    monkeypatch.setattr(
+        model_routes, "build_chat_url", lambda base: f"{base}/chat/completions"
+    )
     monkeypatch.setattr(prefs_routes, "_load_for_user", lambda user: {})
 
     request = SimpleNamespace(
         state=SimpleNamespace(current_user="fresh"),
-        app=SimpleNamespace(state=SimpleNamespace(
-            auth_manager=SimpleNamespace(is_admin=lambda user: False)
-        )),
+        app=SimpleNamespace(
+            state=SimpleNamespace(
+                auth_manager=SimpleNamespace(is_admin=lambda user: False)
+            )
+        ),
     )
 
     assert _default_chat_endpoint()(request) == {
@@ -284,14 +293,16 @@ def test_preset_manager_default_custom_preset_starts_disabled(tmp_path):
 def test_preset_manager_migrates_legacy_default_custom_preset_disabled(tmp_path):
     presets_file = tmp_path / "presets.json"
     presets_file.write_text(
-        json.dumps({
-            "custom": {
-                "name": "Custom",
-                "temperature": 0.7,
-                "max_tokens": 4096,
-                "system_prompt": "You are a helpful, balanced assistant. Match your response style to the user's needs.",
+        json.dumps(
+            {
+                "custom": {
+                    "name": "Custom",
+                    "temperature": 0.7,
+                    "max_tokens": 4096,
+                    "system_prompt": "You are a helpful, balanced assistant. Match your response style to the user's needs.",
+                }
             }
-        }),
+        ),
         encoding="utf-8",
     )
 
@@ -337,7 +348,9 @@ def test_normalize_thinking_handles_lowercase_thinking_process(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_build_chat_context_incognito_does_not_duplicate_current_user_message(monkeypatch):
+async def test_build_chat_context_incognito_does_not_duplicate_current_user_message(
+    monkeypatch,
+):
     for mod_name in [
         "starlette.middleware",
         "starlette.middleware.base",
@@ -379,7 +392,9 @@ async def test_build_chat_context_incognito_does_not_duplicate_current_user_mess
     def fake_add_user_message(sess, chat_handler, preprocessed, incognito=False):
         sess.messages.append({"role": "user", "content": preprocessed.user_content})
 
-    async def fake_maybe_compact(sess, endpoint_url, model, messages, headers, owner=None):
+    async def fake_maybe_compact(
+        sess, endpoint_url, model, messages, headers, owner=None
+    ):
         return messages, 123, False
 
     monkeypatch.setattr(chat_helpers, "preprocess", fake_preprocess)
@@ -387,9 +402,13 @@ async def test_build_chat_context_incognito_does_not_duplicate_current_user_mess
     monkeypatch.setattr(chat_helpers, "add_user_message", fake_add_user_message)
     monkeypatch.setattr(chat_helpers, "load_prefs_for_user", lambda user: {})
     monkeypatch.setattr(chat_helpers, "effective_user", lambda request: "tester")
-    monkeypatch.setattr(chat_helpers, "normalize_model_id", lambda endpoint_url, model, **kwargs: None)
+    monkeypatch.setattr(
+        chat_helpers, "normalize_model_id", lambda endpoint_url, model, **kwargs: None
+    )
     monkeypatch.setattr(chat_helpers, "maybe_compact", fake_maybe_compact)
-    monkeypatch.setattr(chat_helpers, "trim_for_context", lambda messages, context_length: messages)
+    monkeypatch.setattr(
+        chat_helpers, "trim_for_context", lambda messages, context_length: messages
+    )
 
     sess = SimpleNamespace(
         endpoint_url="http://localhost:8000/v1",
@@ -414,7 +433,11 @@ async def test_build_chat_context_incognito_does_not_duplicate_current_user_mess
         incognito=True,
     )
 
-    user_messages = [m for m in ctx.messages if m.get("role") == "user" and m.get("content") == "hello"]
+    user_messages = [
+        m
+        for m in ctx.messages
+        if m.get("role") == "user" and m.get("content") == "hello"
+    ]
     assert len(user_messages) == 1
 
 
@@ -447,24 +470,38 @@ async def test_build_chat_context_incognito_ignores_saved_session_history(monkey
             attachment_meta=[],
         )
 
-    async def fake_maybe_compact(sess, endpoint_url, model, messages, headers, owner=None):
+    async def fake_maybe_compact(
+        sess, endpoint_url, model, messages, headers, owner=None
+    ):
         return messages, 123, False
 
     monkeypatch.setattr(chat_helpers, "preprocess", fake_preprocess)
-    monkeypatch.setattr(chat_helpers, "extract_preset", lambda *_args, **_kwargs: chat_helpers.PresetInfo(0.7, 1024, None, None))
+    monkeypatch.setattr(
+        chat_helpers,
+        "extract_preset",
+        lambda *_args, **_kwargs: chat_helpers.PresetInfo(0.7, 1024, None, None),
+    )
     monkeypatch.setattr(chat_helpers, "load_prefs_for_user", lambda user: {})
     monkeypatch.setattr(chat_helpers, "effective_user", lambda request: "tester")
-    monkeypatch.setattr(chat_helpers, "normalize_model_id", lambda endpoint_url, model, **kwargs: None)
+    monkeypatch.setattr(
+        chat_helpers, "normalize_model_id", lambda endpoint_url, model, **kwargs: None
+    )
     monkeypatch.setattr(chat_helpers, "maybe_compact", fake_maybe_compact)
-    monkeypatch.setattr(chat_helpers, "trim_for_context", lambda messages, context_length: messages)
+    monkeypatch.setattr(
+        chat_helpers, "trim_for_context", lambda messages, context_length: messages
+    )
 
     sess = SimpleNamespace(
         endpoint_url="http://localhost:8000/v1",
         model="test-model",
         headers={},
-        get_context_messages=lambda: [{"role": "user", "content": "older non-incognito secret"}],
+        get_context_messages=lambda: [
+            {"role": "user", "content": "older non-incognito secret"}
+        ],
     )
-    chat_processor = SimpleNamespace(build_context_preface=lambda **kwargs: ([], [], []))
+    chat_processor = SimpleNamespace(
+        build_context_preface=lambda **kwargs: ([], [], [])
+    )
 
     ctx = await chat_helpers.build_chat_context(
         sess=sess,
@@ -495,7 +532,9 @@ async def test_admin_agent_tools_require_admin(monkeypatch):
 
     for tool_name in ("manage_tokens", "app_api", "serve_preset"):
         desc, result = await execute_tool_block(
-            SimpleNamespace(tool_type=tool_name, content='{"action":"create","name":"bad"}'),
+            SimpleNamespace(
+                tool_type=tool_name, content='{"action":"create","name":"bad"}'
+            ),
             owner="regular-user",
         )
 
@@ -540,7 +579,9 @@ async def test_app_api_blocks_cookbook_host_control_routes_before_loopback(monke
 
     class UnexpectedAsyncClient:
         def __init__(self, *args, **kwargs):
-            raise AssertionError("app_api should block host-control routes before loopback")
+            raise AssertionError(
+                "app_api should block host-control routes before loopback"
+            )
 
     monkeypatch.setattr(httpx, "AsyncClient", UnexpectedAsyncClient)
 
@@ -646,11 +687,16 @@ async def test_app_api_endpoint_discovery_hides_shell_routes(monkeypatch):
     assert ("POST", "/api/shell/exec") not in paths
     assert ("POST", "/api/shell/stream") not in paths
     assert ("GET", "/api/auth/settings") not in paths
-    assert all(not endpoint["path"].startswith("/api/shell") for endpoint in result["endpoints"])
+    assert all(
+        not endpoint["path"].startswith("/api/shell")
+        for endpoint in result["endpoints"]
+    )
 
 
 @pytest.mark.asyncio
-async def test_app_api_endpoint_discovery_hides_cookbook_host_control_routes(monkeypatch):
+async def test_app_api_endpoint_discovery_hides_cookbook_host_control_routes(
+    monkeypatch,
+):
     _install_core_middleware_stub(monkeypatch)
     import httpx
     from src.tool_implementations import do_app_api
@@ -659,9 +705,15 @@ async def test_app_api_endpoint_discovery_hides_cookbook_host_control_routes(mon
         def json(self):
             return {
                 "paths": {
-                    "/api/cookbook/packages": {"get": {"summary": "List Cookbook Packages"}},
-                    "/api/cookbook/packages/install": {"post": {"summary": "Install Package"}},
-                    "/api/cookbook/rebuild-engine": {"post": {"summary": "Rebuild Engine"}},
+                    "/api/cookbook/packages": {
+                        "get": {"summary": "List Cookbook Packages"}
+                    },
+                    "/api/cookbook/packages/install": {
+                        "post": {"summary": "Install Package"}
+                    },
+                    "/api/cookbook/rebuild-engine": {
+                        "post": {"summary": "Rebuild Engine"}
+                    },
                     "/api/cookbook/kill-pid": {"post": {"summary": "Kill Process"}},
                     "/api/cookbook/gpus": {"get": {"summary": "List GPUs"}},
                 }
@@ -682,7 +734,9 @@ async def test_app_api_endpoint_discovery_hides_cookbook_host_control_routes(mon
 
     monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
 
-    result = await do_app_api(json.dumps({"action": "endpoints", "filter": "cookbook"}), owner="admin")
+    result = await do_app_api(
+        json.dumps({"action": "endpoints", "filter": "cookbook"}), owner="admin"
+    )
 
     assert result["exit_code"] == 0
     paths = {(endpoint["method"], endpoint["path"]) for endpoint in result["endpoints"]}
@@ -710,11 +764,22 @@ async def test_public_agent_policy_blocks_sensitive_tools(monkeypatch):
     # BUILTIN_EMAIL_TOOLS) so accidentally dropping one from that set fails
     # here instead of silently shrinking the blocklist.
     bare_email_tools = (
-        "list_email_accounts", "list_emails", "read_email", "search_emails",
-        "scan_email_unsubscribes", "unsubscribe_email",
-        "send_email", "reply_to_email", "draft_email", "draft_email_reply",
-        "ai_draft_email_reply", "archive_email", "delete_email",
-        "mark_email_read", "bulk_email", "download_attachment",
+        "list_email_accounts",
+        "list_emails",
+        "read_email",
+        "search_emails",
+        "scan_email_unsubscribes",
+        "unsubscribe_email",
+        "send_email",
+        "reply_to_email",
+        "draft_email",
+        "draft_email_reply",
+        "ai_draft_email_reply",
+        "archive_email",
+        "delete_email",
+        "mark_email_read",
+        "bulk_email",
+        "download_attachment",
     )
     for tool_name in bare_email_tools + ("read_file", "mcp__email__send_email"):
         desc, result = await execute_tool_block(
@@ -732,7 +797,7 @@ async def test_disabled_qualified_email_tool_blocks_bare_alias(monkeypatch):
     the MCP settings toggle write the QUALIFIED name into disabled_tools, so
     the gate must block the bare spelling too — and never reach the MCP
     manager (PR #3681 review follow-up)."""
-    import src.tool_execution as tool_execution
+    from src import tool_execution
     from src.tool_execution import execute_tool_block
 
     def fail_get_mcp_manager():
@@ -760,7 +825,7 @@ async def test_disabled_qualified_email_tool_blocks_bare_alias(monkeypatch):
 @pytest.mark.asyncio
 async def test_tool_policy_qualified_email_block_covers_bare_alias(monkeypatch):
     """Same aliasing rule for the turn ToolPolicy denylist."""
-    import src.tool_execution as tool_execution
+    from src import tool_execution
     from src.tool_execution import execute_tool_block
     from src.tool_policy import ToolPolicy
 
@@ -788,8 +853,8 @@ async def test_disable_tool_email_covers_full_builtin_set(monkeypatch):
     and download_attachment enabled (PR #3681 review follow-up)."""
     # Import first so the module loads against the real core package; only
     # the call-time SessionLocal import below sees the stub.
-    from src.tool_implementations import do_manage_settings
     import src.settings as settings_mod
+    from src.tool_implementations import do_manage_settings
 
     db_mod = types.ModuleType("core.database")
 
@@ -821,11 +886,22 @@ async def test_disable_tool_email_covers_full_builtin_set(monkeypatch):
     # Spelled out (not imported from BUILTIN_EMAIL_TOOLS) so dropping a name
     # from the constant fails here instead of silently shrinking the toggle.
     bare_email_tools = (
-        "list_email_accounts", "list_emails", "read_email", "search_emails",
-        "scan_email_unsubscribes", "unsubscribe_email",
-        "send_email", "reply_to_email", "draft_email", "draft_email_reply",
-        "ai_draft_email_reply", "archive_email", "delete_email",
-        "mark_email_read", "bulk_email", "download_attachment",
+        "list_email_accounts",
+        "list_emails",
+        "read_email",
+        "search_emails",
+        "scan_email_unsubscribes",
+        "unsubscribe_email",
+        "send_email",
+        "reply_to_email",
+        "draft_email",
+        "draft_email_reply",
+        "ai_draft_email_reply",
+        "archive_email",
+        "delete_email",
+        "mark_email_read",
+        "bulk_email",
+        "download_attachment",
     )
     for tool_name in bare_email_tools:
         assert tool_name in disabled, tool_name
@@ -866,7 +942,7 @@ async def test_bare_email_dispatch_rejects_non_object_json_args(monkeypatch):
     take objects — a correctable error must come back instead of a silent
     empty-args call (same class as #3966)."""
     _install_admin_auth_stub(monkeypatch)
-    import src.tool_execution as tool_execution
+    from src import tool_execution
     from src.tool_execution import execute_tool_block
 
     mcp = _FakeMcpManager()
@@ -889,7 +965,7 @@ async def test_bare_email_dispatch_rejects_invalid_json_body(monkeypatch):
     mailbox instead of the one the model meant. Covers both the brace-looking
     `{account: "work"}` and the bare `account: work` shapes."""
     _install_admin_auth_stub(monkeypatch)
-    import src.tool_execution as tool_execution
+    from src import tool_execution
     from src.tool_execution import execute_tool_block
 
     for bad_body in ('{account: "work"}', "account: work"):
@@ -910,25 +986,30 @@ async def test_legacy_mcp_tools_decode_inline_json_args(monkeypatch):
     line-based arg builders (web_search/web_fetch/read_file/write_file/
     generate_image) would wrap the whole JSON string as the query/path/prompt.
     A JSON object carrying the tool's primary key must be used directly."""
-    import src.tool_execution as tool_execution
     from src.tool_execution import _build_mcp_args
 
     cases = {
         "web_search": ('{"query": "odysseus pr 3681"}', {"query": "odysseus pr 3681"}),
         "web_fetch": ('{"url": "https://example.com"}', {"url": "https://example.com"}),
         "read_file": ('{"path": "/tmp/x.txt"}', {"path": "/tmp/x.txt"}),
-        "write_file": ('{"path": "/tmp/x", "content": "hi"}', {"path": "/tmp/x", "content": "hi"}),
+        "write_file": (
+            '{"path": "/tmp/x", "content": "hi"}',
+            {"path": "/tmp/x", "content": "hi"},
+        ),
         "generate_image": ('{"prompt": "a cat"}', {"prompt": "a cat"}),
     }
     for tool, (content, expected) in cases.items():
         assert _build_mcp_args(tool, content) == expected, tool
 
     # Freeform (non-JSON) content keeps the line-based behavior.
-    assert _build_mcp_args("web_search", "latest python release") == {"query": "latest python release"}
+    assert _build_mcp_args("web_search", "latest python release") == {
+        "query": "latest python release"
+    }
     # A JSON object WITHOUT the tool's primary key is not args — fall back
     # (write_file content the model happened to write as a bare object).
     assert _build_mcp_args("write_file", '{"config": "value"}') == {
-        "path": '{"config": "value"}', "content": "",
+        "path": '{"config": "value"}',
+        "content": "",
     }
 
 
@@ -942,7 +1023,9 @@ def test_mcp_json_primary_keys_are_all_live():
     from src.tool_execution import _MCP_JSON_PRIMARY_KEYS, _MCP_TOOL_MAP
 
     dead = set(_MCP_JSON_PRIMARY_KEYS) - set(_MCP_TOOL_MAP)
-    assert not dead, f"dead JSON-primary entries (never reach _build_mcp_args): {sorted(dead)}"
+    assert (
+        not dead
+    ), f"dead JSON-primary entries (never reach _build_mcp_args): {sorted(dead)}"
 
 
 @pytest.mark.asyncio
@@ -953,7 +1036,7 @@ async def test_write_file_inline_json_args(monkeypatch):
     assert the file is written to the intended path with the intended content,
     not a file literally named with the JSON blob. A _build_mcp_args unit test
     can't catch this — it's on the dead MCP path for write_file."""
-    import src.tool_execution as tool_execution
+    from src import tool_execution
     from src.tool_execution import execute_tool_block
 
     monkeypatch.setattr(tool_execution, "_owner_is_admin", lambda owner: True)
@@ -961,7 +1044,6 @@ async def test_write_file_inline_json_args(monkeypatch):
     monkeypatch.setattr(tool_execution, "get_mcp_manager", lambda: None)
 
     captured = {}
-    import src.agent_tools.filesystem_tools as fst
 
     def fake_resolve(p):
         captured["path"] = p
@@ -970,23 +1052,28 @@ async def test_write_file_inline_json_args(monkeypatch):
     monkeypatch.setattr(tool_execution, "_resolve_tool_path", fake_resolve)
 
     from src.tool_parsing import parse_tool_blocks
-    blocks = parse_tool_blocks('```write_file {"path": "/tmp/wf.txt", "content": "hi"}\n```')
+
+    blocks = parse_tool_blocks(
+        '```write_file {"path": "/tmp/wf.txt", "content": "hi"}\n```'
+    )
     for b in blocks:
         await execute_tool_block(b, owner="admin")
 
-    assert captured.get("path") == "/tmp/wf.txt", (
-        f"write_file did not decode inline JSON args; got path {captured.get('path')!r}"
-    )
+    assert (
+        captured.get("path") == "/tmp/wf.txt"
+    ), f"write_file did not decode inline JSON args; got path {captured.get('path')!r}"
 
 
 @pytest.mark.asyncio
-async def test_plan_mode_blocks_mutating_email_aliases_without_mcp_inventory(monkeypatch):
+async def test_plan_mode_blocks_mutating_email_aliases_without_mcp_inventory(
+    monkeypatch,
+):
     """Plan-mode safety for bare email aliases must hold from the STATIC
     partition alone — no MCP read-only inventory involved: mutators (the
     draft/download tools included) are blocked before dispatch, while the
     explicitly read-only search_emails goes through."""
     _install_admin_auth_stub(monkeypatch)
-    import src.tool_execution as tool_execution
+    from src import tool_execution
     from src.tool_execution import execute_tool_block
     from src.tool_security import plan_mode_disabled_tools
 
@@ -994,8 +1081,15 @@ async def test_plan_mode_blocks_mutating_email_aliases_without_mcp_inventory(mon
     monkeypatch.setattr(tool_execution, "get_mcp_manager", lambda: mcp)
     denied = plan_mode_disabled_tools()
 
-    for tool_name in ("draft_email", "draft_email_reply", "ai_draft_email_reply",
-                      "download_attachment", "send_email", "delete_email", "unsubscribe_email"):
+    for tool_name in (
+        "draft_email",
+        "draft_email_reply",
+        "ai_draft_email_reply",
+        "download_attachment",
+        "send_email",
+        "delete_email",
+        "unsubscribe_email",
+    ):
         desc, result = await execute_tool_block(
             SimpleNamespace(tool_type=tool_name, content="{}"),
             owner="admin-user",
@@ -1022,7 +1116,10 @@ async def test_plan_mode_blocks_mutating_email_aliases_without_mcp_inventory(mon
     )
     assert result["exit_code"] == 0
     assert mcp.calls == [
-        ("mcp__email__scan_email_unsubscribes", {"limit": 1, "_odysseus_owner": "admin-user"}),
+        (
+            "mcp__email__scan_email_unsubscribes",
+            {"limit": 1, "_odysseus_owner": "admin-user"},
+        ),
     ]
 
 
@@ -1031,7 +1128,7 @@ async def test_bare_email_dispatch_empty_content_calls_with_empty_args(monkeypat
     """An empty fence (```list_email_accounts``` with no body) dispatches with
     {} args — the no-arg call shape local models really emit."""
     _install_admin_auth_stub(monkeypatch)
-    import src.tool_execution as tool_execution
+    from src import tool_execution
     from src.tool_execution import execute_tool_block
 
     mcp = _FakeMcpManager()
@@ -1049,7 +1146,7 @@ async def test_bare_email_dispatch_empty_content_calls_with_empty_args(monkeypat
 
 @pytest.mark.asyncio
 async def test_email_mcp_non_object_args_fail_before_dispatch(monkeypatch):
-    import src.tool_execution as tool_execution
+    from src import tool_execution
     from src.tool_execution import execute_tool_block
 
     class FakeMcp:
@@ -1077,7 +1174,7 @@ async def test_email_mcp_non_object_args_fail_before_dispatch(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_email_mcp_dispatch_includes_hidden_owner(monkeypatch):
-    import src.tool_execution as tool_execution
+    from src import tool_execution
     from src.tool_execution import execute_tool_block
 
     class FakeMcp:
@@ -1093,7 +1190,9 @@ async def test_email_mcp_dispatch_includes_hidden_owner(monkeypatch):
     monkeypatch.setattr(tool_execution, "get_mcp_manager", lambda: fake)
 
     desc, result = await execute_tool_block(
-        SimpleNamespace(tool_type="mcp__email__list_emails", content='{"folder":"INBOX"}'),
+        SimpleNamespace(
+            tool_type="mcp__email__list_emails", content='{"folder":"INBOX"}'
+        ),
         owner="alice",
     )
 
@@ -1106,7 +1205,7 @@ async def test_email_mcp_dispatch_includes_hidden_owner(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_bare_email_mcp_dispatch_includes_hidden_owner(monkeypatch):
-    import src.tool_execution as tool_execution
+    from src import tool_execution
     from src.tool_execution import execute_tool_block
 
     fake = _FakeMcpManager()
@@ -1250,7 +1349,9 @@ async def test_webhook_tool_reuses_private_url_validation():
     _wm_saved_module = sys.modules.get("src.webhook_manager", _ABSENT)
     _src_pkg = sys.modules.get("src")
     _wm_saved_attr = (
-        getattr(_src_pkg, "webhook_manager", _ABSENT) if _src_pkg is not None else _ABSENT
+        getattr(_src_pkg, "webhook_manager", _ABSENT)
+        if _src_pkg is not None
+        else _ABSENT
     )
 
     # Drop both bindings so the import re-executes against the fake src.database,
@@ -1283,7 +1384,7 @@ async def test_webhook_tool_reuses_private_url_validation():
                 if hasattr(_src_pkg, "webhook_manager"):
                     delattr(_src_pkg, "webhook_manager")
             else:
-                setattr(_src_pkg, "webhook_manager", _wm_saved_attr)
+                _src_pkg.webhook_manager = _wm_saved_attr
 
     assert result["exit_code"] == 1
     assert "private/internal" in result["error"]
@@ -1293,8 +1394,7 @@ def test_default_chat_skips_hidden_first_model(monkeypatch):
     """get_default_chat picks first visible model when default_model is empty
     and the first cached model is hidden."""
     _install_model_route_import_stubs(monkeypatch)
-    import routes.model_routes as model_routes
-    import routes.prefs_routes as prefs_routes
+    from routes import model_routes, prefs_routes
 
     ep = SimpleNamespace(
         id="ep1",
@@ -1307,27 +1407,33 @@ def test_default_chat_skips_hidden_first_model(monkeypatch):
 
     monkeypatch.setattr(model_routes, "ModelEndpoint", _FakeModelEndpoint)
     monkeypatch.setattr(model_routes, "SessionLocal", lambda: _FakeDb([ep]))
-    monkeypatch.setattr(model_routes, "_load_settings", lambda: {})
+    monkeypatch.setattr(model_routes, "_load_settings", dict)
     monkeypatch.setattr(model_routes, "owner_filter", lambda q, m, u, **kw: q)
     monkeypatch.setattr(model_routes, "_normalize_base", lambda base: base.rstrip("/"))
-    monkeypatch.setattr(model_routes, "build_chat_url", lambda base: f"{base}/chat/completions")
+    monkeypatch.setattr(
+        model_routes, "build_chat_url", lambda base: f"{base}/chat/completions"
+    )
     monkeypatch.setattr(prefs_routes, "_load_for_user", lambda user: {})
 
     request = SimpleNamespace(
         state=SimpleNamespace(current_user="fresh"),
-        app=SimpleNamespace(state=SimpleNamespace(
-            auth_manager=SimpleNamespace(is_admin=lambda user: False)
-        )),
+        app=SimpleNamespace(
+            state=SimpleNamespace(
+                auth_manager=SimpleNamespace(is_admin=lambda user: False)
+            )
+        ),
     )
 
     result = _default_chat_endpoint()(request)
-    assert result["model"] == "visible-model", f"Expected visible-model, got {result['model']!r}"
+    assert (
+        result["model"] == "visible-model"
+    ), f"Expected visible-model, got {result['model']!r}"
 
 
 def test_default_chat_admin_skips_hidden_first_model(monkeypatch):
     """Admin user with global defaults also skips hidden models in fallback."""
     _install_model_route_import_stubs(monkeypatch)
-    import routes.model_routes as model_routes
+    from routes import model_routes
 
     ep = SimpleNamespace(
         id="ep1",
@@ -1340,16 +1446,20 @@ def test_default_chat_admin_skips_hidden_first_model(monkeypatch):
 
     monkeypatch.setattr(model_routes, "ModelEndpoint", _FakeModelEndpoint)
     monkeypatch.setattr(model_routes, "SessionLocal", lambda: _FakeDb([ep]))
-    monkeypatch.setattr(model_routes, "_load_settings", lambda: {})
+    monkeypatch.setattr(model_routes, "_load_settings", dict)
     monkeypatch.setattr(model_routes, "owner_filter", lambda q, m, u, **kw: q)
     monkeypatch.setattr(model_routes, "_normalize_base", lambda base: base.rstrip("/"))
-    monkeypatch.setattr(model_routes, "build_chat_url", lambda base: f"{base}/chat/completions")
+    monkeypatch.setattr(
+        model_routes, "build_chat_url", lambda base: f"{base}/chat/completions"
+    )
 
     request = SimpleNamespace(
         state=SimpleNamespace(current_user="admin"),
-        app=SimpleNamespace(state=SimpleNamespace(
-            auth_manager=SimpleNamespace(is_admin=lambda user: True)
-        )),
+        app=SimpleNamespace(
+            state=SimpleNamespace(
+                auth_manager=SimpleNamespace(is_admin=lambda user: True)
+            )
+        ),
     )
 
     result = _default_chat_endpoint()(request)
@@ -1359,7 +1469,7 @@ def test_default_chat_admin_skips_hidden_first_model(monkeypatch):
 def test_default_chat_all_models_hidden_returns_empty_model(monkeypatch):
     """When all cached models are hidden, get_default_chat returns model: ''."""
     _install_model_route_import_stubs(monkeypatch)
-    import routes.model_routes as model_routes
+    from routes import model_routes
 
     ep = SimpleNamespace(
         id="ep1",
@@ -1372,16 +1482,20 @@ def test_default_chat_all_models_hidden_returns_empty_model(monkeypatch):
 
     monkeypatch.setattr(model_routes, "ModelEndpoint", _FakeModelEndpoint)
     monkeypatch.setattr(model_routes, "SessionLocal", lambda: _FakeDb([ep]))
-    monkeypatch.setattr(model_routes, "_load_settings", lambda: {})
+    monkeypatch.setattr(model_routes, "_load_settings", dict)
     monkeypatch.setattr(model_routes, "owner_filter", lambda q, m, u, **kw: q)
     monkeypatch.setattr(model_routes, "_normalize_base", lambda base: base.rstrip("/"))
-    monkeypatch.setattr(model_routes, "build_chat_url", lambda base: f"{base}/chat/completions")
+    monkeypatch.setattr(
+        model_routes, "build_chat_url", lambda base: f"{base}/chat/completions"
+    )
 
     request = SimpleNamespace(
         state=SimpleNamespace(current_user="admin"),
-        app=SimpleNamespace(state=SimpleNamespace(
-            auth_manager=SimpleNamespace(is_admin=lambda user: True)
-        )),
+        app=SimpleNamespace(
+            state=SimpleNamespace(
+                auth_manager=SimpleNamespace(is_admin=lambda user: True)
+            )
+        ),
     )
 
     result = _default_chat_endpoint()(request)

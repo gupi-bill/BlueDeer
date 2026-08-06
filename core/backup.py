@@ -62,17 +62,28 @@ def create_backup(name: str = "", db_only: bool = False) -> str:
                         manifest.files.append(arcname)
 
         # 写 manifest
-        zf.writestr("backup_manifest.json", json.dumps({
-            "created_at": manifest.created_at,
-            "version": manifest.version,
-            "files": manifest.files,
-            "db_only": manifest.db_only,
-            "name": slug,
-        }, ensure_ascii=False, indent=2))
+        zf.writestr(
+            "backup_manifest.json",
+            json.dumps(
+                {
+                    "created_at": manifest.created_at,
+                    "version": manifest.version,
+                    "files": manifest.files,
+                    "db_only": manifest.db_only,
+                    "name": slug,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+        )
 
     manifest.size_bytes = os.path.getsize(path)
-    logger.info("备份完成: %s (%.1f MB, %d 个文件)", path,
-                manifest.size_bytes / 1024 / 1024, len(manifest.files))
+    logger.info(
+        "备份完成: %s (%.1f MB, %d 个文件)",
+        path,
+        manifest.size_bytes / 1024 / 1024,
+        len(manifest.files),
+    )
     return path
 
 
@@ -105,7 +116,9 @@ def list_backups() -> list[dict[str, Any]]:
     """列出所有备份文件。"""
     os.makedirs(BACKUP_DIR, exist_ok=True)
     backups: list[dict[str, Any]] = []
-    for f in sorted(Path(BACKUP_DIR).iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
+    for f in sorted(
+        Path(BACKUP_DIR).iterdir(), key=lambda p: p.stat().st_mtime, reverse=True
+    ):
         if f.suffix == ".zip":
             manifest = None
             try:
@@ -114,13 +127,15 @@ def list_backups() -> list[dict[str, Any]]:
                         manifest = json.loads(zf.read("backup_manifest.json"))
             except Exception:
                 pass
-            backups.append({
-                "filename": f.name,
-                "path": str(f),
-                "size_bytes": f.stat().st_size,
-                "created_at": f.stat().st_mtime,
-                "manifest": manifest,
-            })
+            backups.append(
+                {
+                    "filename": f.name,
+                    "path": str(f),
+                    "size_bytes": f.stat().st_size,
+                    "created_at": f.stat().st_mtime,
+                    "manifest": manifest,
+                }
+            )
     return backups
 
 
@@ -132,7 +147,6 @@ def delete_backup(filename: str) -> bool:
             path.unlink()
         except Exception:
             try:
-                import shutil
                 os.remove(str(path))
             except Exception:
                 with open(str(path), "w") as f:
@@ -149,6 +163,7 @@ _CHECKSUM_FILE = "data/backup_checksums.json"
 
 def _file_checksum(path: str) -> str:
     import hashlib
+
     h = hashlib.sha256()
     with open(path, "rb") as f:
         while True:
@@ -213,20 +228,31 @@ def incremental_backup(name: str = "", db_only: bool = False) -> str:
         for file_path in changed_files:
             zf.write(file_path, file_path)
             manifest.files.append(file_path)
-        zf.writestr("backup_manifest.json", json.dumps({
-            "created_at": manifest.created_at,
-            "version": manifest.version,
-            "files": manifest.files,
-            "db_only": manifest.db_only,
-            "name": slug,
-            "mode": "incremental",
-        }, ensure_ascii=False, indent=2))
+        zf.writestr(
+            "backup_manifest.json",
+            json.dumps(
+                {
+                    "created_at": manifest.created_at,
+                    "version": manifest.version,
+                    "files": manifest.files,
+                    "db_only": manifest.db_only,
+                    "name": slug,
+                    "mode": "incremental",
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+        )
 
     manifest.size_bytes = os.path.getsize(path)
     _save_checksums(new_checksums)
 
-    logger.info("增量备份完成: %s (%d 个变更文件, %.1f MB)", path,
-                len(changed_files), manifest.size_bytes / 1024 / 1024)
+    logger.info(
+        "增量备份完成: %s (%d 个变更文件, %.1f MB)",
+        path,
+        len(changed_files),
+        manifest.size_bytes / 1024 / 1024,
+    )
     return path
 
 
@@ -234,10 +260,13 @@ def incremental_backup(name: str = "", db_only: bool = False) -> str:
 
 import threading
 
+
 class SchedulePolicy:
     """定时备份策略：支持 cron 表达式驱动的自动备份。"""
 
-    def __init__(self, cron_expr: str = "0 0 2 * * *", backup_dir: str = BACKUP_DIR) -> None:
+    def __init__(
+        self, cron_expr: str = "0 0 2 * * *", backup_dir: str = BACKUP_DIR
+    ) -> None:
         self._cron = cron_expr
         self._backup_dir = backup_dir
         self._timer: threading.Timer | None = None
@@ -268,9 +297,9 @@ class SchedulePolicy:
         target_min = int(parts[1])
         target_hour = int(parts[2])
         seconds_until = (
-            (target_hour - now.tm_hour) * 3600 +
-            (target_min - now.tm_min) * 60 +
-            (target_sec - now.tm_sec)
+            (target_hour - now.tm_hour) * 3600
+            + (target_min - now.tm_min) * 60
+            + (target_sec - now.tm_sec)
         ) % 86400
         if seconds_until <= 0:
             seconds_until += 86400

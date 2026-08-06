@@ -129,16 +129,18 @@ def test_total_memory_injection_is_capped_at_five_across_pinned_and_recalled():
         }
         for idx in range(4)
     ]
-    rows.extend([
-        {
-            "id": f"coffee-{idx}",
-            "text": f"User likes coffee roast {idx}.",
-            "category": "preference",
-            "pinned": False,
-            "timestamp": idx,
-        }
-        for idx in range(6)
-    ])
+    rows.extend(
+        [
+            {
+                "id": f"coffee-{idx}",
+                "text": f"User likes coffee roast {idx}.",
+                "category": "preference",
+                "pinned": False,
+                "timestamp": idx,
+            }
+            for idx in range(6)
+        ]
+    )
 
     processor = _processor(rows)
     processor.build_context_preface(

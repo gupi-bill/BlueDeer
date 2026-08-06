@@ -12,12 +12,12 @@ pin that all four providers degrade to [] on malformed JSON, matching brave.
 import json
 
 import pytest
-
 from services.search import providers
 
 
 class _BadJSONResponse:
     """A 200 response whose body is not valid JSON (e.g. an HTML error page)."""
+
     status_code = 200
 
     def raise_for_status(self):
@@ -31,8 +31,10 @@ class _BadJSONResponse:
 def _offline(monkeypatch):
     # Keep everything offline + deterministic: no settings/DB, keys via env, and
     # both httpx verbs return a body that fails to decode.
-    monkeypatch.setattr(providers, "_get_search_settings", lambda: {}, raising=False)
-    monkeypatch.setattr(providers, "_safesearch_for", lambda *_a, **_k: None, raising=False)
+    monkeypatch.setattr(providers, "_get_search_settings", dict, raising=False)
+    monkeypatch.setattr(
+        providers, "_safesearch_for", lambda *_a, **_k: None, raising=False
+    )
     monkeypatch.setenv("DATA_BRAVE_API_KEY", "k")
     monkeypatch.setenv("TAVILY_API_KEY", "k")
     monkeypatch.setenv("SERPER_API_KEY", "k")

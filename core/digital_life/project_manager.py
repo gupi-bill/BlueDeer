@@ -9,6 +9,7 @@
 
 数据持久化：data/projects.json
 """
+
 from __future__ import annotations
 
 import json
@@ -20,7 +21,8 @@ from typing import Any
 
 _PROJECTS_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "data", "projects.json",
+    "data",
+    "projects.json",
 )
 
 # 项目状态
@@ -42,20 +44,22 @@ RISK_MEDIUM = "medium"
 RISK_HIGH = "high"
 
 # 风险类型
-RISK_PROGRESS = "progress"        # 进度风险：连续 3 天未完成计划
-RISK_BLOCKED = "blocked"          # 阻塞风险：关键路径被阻塞
-RISK_PERSONNEL = "personnel"      # 人员风险：情感/健康持续下降
+RISK_PROGRESS = "progress"  # 进度风险：连续 3 天未完成计划
+RISK_BLOCKED = "blocked"  # 阻塞风险：关键路径被阻塞
+RISK_PERSONNEL = "personnel"  # 人员风险：情感/健康持续下降
 
 
 # ----------------------------------------------------------------------
 # 数据结构
 # ----------------------------------------------------------------------
 
+
 class Milestone:
     """项目里程碑。
 
     零基础理解：项目的一个"中期目标"，比如"完成登录模块"。
     """
+
     __slots__ = (
         "completion_criteria",
         "deadline",
@@ -69,10 +73,14 @@ class Milestone:
         "status",
     )
 
-    def __init__(self, name: str, description: str = "",
-                 deadline: float | None = None,
-                 completion_criteria: list[str] | None = None,
-                 depends_on: list[str] | None = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        description: str = "",
+        deadline: float | None = None,
+        completion_criteria: list[str] | None = None,
+        depends_on: list[str] | None = None,
+    ) -> None:
         self.id: str = "m-" + uuid.uuid4().hex[:8]
         self.name: str = name
         self.description: str = description
@@ -80,7 +88,7 @@ class Milestone:
         self.completion_criteria: list[str] = completion_criteria or []
         self.depends_on: list[str] = depends_on or []  # 其他 milestone.id
         self.status: str = MILESTONE_PENDING
-        self.progress: float = 0.0       # 0~100
+        self.progress: float = 0.0  # 0~100
         self.started_ts: float = 0.0
         self.finished_ts: float = 0.0
 
@@ -100,9 +108,13 @@ class Milestone:
 
     @classmethod
     def from_dict(cls, d: dict) -> Milestone:
-        m = cls(d.get("name", ""), d.get("description", ""),
-                d.get("deadline"), d.get("completion_criteria", []),
-                d.get("depends_on", []))
+        m = cls(
+            d.get("name", ""),
+            d.get("description", ""),
+            d.get("deadline"),
+            d.get("completion_criteria", []),
+            d.get("depends_on", []),
+        )
         m.id = d.get("id", m.id)
         m.status = d.get("status", MILESTONE_PENDING)
         m.progress = d.get("progress", 0.0)
@@ -117,6 +129,7 @@ class Project:
     零基础理解：流水线是"一次性任务"，项目是"持续数周的大事"。
     一个项目可以包含多个流水线，每个流水线推进一个里程碑。
     """
+
     __slots__ = (
         "archive_summary",
         "created_at",
@@ -133,10 +146,14 @@ class Project:
         "team",
     )
 
-    def __init__(self, name: str, description: str = "",
-                 owner_agent: str = "",
-                 team: list[str] | None = None,
-                 deadline: float | None = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        description: str = "",
+        owner_agent: str = "",
+        team: list[str] | None = None,
+        deadline: float | None = None,
+    ) -> None:
         self.id: str = "p-" + uuid.uuid4().hex[:10]
         self.name: str = name
         self.description: str = description
@@ -146,9 +163,9 @@ class Project:
         self.deadline: float | None = deadline
         self.owner_agent: str = owner_agent
         self.team: list[str] = team or []
-        self.daily_logs: list[dict] = []    # 每日站会摘要
-        self.risks: list[dict] = []         # 风险列表
-        self.archive_summary: dict = {}     # 归档时的总结
+        self.daily_logs: list[dict] = []  # 每日站会摘要
+        self.risks: list[dict] = []  # 风险列表
+        self.archive_summary: dict = {}  # 归档时的总结
         self.lock = threading.RLock()
 
     def add_milestone(self, m: Milestone) -> None:
@@ -182,9 +199,13 @@ class Project:
 
     @classmethod
     def from_dict(cls, d: dict) -> Project:
-        p = cls(d.get("name", ""), d.get("description", ""),
-                d.get("owner_agent", ""), d.get("team", []),
-                d.get("deadline"))
+        p = cls(
+            d.get("name", ""),
+            d.get("description", ""),
+            d.get("owner_agent", ""),
+            d.get("team", []),
+            d.get("deadline"),
+        )
         p.id = d.get("id", p.id)
         p.status = d.get("status", PROJECT_PLANNING)
         p.created_at = d.get("created_at", time.time())
@@ -218,12 +239,14 @@ _SPECIES_STANDUP_TEMPLATE: dict[str, str] = {
 # 项目管理器（单例）
 # ----------------------------------------------------------------------
 
+
 class ProjectManager:
     """项目管理器（单例）。
 
     所有项目都通过此管理器创建/查询/更新。
     独立线程每天 09:00 触发站会。
     """
+
     _instance: ProjectManager | None = None
     _instance_lock = threading.Lock()
 
@@ -233,7 +256,7 @@ class ProjectManager:
         self._biosphere_ref: Any = None
         self._standup_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
-        self._last_standup_date: str = ""   # YYYY-MM-DD，避免一天开多次
+        self._last_standup_date: str = ""  # YYYY-MM-DD，避免一天开多次
         self._load()
 
     @classmethod
@@ -272,11 +295,15 @@ class ProjectManager:
 
     # ---------------- CRUD ----------------
 
-    def create_project(self, name: str, description: str = "",
-                        owner_agent: str = "",
-                        team: list[str] | None = None,
-                        deadline: float | None = None,
-                        milestones: list[dict] | None = None) -> dict:
+    def create_project(
+        self,
+        name: str,
+        description: str = "",
+        owner_agent: str = "",
+        team: list[str] | None = None,
+        deadline: float | None = None,
+        milestones: list[dict] | None = None,
+    ) -> dict:
         """创建项目。milestones 是 [{name, description, deadline, criteria, depends_on}] 列表。"""
         p = Project(name, description, owner_agent, team, deadline)
         if milestones:
@@ -296,8 +323,9 @@ class ProjectManager:
 
     def list_projects(self, status: str = "", limit: int = 50) -> list[dict]:
         with self._lock:
-            items = sorted(self._projects.values(),
-                           key=lambda p: p.created_at, reverse=True)
+            items = sorted(
+                self._projects.values(), key=lambda p: p.created_at, reverse=True
+            )
         if status:
             items = [p for p in items if p.status == status]
         return [p.to_dict() for p in items[:limit]]
@@ -316,9 +344,9 @@ class ProjectManager:
         with self._lock:
             return self._projects.get(pid)
 
-    def update_milestone_progress(self, pid: str, milestone_id: str,
-                                    progress: float,
-                                    status: str = "") -> dict:
+    def update_milestone_progress(
+        self, pid: str, milestone_id: str, progress: float, status: str = ""
+    ) -> dict:
         """更新里程碑进度。progress 0~100。"""
         with self._lock:
             p = self._projects.get(pid)
@@ -340,9 +368,13 @@ class ProjectManager:
                         m.started_ts = time.time()
                 # 项目状态联动
                 if p.status == PROJECT_PLANNING and any(
-                        x.status == MILESTONE_IN_PROGRESS for x in p.milestones):
+                    x.status == MILESTONE_IN_PROGRESS for x in p.milestones
+                ):
                     p.status = PROJECT_IN_PROGRESS
-                if all(x.status == MILESTONE_DONE for x in p.milestones) and p.milestones:
+                if (
+                    all(x.status == MILESTONE_DONE for x in p.milestones)
+                    and p.milestones
+                ):
                     p.status = PROJECT_COMPLETED
         self._save()
         return {"ok": True, "progress": m.progress, "status": m.status}
@@ -360,8 +392,9 @@ class ProjectManager:
                     "duration_sec": round(duration, 2),
                     "duration_days": round(duration / 86400.0, 2),
                     "milestones_total": len(p.milestones),
-                    "milestones_done": sum(1 for m in p.milestones
-                                            if m.status == MILESTONE_DONE),
+                    "milestones_done": sum(
+                        1 for m in p.milestones if m.status == MILESTONE_DONE
+                    ),
                     "team_size": len(p.team),
                     "daily_logs_count": len(p.daily_logs),
                     "archived_ts": time.time(),
@@ -377,7 +410,8 @@ class ProjectManager:
             return
         self._stop_event.clear()
         self._standup_thread = threading.Thread(
-            target=self._standup_loop, daemon=True, name="standup-scheduler")
+            target=self._standup_loop, daemon=True, name="standup-scheduler"
+        )
         self._standup_thread.start()
 
     def stop_standup_scheduler(self) -> None:
@@ -403,8 +437,11 @@ class ProjectManager:
         """执行一次站会。返回所有项目的站会摘要。"""
         results: list[dict] = []
         with self._lock:
-            projects = [p for p in self._projects.values()
-                        if p.status in (PROJECT_IN_PROGRESS, PROJECT_BLOCKED)]
+            projects = [
+                p
+                for p in self._projects.values()
+                if p.status in (PROJECT_IN_PROGRESS, PROJECT_BLOCKED)
+            ]
         for p in projects:
             summary = self._run_standup_for_project(p)
             results.append(summary)
@@ -432,7 +469,8 @@ class ProjectManager:
                     "species": getattr(lf, "species", ""),
                     "yesterday": "",
                     "today": _SPECIES_STANDUP_TEMPLATE.get(
-                        getattr(lf, "species", ""), "无汇报。"),
+                        getattr(lf, "species", ""), "无汇报。"
+                    ),
                     "blockers": "",
                 }
             reports.append(report)
@@ -443,8 +481,9 @@ class ProjectManager:
         upcoming = self._upcoming_milestones(p, days=3)
         if upcoming:
             names = ", ".join(m.name for m in upcoming)
-            deer_summary = (f"项目整体进度 {progress:.0f}%。"
-                            f"未来 3 天内到期的里程碑：{names}。")
+            deer_summary = (
+                f"项目整体进度 {progress:.0f}%。" f"未来 3 天内到期的里程碑：{names}。"
+            )
 
         standup = {
             "project_id": p.id,
@@ -496,9 +535,11 @@ class ProjectManager:
                                 "project_name": p.name,
                                 "type": RISK_PROGRESS,
                                 "level": RISK_HIGH if days_left < 1 else RISK_MEDIUM,
-                                "description": (f"里程碑「{m.name}」将于 "
-                                                f"{days_left:.1f} 天后到期，"
-                                                f"当前进度 {m.progress:.0f}%"),
+                                "description": (
+                                    f"里程碑「{m.name}」将于 "
+                                    f"{days_left:.1f} 天后到期，"
+                                    f"当前进度 {m.progress:.0f}%"
+                                ),
                                 "ts": time.time(),
                             }
                             risks_found.append(risk)
@@ -515,8 +556,10 @@ class ProjectManager:
                                 "project_name": p.name,
                                 "type": RISK_BLOCKED,
                                 "level": RISK_MEDIUM,
-                                "description": (f"里程碑「{m.name}」依赖「{dep_id}」"
-                                                f"未完成，已阻塞"),
+                                "description": (
+                                    f"里程碑「{m.name}」依赖「{dep_id}」"
+                                    f"未完成，已阻塞"
+                                ),
                                 "ts": time.time(),
                             }
                             risks_found.append(risk)
@@ -538,9 +581,11 @@ class ProjectManager:
                                 "project_name": p.name,
                                 "type": RISK_PERSONNEL,
                                 "level": RISK_HIGH if illness else RISK_MEDIUM,
-                                "description": (f"团队成员 {sp} 状态不佳："
-                                                f"能量 {energy:.0f}，情绪 {mood:.0f}"
-                                                + ("，生病" if illness else "")),
+                                "description": (
+                                    f"团队成员 {sp} 状态不佳："
+                                    f"能量 {energy:.0f}，情绪 {mood:.0f}"
+                                    + ("，生病" if illness else "")
+                                ),
                                 "ts": time.time(),
                             }
                             risks_found.append(risk)
@@ -554,8 +599,9 @@ class ProjectManager:
         with p.lock:
             # 同类型同描述的风险不重复添加
             for r in p.risks:
-                if (r.get("type") == risk.get("type")
-                        and r.get("description") == risk.get("description")):
+                if r.get("type") == risk.get("type") and r.get(
+                    "description"
+                ) == risk.get("description"):
                     return
             p.risks.append(risk)
             if len(p.risks) > 50:

@@ -5,10 +5,10 @@ turn, leaving the browser pointed at a session id that no longer exists.
 """
 
 import asyncio
-from datetime import timedelta
 import sys
 import tempfile
 import uuid
+from datetime import timedelta
 
 import pytest
 
@@ -19,10 +19,12 @@ if type(sqlalchemy).__name__ == "MagicMock":
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
+from src import session_actions
 
 import core.database as cdb
-from core.database import ChatMessage as DbMessage, Session as DbSession, utcnow_naive
-import src.session_actions as session_actions
+from core.database import ChatMessage as DbMessage
+from core.database import Session as DbSession
+from core.database import utcnow_naive
 
 
 def _make_session_factory():

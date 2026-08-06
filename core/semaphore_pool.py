@@ -13,6 +13,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger("bluedeer.sema")
 
@@ -102,7 +103,7 @@ class SemaphorePool:
             self._conds[key].notify(n=min(n, s.waiters) if s.waiters else 1)
             return s.permits
 
-    def acquire_ctx(self, key: str, timeout: float = None):
+    def acquire_ctx(self, key: str, timeout: float = None) -> Any:
         class _Ctx:
             def __init__(self, pool, k, t):
                 self._pool = pool
@@ -128,8 +129,7 @@ class SemaphorePool:
             s = self._get_sema(key)
             old_cap = s.capacity
             occupied = old_cap - s.permits
-            if occupied < 0:
-                occupied = 0
+            occupied = max(occupied, 0)
             s.capacity = capacity
             if capacity >= old_cap:
                 diff = capacity - old_cap
@@ -159,8 +159,7 @@ class SemaphorePool:
                 old_cap = s.capacity
                 new_cap = max(1, int(old_cap * factor))
                 occupied = old_cap - s.permits
-                if occupied < 0:
-                    occupied = 0
+                occupied = max(occupied, 0)
                 s.capacity = new_cap
                 if new_cap >= old_cap:
                     diff = new_cap - old_cap
@@ -216,7 +215,8 @@ class SemaphorePool:
         with self._lock:
             before = len(self._semas)
             to_remove = [
-                k for k, s in self._semas.items()
+                k
+                for k, s in self._semas.items()
                 if s.permits >= s.capacity and s.waiters == 0
             ]
             for k in to_remove:

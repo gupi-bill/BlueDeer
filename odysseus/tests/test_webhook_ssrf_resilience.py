@@ -1,11 +1,10 @@
+import json
 import os
 import sys
-import json
 from datetime import datetime
 from unittest.mock import patch
 
 import pytest
-
 from tests.helpers.import_state import clear_module, preserve_import_state
 
 # conftest.py stubs src.database; drop the stub so webhook_manager imports the
@@ -20,8 +19,10 @@ from tests.helpers.import_state import clear_module, preserve_import_state
 # and leaves no artifact, and these tests never touch the real engine
 # (validate_webhook_url is pure; the delivery test monkeypatches SessionLocal).
 # patch.dict restores the prior DATABASE_URL after the block.
-with patch.dict(os.environ, {"DATABASE_URL": "sqlite:///:memory:"}), \
-        preserve_import_state("src.database", "core.database"):
+with (
+    patch.dict(os.environ, {"DATABASE_URL": "sqlite:///:memory:"}),
+    preserve_import_state("src.database", "core.database"),
+):
     clear_module("src.database")
     _core_database = sys.modules.get("core.database")
     _core_database_all = (
@@ -114,7 +115,9 @@ async def test_webhook_delivery_uses_naive_utc_timestamps(monkeypatch):
 
     monkeypatch.setattr(manager, "_send_request", _fake_send)
 
-    await manager._deliver("hook-1", "http://93.184.216.34/", None, "webhook.test", {"ok": True})
+    await manager._deliver(
+        "hook-1", "http://93.184.216.34/", None, "webhook.test", {"ok": True}
+    )
 
     # The delivery must have pinned to the literal public IP from the URL.
     assert captured["ip"] == "93.184.216.34"

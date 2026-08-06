@@ -11,9 +11,17 @@ from unittest.mock import MagicMock
 _ABSENT = object()
 _AGENT_MODULES = ["src.agent_tools", "src.tool_parsing", "src.tool_schemas"]
 _STUBBED = [
-    "sqlalchemy", "sqlalchemy.orm", "sqlalchemy.ext", "sqlalchemy.ext.declarative",
-    "sqlalchemy.ext.hybrid", "sqlalchemy.sql", "sqlalchemy.sql.expression",
-    "src.database", "core.models", "core.database", "core.auth",
+    "sqlalchemy",
+    "sqlalchemy.orm",
+    "sqlalchemy.ext",
+    "sqlalchemy.ext.declarative",
+    "sqlalchemy.ext.hybrid",
+    "sqlalchemy.sql",
+    "sqlalchemy.sql.expression",
+    "src.database",
+    "core.models",
+    "core.database",
+    "core.auth",
 ]
 _saved_stubs = {name: sys.modules.get(name, _ABSENT) for name in _STUBBED}
 
@@ -23,9 +31,9 @@ for _mod in _STUBBED:
     if _mod not in sys.modules:
         sys.modules[_mod] = MagicMock()
 
-import pytest  # noqa: E402
-import src.agent_tools  # noqa: E402,F401
-from src.tool_schemas import function_call_to_tool_block  # noqa: E402
+import pytest
+import src.agent_tools  # noqa: F401
+from src.tool_schemas import function_call_to_tool_block
 
 # Drop the stubs we installed so they do not leak into later tests.
 for _name, _original in _saved_stubs.items():
@@ -35,13 +43,16 @@ for _name, _original in _saved_stubs.items():
         sys.modules[_name] = _original
 
 
-@pytest.mark.parametrize("arguments", [
-    '["ls -la"]',   # JSON array
-    '"ls -la"',     # bare JSON string
-    '42',            # JSON number
-    'true',          # JSON bool
-    'null',          # JSON null
-])
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        '["ls -la"]',  # JSON array
+        '"ls -la"',  # bare JSON string
+        "42",  # JSON number
+        "true",  # JSON bool
+        "null",  # JSON null
+    ],
+)
 def test_non_object_arguments_do_not_crash(arguments):
     """A native function call whose arguments are valid JSON but not an object
     must not raise (it used to throw AttributeError: 'list' object has no
@@ -92,4 +103,7 @@ def test_ui_control_open_email_reply_preserves_structured_body():
 
     assert block is not None
     assert block.tool_type == "ui_control"
-    assert block.content == "open_email_reply 3228 INBOX reply Hi Andy,\n\nNo thank you.\n\nBest,"
+    assert (
+        block.content
+        == "open_email_reply 3228 INBOX reply Hi Andy,\n\nNo thank you.\n\nBest,"
+    )

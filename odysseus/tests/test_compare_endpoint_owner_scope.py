@@ -12,8 +12,9 @@ fixes.
 
 from types import SimpleNamespace
 
-import core.database
 from routes.compare_routes import _owned_endpoint_by_url
+
+import core.database
 
 
 class _Predicate:

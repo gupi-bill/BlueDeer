@@ -20,6 +20,7 @@ the behavioral tests exercise an equivalent Python regex built straight from the
 backend ``TOOL_TAGS`` — the same source the live regex now derives from — and
 source-level guards assert the frontend keeps no hard-coded list.
 """
+
 import json
 import re
 from pathlib import Path
@@ -39,6 +40,7 @@ def _tool_tags() -> set[str]:
     literal plus the ``| BUILTIN_EMAIL_TOOLS`` union (email tool names live in
     that single source, not inline in the literal)."""
     from src.agent_tools import TOOL_TAGS
+
     return set(TOOL_TAGS)
 
 
@@ -79,24 +81,36 @@ def test_strips_executed_email_tool_fences():
 
 
 def test_strips_executed_inline_email_tool_fences():
-    text = 'Here are accounts\n\n```list_email_accounts {}\n```'
+    text = "Here are accounts\n\n```list_email_accounts {}\n```"
     assert _strip_live_exec_fences(text).strip() == "Here are accounts"
 
 
 def test_strips_multiline_inline_json_email_fences():
-    text = 'Here are emails\n\n```list_emails {"folder": "INBOX",\n"max_results": 2}\n```'
+    text = (
+        'Here are emails\n\n```list_emails {"folder": "INBOX",\n"max_results": 2}\n```'
+    )
     assert _strip_live_exec_fences(text).strip() == "Here are emails"
 
 
 def test_strips_every_named_email_tool_fence():
     email_tools = [
-        "list_email_accounts", "send_email", "list_emails", "read_email",
-        "reply_to_email", "bulk_email", "archive_email", "delete_email",
-        "mark_email_read", "scan_email_unsubscribes", "unsubscribe_email",
+        "list_email_accounts",
+        "send_email",
+        "list_emails",
+        "read_email",
+        "reply_to_email",
+        "bulk_email",
+        "archive_email",
+        "delete_email",
+        "mark_email_read",
+        "scan_email_unsubscribes",
+        "unsubscribe_email",
     ]
     for tool in email_tools:
         fence = f"```{tool}\n{{}}\n```"
-        assert _strip_live_exec_fences(fence).strip() == "", f"{tool} fence not stripped"
+        assert (
+            _strip_live_exec_fences(fence).strip() == ""
+        ), f"{tool} fence not stripped"
 
 
 def test_preserves_existing_web_search_stripping():
@@ -109,7 +123,9 @@ def test_does_not_strip_bash_or_python_code_examples():
     examples a user may have asked the model to show, not tool invocations."""
     for lang in sorted(_NON_STRIPPED):
         example = f"```{lang}\nls -la\n```"
-        assert _strip_live_exec_fences(example) == example, f"{lang} example wrongly stripped"
+        assert (
+            _strip_live_exec_fences(example) == example
+        ), f"{lang} example wrongly stripped"
 
 
 def test_does_not_strip_invalid_inline_json_metadata():
@@ -141,7 +157,9 @@ def test_frontend_keeps_no_hardcoded_tool_list():
         "tool fences so Markdown metadata stays visible."
     )
     # The bash/python carve-out must survive the move to the runtime list.
-    m = re.search(r"EXEC_FENCE_NON_TOOL\s*=\s*new Set\(\[(?P<body>.*?)\]\)", source, re.DOTALL)
+    m = re.search(
+        r"EXEC_FENCE_NON_TOOL\s*=\s*new Set\(\[(?P<body>.*?)\]\)", source, re.DOTALL
+    )
     assert m, "bash/python carve-out (EXEC_FENCE_NON_TOOL) not found in chatRenderer.js"
     carve_out = set(re.findall(r"['\"]([a-z_]+)['\"]", m.group("body")))
     assert carve_out == _NON_STRIPPED, (

@@ -2,8 +2,7 @@ import os
 from pathlib import Path
 
 import pytest
-from fastapi import FastAPI
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -13,7 +12,8 @@ from core.database import Base, GalleryImage
 
 
 def _gallery_module():
-    import routes.gallery_routes as gallery_routes
+    from routes import gallery_routes
+
     return gallery_routes
 
 
@@ -44,8 +44,12 @@ def test_gallery_image_path_does_not_fallback_to_cwd_data_dir(tmp_path, monkeypa
     assert path != cwd_image_dir / "abc123.png"
 
 
-@pytest.mark.parametrize("filename", ["../../secret.png", "..\\secret.png", None, 12345])
-def test_gallery_image_path_rejects_unsafe_stored_filenames(tmp_path, monkeypatch, filename):
+@pytest.mark.parametrize(
+    "filename", ["../../secret.png", "..\\secret.png", None, 12345]
+)
+def test_gallery_image_path_rejects_unsafe_stored_filenames(
+    tmp_path, monkeypatch, filename
+):
     gallery_routes = _gallery_module()
     image_dir = tmp_path / "generated_images"
     image_dir.mkdir()

@@ -4,14 +4,15 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
-
 from routes import personal_routes
 
 
 def _upload_endpoint():
     router = personal_routes.setup_personal_routes(_FakePersonalDocs(), None, True)
     for route in router.routes:
-        if getattr(route, "path", "") == "/api/personal/upload" and "POST" in getattr(route, "methods", set()):
+        if getattr(route, "path", "") == "/api/personal/upload" and "POST" in getattr(
+            route, "methods", set()
+        ):
             return route.endpoint
     raise AssertionError("upload endpoint not found")
 

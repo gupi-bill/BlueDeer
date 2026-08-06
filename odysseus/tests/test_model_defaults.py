@@ -1,21 +1,22 @@
 """Tests for share_defaults_with_users setting"""
-import pytest
+
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from tests.helpers.import_state import preserve_import_state
-from tests.helpers.db_stubs import make_core_db_stub
 
-with preserve_import_state("core.database", "src.database", "routes.model_routes", "routes.prefs_routes"):
-    import routes.model_routes as model_routes
-    import routes.prefs_routes as prefs_routes
-    import src.auth_helpers as auth_helpers
+with preserve_import_state(
+    "core.database", "src.database", "routes.model_routes", "routes.prefs_routes"
+):
+    from routes import model_routes, prefs_routes
 
 
 ### Helper Classes
 
+
 class _FakeEndpoint:
     """Minimal fake endpoint for testing"""
+
     def __init__(self, id, base_url, is_enabled=True, owner=None):
         self.id = id
         self.base_url = base_url
@@ -28,6 +29,7 @@ class _FakeEndpoint:
 
 class _FakeQuery:
     """Fake query object for testing"""
+
     def __init__(self, endpoints, user=None, include_shared=True):
         self._endpoints = endpoints
         self._user = user
@@ -37,7 +39,7 @@ class _FakeQuery:
         for cond in conditions:
             cond_str = str(cond)
             print(f"Filter condition: {cond_str}")
-            if 'owner' in cond_str and 'IS NULL' not in cond_str:
+            if "owner" in cond_str and "IS NULL" not in cond_str:
                 self._include_shared = False
         return self
 
@@ -48,7 +50,7 @@ class _FakeQuery:
 
         if self._user:
             for ep in self._endpoints:
-                ep_owner = getattr(ep, 'owner', None)
+                ep_owner = getattr(ep, "owner", None)
                 if ep_owner == self._user:
                     return ep
                 if self._include_shared and ep_owner is None:
@@ -68,7 +70,9 @@ def _make_db_session(endpoints, user=None):
 def _get_default_chat_route(router):
     """Extract the /api/default-chat GET route from the router"""
     for route in router.routes:
-        if getattr(route, "path", "") == "/api/default-chat" and "GET" in getattr(route, "methods", set()):
+        if getattr(route, "path", "") == "/api/default-chat" and "GET" in getattr(
+            route, "methods", set()
+        ):
             return route.endpoint
     raise AssertionError("GET /api/default-chat route not found")
 
@@ -81,8 +85,11 @@ def _make_request(user=None, auth_manager=None):
         client=SimpleNamespace(host="127.0.0.1"),
     )
 
+
 ### Shared test logic
-def _run_get_default_chat_test(monkeypatch, share_defaults_enabled, second_endpoint_only=False):
+def _run_get_default_chat_test(
+    monkeypatch, share_defaults_enabled, second_endpoint_only=False
+):
     """Helper function that runs get_default_chat with the given share_defaults_with_users setting."""
 
     global_settings = {
@@ -91,7 +98,7 @@ def _run_get_default_chat_test(monkeypatch, share_defaults_enabled, second_endpo
         "default_model_fallbacks": [
             {"endpoint_id": "fallback-ep", "model": "fallback-model"}
         ],
-        "share_defaults_with_users": share_defaults_enabled
+        "share_defaults_with_users": share_defaults_enabled,
     }
 
     monkeypatch.setattr(model_routes, "_load_settings", lambda: global_settings)
@@ -104,13 +111,13 @@ def _run_get_default_chat_test(monkeypatch, share_defaults_enabled, second_endpo
         _FakeEndpoint(
             id="global-ep-123",
             base_url="http://global-endpoint:8000/v1",
-            is_enabled=True
+            is_enabled=True,
         ),
         _FakeEndpoint(
             id="fallback-ep",
             base_url="http://fallback-endpoint:8000/v1",
-            is_enabled=True
-        )
+            is_enabled=True,
+        ),
     ]
 
     # When testing fallback scenario, removes the primary endpoint
@@ -130,7 +137,9 @@ def _run_get_default_chat_test(monkeypatch, share_defaults_enabled, second_endpo
 
     return result
 
+
 ### Test Functions
+
 
 def test_get_default_chat_user_no_prefs_share_disabled_resolves_nothing(monkeypatch):
     """
@@ -144,7 +153,9 @@ def test_get_default_chat_user_no_prefs_share_disabled_resolves_nothing(monkeypa
     assert test_data["model"] == "", "Should get empty model"
 
 
-def test_get_default_chat_user_no_prefs_share_enabled_resolves_global_defaults_fallbacks(monkeypatch):
+def test_get_default_chat_user_no_prefs_share_enabled_resolves_global_defaults_fallbacks(
+    monkeypatch,
+):
     """
     Non-admin user without personal preferences should resolve to global
     defaults for ep_id, model, and fallbacks when share_defaults_with_users is enabled.
@@ -152,22 +163,27 @@ def test_get_default_chat_user_no_prefs_share_enabled_resolves_global_defaults_f
 
     test_data = _run_get_default_chat_test(monkeypatch, share_defaults_enabled=True)
 
-    assert test_data["model"] == "qwen-3.6", \
-        "model should be resolved from global default_model"
+    assert (
+        test_data["model"] == "qwen-3.6"
+    ), "model should be resolved from global default_model"
 
-    assert test_data["endpoint_id"] == "global-ep-123", \
-        "Should get global endpoint_id"
+    assert test_data["endpoint_id"] == "global-ep-123", "Should get global endpoint_id"
 
-def test_get_default_chat_user_no_prefs_share_enabled_resolves_global_defaults(monkeypatch):
+
+def test_get_default_chat_user_no_prefs_share_enabled_resolves_global_defaults(
+    monkeypatch,
+):
     """
     Non-admin user without personal preferences should resolve to global
     defaults for ep_id, model, and fallbacks when share_defaults_with_users is enabled.
     """
 
-    test_data = _run_get_default_chat_test(monkeypatch, share_defaults_enabled=True, second_endpoint_only=True)
+    test_data = _run_get_default_chat_test(
+        monkeypatch, share_defaults_enabled=True, second_endpoint_only=True
+    )
 
-    assert test_data["model"] == "qwen-3.6", \
-        "model should be resolved from global default_model"
+    assert (
+        test_data["model"] == "qwen-3.6"
+    ), "model should be resolved from global default_model"
 
-    assert test_data["endpoint_id"] == "fallback-ep", \
-        "Should get global endpoint_id"
+    assert test_data["endpoint_id"] == "fallback-ep", "Should get global endpoint_id"

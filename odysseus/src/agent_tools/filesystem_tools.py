@@ -1,19 +1,35 @@
 import asyncio
+import difflib
+import fnmatch
 import json
 import os
 import re
-import difflib
-import fnmatch
 import shutil
-from typing import Optional, Dict, Any, Tuple, List
+from typing import Any
 
-from src.constants import MAX_READ_CHARS, MAX_DIFF_LINES, MAX_OUTPUT_CHARS
+from src.constants import MAX_DIFF_LINES, MAX_READ_CHARS
 
-_CODENAV_SKIP_DIRS = frozenset({
-    ".git", ".hg", ".svn", "node_modules", "venv", ".venv", "__pycache__",
-    ".mypy_cache", ".pytest_cache", ".ruff_cache", "dist", "build",
-    ".next", ".cache", "site-packages", ".idea", ".tox",
-})
+_CODENAV_SKIP_DIRS = frozenset(
+    {
+        ".git",
+        ".hg",
+        ".svn",
+        "node_modules",
+        "venv",
+        ".venv",
+        "__pycache__",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        "dist",
+        "build",
+        ".next",
+        ".cache",
+        "site-packages",
+        ".idea",
+        ".tox",
+    }
+)
 _CODENAV_MAX_HITS = 200
 _CODENAV_MAX_LINE = 400
 
@@ -42,19 +58,28 @@ def _glob_to_regex(pat: str) -> "re.Pattern":
             i += 1
     return re.compile("".join(out))
 
-def _unified_diff(old: str, new: str, path: str) -> Optional[Dict[str, Any]]:
+
+def _unified_diff(old: str, new: str, path: str) -> dict[str, Any] | None:
     if old == new:
         return None
     old_lines = old.splitlines()
     new_lines = new.splitlines()
     label = path or "file"
-    diff_lines = list(difflib.unified_diff(
-        old_lines, new_lines,
-        fromfile=f"a/{label}", tofile=f"b/{label}",
-        lineterm="",
-    ))
-    added = sum(1 for line in diff_lines if line.startswith("+") and not line.startswith("+++"))
-    removed = sum(1 for line in diff_lines if line.startswith("-") and not line.startswith("---"))
+    diff_lines = list(
+        difflib.unified_diff(
+            old_lines,
+            new_lines,
+            fromfile=f"a/{label}",
+            tofile=f"b/{label}",
+            lineterm="",
+        )
+    )
+    added = sum(
+        1 for line in diff_lines if line.startswith("+") and not line.startswith("+++")
+    )
+    removed = sum(
+        1 for line in diff_lines if line.startswith("-") and not line.startswith("---")
+    )
     truncated = False
     if len(diff_lines) > MAX_DIFF_LINES:
         diff_lines = diff_lines[:MAX_DIFF_LINES]
@@ -70,9 +95,13 @@ def _unified_diff(old: str, new: str, path: str) -> Optional[Dict[str, Any]]:
         "file": os.path.basename(path) or (path or "file"),
     }
 
+
 class EditFileTool:
     async def execute(self, content: str, ctx: dict) -> dict:
-        from src.tool_execution import _resolve_tool_path, _resolve_search_root, _truncate
+        from src.tool_execution import (
+            _resolve_tool_path,
+        )
+
         try:
             args = json.loads(content) if content.strip().startswith("{") else {}
         except (json.JSONDecodeError, TypeError):
@@ -88,9 +117,15 @@ class EditFileTool:
         except ValueError as e:
             return {"error": f"edit_file: {e}", "exit_code": 1}
         if old == "":
-            return {"error": "edit_file: old_string required (use write_file to create a file)", "exit_code": 1}
+            return {
+                "error": "edit_file: old_string required (use write_file to create a file)",
+                "exit_code": 1,
+            }
         if old == new:
-            return {"error": "edit_file: old_string and new_string are identical", "exit_code": 1}
+            return {
+                "error": "edit_file: old_string and new_string are identical",
+                "exit_code": 1,
+            }
 
         def _apply():
             """Helper function that performs the actual string replacement and file writing logic."""
@@ -101,7 +136,11 @@ class EditFileTool:
                 return original, None, "not_found"
             if count > 1 and not replace_all:
                 return original, None, f"not_unique:{count}"
-            updated = original.replace(old, new) if replace_all else original.replace(old, new, 1)
+            updated = (
+                original.replace(old, new)
+                if replace_all
+                else original.replace(old, new, 1)
+            )
             with open(path, "w", encoding="utf-8") as f:
                 f.write(updated)
             return original, updated, "ok"
@@ -109,30 +148,49 @@ class EditFileTool:
         try:
             original, updated, status = await asyncio.to_thread(_apply)
         except FileNotFoundError:
-            return {"error": f"edit_file: {path}: not found (use write_file to create it)", "exit_code": 1}
+            return {
+                "error": f"edit_file: {path}: not found (use write_file to create it)",
+                "exit_code": 1,
+            }
         except (IsADirectoryError, UnicodeDecodeError):
-            return {"error": f"edit_file: {path}: not an editable text file", "exit_code": 1}
+            return {
+                "error": f"edit_file: {path}: not an editable text file",
+                "exit_code": 1,
+            }
         except PermissionError:
             return {"error": f"edit_file: {path}: permission denied", "exit_code": 1}
         except OSError as e:
             return {"error": f"edit_file: {path}: {e}", "exit_code": 1}
 
         if status == "not_found":
-            return {"error": f"edit_file: old_string not found in {path}. Read the file and match it exactly.", "exit_code": 1}
+            return {
+                "error": f"edit_file: old_string not found in {path}. Read the file and match it exactly.",
+                "exit_code": 1,
+            }
         if status.startswith("not_unique"):
             n = status.split(":", 1)[1]
-            return {"error": f"edit_file: old_string is not unique in {path} ({n} matches). Add surrounding context or set replace_all=true.", "exit_code": 1}
+            return {
+                "error": f"edit_file: old_string is not unique in {path} ({n} matches). Add surrounding context or set replace_all=true.",
+                "exit_code": 1,
+            }
 
         n = original.count(old)
-        result = {"output": f"Edited {path} ({n} replacement{'s' if n != 1 else ''})", "exit_code": 0}
+        result = {
+            "output": f"Edited {path} ({n} replacement{'s' if n != 1 else ''})",
+            "exit_code": 0,
+        }
         diff = _unified_diff(original, updated, path)
         if diff:
             result["diff"] = diff
         return result
 
+
 class ReadFileTool:
     async def execute(self, content: str, ctx: dict) -> dict:
-        from src.tool_execution import _resolve_tool_path, _resolve_search_root, _truncate
+        from src.tool_execution import (
+            _resolve_tool_path,
+        )
+
         raw_path, offset, limit = content.split("\n", 1)[0].strip(), 0, 0
         _stripped = content.strip()
         if _stripped.startswith("{"):
@@ -148,6 +206,7 @@ class ReadFileTool:
         except ValueError as e:
             return {"error": f"read_file: {e}", "exit_code": 1}
         try:
+
             def _read():
                 if offset > 0 or limit > 0:
                     start = max(offset, 1)
@@ -162,27 +221,39 @@ class ReadFileTool:
                             n += 1
                             budget -= len(line)
                             if budget <= 0:
-                                out.append(f"\n... [truncated at {MAX_READ_CHARS} chars]")
+                                out.append(
+                                    f"\n... [truncated at {MAX_READ_CHARS} chars]"
+                                )
                                 break
                     return "".join(out)
                 with open(path, "r", encoding="utf-8", errors="replace") as f:
                     return f.read(MAX_READ_CHARS + 1)
+
             data = await asyncio.to_thread(_read)
         except FileNotFoundError:
             return {"error": f"read_file: {path}: not found", "exit_code": 1}
         except PermissionError:
             return {"error": f"read_file: {path}: permission denied", "exit_code": 1}
         except IsADirectoryError:
-            return {"error": f"read_file: {path}: is a directory (use ls)", "exit_code": 1}
+            return {
+                "error": f"read_file: {path}: is a directory (use ls)",
+                "exit_code": 1,
+            }
         except OSError as e:
             return {"error": f"read_file: {path}: {e}", "exit_code": 1}
         if not (offset > 0 or limit > 0) and len(data) > MAX_READ_CHARS:
-            data = data[:MAX_READ_CHARS] + f"\n... [truncated at {MAX_READ_CHARS} chars]"
+            data = (
+                data[:MAX_READ_CHARS] + f"\n... [truncated at {MAX_READ_CHARS} chars]"
+            )
         return {"output": data, "exit_code": 0}
+
 
 class WriteFileTool:
     async def execute(self, content: str, ctx: dict) -> dict:
-        from src.tool_execution import _resolve_tool_path, _resolve_search_root, _truncate
+        from src.tool_execution import (
+            _resolve_tool_path,
+        )
+
         lines = content.split("\n", 1)
         raw_path = lines[0].strip()
         body = lines[1] if len(lines) > 1 else ""
@@ -206,12 +277,18 @@ class WriteFileTool:
         except ValueError as e:
             return {"error": f"write_file: {e}", "exit_code": 1}
         try:
+
             def _write():
                 old = ""
                 try:
                     with open(path, "r", encoding="utf-8") as f:
                         old = f.read()
-                except (FileNotFoundError, IsADirectoryError, UnicodeDecodeError, OSError):
+                except (
+                    FileNotFoundError,
+                    IsADirectoryError,
+                    UnicodeDecodeError,
+                    OSError,
+                ):
                     old = ""
                 d = os.path.dirname(path)
                 if d:
@@ -219,6 +296,7 @@ class WriteFileTool:
                 with open(path, "w", encoding="utf-8") as f:
                     f.write(body)
                 return old, len(body)
+
             old_content, size = await asyncio.to_thread(_write)
         except PermissionError:
             return {"error": f"write_file: {path}: permission denied", "exit_code": 1}
@@ -229,6 +307,7 @@ class WriteFileTool:
         if diff:
             result["diff"] = diff
         return result
+
 
 class ApplyPatchTool:
     async def execute(self, content: str, ctx: dict) -> dict:
@@ -247,7 +326,12 @@ class ApplyPatchTool:
             try:
                 args = json.loads(stripped)
                 if isinstance(args, dict):
-                    patch_text = str(args.get("patch_text") or args.get("patchText") or args.get("patch") or "")
+                    patch_text = str(
+                        args.get("patch_text")
+                        or args.get("patchText")
+                        or args.get("patch")
+                        or ""
+                    )
             except (json.JSONDecodeError, TypeError):
                 pass
         if not patch_text.strip():
@@ -256,25 +340,37 @@ class ApplyPatchTool:
         try:
             ops = _parse_agent_patch(patch_text)
             if not ops:
-                return {"error": "apply_patch: no file operations found", "exit_code": 1}
+                return {
+                    "error": "apply_patch: no file operations found",
+                    "exit_code": 1,
+                }
             prepared = []
             for op in ops:
                 path = _resolve_tool_path(op["path"])
                 kind = op["kind"]
                 if kind == "add":
                     if os.path.exists(path):
-                        return {"error": f"apply_patch: {op['path']}: already exists", "exit_code": 1}
+                        return {
+                            "error": f"apply_patch: {op['path']}: already exists",
+                            "exit_code": 1,
+                        }
                     old = ""
                     new = op["content"]
                 elif kind == "delete":
                     if not os.path.isfile(path):
-                        return {"error": f"apply_patch: {op['path']}: not found", "exit_code": 1}
+                        return {
+                            "error": f"apply_patch: {op['path']}: not found",
+                            "exit_code": 1,
+                        }
                     with open(path, "r", encoding="utf-8") as f:
                         old = f.read()
                     new = ""
                 else:
                     if not os.path.isfile(path):
-                        return {"error": f"apply_patch: {op['path']}: not found", "exit_code": 1}
+                        return {
+                            "error": f"apply_patch: {op['path']}: not found",
+                            "exit_code": 1,
+                        }
                     with open(path, "r", encoding="utf-8") as f:
                         old = f.read()
                     new = _apply_patch_hunks(old, op["hunks"], op["path"])
@@ -301,7 +397,10 @@ class ApplyPatchTool:
         text_parts = [d.get("text", "") for d in diffs if d.get("text")]
         diff_text = "\n".join(text_parts)
         if len(diff_text.splitlines()) > MAX_DIFF_LINES:
-            diff_text = "\n".join(diff_text.splitlines()[:MAX_DIFF_LINES]) + f"\n... diff truncated at {MAX_DIFF_LINES} lines"
+            diff_text = (
+                "\n".join(diff_text.splitlines()[:MAX_DIFF_LINES])
+                + f"\n... diff truncated at {MAX_DIFF_LINES} lines"
+            )
         result = {
             "output": f"Applied patch ({len(prepared)} file{'s' if len(prepared) != 1 else ''}, +{added}/-{removed})",
             "exit_code": 0,
@@ -316,7 +415,8 @@ class ApplyPatchTool:
             }
         return result
 
-def _parse_agent_patch(patch_text: str) -> List[Dict[str, Any]]:
+
+def _parse_agent_patch(patch_text: str) -> list[dict[str, Any]]:
     lines = patch_text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
     while lines and not lines[0].strip():
         lines.pop(0)
@@ -327,7 +427,7 @@ def _parse_agent_patch(patch_text: str) -> List[Dict[str, Any]]:
     if lines[-1].strip() != "*** End Patch":
         raise ValueError("patch must end with *** End Patch")
 
-    ops: List[Dict[str, Any]] = []
+    ops: list[dict[str, Any]] = []
     i = 1
     while i < len(lines) - 1:
         line = lines[i]
@@ -335,23 +435,31 @@ def _parse_agent_patch(patch_text: str) -> List[Dict[str, Any]]:
             i += 1
             continue
         if line.startswith("*** Add File: "):
-            path = line[len("*** Add File: "):].strip()
+            path = line[len("*** Add File: ") :].strip()
             body = []
             i += 1
             while i < len(lines) - 1 and not lines[i].startswith("*** "):
                 if not lines[i].startswith("+"):
-                    raise ValueError(f"add file {path}: every content line must start with +")
+                    raise ValueError(
+                        f"add file {path}: every content line must start with +"
+                    )
                 body.append(lines[i][1:])
                 i += 1
-            ops.append({"kind": "add", "path": path, "content": "\n".join(body) + ("\n" if body else "")})
+            ops.append(
+                {
+                    "kind": "add",
+                    "path": path,
+                    "content": "\n".join(body) + ("\n" if body else ""),
+                }
+            )
             continue
         if line.startswith("*** Delete File: "):
-            path = line[len("*** Delete File: "):].strip()
+            path = line[len("*** Delete File: ") :].strip()
             ops.append({"kind": "delete", "path": path})
             i += 1
             continue
         if line.startswith("*** Update File: "):
-            path = line[len("*** Update File: "):].strip()
+            path = line[len("*** Update File: ") :].strip()
             hunks = []
             current = []
             i += 1
@@ -367,7 +475,9 @@ def _parse_agent_patch(patch_text: str) -> List[Dict[str, Any]]:
                 elif lines[i] == "":
                     current.append(" ")
                 else:
-                    raise ValueError(f"update file {path}: invalid patch line {lines[i]!r}")
+                    raise ValueError(
+                        f"update file {path}: invalid patch line {lines[i]!r}"
+                    )
                 i += 1
             if current:
                 hunks.append(current)
@@ -378,7 +488,8 @@ def _parse_agent_patch(patch_text: str) -> List[Dict[str, Any]]:
         raise ValueError(f"unexpected patch line: {line!r}")
     return ops
 
-def _apply_patch_hunks(original: str, hunks: List[List[str]], label: str) -> str:
+
+def _apply_patch_hunks(original: str, hunks: list[list[str]], label: str) -> str:
     updated = original
     for idx, hunk in enumerate(hunks, 1):
         old_lines = []
@@ -394,20 +505,29 @@ def _apply_patch_hunks(original: str, hunks: List[List[str]], label: str) -> str
         if old_text and old_text in updated:
             occurrences = updated.count(old_text)
             if occurrences != 1:
-                raise ValueError(f"{label}: hunk {idx} context matched {occurrences} times")
+                raise ValueError(
+                    f"{label}: hunk {idx} context matched {occurrences} times"
+                )
             updated = updated.replace(old_text, new_text, 1)
         elif old_text + "\n" in updated:
             occurrences = updated.count(old_text + "\n")
             if occurrences != 1:
-                raise ValueError(f"{label}: hunk {idx} context matched {occurrences} times")
+                raise ValueError(
+                    f"{label}: hunk {idx} context matched {occurrences} times"
+                )
             updated = updated.replace(old_text + "\n", new_text + "\n", 1)
         else:
             raise ValueError(f"{label}: hunk {idx} context not found")
     return updated
 
+
 class LsTool:
     async def execute(self, content: str, ctx: dict) -> dict:
-        from src.tool_execution import _resolve_tool_path, _resolve_search_root, _truncate
+        from src.tool_execution import (
+            _resolve_search_root,
+            _truncate,
+        )
+
         raw_path = ""
         _s = (content or "").strip()
         if _s.startswith("{"):
@@ -433,7 +553,11 @@ class LsTool:
                             continue
                         try:
                             is_dir = entry.is_dir(follow_symlinks=False)
-                            size = entry.stat(follow_symlinks=False).st_size if not is_dir else 0
+                            size = (
+                                entry.stat(follow_symlinks=False).st_size
+                                if not is_dir
+                                else 0
+                            )
                         except OSError:
                             continue
                         rows.append((is_dir, entry.name, size))
@@ -454,15 +578,16 @@ class LsTool:
             return {"error": err, "exit_code": 1}
         return {"output": _truncate(out), "exit_code": 0}
 
+
 class GlobTool:
     async def execute(self, content: str, ctx: dict) -> dict:
         from src.tool_execution import (
             _SENSITIVE_BASENAMES,
             _is_sensitive_path,
-            _resolve_tool_path,
             _resolve_search_root,
             _truncate,
         )
+
         args = {}
         _s = (content or "").strip()
         if _s.startswith("{"):
@@ -498,9 +623,10 @@ class GlobTool:
                 # yields paths under base.
                 nbase = os.path.normcase(rbase)
                 try:
-                    inside = cand == rbase or os.path.commonpath(
-                        [os.path.normcase(cand), nbase]
-                    ) == nbase
+                    inside = (
+                        cand == rbase
+                        or os.path.commonpath([os.path.normcase(cand), nbase]) == nbase
+                    )
                 except ValueError:
                     inside = False
                 # A literal that names a deny-listed sensitive file (.env,
@@ -522,7 +648,8 @@ class GlobTool:
                     # Sensitive dirs (.ssh, .gnupg, …) are pruned too so glob
                     # never enumerates the keys/tokens inside them.
                     dns[:] = [
-                        d for d in dns
+                        d
+                        for d in dns
                         if d not in _CODENAV_SKIP_DIRS and d not in _SENSITIVE_BASENAMES
                     ]
                     for name in fns + dns:
@@ -549,22 +676,26 @@ class GlobTool:
         if err:
             return {"error": err, "exit_code": 1}
         if not paths:
-            return {"output": f"No files matching {pattern!r} under {root}", "exit_code": 0}
+            return {
+                "output": f"No files matching {pattern!r} under {root}",
+                "exit_code": 0,
+            }
         out = "\n".join(paths)
         if len(paths) >= _CODENAV_MAX_HITS:
             out += f"\n... [capped at {_CODENAV_MAX_HITS} files]"
         return {"output": _truncate(out), "exit_code": 0}
+
 
 class GrepTool:
     async def execute(self, content: str, ctx: dict) -> dict:
         from src.tool_execution import (
             _SENSITIVE_FILE_PATTERNS,
             _is_sensitive_path,
-            _resolve_tool_path,
             _resolve_search_root,
             _truncate,
         )
-        args: Dict[str, Any] = {}
+
+        args: dict[str, Any] = {}
         _s = (content or "").strip()
         if _s.startswith("{"):
             try:
@@ -590,11 +721,17 @@ class GrepTool:
 
         def _grep():
             import re as _re
-            import shutil
+
             rg = shutil.which("rg")
             if rg:
-                cmd = [rg, "--line-number", "--no-heading", "--color=never",
-                       "--max-count", str(max_hits)]
+                cmd = [
+                    rg,
+                    "--line-number",
+                    "--no-heading",
+                    "--color=never",
+                    "--max-count",
+                    str(max_hits),
+                ]
                 if ignore_case:
                     cmd.append("--ignore-case")
                 if glob_pat:
@@ -610,8 +747,11 @@ class GrepTool:
                 cmd += ["--regexp", pattern, root]
                 try:
                     import subprocess
+
                     p = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
-                    lines = [ln for ln in (p.stdout or "").splitlines() if ln][:max_hits]
+                    lines = [ln for ln in (p.stdout or "").splitlines() if ln][
+                        :max_hits
+                    ]
                     return lines, None
                 except subprocess.TimeoutExpired:
                     return None, "grep: timed out"
@@ -641,7 +781,9 @@ class GrepTool:
                     with open(fp, "r", encoding="utf-8", errors="strict") as f:
                         for i, line in enumerate(f, 1):
                             if rx.search(line):
-                                hits.append(f"{fp}:{i}:{line.rstrip()[:_CODENAV_MAX_LINE]}")
+                                hits.append(
+                                    f"{fp}:{i}:{line.rstrip()[:_CODENAV_MAX_LINE]}"
+                                )
                                 if len(hits) >= max_hits:
                                     break
                 except (UnicodeDecodeError, OSError):
@@ -652,26 +794,32 @@ class GrepTool:
         if err:
             return {"error": err, "exit_code": 1}
         if not lines:
-            return {"output": f"No matches for {pattern!r} under {root}", "exit_code": 0}
+            return {
+                "output": f"No matches for {pattern!r} under {root}",
+                "exit_code": 0,
+            }
         out = "\n".join(ln[:_CODENAV_MAX_LINE] for ln in lines)
         if len(lines) >= max_hits:
             out += f"\n... [capped at {max_hits} matches]"
         return {"output": _truncate(out), "exit_code": 0}
 
+
 class GetWorkspaceTool:
     """Report the active workspace folder (no args). File tools are confined to
     it; the shell starts there (cwd) but is NOT sandboxed."""
+
     async def execute(self, content: str, ctx: dict) -> dict:
         from src.tool_execution import get_active_workspace
+
         ws = get_active_workspace()
         if ws:
             return {
                 "output": f"{ws}\n(File tools are confined to this folder; the shell starts "
-                          f"here but is not sandboxed and can reach outside it.)",
+                f"here but is not sandboxed and can reach outside it.)",
                 "exit_code": 0,
             }
         return {
             "output": "No workspace is set. File tools use the default allowed roots; "
-                      "resolve paths from the user or use absolute paths.",
+            "resolve paths from the user or use absolute paths.",
             "exit_code": 0,
         }

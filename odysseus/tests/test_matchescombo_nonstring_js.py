@@ -8,6 +8,7 @@ or malformed `keybinds` value (e.g. a number instead of "ctrl+k") reached
 `combo.split('+')` and threw "combo.split is not a function", breaking the
 whole keydown handler. The guard treats any non-string combo as "no match".
 """
+
 import json
 import shutil
 import subprocess
@@ -29,7 +30,11 @@ def _match(combo_js):
     """
     proc = subprocess.run(
         ["node", "--input-type=module"],
-        input=js, capture_output=True, text=True, cwd=str(_REPO), timeout=30,
+        input=js,
+        capture_output=True,
+        text=True,
+        cwd=str(_REPO),
+        timeout=30,
     )
     assert proc.returncode == 0, proc.stderr
     return json.loads(proc.stdout.strip())

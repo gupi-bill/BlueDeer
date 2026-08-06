@@ -18,8 +18,6 @@ from __future__ import annotations
 import logging
 import random
 import time
-from dataclasses import dataclass, field
-from enum import Enum
 from typing import Any
 
 from core.config import get_config
@@ -27,124 +25,9 @@ from core.task import TaskResult, TaskStatus
 
 logger = logging.getLogger("bluedeer.dream")
 
+# ============== 梦境模型（P2-1 拆分） ==============
 
-# ============== 梦境记忆质量分级 ==============
-
-class DreamQuality(Enum):
-    """梦境记忆质量等级。"""
-    NORMAL = "normal"          # 普通记忆
-    HIGH = "high"              # 高质量（代码行数 > cfg.quality_high_code_lines 或 token < cfg.quality_high_token）
-    LEGENDARY = "legendary"    # 传奇（代码行数 > cfg.quality_legendary_code_lines 且 token < cfg.quality_legendary_token）
-
-
-# 质量评定阈值（统一配置）
-# 参见 _cfg.quality_high_code_lines, _cfg.quality_high_token, 等
-
-
-@dataclass
-class DreamLog:
-    """跟踪梦境随时间变化的日志。"""
-    entries: list[dict[str, Any]] = field(default_factory=list)
-
-    def record(self, phase: str, summary: str, details: dict | None = None) -> None:
-        self.entries.append({
-            "timestamp": time.time(),
-            "phase": phase,
-            "summary": summary,
-            "details": details or {},
-        })
-
-    def recent(self, n: int = 10) -> list[dict[str, Any]]:
-        return self.entries[-n:]
-
-    def count_phases(self) -> dict[str, int]:
-        counts: dict[str, int] = {}
-        for e in self.entries:
-            counts[e["phase"]] = counts.get(e["phase"], 0) + 1
-        return counts
-
-@dataclass(slots=True)
-class DreamMemory:
-    """梦境记忆条目：从任务结果中提取的有价值方案。"""
-    source_task_id: str
-    agent_id: str
-    task_type: str
-    content: str
-    quality: DreamQuality = DreamQuality.NORMAL
-    metadata: dict[str, Any] = field(default_factory=dict)
-    # P3 扩容：生命周期字段
-    created_at: float = field(default_factory=time.time)
-    archived: bool = False
-
-    @property
-    def is_high_quality(self) -> bool:
-        return self.quality in (DreamQuality.HIGH, DreamQuality.LEGENDARY)
-
-    @property
-    def is_pinned(self) -> bool:
-        """P3 扩容：LEGENDARY 记忆自动置顶。"""
-        return self.quality == DreamQuality.LEGENDARY
-
-    @property
-    def is_expired(self) -> bool:
-        """是否过期（超过 30 天）。"""
-        return (time.time() - self.created_at) > get_config().dream.memory_archive_ttl
-
-    @property
-    def is_fragment(self) -> bool:
-        """是否低价值碎片（内容过短且普通质量）。"""
-        return (
-            len(self.content) < get_config().dream.fragile_min_len
-            and self.quality == DreamQuality.NORMAL
-        )
-
-
-@dataclass(slots=True)
-class NightmareAlert:
-    """噩梦告警：同类失败重复出现。"""
-    error_pattern: str
-    occurrences: int
-    task_ids: list[str]
-
-
-@dataclass(slots=True)
-class DreamReport:
-    """梦境报告：一次完整梦境的产出。"""
-    phase: str = "complete"
-    memories_extracted: int = 0
-    memories_optimized: int = 0
-    memories_persisted: int = 0
-    optimized_memories: list[DreamMemory] = field(default_factory=list)
-    nightmares: list[NightmareAlert] = field(default_factory=list)
-    quality_counts: dict[str, int] = field(default_factory=lambda: {
-        "normal": 0, "high": 0, "legendary": 0,
-    })
-    total_token_saved: int = 0  # 本轮梦境节省的 Token
-
-    @property
-    def high_quality_count(self) -> int:
-        """高质量记忆数（HIGH + LEGENDARY）。"""
-        return self.quality_counts.get("high", 0) + self.quality_counts.get("legendary", 0)
-
-    def summary(self) -> str:
-        """生成报告摘要。"""
-        lines = [
-            f"梦境阶段: {self.phase}",
-            f"提取记忆: {self.memories_extracted}",
-            f"优化记忆: {self.memories_optimized}",
-            f"固化记忆: {self.memories_persisted}",
-            f"质量分布: 普通={self.quality_counts.get('normal', 0)} "
-            f"高质量={self.quality_counts.get('high', 0)} "
-            f"传奇={self.quality_counts.get('legendary', 0)}",
-            f"本轮节省 Token: {self.total_token_saved}",
-        ]
-        if self.nightmares:
-            lines.append(f"噩梦告警: {len(self.nightmares)} 条")
-            for nm in self.nightmares:
-                lines.append(f"  - 错误模式: {nm.error_pattern} (出现 {nm.occurrences} 次)")
-        else:
-            lines.append("噩梦告警: 无")
-        return "\n".join(lines)
+from core.dream_models import DreamMemory, DreamQuality, DreamReport, NightmareAlert
 
 
 class DreamSystem:
@@ -215,10 +98,7 @@ class DreamSystem:
 
         # 估算节省 Token：高质量记忆复用减少的调用
         # 粗略：每条 HIGH 节省 200 token，LEGENDARY 节省 500
-        token_saved = (
-            quality_counts["high"] * 200
-            + quality_counts["legendary"] * 500
-        )
+        token_saved = quality_counts["high"] * 200 + quality_counts["legendary"] * 500
 
         report = DreamReport(
             phase="complete",
@@ -278,9 +158,15 @@ class DreamSystem:
         code_lines = content.count("\n") + 1
         _dream_cfg = get_config().dream
 
-        if code_lines > _dream_cfg.quality_legendary_code_lines and token_usage < _dream_cfg.quality_legendary_token:
+        if (
+            code_lines > _dream_cfg.quality_legendary_code_lines
+            and token_usage < _dream_cfg.quality_legendary_token
+        ):
             return DreamQuality.LEGENDARY
-        if code_lines > _dream_cfg.quality_high_code_lines or token_usage < _dream_cfg.quality_high_token:
+        if (
+            code_lines > _dream_cfg.quality_high_code_lines
+            or token_usage < _dream_cfg.quality_high_token
+        ):
             return DreamQuality.HIGH
         return DreamQuality.NORMAL
 
@@ -347,11 +233,13 @@ class DreamSystem:
         nightmares: list[NightmareAlert] = []
         for pattern, task_ids in error_patterns.items():
             if len(task_ids) >= self._nightmare_threshold:
-                nightmares.append(NightmareAlert(
-                    error_pattern=pattern,
-                    occurrences=len(task_ids),
-                    task_ids=task_ids,
-                ))
+                nightmares.append(
+                    NightmareAlert(
+                        error_pattern=pattern,
+                        occurrences=len(task_ids),
+                        task_ids=task_ids,
+                    )
+                )
 
         return nightmares
 
@@ -458,7 +346,9 @@ class DreamSystem:
 
         logger.info(
             "跨岗位协同梦境: %d 角色, %d 结果, %d 记忆",
-            len(results_by_role), len(all_results), len(memories),
+            len(results_by_role),
+            len(all_results),
+            len(memories),
         )
         return report, memories
 
@@ -536,21 +426,25 @@ class DreamSystem:
         memories: list[DreamMemory] = []
         for item in snapshot_data:
             quality = DreamQuality(item.get("quality", "normal"))
-            memories.append(DreamMemory(
-                source_task_id=item["source_task_id"],
-                agent_id=item["agent_id"],
-                task_type=item["task_type"],
-                content=item["content"],
-                quality=quality,
-                metadata=item.get("metadata", {}),
-                created_at=item.get("created_at", time.time()),
-                archived=item.get("archived", False),
-            ))
+            memories.append(
+                DreamMemory(
+                    source_task_id=item["source_task_id"],
+                    agent_id=item["agent_id"],
+                    task_type=item["task_type"],
+                    content=item["content"],
+                    quality=quality,
+                    metadata=item.get("metadata", {}),
+                    created_at=item.get("created_at", time.time()),
+                    archived=item.get("archived", False),
+                )
+            )
         return memories
 
     # ============== 休息区关联：梦境记忆回放 ==============
 
-    def generate_dream(self, memories: list[DreamMemory], theme: str = "default") -> dict[str, Any]:
+    def generate_dream(
+        self, memories: list[DreamMemory], theme: str = "default"
+    ) -> dict[str, Any]:
         """从记忆片段合成一段梦境序列。
         Args:
             memories: 记忆片段列表。
@@ -564,9 +458,15 @@ class DreamSystem:
         fragments = [m.content[:100] for m in samples]
         themes_used = [theme]
         dream_text = "梦境合成: " + " ... ".join(fragments)
-        return {"dream_text": dream_text, "themes_used": themes_used, "fragments": len(fragments)}
+        return {
+            "dream_text": dream_text,
+            "themes_used": themes_used,
+            "fragments": len(fragments),
+        }
 
-    def replay_memory(self, pattern: str, memory_store: list[DreamMemory] | None = None) -> list[DreamMemory]:
+    def replay_memory(
+        self, pattern: str, memory_store: list[DreamMemory] | None = None
+    ) -> list[DreamMemory]:
         """模拟按模式回放记忆。
         Args:
             pattern: 检索模式（关键词）。

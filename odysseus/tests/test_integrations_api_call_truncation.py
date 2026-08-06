@@ -4,9 +4,9 @@ Covers:
   (a) Large JSON list response -> sentinel appended, valid JSON returned
   (b) Small response -> returned unchanged, no truncation
 """
+
 import json
 import sys
-import os
 import types
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -42,8 +42,7 @@ if "src.constants" not in sys.modules:
     stub_c.SETTINGS_FILE = "/tmp/settings_test.json"  # type: ignore
     sys.modules["src.constants"] = stub_c
 
-from src import integrations  # noqa: E402
-
+from src import integrations
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -116,7 +115,10 @@ async def _call_with_integration(integration, path="/items"):
 
 @pytest.mark.asyncio
 async def test_api_call_rejects_stored_base_url_with_query_without_requesting():
-    integration = {**DUMMY_INTEGRATION, "base_url": "http://api.example.com/api?token=abc"}
+    integration = {
+        **DUMMY_INTEGRATION,
+        "base_url": "http://api.example.com/api?token=abc",
+    }
     result, mock_client = await _call_with_integration(integration)
 
     assert result == {
@@ -141,7 +143,9 @@ async def test_api_call_joins_path_under_configured_base_path():
 
 @pytest.mark.asyncio
 async def test_api_call_rejects_path_fragment_without_requesting():
-    result, mock_client = await _call_with_integration(DUMMY_INTEGRATION, "/items#fragment")
+    result, mock_client = await _call_with_integration(
+        DUMMY_INTEGRATION, "/items#fragment"
+    )
 
     assert result == {"error": "Path must not contain a fragment", "exit_code": 1}
     mock_client.request.assert_not_called()
@@ -182,9 +186,7 @@ async def test_small_json_list_not_truncated():
     parsed = json.loads(body)
     assert parsed == small_list
     # No sentinel in a short response
-    assert not any(
-        isinstance(item, dict) and item.get("_truncated") for item in parsed
-    )
+    assert not any(isinstance(item, dict) and item.get("_truncated") for item in parsed)
 
 
 @pytest.mark.asyncio
@@ -208,9 +210,9 @@ async def test_large_json_dict_actually_truncated():
     # Some entries must have been dropped (not all 100 keys present)
     original_keys = set(big_dict.keys())
     kept_keys = set(parsed.keys()) - {"_truncated"}
-    assert len(kept_keys) < len(original_keys), (
-        "Dict truncation should have removed entries to fit within the limit"
-    )
+    assert len(kept_keys) < len(
+        original_keys
+    ), "Dict truncation should have removed entries to fit within the limit"
     # Keys that were kept must match the original values
     for k in kept_keys:
         assert parsed[k] == big_dict[k]
@@ -242,9 +244,9 @@ async def test_list_truncation_respects_limit_including_sentinel():
 
     assert result.get("exit_code") == 0
     body = result["output"].split(chr(10), 1)[1]
-    assert len(body) <= 12000, (
-        f"Truncated list body is {len(body)} chars, must be <= 12000"
-    )
+    assert (
+        len(body) <= 12000
+    ), f"Truncated list body is {len(body)} chars, must be <= 12000"
     parsed = json.loads(body)
     assert isinstance(parsed, list)
     sentinel = parsed[-1]

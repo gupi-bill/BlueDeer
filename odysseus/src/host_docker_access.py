@@ -4,7 +4,6 @@ import os
 import stat
 from collections.abc import Mapping
 
-
 HOST_DOCKER_ENV_VAR = "ODYSSEUS_ENABLE_HOST_DOCKER"
 HOST_DOCKER_SOCKET_PATH = "/var/run/docker.sock"
 

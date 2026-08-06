@@ -14,11 +14,7 @@ def test_truncated_update_document_fence_is_executable():
 
 
 def test_truncated_edit_document_fence_is_executable():
-    text = (
-        "```edit_documen\n"
-        "<<<FIND>>>\nold\n<<<REPLACE>>>\nnew\n<<<END>>>\n"
-        "```"
-    )
+    text = "```edit_documen\n" "<<<FIND>>>\nold\n<<<REPLACE>>>\nnew\n<<<END>>>\n" "```"
 
     normalized = _normalize_stream_document_fences(text, "update_document")
     blocks = parse_tool_blocks(normalized)

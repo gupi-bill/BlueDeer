@@ -3,6 +3,7 @@
 特殊行为：dig_burrow 挖地道，explore 发现资源。
 commit 28：行为池——挖新地道 / 倒着走 / 冲洗爪子
 """
+
 from __future__ import annotations
 
 import random
@@ -41,7 +42,7 @@ class Badger(DigitalLifeForm):
                 "life_stages": ["ADULT", "MIDDLE"],
                 "probability": 0.02,
             },
-            "duration_sec": 600,       # 10 分钟
+            "duration_sec": 600,  # 10 分钟
             "cooldown_sec": 3600,
             "animation": "work",
             "particles": "nut_bury",
@@ -55,7 +56,7 @@ class Badger(DigitalLifeForm):
                 "life_stages": ["JUVENILE", "ADULT", "MIDDLE"],
                 "probability": 0.01,
             },
-            "duration_sec": 15,        # 短暂
+            "duration_sec": 15,  # 短暂
             "cooldown_sec": 600,
             "animation": "walk",
             "particles": "smirk",
@@ -69,25 +70,38 @@ class Badger(DigitalLifeForm):
                 "life_stages": ["ADULT", "MIDDLE"],
                 "probability": 0.015,
             },
-            "duration_sec": 60,        # 1 分钟
+            "duration_sec": 60,  # 1 分钟
             "cooldown_sec": 1800,
             "animation": "idle",
             "particles": "snow_puff",
         },
     ]
 
-    def __init__(self, name="小獾", gender="male", environment=None,
-                 birth_time=None, genome_override=None):
+    def __init__(
+        self,
+        name="小獾",
+        gender="male",
+        environment=None,
+        birth_time=None,
+        genome_override=None,
+    ):
         genome = self._build_genome(genome_override)
-        super().__init__(name=name, species="badger", gender=gender,
-                         genome=genome, environment=environment, birth_time=birth_time)
+        super().__init__(
+            name=name,
+            species="badger",
+            gender=gender,
+            genome=genome,
+            environment=environment,
+            birth_time=birth_time,
+        )
 
     def dig_burrow(self) -> None:
         """挖地道（增强环境容量，简化为加资源）。"""
         if self._environment is not None:
             with self._environment._lock:
                 self._environment.food_available = min(
-                    2000.0, self._environment.food_available + 2.0)
+                    2000.0, self._environment.food_available + 2.0
+                )
             self._remember("挖地道 +2 资源")
 
     def _explore(self) -> None:
@@ -115,7 +129,8 @@ class Badger(DigitalLifeForm):
             if random.random() < 0.003 and self._environment is not None:
                 with self._environment._lock:
                     self._environment.food_available = min(
-                        2000.0, self._environment.food_available + 1.0)
+                        2000.0, self._environment.food_available + 1.0
+                    )
         elif bname == "walk_backwards":
             # 倒着走：消耗能量
             self.energy = max(0.0, self.energy - 0.1)
@@ -142,6 +157,7 @@ class Badger(DigitalLifeForm):
         return Badger(
             name=f"{self._name_obj}的幼崽",
             gender=random.choice(["male", "female"]),
-            environment=environment, birth_time=birth_time,
+            environment=environment,
+            birth_time=birth_time,
             genome_override=genome,
         )

@@ -8,12 +8,12 @@ from __future__ import annotations
 
 import re
 from contextvars import ContextVar
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Optional
+from datetime import UTC, datetime, timedelta, timezone
 
-
-_USER_TZ_OFFSET_MIN: ContextVar[Optional[int]] = ContextVar("user_tz_offset_min", default=None)
-_USER_TZ_NAME: ContextVar[Optional[str]] = ContextVar("user_tz_name", default=None)
+_USER_TZ_OFFSET_MIN: ContextVar[int | None] = ContextVar(
+    "user_tz_offset_min", default=None
+)
+_USER_TZ_NAME: ContextVar[str | None] = ContextVar("user_tz_name", default=None)
 
 
 def set_user_tz_offset(offset_min) -> None:
@@ -29,7 +29,7 @@ def set_user_tz_offset(offset_min) -> None:
         _USER_TZ_OFFSET_MIN.set(value)
 
 
-def get_user_tz_offset() -> Optional[int]:
+def get_user_tz_offset() -> int | None:
     """Return minutes east of UTC for the current user, if known."""
     return _USER_TZ_OFFSET_MIN.get()
 
@@ -44,7 +44,7 @@ def set_user_tz_name(name) -> None:
     _USER_TZ_NAME.set(cleaned or None)
 
 
-def get_user_tz_name() -> Optional[str]:
+def get_user_tz_name() -> str | None:
     """Return the current user's browser timezone name, if provided."""
     return _USER_TZ_NAME.get()
 
@@ -55,7 +55,7 @@ def clear_user_time_context() -> None:
     _USER_TZ_NAME.set(None)
 
 
-def format_utc_offset(offset_min: Optional[int]) -> str:
+def format_utc_offset(offset_min: int | None) -> str:
     """Format minutes east of UTC as +HH:MM or -HH:MM."""
     if offset_min is None:
         offset_min = 0
@@ -73,19 +73,20 @@ def user_timezone() -> timezone:
         if name:
             try:
                 from zoneinfo import ZoneInfo
+
                 return ZoneInfo(name)
             except Exception:
                 pass
-        return datetime.now().astimezone().tzinfo or timezone.utc
+        return datetime.now().astimezone().tzinfo or UTC
     return timezone(timedelta(minutes=offset))
 
 
-def now_user_local(now_utc: Optional[datetime] = None) -> datetime:
+def now_user_local(now_utc: datetime | None = None) -> datetime:
     """Return the current time in the user's timezone."""
     if now_utc is None:
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.now(UTC)
     elif now_utc.tzinfo is None:
-        now_utc = now_utc.replace(tzinfo=timezone.utc)
+        now_utc = now_utc.replace(tzinfo=UTC)
     return now_utc.astimezone(user_timezone())
 
 
@@ -98,7 +99,7 @@ def _clock_label(dt: datetime) -> str:
     return f"{hour}:{dt.minute:02d} {dt.strftime('%p')}"
 
 
-def timezone_label(dt: Optional[datetime] = None) -> str:
+def timezone_label(dt: datetime | None = None) -> str:
     """Return a concise display label such as Australia/Brisbane, UTC+10:00."""
     offset = get_user_tz_offset()
     if offset is None:
@@ -110,14 +111,14 @@ def timezone_label(dt: Optional[datetime] = None) -> str:
     return f"{name}, {offset_label}" if name else offset_label
 
 
-def current_datetime_prompt(now_utc: Optional[datetime] = None) -> str:
+def current_datetime_prompt(now_utc: datetime | None = None) -> str:
     """Build reusable system prompt text for date/time reasoning."""
     if now_utc is None:
-        utc_now = datetime.now(timezone.utc)
+        utc_now = datetime.now(UTC)
     elif now_utc.tzinfo is None:
-        utc_now = now_utc.replace(tzinfo=timezone.utc)
+        utc_now = now_utc.replace(tzinfo=UTC)
     else:
-        utc_now = now_utc.astimezone(timezone.utc)
+        utc_now = now_utc.astimezone(UTC)
 
     local_now = now_user_local(utc_now)
     tomorrow = local_now + timedelta(days=1)
@@ -139,9 +140,9 @@ def current_datetime_prompt(now_utc: Optional[datetime] = None) -> str:
 
 
 def current_datetime_context_message_for_tz(
-    iana_tz_name: Optional[str],
-    now_utc: Optional[datetime] = None,
-) -> Dict[str, str]:
+    iana_tz_name: str | None,
+    now_utc: datetime | None = None,
+) -> dict[str, str]:
     """Build the current-date/time context as a user-role message, resolved
     against an explicit IANA timezone name rather than browser ContextVars.
 
@@ -156,28 +157,31 @@ def current_datetime_context_message_for_tz(
       timezone render in UTC, not server-local time.
     """
     if now_utc is None:
-        utc_now = datetime.now(timezone.utc)
+        utc_now = datetime.now(UTC)
     elif now_utc.tzinfo is None:
-        utc_now = now_utc.replace(tzinfo=timezone.utc)
+        utc_now = now_utc.replace(tzinfo=UTC)
     else:
-        utc_now = now_utc.astimezone(timezone.utc)
+        utc_now = now_utc.astimezone(UTC)
 
     # Resolve the display timezone — UTC fallback on any failure.
-    tz = timezone.utc
-    resolved_name: Optional[str] = None
+    tz = UTC
+    resolved_name: str | None = None
     if iana_tz_name:
         try:
             from zoneinfo import ZoneInfo
+
             tz = ZoneInfo(iana_tz_name)
             resolved_name = iana_tz_name
         except Exception:
-            tz = timezone.utc  # invalid zone → UTC, no ContextVar touched
+            tz = UTC  # invalid zone → UTC, no ContextVar touched
 
     local_now = utc_now.astimezone(tz)
     tomorrow = local_now + timedelta(days=1)
 
     _utc_offset = local_now.utcoffset()
-    offset_min = int(_utc_offset.total_seconds() // 60) if _utc_offset is not None else 0
+    offset_min = (
+        int(_utc_offset.total_seconds() // 60) if _utc_offset is not None else 0
+    )
     offset_label = f"UTC{format_utc_offset(offset_min)}"
     tz_label = f"{resolved_name}, {offset_label}" if resolved_name else offset_label
 
@@ -201,7 +205,7 @@ def current_datetime_context_message_for_tz(
     }
 
 
-def current_datetime_context_message(now_utc: Optional[datetime] = None) -> Dict[str, str]:
+def current_datetime_context_message(now_utc: datetime | None = None) -> dict[str, str]:
     """Build the current-date/time context as a standalone chat message.
 
     This intentionally returns a ``user``-role message rather than a

@@ -7,15 +7,14 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+import routes.document_routes as droutes
+from core.middleware import SecurityHeadersMiddleware
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
 import core.database as cdb
-import routes.document_routes as droutes
 from core.database import Document
-from core.middleware import SecurityHeadersMiddleware
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -116,6 +115,7 @@ async def test_unrelated_paths_keep_strict_policy():
 def test_db(monkeypatch):
     """Create a temporary SQLite database and patch routes.document_routes.SessionLocal."""
     import os
+
     tmpdb = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tmpdb.close()
     engine = create_engine(
@@ -155,9 +155,7 @@ def _endpoint(method: str, path: str, upload_handler=None):
 def _make_pdf_doc(db_session) -> str:
     """Create a test Document with a pdf_form_source front-matter pointer."""
     content = (
-        '<!-- pdf_form_source upload_id="'
-        + "a" * 32
-        + '" fields="3" -->\n'
+        '<!-- pdf_form_source upload_id="' + "a" * 32 + '" fields="3" -->\n'
         "- Field 1: value1\n- Field 2: value2\n- Field 3: value3\n"
     )
     db = db_session()
@@ -191,14 +189,22 @@ async def test_render_pdf_returns_503_when_pymupdf_missing(monkeypatch, test_db)
     monkeypatch.setattr(builtins, "__import__", fake_import)
 
     # Stub route dependencies to isolate the PyMuPDF check
-    import src.pdf_form_doc as pdf_form_doc
-    monkeypatch.setattr(pdf_form_doc, "find_source_upload_id", lambda _content: "a" * 32)
-    monkeypatch.setattr(droutes, "_resolve_user_upload_path", lambda *a, **kw: "/tmp/fake.pdf")
+    from src import pdf_form_doc
 
-    render_pdf = _endpoint("GET", "/api/document/{doc_id}/render-pdf", upload_handler=MagicMock())
+    monkeypatch.setattr(
+        pdf_form_doc, "find_source_upload_id", lambda _content: "a" * 32
+    )
+    monkeypatch.setattr(
+        droutes, "_resolve_user_upload_path", lambda *a, **kw: "/tmp/fake.pdf"
+    )
+
+    render_pdf = _endpoint(
+        "GET", "/api/document/{doc_id}/render-pdf", upload_handler=MagicMock()
+    )
     doc_id = _make_pdf_doc(test_db)
 
     from fastapi import HTTPException
+
     with pytest.raises(HTTPException) as excinfo:
         await render_pdf(doc_id, _req())
 
@@ -224,14 +230,22 @@ async def test_render_pdf_503_runs_before_file_io(monkeypatch, test_db, tmp_path
     sentinel_dir.mkdir()
     sentinel_path = str(sentinel_dir / "source.pdf")
 
-    import src.pdf_form_doc as pdf_form_doc
-    monkeypatch.setattr(pdf_form_doc, "find_source_upload_id", lambda _content: "a" * 32)
-    monkeypatch.setattr(droutes, "_resolve_user_upload_path", lambda *a, **kw: sentinel_path)
+    from src import pdf_form_doc
 
-    render_pdf = _endpoint("GET", "/api/document/{doc_id}/render-pdf", upload_handler=MagicMock())
+    monkeypatch.setattr(
+        pdf_form_doc, "find_source_upload_id", lambda _content: "a" * 32
+    )
+    monkeypatch.setattr(
+        droutes, "_resolve_user_upload_path", lambda *a, **kw: sentinel_path
+    )
+
+    render_pdf = _endpoint(
+        "GET", "/api/document/{doc_id}/render-pdf", upload_handler=MagicMock()
+    )
     doc_id = _make_pdf_doc(test_db)
 
     from fastapi import HTTPException
+
     with pytest.raises(HTTPException) as excinfo:
         await render_pdf(doc_id, _req())
 

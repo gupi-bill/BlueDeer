@@ -18,45 +18,48 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any
 
 from modules.glow.color_downgrade import (
+    RGB,
     ColorDowngradeRenderer,
     GlowLayer,
-    RGB,
 )
-
 
 # ============== 告警等级 ==============
 
+
 class AlertGlowLevel(Enum):
     """告警三级。"""
-    LIGHT = "light"      # 轻度：黄光微脉冲
-    MEDIUM = "medium"    # 中度：橙光闪烁
-    HEAVY = "heavy"      # 重度：红光持续高亮
+
+    LIGHT = "light"  # 轻度：黄光微脉冲
+    MEDIUM = "medium"  # 中度：橙光闪烁
+    HEAVY = "heavy"  # 重度：红光持续高亮
 
 
 # ============== 告警专项类型 ==============
 
+
 class AlertGlowCategory(Enum):
     """6 类告警专项色。"""
-    SECURITY = "security"        # 安全：红光
-    TOKEN = "token"              # Token：紫光
-    DREAM = "dream"              # 梦境：蓝光
-    TEST = "test"                # 测试：青光
-    GIT = "git"                  # Git：绿光
-    DEPENDENCY = "dependency"    # 依赖：粉光
+
+    SECURITY = "security"  # 安全：红光
+    TOKEN = "token"  # Token：紫光
+    DREAM = "dream"  # 梦境：蓝光
+    TEST = "test"  # 测试：青光
+    GIT = "git"  # Git：绿光
+    DEPENDENCY = "dependency"  # 依赖：粉光
 
 
 # 等级 → 颜色/层级
-_LEVEL_CONFIG: dict[AlertGlowLevel, "AlertGlowParams"] = {}  # 在下方初始化
+_LEVEL_CONFIG: dict[AlertGlowLevel, AlertGlowParams] = {}  # 在下方初始化
 
 
 @dataclass
 class AlertGlowParams:
     """告警发光参数。"""
+
     color: RGB
     layer: GlowLayer
     blink: bool = False
@@ -68,32 +71,44 @@ class AlertGlowParams:
 # 初始化等级配置
 _LEVEL_CONFIG = {
     AlertGlowLevel.LIGHT: AlertGlowParams(
-        color=RGB(255, 220, 80), layer=GlowLayer.MIDGROUND,
-        brightness=0.9, pulse_frames=2, icon="🟡",
+        color=RGB(255, 220, 80),
+        layer=GlowLayer.MIDGROUND,
+        brightness=0.9,
+        pulse_frames=2,
+        icon="🟡",
     ),
     AlertGlowLevel.MEDIUM: AlertGlowParams(
-        color=RGB(255, 140, 40), layer=GlowLayer.FOREGROUND,
-        brightness=1.2, blink=True, pulse_frames=3, icon="🟠",
+        color=RGB(255, 140, 40),
+        layer=GlowLayer.FOREGROUND,
+        brightness=1.2,
+        blink=True,
+        pulse_frames=3,
+        icon="🟠",
     ),
     AlertGlowLevel.HEAVY: AlertGlowParams(
-        color=RGB(255, 60, 60), layer=GlowLayer.FOREGROUND,
-        brightness=1.5, blink=True, pulse_frames=4, icon="🔴",
+        color=RGB(255, 60, 60),
+        layer=GlowLayer.FOREGROUND,
+        brightness=1.5,
+        blink=True,
+        pulse_frames=4,
+        icon="🔴",
     ),
 }
 
 
 # 专项类型 → 颜色
 _CATEGORY_COLOR: dict[AlertGlowCategory, RGB] = {
-    AlertGlowCategory.SECURITY: RGB(255, 60, 60),     # 红
-    AlertGlowCategory.TOKEN: RGB(180, 80, 220),       # 紫
-    AlertGlowCategory.DREAM: RGB(80, 140, 240),       # 蓝
-    AlertGlowCategory.TEST: RGB(80, 220, 200),        # 青
-    AlertGlowCategory.GIT: RGB(80, 200, 100),         # 绿
-    AlertGlowCategory.DEPENDENCY: RGB(240, 120, 180), # 粉
+    AlertGlowCategory.SECURITY: RGB(255, 60, 60),  # 红
+    AlertGlowCategory.TOKEN: RGB(180, 80, 220),  # 紫
+    AlertGlowCategory.DREAM: RGB(80, 140, 240),  # 蓝
+    AlertGlowCategory.TEST: RGB(80, 220, 200),  # 青
+    AlertGlowCategory.GIT: RGB(80, 200, 100),  # 绿
+    AlertGlowCategory.DEPENDENCY: RGB(240, 120, 180),  # 粉
 }
 
 
 # ============== 告警光效渲染器 ==============
+
 
 class AlertGlowRenderer:
     """告警分级光效渲染器。
@@ -145,10 +160,14 @@ class AlertGlowRenderer:
         for i in range(frames_count):
             factor = 0.5 + 0.5 * (i / max(1, frames_count - 1))
             adjusted = color.adjust_brightness(factor * params.brightness)
-            result.append(self._renderer.render_glow(
-                f"{params.icon} {message}", adjusted, params.layer,
-                blink=(i == 0 and params.blink),
-            ))
+            result.append(
+                self._renderer.render_glow(
+                    f"{params.icon} {message}",
+                    adjusted,
+                    params.layer,
+                    blink=(i == 0 and params.blink),
+                )
+            )
         return result
 
     def render_alert_panel(
@@ -164,12 +183,20 @@ class AlertGlowRenderer:
             多行字符串列表。
         """
         if not alerts:
-            return [self._renderer.render_glow(
-                "✅ 无活跃告警", RGB(100, 200, 100), GlowLayer.MIDGROUND,
-            )]
-        lines = [self._renderer.render_glow(
-            "🚨 告警面板", RGB(255, 100, 100), GlowLayer.FOREGROUND,
-        )]
+            return [
+                self._renderer.render_glow(
+                    "✅ 无活跃告警",
+                    RGB(100, 200, 100),
+                    GlowLayer.MIDGROUND,
+                )
+            ]
+        lines = [
+            self._renderer.render_glow(
+                "🚨 告警面板",
+                RGB(255, 100, 100),
+                GlowLayer.FOREGROUND,
+            )
+        ]
         # 按等级排序：重度 > 中度 > 轻度
         level_order = {
             AlertGlowLevel.HEAVY: 0,
@@ -242,7 +269,8 @@ def get_alert_level() -> AlertGlowLevel:
 
 
 def render_alert_by_current_level(
-    renderer: AlertGlowRenderer, message: str,
+    renderer: AlertGlowRenderer,
+    message: str,
     category: AlertGlowCategory | None = None,
 ) -> str:
     """按当前全局告警等级渲染告警。"""

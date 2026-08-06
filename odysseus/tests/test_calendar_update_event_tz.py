@@ -8,14 +8,15 @@ it was created with silently shifted it by the user's UTC offset (9h for a
 Tokyo user) and left is_utc inconsistent. The do_manage_notes update path
 was already fixed for the analogous issue.
 """
+
 import json
 import uuid
 
 import pytest
+from tests.helpers.sqlite_db import make_temp_sqlite
 
 import core.database as cdb
 from core.database import CalendarEvent
-from tests.helpers.sqlite_db import make_temp_sqlite
 
 _TS, _ENGINE, _TMPDB = make_temp_sqlite(cdb.Base.metadata)
 
@@ -24,6 +25,7 @@ _TS, _ENGINE, _TMPDB = make_temp_sqlite(cdb.Base.metadata)
 def _bind_temp_db(monkeypatch):
     monkeypatch.setattr(cdb, "SessionLocal", _TS)
     import routes.calendar_routes as cr
+
     monkeypatch.setattr(cr, "SessionLocal", _TS, raising=False)
     yield
 
@@ -31,6 +33,7 @@ def _bind_temp_db(monkeypatch):
 @pytest.fixture
 def tokyo_offset():
     from routes.calendar_routes import set_user_tz_offset
+
     set_user_tz_offset(540)  # Tokyo, UTC+9
     try:
         yield
@@ -44,11 +47,16 @@ async def test_update_event_dtstart_anchored_to_user_tz(tokyo_offset):
     owner = "tz-" + uuid.uuid4().hex[:6]
     naive = "2026-06-10T14:00:00"  # 14:00 Tokyo == 05:00 UTC
 
-    created = await do_manage_calendar(json.dumps({
-        "action": "create_event",
-        "summary": "Standup",
-        "dtstart": naive,
-    }), owner=owner)
+    created = await do_manage_calendar(
+        json.dumps(
+            {
+                "action": "create_event",
+                "summary": "Standup",
+                "dtstart": naive,
+            }
+        ),
+        owner=owner,
+    )
     assert created.get("exit_code", 0) == 0, created
     uid = created["uid"]
 
@@ -60,11 +68,16 @@ async def test_update_event_dtstart_anchored_to_user_tz(tokyo_offset):
         db.close()
 
     # Update the same event to the SAME naive wall-clock value.
-    updated = await do_manage_calendar(json.dumps({
-        "action": "update_event",
-        "uid": uid,
-        "dtstart": naive,
-    }), owner=owner)
+    updated = await do_manage_calendar(
+        json.dumps(
+            {
+                "action": "update_event",
+                "uid": uid,
+                "dtstart": naive,
+            }
+        ),
+        owner=owner,
+    )
     assert updated.get("exit_code", 0) == 0, updated
 
     db = _TS()
@@ -84,19 +97,29 @@ async def test_list_events_accepts_start_time_end_time_aliases():
     from src.tool_implementations import do_manage_calendar
 
     owner = "list-" + uuid.uuid4().hex[:6]
-    created = await do_manage_calendar(json.dumps({
-        "action": "create_event",
-        "summary": "July planning",
-        "dtstart": "2026-07-15T12:00:00Z",
-        "dtend": "2026-07-15T13:00:00Z",
-    }), owner=owner)
+    created = await do_manage_calendar(
+        json.dumps(
+            {
+                "action": "create_event",
+                "summary": "July planning",
+                "dtstart": "2026-07-15T12:00:00Z",
+                "dtend": "2026-07-15T13:00:00Z",
+            }
+        ),
+        owner=owner,
+    )
     assert created.get("exit_code", 0) == 0, created
 
-    listed = await do_manage_calendar(json.dumps({
-        "action": "list_events",
-        "start_time": "2026-07-01T00:00:00Z",
-        "end_time": "2026-08-01T00:00:00Z",
-    }), owner=owner)
+    listed = await do_manage_calendar(
+        json.dumps(
+            {
+                "action": "list_events",
+                "start_time": "2026-07-01T00:00:00Z",
+                "end_time": "2026-08-01T00:00:00Z",
+            }
+        ),
+        owner=owner,
+    )
     assert listed.get("exit_code", 0) == 0, listed
     assert "between 2026-07-01 and 2026-08-01" in listed["response"]
     assert [event["summary"] for event in listed["events"]] == ["July planning"]
@@ -105,9 +128,14 @@ async def test_list_events_accepts_start_time_end_time_aliases():
 async def test_list_events_query_without_range_does_not_default_to_two_weeks():
     from src.tool_implementations import do_manage_calendar
 
-    listed = await do_manage_calendar(json.dumps({
-        "action": "list_events",
-        "query": "July",
-    }), owner="list-" + uuid.uuid4().hex[:6])
+    listed = await do_manage_calendar(
+        json.dumps(
+            {
+                "action": "list_events",
+                "query": "July",
+            }
+        ),
+        owner="list-" + uuid.uuid4().hex[:6],
+    )
     assert listed.get("exit_code") == 1, listed
     assert "explicit start/end" in listed["error"]

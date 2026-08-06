@@ -9,10 +9,8 @@
 
 from __future__ import annotations
 
-import json
 import logging
-import os
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from core.task import Task
@@ -25,6 +23,7 @@ _TEMPLATE_FILE = "data/task_templates.json"
 @dataclass(slots=True)
 class TaskTemplate:
     """任务模板定义。"""
+
     id: str
     type: str = "general"
     prompt_template: str = ""
@@ -154,11 +153,13 @@ class TaskTemplates:
         if tmpl is None:
             raise KeyError(f"模板 {template_name} 未注册")
         history = list(tmpl.version_history)
-        history.append({
-            "version": tmpl.version,
-            "prompt_template": tmpl.prompt_template,
-            "updated_at": __import__("datetime").datetime.now().isoformat(),
-        })
+        history.append(
+            {
+                "version": tmpl.version,
+                "prompt_template": tmpl.prompt_template,
+                "updated_at": __import__("datetime").datetime.now().isoformat(),
+            }
+        )
         history.sort(key=lambda h: h["version"], reverse=True)
         return history
 
@@ -166,11 +167,13 @@ class TaskTemplates:
         tmpl = self._templates.get(template_id)
         if tmpl is None:
             return
-        tmpl.version_history.append({
-            "version": tmpl.version,
-            "prompt_template": tmpl.prompt_template,
-            "updated_at": __import__("datetime").datetime.now().isoformat(),
-        })
+        tmpl.version_history.append(
+            {
+                "version": tmpl.version,
+                "prompt_template": tmpl.prompt_template,
+                "updated_at": __import__("datetime").datetime.now().isoformat(),
+            }
+        )
         tmpl.version += 1
 
     # ---- 内置模板 ----
@@ -243,6 +246,7 @@ class TaskTemplates:
     def _load(self) -> None:
         try:
             from core.database import Database
+
             rows = Database().load_task_templates()
             for item in rows:
                 tmpl = TaskTemplate(**item)
@@ -254,6 +258,7 @@ class TaskTemplates:
         try:
             raw = {tid: asdict(t) for tid, t in self._templates.items()}
             from core.database import Database
+
             Database().save_task_templates(raw)
         except Exception as e:
             logger.warning("保存任务模板到数据库失败: %s", e)

@@ -5,9 +5,16 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from src.model_capability_readers import generic_openai, google, llamacpp, lmstudio, ollama, openai, openrouter
+from src.model_capability_readers import (
+    generic_openai,
+    google,
+    llamacpp,
+    lmstudio,
+    ollama,
+    openai,
+    openrouter,
+)
 from src.model_capability_readers.base import (
-    ModelCapabilityRecord,
     VENDOR_ANTHROPIC,
     VENDOR_GENERIC_OPENAI,
     VENDOR_GOOGLE,
@@ -20,10 +27,10 @@ from src.model_capability_readers.base import (
     VENDOR_SGLANG,
     VENDOR_UNKNOWN,
     VENDOR_VLLM,
+    ModelCapabilityRecord,
     detect_vendor,
     stable_model_id_for,
 )
-
 
 READER_MODULES = {
     VENDOR_GENERIC_OPENAI: generic_openai,
@@ -62,18 +69,23 @@ def records_from_payload(
     vendor_id = vendor or detect_vendor(base_url, endpoint_kind)
     reader = reader_for_vendor(vendor_id)
     if reader is generic_openai:
-        record_vendor = vendor_id if vendor_id not in {VENDOR_UNKNOWN, ""} else VENDOR_GENERIC_OPENAI
+        record_vendor = (
+            vendor_id
+            if vendor_id not in {VENDOR_UNKNOWN, ""}
+            else VENDOR_GENERIC_OPENAI
+        )
         return reader.records_from_payload(
             payload,
             vendor_id=record_vendor,
             endpoint_id=endpoint_id,
             base_url=base_url,
         )
-    return reader.records_from_payload(payload, endpoint_id=endpoint_id, base_url=base_url)
+    return reader.records_from_payload(
+        payload, endpoint_id=endpoint_id, base_url=base_url
+    )
 
 
 __all__ = [
-    "ModelCapabilityRecord",
     "PLACEHOLDER_VENDOR_IDS",
     "READER_MODULES",
     "VENDOR_ANTHROPIC",
@@ -88,6 +100,7 @@ __all__ = [
     "VENDOR_SGLANG",
     "VENDOR_UNKNOWN",
     "VENDOR_VLLM",
+    "ModelCapabilityRecord",
     "detect_vendor",
     "reader_for_vendor",
     "records_from_payload",

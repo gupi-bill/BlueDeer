@@ -1,7 +1,6 @@
 """Tests for ntfy_health — probe logic, status classification, and sanitization."""
-import types
 
-import pytest
+import types
 
 from src import service_health as sh
 
@@ -24,8 +23,11 @@ def test_ntfy_disabled_without_integration():
 
 
 def test_ntfy_ok():
-    s = sh.ntfy_health(_ntfy_intg(), {"reminder_channel": "ntfy"},
-                       http_get=lambda url, timeout: _resp(200))
+    s = sh.ntfy_health(
+        _ntfy_intg(),
+        {"reminder_channel": "ntfy"},
+        http_get=lambda url, timeout: _resp(200),
+    )
     assert s["status"] == sh.OK
     assert s["meta"]["base"] == "http://ntfy:80"
 
@@ -43,18 +45,22 @@ def test_ntfy_probes_v1_health_not_a_topic():
 
 
 def test_ntfy_down_on_exception():
-    s = sh.ntfy_health(_ntfy_intg(), {"reminder_channel": "ntfy"},
-                       http_get=_raise)
+    s = sh.ntfy_health(_ntfy_intg(), {"reminder_channel": "ntfy"}, http_get=_raise)
     assert s["status"] == sh.DOWN
 
 
 def test_ntfy_meta_redacts_userinfo_in_base():
-    intg = [{"preset": "ntfy", "enabled": True,
-             "base_url": "https://user:topsecret@ntfy.example.com"}]
+    intg = [
+        {
+            "preset": "ntfy",
+            "enabled": True,
+            "base_url": "https://user:topsecret@ntfy.example.com",
+        }
+    ]
     seen = {}
 
     def getter(url, timeout):
-        seen["url"] = url          # the probe itself may keep credentials
+        seen["url"] = url  # the probe itself may keep credentials
         return _resp(200)
 
     s = sh.ntfy_health(intg, {"reminder_channel": "ntfy"}, http_get=getter)

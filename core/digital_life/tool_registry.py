@@ -18,6 +18,7 @@
       "module_path": "core.code_completion_lite"
     }
 """
+
 from __future__ import annotations
 
 import ast
@@ -31,48 +32,80 @@ import time
 
 SPECIES_TOOL_MAP: dict[str, list[str]] = {
     "squirrel": [
-        "code_completion_lite", "project_scaffold", "kmp_search",
-        "boyer_moore_search", "suffix_array_build", "trie_lookup",
-        "avl_tree_ops", "rb_tree_ops",
+        "code_completion_lite",
+        "project_scaffold",
+        "kmp_search",
+        "boyer_moore_search",
+        "suffix_array_build",
+        "trie_lookup",
+        "avl_tree_ops",
+        "rb_tree_ops",
     ],
     "butterfly": [
-        "image_prompt_expand", "layout_designer", "style_transfer",
+        "image_prompt_expand",
+        "layout_designer",
+        "style_transfer",
         "pixel_canvas_draw",
     ],
     "fox": [
-        "fuzzer_run", "taint_analysis", "hypothesis_test",
-        "code_reviewer", "test_runner_run",
+        "fuzzer_run",
+        "taint_analysis",
+        "hypothesis_test",
+        "code_reviewer",
+        "test_runner_run",
     ],
     "hedgehog": [
-        "symmetric_cipher", "certificate_sign", "sandbox_lite_exec",
-        "vulnerability_scan", "security_audit",
+        "symmetric_cipher",
+        "certificate_sign",
+        "sandbox_lite_exec",
+        "vulnerability_scan",
+        "security_audit",
     ],
     "beaver": [
-        "file_system_op", "buffer_pool_op", "mvcc_txn",
-        "distributed_txn", "bitcask_like_op", "lsm_tree_op",
+        "file_system_op",
+        "buffer_pool_op",
+        "mvcc_txn",
+        "distributed_txn",
+        "bitcask_like_op",
+        "lsm_tree_op",
     ],
     "raven": [
-        "vector_index_search", "inverted_index_search",
-        "retrieval_augment", "rag_engine_query",
+        "vector_index_search",
+        "inverted_index_search",
+        "retrieval_augment",
+        "rag_engine_query",
     ],
     "hare": [
-        "descriptive_stats", "bootstrap_estimate",
-        "linear_regression", "anomaly_detect", "t_digest_quantile",
+        "descriptive_stats",
+        "bootstrap_estimate",
+        "linear_regression",
+        "anomaly_detect",
+        "t_digest_quantile",
     ],
     "badger": [
-        "http_lite_request", "grpc_lite_call", "dns_lite_lookup",
-        "websocket_lite_send", "message_queue_pubsub",
+        "http_lite_request",
+        "grpc_lite_call",
+        "dns_lite_lookup",
+        "websocket_lite_send",
+        "message_queue_pubsub",
     ],
     "lark": [
-        "dashboard_render", "metrics_collect",
-        "alert_engine_eval", "log_aggregate",
+        "dashboard_render",
+        "metrics_collect",
+        "alert_engine_eval",
+        "log_aggregate",
     ],
     "kite": [
-        "csp_solve", "topological_sort", "linear_prog_solve",
-        "job_shop_schedule", "critical_path_find",
+        "csp_solve",
+        "topological_sort",
+        "linear_prog_solve",
+        "job_shop_schedule",
+        "critical_path_find",
     ],
     "deer": [
-        "task_orchestrate", "consensus_vote", "event_bus_publish",
+        "task_orchestrate",
+        "consensus_vote",
+        "event_bus_publish",
         "pipeline_plan",
     ],
 }
@@ -97,7 +130,11 @@ PREDEFINED_TOOLS: list[dict] = [
         "parameters": {
             "prefix": {"type": "str", "description": "代码前缀"},
             "language": {"type": "str", "default": "python", "description": "编程语言"},
-            "max_tokens": {"type": "int", "default": 20, "description": "最多返回 token 数"},
+            "max_tokens": {
+                "type": "int",
+                "default": 20,
+                "description": "最多返回 token 数",
+            },
         },
         "returns": "list[str]",
         "agent_role": "squirrel",
@@ -109,8 +146,11 @@ PREDEFINED_TOOLS: list[dict] = [
         "description": "生成项目脚手架（目录结构 + 占位文件）",
         "parameters": {
             "project_name": {"type": "str", "description": "项目名"},
-            "template": {"type": "str", "default": "python_cli",
-                          "description": "模板：python_cli / python_web / python_lib"},
+            "template": {
+                "type": "str",
+                "default": "python_cli",
+                "description": "模板：python_cli / python_web / python_lib",
+            },
         },
         "returns": "dict",
         "agent_role": "squirrel",
@@ -166,7 +206,10 @@ PREDEFINED_TOOLS: list[dict] = [
         "tool_name": "avl_tree_ops",
         "description": "AVL 平衡二叉搜索树操作（insert/search/delete）",
         "parameters": {
-            "ops": {"type": "list[dict]", "description": "操作序列 [{op:insert, key:1}, ...]"},
+            "ops": {
+                "type": "list[dict]",
+                "description": "操作序列 [{op:insert, key:1}, ...]",
+            },
         },
         "returns": "dict",
         "agent_role": "squirrel",
@@ -182,7 +225,6 @@ PREDEFINED_TOOLS: list[dict] = [
         "module_path": "core.rb_tree",
         "entry": "RBTree",
     },
-
     # ---------- 蝶（UI / 设计） ----------
     {
         "tool_name": "image_prompt_expand",
@@ -231,7 +273,6 @@ PREDEFINED_TOOLS: list[dict] = [
         "module_path": "core.pixel_canvas",
         "entry": "PixelCanvas",
     },
-
     # ---------- 狐（测试 / 质量） ----------
     {
         "tool_name": "fuzzer_run",
@@ -269,7 +310,10 @@ PREDEFINED_TOOLS: list[dict] = [
     {
         "tool_name": "code_reviewer",
         "description": "对代码做静态审查，返回问题列表",
-        "parameters": {"code": {"type": "str"}, "lang": {"type": "str", "default": "python"}},
+        "parameters": {
+            "code": {"type": "str"},
+            "lang": {"type": "str", "default": "python"},
+        },
         "returns": "list[dict]",
         "agent_role": "fox",
         "module_path": "core.test_runner",
@@ -284,7 +328,6 @@ PREDEFINED_TOOLS: list[dict] = [
         "module_path": "core.test_runner",
         "entry": "run_tests",
     },
-
     # ---------- 猬（安全） ----------
     {
         "tool_name": "symmetric_cipher",
@@ -327,7 +370,10 @@ PREDEFINED_TOOLS: list[dict] = [
     {
         "tool_name": "vulnerability_scan",
         "description": "对代码做漏洞扫描（SQL 注入 / XSS / 路径穿越）",
-        "parameters": {"code": {"type": "str"}, "lang": {"type": "str", "default": "python"}},
+        "parameters": {
+            "code": {"type": "str"},
+            "lang": {"type": "str", "default": "python"},
+        },
         "returns": "list[dict]",
         "agent_role": "hedgehog",
         "module_path": "core.security",
@@ -342,7 +388,6 @@ PREDEFINED_TOOLS: list[dict] = [
         "module_path": "core.security",
         "entry": "audit",
     },
-
     # ---------- 海狸（存储 / 部署） ----------
     {
         "tool_name": "file_system_op",
@@ -415,7 +460,6 @@ PREDEFINED_TOOLS: list[dict] = [
         "module_path": "core.lsm_tree",
         "entry": "LSMTree",
     },
-
     # ---------- 渡鸦（记忆 / 检索） ----------
     {
         "tool_name": "vector_index_search",
@@ -467,7 +511,6 @@ PREDEFINED_TOOLS: list[dict] = [
         "module_path": "core.rag",
         "entry": "RagEngine",
     },
-
     # ---------- 兔（数据分析 / 统计） ----------
     {
         "tool_name": "descriptive_stats",
@@ -527,7 +570,6 @@ PREDEFINED_TOOLS: list[dict] = [
         "module_path": "core.t_digest",
         "entry": "TDigest",
     },
-
     # ---------- 獾（网络 / RPC） ----------
     {
         "tool_name": "http_lite_request",
@@ -559,7 +601,10 @@ PREDEFINED_TOOLS: list[dict] = [
     {
         "tool_name": "dns_lite_lookup",
         "description": "DNS 解析（轻量模拟）",
-        "parameters": {"domain": {"type": "str"}, "type": {"type": "str", "default": "A"}},
+        "parameters": {
+            "domain": {"type": "str"},
+            "type": {"type": "str", "default": "A"},
+        },
         "returns": "dict",
         "agent_role": "badger",
         "module_path": "core.task_orchestrator",
@@ -590,7 +635,6 @@ PREDEFINED_TOOLS: list[dict] = [
         "module_path": "core.task_orchestrator",
         "entry": "mq_pubsub",
     },
-
     # ---------- 雀（监控 / 运维） ----------
     {
         "tool_name": "dashboard_render",
@@ -637,7 +681,6 @@ PREDEFINED_TOOLS: list[dict] = [
         "module_path": "core.task_orchestrator",
         "entry": "aggregate_logs",
     },
-
     # ---------- 鸢（调度 / 运筹） ----------
     {
         "tool_name": "csp_solve",
@@ -699,7 +742,6 @@ PREDEFINED_TOOLS: list[dict] = [
         "module_path": "core.task_orchestrator",
         "entry": "critical_path",
     },
-
     # ---------- 鹿（编排 / 协调） ----------
     {
         "tool_name": "task_orchestrate",
@@ -758,16 +800,48 @@ PREDEFINED_TOOLS: list[dict] = [
 # 这些函数在 tool_executor 中实际被调用，提供基础能力
 # ----------------------------------------------------------------------
 
-def _fallback_complete_code(prefix: str, language: str = "python",
-                              max_tokens: int = 20) -> list[str]:
+
+def _fallback_complete_code(
+    prefix: str, language: str = "python", max_tokens: int = 20
+) -> list[str]:
     """代码补全兜底：基于常见 Python 关键字 + prefix 过滤。"""
     if not prefix:
-        return ["def ", "class ", "import ", "from ", "if ", "for ", "while ", "return "]
+        return [
+            "def ",
+            "class ",
+            "import ",
+            "from ",
+            "if ",
+            "for ",
+            "while ",
+            "return ",
+        ]
     candidates = [
-        "def ", "class ", "import ", "from ", "if ", "elif ", "else:", "for ",
-        "while ", "return ", "try:", "except ", "with ", "async ", "await ",
-        "yield ", "raise ", "lambda ", "print(", "len(", "range(", "self.",
-        prefix + "_impl", prefix + "_handler", prefix + "_factory",
+        "def ",
+        "class ",
+        "import ",
+        "from ",
+        "if ",
+        "elif ",
+        "else:",
+        "for ",
+        "while ",
+        "return ",
+        "try:",
+        "except ",
+        "with ",
+        "async ",
+        "await ",
+        "yield ",
+        "raise ",
+        "lambda ",
+        "print(",
+        "len(",
+        "range(",
+        "self.",
+        prefix + "_impl",
+        prefix + "_handler",
+        prefix + "_factory",
     ]
     matches = [c for c in candidates if c.startswith(prefix)]
     return matches[:max_tokens] if matches else [prefix]
@@ -784,7 +858,7 @@ def _fallback_describe(data: list) -> dict:
     return {
         "count": n,
         "mean": round(mean, 4),
-        "std": round(var ** 0.5, 4),
+        "std": round(var**0.5, 4),
         "min": s[0],
         "max": s[-1],
         "median": s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2,
@@ -826,6 +900,7 @@ def _fallback_linear_fit(x: list, y: list) -> dict:
 def _fallback_topo_sort(nodes: list, edges: list) -> list:
     """拓扑排序兜底。"""
     from collections import defaultdict, deque
+
     graph = defaultdict(list)
     indeg = {n: 0 for n in nodes}
     for u, v in edges:
@@ -852,6 +927,7 @@ def _fallback_critical_path(tasks: list) -> dict:
     # 拓扑排序
     indeg = {t["id"]: len(t.get("deps", [])) for t in tasks}
     from collections import deque
+
     q = deque([tid for tid, d in indeg.items() if d == 0])
     order = []
     while q:
@@ -883,7 +959,8 @@ def _fallback_critical_path(tasks: list) -> dict:
         "order": order,
         "makespan": max(ef.values()) if ef else 0,
         "critical_path": path,
-        "es": es, "ef": ef,
+        "es": es,
+        "ef": ef,
     }
 
 
@@ -933,6 +1010,7 @@ def _fallback_vector_search(vectors: list, query: list, k: int = 5) -> list:
     if not vectors or not query:
         return []
     import math
+
     q_norm = math.sqrt(sum(x * x for x in query))
     if q_norm == 0:
         return []
@@ -950,17 +1028,18 @@ def _fallback_vector_search(vectors: list, query: list, k: int = 5) -> list:
 
 def _fallback_render_dashboard(title: str, panels: list) -> str:
     """仪表盘渲染兜底。"""
-    html = ['<div class="dashboard"><h2>' + str(title) + '</h2>']
+    html = ['<div class="dashboard"><h2>' + str(title) + "</h2>"]
     for p in panels:
-        html.append('<div class="panel"><h3>' + str(p.get("title", "")) + '</h3>')
-        html.append('<div class="metric">' + str(p.get("value", "")) + '</div></div>')
-    html.append('</div>')
+        html.append('<div class="panel"><h3>' + str(p.get("title", "")) + "</h3>")
+        html.append('<div class="metric">' + str(p.get("value", "")) + "</div></div>")
+    html.append("</div>")
     return "\n".join(html)
 
 
 def _fallback_collect_metrics(sources: list = None) -> dict:
     """指标收集兜底：返回模拟指标。"""
     import random as _r
+
     return {
         "cpu": round(_r.uniform(0.1, 0.9), 3),
         "memory": round(_r.uniform(0.3, 0.8), 3),
@@ -980,18 +1059,22 @@ def _fallback_eval_alerts(rules: list, metrics: dict) -> list:
         if metric not in metrics:
             continue
         v = metrics[metric]
-        triggered = (op == ">" and v > threshold) or \
-                    (op == "<" and v < threshold) or \
-                    (op == ">=" and v >= threshold) or \
-                    (op == "<=" and v <= threshold)
+        triggered = (
+            (op == ">" and v > threshold)
+            or (op == "<" and v < threshold)
+            or (op == ">=" and v >= threshold)
+            or (op == "<=" and v <= threshold)
+        )
         if triggered:
-            alerts.append({
-                "rule": r.get("name", metric),
-                "metric": metric,
-                "value": v,
-                "threshold": threshold,
-                "severity": r.get("severity", "warning"),
-            })
+            alerts.append(
+                {
+                    "rule": r.get("name", metric),
+                    "metric": metric,
+                    "value": v,
+                    "threshold": threshold,
+                    "severity": r.get("severity", "warning"),
+                }
+            )
     return alerts
 
 
@@ -1017,22 +1100,29 @@ def _fallback_aggregate_logs(logs: list, keyword: str = "") -> dict:
 
 # commit 37 补充：狐狸 / 猬 / 海狸 / 獾 / 鸦 / 鸢 / 蝶 / 鹿 等 fallback
 
-def _fallback_fuzzer_run(target: str = "", iterations: int = 100,
-                          max_len: int = 32) -> dict:
+
+def _fallback_fuzzer_run(
+    target: str = "", iterations: int = 100, max_len: int = 32
+) -> dict:
     """模糊测试兜底：随机生成 N 个输入模拟 fuzz。"""
     import random as _r
     import string as _s
+
     findings: list = []
     for i in range(int(iterations)):
         n = _r.randint(1, max(int(max_len), 1))
         sample = "".join(_r.choice(_s.printable[:80]) for _ in range(n))
         # 模拟：包含特定字符的样本视为"触发崩溃"
         if "\x00" in sample or sample.count("(") != sample.count(")"):
-            findings.append({
-                "iter": i,
-                "input": sample[:50],
-                "issue": "potential_crash" if "\x00" in sample else "unbalanced_parens",
-            })
+            findings.append(
+                {
+                    "iter": i,
+                    "input": sample[:50],
+                    "issue": (
+                        "potential_crash" if "\x00" in sample else "unbalanced_parens"
+                    ),
+                }
+            )
             if len(findings) >= 10:
                 break
     return {
@@ -1054,20 +1144,39 @@ def _fallback_code_reviewer(code: str = "", language: str = "python") -> dict:
         stripped = line.strip()
         # 长行
         if len(line) > 120:
-            issues.append({"line": i, "severity": "warn", "rule": "line_too_long",
-                            "msg": f"行长度 {len(line)} > 120"})
+            issues.append(
+                {
+                    "line": i,
+                    "severity": "warn",
+                    "rule": "line_too_long",
+                    "msg": f"行长度 {len(line)} > 120",
+                }
+            )
         # TODO/FIXME
         if "TODO" in stripped or "FIXME" in stripped:
-            issues.append({"line": i, "severity": "info", "rule": "todo",
-                            "msg": "存在未完成标记"})
+            issues.append(
+                {"line": i, "severity": "info", "rule": "todo", "msg": "存在未完成标记"}
+            )
         # eval/exec
         if "eval(" in stripped or "exec(" in stripped:
-            issues.append({"line": i, "severity": "high", "rule": "dangerous_eval",
-                            "msg": "避免使用 eval/exec"})
+            issues.append(
+                {
+                    "line": i,
+                    "severity": "high",
+                    "rule": "dangerous_eval",
+                    "msg": "避免使用 eval/exec",
+                }
+            )
         # 空异常捕获
         if stripped.startswith("except:") or stripped == "except Exception:":
-            issues.append({"line": i, "severity": "warn", "rule": "bare_except",
-                            "msg": "不要使用裸 except"})
+            issues.append(
+                {
+                    "line": i,
+                    "severity": "warn",
+                    "rule": "bare_except",
+                    "msg": "不要使用裸 except",
+                }
+            )
     return {
         "language": language,
         "lines": len(lines),
@@ -1076,10 +1185,12 @@ def _fallback_code_reviewer(code: str = "", language: str = "python") -> dict:
     }
 
 
-def _fallback_hypothesis_test(samples: list = None, property_name: str = "",
-                                runs: int = 100) -> dict:
+def _fallback_hypothesis_test(
+    samples: list = None, property_name: str = "", runs: int = 100
+) -> dict:
     """假设测试兜底：基于随机输入验证简单属性。"""
     import random as _r
+
     if samples is None:
         samples = [_r.randint(-100, 100) for _ in range(20)]
     failures: list = []
@@ -1102,48 +1213,68 @@ def _fallback_vulnerability_scan(target: str = "", scan_type: str = "basic") -> 
         "target": target or "self",
         "scan_type": scan_type,
         "findings": [
-            {"severity": "low", "category": "info_leak",
-             "desc": "服务器返回 X-Powered-By 头，泄露技术栈"},
-            {"severity": "info", "category": "headers",
-             "desc": "缺少 X-Frame-Options 头"},
+            {
+                "severity": "low",
+                "category": "info_leak",
+                "desc": "服务器返回 X-Powered-By 头，泄露技术栈",
+            },
+            {
+                "severity": "info",
+                "category": "headers",
+                "desc": "缺少 X-Frame-Options 头",
+            },
         ],
         "score": 85,
         "summary": f"扫描 {target or 'self'} 完成，2 个低危发现",
     }
 
 
-def _fallback_file_system_op(op: str = "ls", path: str = ".",
-                              content: str = "") -> dict:
+def _fallback_file_system_op(
+    op: str = "ls", path: str = ".", content: str = ""
+) -> dict:
     """文件系统操作兜底：模拟 fs 操作（默认不真写盘）。"""
     if path == "." or not path:
-        return {"op": op, "path": path, "simulated": True,
-                "summary": f"模拟 {op}（默认路径，未真实执行）"}
+        return {
+            "op": op,
+            "path": path,
+            "simulated": True,
+            "summary": f"模拟 {op}（默认路径，未真实执行）",
+        }
     import os
+
     if op == "ls":
         try:
             entries = os.listdir(path)[:50]
-            return {"op": "ls", "path": path, "entries": entries,
-                    "count": len(entries)}
+            return {"op": "ls", "path": path, "entries": entries, "count": len(entries)}
         except Exception as e:
             return {"op": "ls", "path": path, "error": str(e)}
     elif op in ("read", "cat"):
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = f.read(4096)
-            return {"op": "read", "path": path, "content": data[:2000],
-                    "size": len(data)}
+            return {
+                "op": "read",
+                "path": path,
+                "content": data[:2000],
+                "size": len(data),
+            }
         except Exception as e:
             return {"op": "read", "path": path, "error": str(e)}
     elif op in ("write", "save"):
-        return {"op": "write", "path": path,
-                "bytes": len(content), "simulated": True,
-                "summary": f"模拟写入 {len(content)} 字节到 {path}"}
+        return {
+            "op": "write",
+            "path": path,
+            "bytes": len(content),
+            "simulated": True,
+            "summary": f"模拟写入 {len(content)} 字节到 {path}",
+        }
     else:
         return {"op": op, "path": path, "error": "unsupported op"}
 
 
-def _fallback_http_request(url: str = "", method: str = "GET",
-                            headers: dict = None, body: str = "") -> dict:
+def _fallback_http_request(
+    url: str = "", method: str = "GET", headers: dict = None, body: str = ""
+) -> dict:
     """HTTP 请求兜底：模拟 HTTP 响应（不真发请求）。"""
     return {
         "url": url,
@@ -1156,14 +1287,13 @@ def _fallback_http_request(url: str = "", method: str = "GET",
     }
 
 
-def _fallback_layout_designer(page_type: str = "list",
-                                components: list = None) -> dict:
+def _fallback_layout_designer(page_type: str = "list", components: list = None) -> dict:
     """布局设计兜底：返回模拟布局 HTML。"""
     components = components or ["header", "content", "footer"]
     html_parts = ['<div class="layout" data-page="' + page_type + '">']
     for c in components:
         html_parts.append(f'  <section class="{c}"><!-- {c} --></section>')
-    html_parts.append('</div>')
+    html_parts.append("</div>")
     return {
         "page_type": page_type,
         "components": components,
@@ -1250,6 +1380,7 @@ FALLBACK_IMPLEMENTATIONS: dict = {
 # 工具注册表（单例）
 # ----------------------------------------------------------------------
 
+
 class ToolRegistry:
     """工具注册表单例：管理所有可用工具的元信息。
 
@@ -1289,8 +1420,9 @@ class ToolRegistry:
         with self._lock:
             return list(self._tools.keys())
 
-    def register_tool(self, tool_name: str, desc: dict,
-                      species: str | None = None) -> None:
+    def register_tool(
+        self, tool_name: str, desc: dict, species: str | None = None
+    ) -> None:
         """运行时注册一个新工具。
 
         Args:
@@ -1335,8 +1467,7 @@ class ToolRegistry:
         Args:
             species: 若提供，只返回该物种绑定的工具
         """
-        tools = (self.list_tools_for_species(species) if species
-                 else self.list_tools())
+        tools = self.list_tools_for_species(species) if species else self.list_tools()
         result = []
         for t in tools:
             params = t.get("parameters", {})
@@ -1349,15 +1480,17 @@ class ToolRegistry:
                 }
                 if "default" not in pinfo:
                     required.append(pname)
-            result.append({
-                "name": t["tool_name"],
-                "description": t.get("description", ""),
-                "parameters": {
-                    "type": "object",
-                    "properties": properties,
-                    "required": required,
-                },
-            })
+            result.append(
+                {
+                    "name": t["tool_name"],
+                    "description": t.get("description", ""),
+                    "parameters": {
+                        "type": "object",
+                        "properties": properties,
+                        "required": required,
+                    },
+                }
+            )
         return result
 
     # ------------------------------------------------------------
@@ -1369,8 +1502,9 @@ class ToolRegistry:
 
     def discover_tools(self, path: str, recursive: bool = True) -> list[str]:
         if path in self._discovered_paths:
-            return [k for k, v in self._tools.items()
-                    if v.get("_discovered_from") == path]
+            return [
+                k for k, v in self._tools.items() if v.get("_discovered_from") == path
+            ]
         self._discovered_paths.add(path)
         discovered: list[str] = []
         try:
@@ -1387,8 +1521,10 @@ class ToolRegistry:
                             params = [a.arg for a in node.args.args]
                             deps = self._extract_imports(tree)
                             self._tools[name] = {
-                                "tool_name": name, "description": doc,
-                                "file": full, "params": params,
+                                "tool_name": name,
+                                "description": doc,
+                                "file": full,
+                                "params": params,
                                 "dependencies": deps,
                                 "_discovered_from": path,
                             }
@@ -1436,11 +1572,13 @@ class ToolRegistry:
                 continue
             seen.add(dep)
             dep_info = self._tools.get(dep)
-            results.append({
-                "name": dep,
-                "available": dep_info is not None,
-                "description": dep_info.get("description", "") if dep_info else "",
-            })
+            results.append(
+                {
+                    "name": dep,
+                    "available": dep_info is not None,
+                    "description": dep_info.get("description", "") if dep_info else "",
+                }
+            )
             if dep_info:
                 queue.extend(dep_info.get("dependencies", []))
         return results

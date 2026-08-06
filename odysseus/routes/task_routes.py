@@ -4,14 +4,12 @@ import json
 import logging
 import secrets
 import uuid
-from datetime import datetime
-from typing import Optional, Dict, Any
+from datetime import UTC, datetime
+from typing import Any
 
+from core.constants import internal_api_base
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
-
-from core.database import SessionLocal, ScheduledTask, TaskRun
-from core.constants import internal_api_base
 from src.auth_helpers import get_current_user
 from src.constants import DATA_DIR, EMAIL_URGENCY_CACHE_DIR
 from src.task_action_policy import (
@@ -19,7 +17,9 @@ from src.task_action_policy import (
     is_admin_only_task_action,
     owner_has_admin_task_privileges,
 )
-from src.task_scheduler import compute_next_run, HOUSEKEEPING_DEFAULTS
+from src.task_scheduler import HOUSEKEEPING_DEFAULTS, compute_next_run
+
+from core.database import ScheduledTask, SessionLocal, TaskRun
 from routes.prefs_routes import _load_for_user, _save_for_user
 
 logger = logging.getLogger(__name__)
@@ -45,6 +45,7 @@ def _maybe_cascade_calendar_event(task) -> None:
 
     import httpx
     from core.middleware import INTERNAL_TOOL_HEADER, INTERNAL_TOOL_TOKEN
+
     headers = {INTERNAL_TOOL_HEADER: INTERNAL_TOOL_TOKEN}
     if task.owner:
         headers["X-Odysseus-Owner"] = task.owner
@@ -88,7 +89,9 @@ def _maybe_cascade_calendar_event(task) -> None:
     try:
         with httpx.Client(timeout=10) as client:
             # Find the Cookbook calendar.
-            cal_r = client.get(f"{internal_api_base()}/api/calendar/calendars", headers=headers)
+            cal_r = client.get(
+                f"{internal_api_base()}/api/calendar/calendars", headers=headers
+            )
             if cal_r.status_code >= 400:
                 return
             cals = (cal_r.json() or {}).get("calendars", [])
@@ -100,8 +103,10 @@ def _maybe_cascade_calendar_event(task) -> None:
                 return
             cal_href = cookbook_cal.get("href") or cookbook_cal.get("id") or ""
             # List events in a wide window to catch recurring + upcoming.
-            from datetime import datetime as _dt, timedelta as _td, timezone as _tz
-            now = _dt.now(_tz.utc)
+            from datetime import datetime as _dt
+            from datetime import timedelta as _td
+
+            now = _dt.now(UTC)
             start = (now - _td(days=30)).isoformat()
             end = (now + _td(days=365)).isoformat()
             ev_r = client.get(
@@ -139,45 +144,49 @@ def _maybe_cascade_calendar_event(task) -> None:
 
 
 class TaskCreate(BaseModel):
-    name: Optional[str] = None
-    prompt: Optional[str] = None
-    task_type: str = "llm"                        # "llm" | "action" | "research"
-    action: Optional[str] = None                  # builtin action name
-    schedule: Optional[str] = None                # "once" | "daily" | "weekly" | "monthly" | "cron"
-    scheduled_time: str = "09:00"                 # HH:MM
-    scheduled_day: Optional[int] = None           # day-of-week (0=Mon) or day-of-month
-    scheduled_date: Optional[str] = None          # ISO datetime for "once"
-    cron_expression: Optional[str] = None         # cron string e.g. "*/5 * * * *"
-    trigger_type: str = "schedule"                # "schedule" | "event" | "webhook"
-    trigger_event: Optional[str] = None           # e.g. "session_created"
-    trigger_count: Optional[int] = None           # fire every N events
+    name: str | None = None
+    prompt: str | None = None
+    task_type: str = "llm"  # "llm" | "action" | "research"
+    action: str | None = None  # builtin action name
+    schedule: str | None = None  # "once" | "daily" | "weekly" | "monthly" | "cron"
+    scheduled_time: str = "09:00"  # HH:MM
+    scheduled_day: int | None = None  # day-of-week (0=Mon) or day-of-month
+    scheduled_date: str | None = None  # ISO datetime for "once"
+    cron_expression: str | None = None  # cron string e.g. "*/5 * * * *"
+    trigger_type: str = "schedule"  # "schedule" | "event" | "webhook"
+    trigger_event: str | None = None  # e.g. "session_created"
+    trigger_count: int | None = None  # fire every N events
     output_target: str = "session"
-    model: Optional[str] = None
-    endpoint_url: Optional[str] = None
-    then_task_id: Optional[str] = None            # chain: run this task after success
-    notifications_enabled: Optional[bool] = None  # None lets action-specific defaults apply
-    character_id: Optional[str] = None             # built-in persona id (PERSONAS) — biases output voice
+    model: str | None = None
+    endpoint_url: str | None = None
+    then_task_id: str | None = None  # chain: run this task after success
+    notifications_enabled: bool | None = (
+        None  # None lets action-specific defaults apply
+    )
+    character_id: str | None = (
+        None  # built-in persona id (PERSONAS) — biases output voice
+    )
 
 
 class TaskUpdate(BaseModel):
-    name: Optional[str] = None
-    prompt: Optional[str] = None
-    task_type: Optional[str] = None
-    action: Optional[str] = None
-    schedule: Optional[str] = None
-    scheduled_time: Optional[str] = None
-    scheduled_day: Optional[int] = None
-    scheduled_date: Optional[str] = None
-    cron_expression: Optional[str] = None
-    trigger_type: Optional[str] = None
-    trigger_event: Optional[str] = None
-    trigger_count: Optional[int] = None
-    output_target: Optional[str] = None
-    model: Optional[str] = None
-    endpoint_url: Optional[str] = None
-    then_task_id: Optional[str] = None
-    notifications_enabled: Optional[bool] = None
-    character_id: Optional[str] = None
+    name: str | None = None
+    prompt: str | None = None
+    task_type: str | None = None
+    action: str | None = None
+    schedule: str | None = None
+    scheduled_time: str | None = None
+    scheduled_day: int | None = None
+    scheduled_date: str | None = None
+    cron_expression: str | None = None
+    trigger_type: str | None = None
+    trigger_event: str | None = None
+    trigger_count: int | None = None
+    output_target: str | None = None
+    model: str | None = None
+    endpoint_url: str | None = None
+    then_task_id: str | None = None
+    notifications_enabled: bool | None = None
+    character_id: str | None = None
 
 
 def _display_task_name(t: ScheduledTask) -> str:
@@ -198,7 +207,9 @@ def _task_to_dict(t: ScheduledTask, include_last_run_result: bool = False) -> di
         "schedule": t.schedule,
         "scheduled_time": t.scheduled_time,
         "scheduled_day": t.scheduled_day,
-        "scheduled_date": t.scheduled_date.isoformat() + "Z" if t.scheduled_date else None,
+        "scheduled_date": (
+            t.scheduled_date.isoformat() + "Z" if t.scheduled_date else None
+        ),
         "cron_expression": t.cron_expression,
         "trigger_type": t.trigger_type or "schedule",
         "trigger_event": t.trigger_event,
@@ -216,7 +227,9 @@ def _task_to_dict(t: ScheduledTask, include_last_run_result: bool = False) -> di
         "run_count": t.run_count or 0,
         "then_task_id": t.then_task_id,
         "notifications_enabled": bool(getattr(t, "notifications_enabled", True)),
-        "webhook_token": t.webhook_token if (t.trigger_type or "schedule") == "webhook" else None,
+        "webhook_token": (
+            t.webhook_token if (t.trigger_type or "schedule") == "webhook" else None
+        ),
         "created_at": t.created_at.isoformat() + "Z" if t.created_at else None,
         "updated_at": t.updated_at.isoformat() + "Z" if t.updated_at else None,
     }
@@ -268,6 +281,7 @@ def _resolve_run_endpoint(db, task: ScheduledTask, run: TaskRun) -> str:
     try:
         if getattr(task, "session_id", None):
             from core.database import Session as DbSession
+
             sess = db.query(DbSession).filter(DbSession.id == task.session_id).first()
             if sess and sess.endpoint_url:
                 return sess.endpoint_url or ""
@@ -280,6 +294,7 @@ def _resolve_run_endpoint(db, task: ScheduledTask, run: TaskRun) -> str:
 
     try:
         from core.database import ModelEndpoint
+
         eps = db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled == True).all()
         for ep in eps:
             cached = []
@@ -301,11 +316,13 @@ def setup_task_routes(task_scheduler) -> APIRouter:
     def _owner(request: Request):
         return get_current_user(request)
 
-    async def _generate_task_name(prompt: str, owner: Optional[str] = None) -> str:
+    async def _generate_task_name(prompt: str, owner: str | None = None) -> str:
         """Use LLM to generate a short task name from the prompt."""
         try:
             from src.llm_core import llm_call_async
+
             from core.database import Session as DbSession
+
             db = SessionLocal()
             try:
                 q = db.query(DbSession).filter(
@@ -323,24 +340,29 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                 db.close()
 
             result = await llm_call_async(
-                url=url, model=model,
+                url=url,
+                model=model,
                 messages=[
-                    {"role": "system", "content": "Generate a short title (3-5 words, no quotes) for this scheduled task. Reply with ONLY the title, nothing else."},
+                    {
+                        "role": "system",
+                        "content": "Generate a short title (3-5 words, no quotes) for this scheduled task. Reply with ONLY the title, nothing else.",
+                    },
                     {"role": "user", "content": prompt[:500]},
                 ],
                 max_tokens=20,
                 headers=headers,
                 timeout=15,
             )
-            title = result.strip().strip('"\'').strip()
+            title = result.strip().strip("\"'").strip()
             return title[:60] if title else prompt[:50].strip()
         except Exception:
-            first = prompt.split('\n')[0].split('.')[0].strip()
+            first = prompt.split("\n")[0].split(".")[0].strip()
             return first[:50] if first else "Untitled Task"
 
     @router.get("")
-    async def list_tasks(request: Request, status: Optional[str] = None,
-                         include_last_run: bool = False):
+    async def list_tasks(
+        request: Request, status: str | None = None, include_last_run: bool = False
+    ):
         user = _owner(request)
         if user:
             await task_scheduler.ensure_defaults(user)
@@ -348,9 +370,12 @@ def setup_task_routes(task_scheduler) -> APIRouter:
             db_seed = SessionLocal()
             try:
                 owners = {
-                    row[0] for row in db_seed.query(ScheduledTask.owner)
+                    row[0]
+                    for row in db_seed.query(ScheduledTask.owner)
                     .filter(ScheduledTask.task_type == "action")
-                    .filter(ScheduledTask.action.in_(list(HOUSEKEEPING_DEFAULTS.keys())))
+                    .filter(
+                        ScheduledTask.action.in_(list(HOUSEKEEPING_DEFAULTS.keys()))
+                    )
                     .all()
                     if row[0]
                 }
@@ -366,7 +391,12 @@ def setup_task_routes(task_scheduler) -> APIRouter:
             if status:
                 q = q.filter(ScheduledTask.status == status)
             tasks = q.order_by(ScheduledTask.created_at.desc()).all()
-            return {"tasks": [_task_to_dict(t, include_last_run_result=include_last_run) for t in tasks]}
+            return {
+                "tasks": [
+                    _task_to_dict(t, include_last_run_result=include_last_run)
+                    for t in tasks
+                ]
+            }
         finally:
             db.close()
 
@@ -395,11 +425,15 @@ def setup_task_routes(task_scheduler) -> APIRouter:
         if enable:
             db = SessionLocal()
             try:
-                tasks = db.query(ScheduledTask).filter(
-                    ScheduledTask.owner == user,
-                    ScheduledTask.task_type == "action",
-                    ScheduledTask.action.in_(list(HOUSEKEEPING_DEFAULTS.keys())),
-                ).all()
+                tasks = (
+                    db.query(ScheduledTask)
+                    .filter(
+                        ScheduledTask.owner == user,
+                        ScheduledTask.task_type == "action",
+                        ScheduledTask.action.in_(list(HOUSEKEEPING_DEFAULTS.keys())),
+                    )
+                    .all()
+                )
                 for task in tasks:
                     defs = HOUSEKEEPING_DEFAULTS.get(task.action or "")
                     if defs and defs.get("ship_paused"):
@@ -419,7 +453,12 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                 db.commit()
             finally:
                 db.close()
-        return {"ok": True, "opened": True, "enabled": bool(prefs.get("tasks_enabled")), "resumed": resumed}
+        return {
+            "ok": True,
+            "opened": True,
+            "enabled": bool(prefs.get("tasks_enabled")),
+            "resumed": resumed,
+        }
 
     # Actions that execute shell/SSH commands or cross into admin-only
     # Cookbook serving surfaces — restricted to admins.
@@ -430,11 +469,18 @@ def setup_task_routes(task_scheduler) -> APIRouter:
     def _is_admin(user: str | None) -> bool:
         return owner_has_admin_task_privileges(user)
 
-    def _require_admin_for_task_action(user: str | None, task_type: str | None, action: str | None) -> None:
+    def _require_admin_for_task_action(
+        user: str | None, task_type: str | None, action: str | None
+    ) -> None:
         if is_admin_only_task_action(task_type, action) and not _is_admin(user):
             raise HTTPException(403, f"Action '{action}' requires admin privileges")
 
-    def _validate_then_task_id(db, then_task_id: Optional[str], user: Optional[str], current_task_id: Optional[str] = None) -> Optional[str]:
+    def _validate_then_task_id(
+        db,
+        then_task_id: str | None,
+        user: str | None,
+        current_task_id: str | None = None,
+    ) -> str | None:
         target_id = (then_task_id or "").strip()
         if not target_id:
             return None
@@ -462,25 +508,39 @@ def setup_task_routes(task_scheduler) -> APIRouter:
         # arbitrary commands.
         _require_admin_for_task_action(user, req.task_type, req.action)
         if req.trigger_type == "schedule" and not req.schedule:
-            raise HTTPException(400, "Schedule is required for schedule-triggered tasks")
-        if req.trigger_type == "schedule" and req.schedule == "cron" and not req.cron_expression:
+            raise HTTPException(
+                400, "Schedule is required for schedule-triggered tasks"
+            )
+        if (
+            req.trigger_type == "schedule"
+            and req.schedule == "cron"
+            and not req.cron_expression
+        ):
             raise HTTPException(400, "Cron expression is required for cron schedule")
-        if req.trigger_type == "schedule" and req.schedule == "cron" and req.cron_expression:
+        if (
+            req.trigger_type == "schedule"
+            and req.schedule == "cron"
+            and req.cron_expression
+        ):
             try:
                 from croniter import croniter
+
                 croniter(req.cron_expression)
             except Exception:
                 raise HTTPException(400, "Invalid cron expression")
         if req.trigger_type == "event" and not req.trigger_event:
             raise HTTPException(400, "Event name is required for event-triggered tasks")
         if req.trigger_type == "event" and not req.trigger_count:
-            raise HTTPException(400, "Trigger count is required for event-triggered tasks")
+            raise HTTPException(
+                400, "Trigger count is required for event-triggered tasks"
+            )
 
         # Auto-generate name
         name = req.name
         if not name:
             if req.task_type == "action":
                 from src.builtin_actions import BUILTIN_ACTION_INFO
+
                 name = BUILTIN_ACTION_INFO.get(req.action, req.action or "Action Task")
             elif req.prompt:
                 name = await _generate_task_name(req.prompt, owner=user)
@@ -493,12 +553,16 @@ def setup_task_routes(task_scheduler) -> APIRouter:
         if req.trigger_type == "schedule":
             if req.schedule == "once" and req.scheduled_date:
                 try:
-                    sched_date = datetime.fromisoformat(req.scheduled_date.replace("Z", "+00:00")).replace(tzinfo=None)
+                    sched_date = datetime.fromisoformat(
+                        req.scheduled_date.replace("Z", "+00:00")
+                    ).replace(tzinfo=None)
                 except ValueError:
                     raise HTTPException(400, "Invalid scheduled_date format")
             next_run = compute_next_run(
-                req.schedule, req.scheduled_time,
-                req.scheduled_day, sched_date,
+                req.schedule,
+                req.scheduled_time,
+                req.scheduled_day,
+                sched_date,
                 cron_expression=req.cron_expression,
             )
 
@@ -512,15 +576,21 @@ def setup_task_routes(task_scheduler) -> APIRouter:
         try:
             then_task_id = _validate_then_task_id(db, req.then_task_id, user)
             notifications_enabled = (
-                False if req.task_type == "action" and req.notifications_enabled is None
-                else bool(req.notifications_enabled) if req.notifications_enabled is not None
-                else True
+                False
+                if req.task_type == "action" and req.notifications_enabled is None
+                else (
+                    bool(req.notifications_enabled)
+                    if req.notifications_enabled is not None
+                    else True
+                )
             )
             # Validate chained task belongs to same owner
             if req.then_task_id:
-                chain_target = db.query(ScheduledTask).filter(
-                    ScheduledTask.id == req.then_task_id
-                ).first()
+                chain_target = (
+                    db.query(ScheduledTask)
+                    .filter(ScheduledTask.id == req.then_task_id)
+                    .first()
+                )
                 if not chain_target:
                     raise HTTPException(400, "Chained task not found")
                 if chain_target.owner != user:
@@ -542,7 +612,11 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                 trigger_count=req.trigger_count,
                 trigger_counter=0,
                 next_run=next_run,
-                status="active" if (req.trigger_type in ("event", "webhook") or next_run) else "completed",
+                status=(
+                    "active"
+                    if (req.trigger_type in ("event", "webhook") or next_run)
+                    else "completed"
+                ),
                 output_target=req.output_target,
                 model=req.model or None,
                 endpoint_url=req.endpoint_url or None,
@@ -598,7 +672,12 @@ def setup_task_routes(task_scheduler) -> APIRouter:
 
         import sqlite3
         from pathlib import Path
-        from routes.email_helpers import SCHEDULED_DB, OWNER_SCOPED_EMAIL_CACHE_TABLES, _email_cache_owner_clause
+
+        from routes.email_helpers import (
+            OWNER_SCOPED_EMAIL_CACHE_TABLES,
+            SCHEDULED_DB,
+            _email_cache_owner_clause,
+        )
 
         cleared = {}
         conn = sqlite3.connect(SCHEDULED_DB)
@@ -610,16 +689,23 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                             "SELECT COUNT(*) FROM email_tags WHERE owner = ? OR owner = ''",
                             (user,),
                         ).fetchone()[0]
-                        conn.execute("DELETE FROM email_tags WHERE owner = ? OR owner = ''", (user,))
+                        conn.execute(
+                            "DELETE FROM email_tags WHERE owner = ? OR owner = ''",
+                            (user,),
+                        )
                     elif table in OWNER_SCOPED_EMAIL_CACHE_TABLES and user:
                         owner_clause, owner_params = _email_cache_owner_clause(user)
                         before = conn.execute(
                             f"SELECT COUNT(*) FROM {table} WHERE {owner_clause}",
                             owner_params,
                         ).fetchone()[0]
-                        conn.execute(f"DELETE FROM {table} WHERE {owner_clause}", owner_params)
+                        conn.execute(
+                            f"DELETE FROM {table} WHERE {owner_clause}", owner_params
+                        )
                     else:
-                        before = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                        before = conn.execute(
+                            f"SELECT COUNT(*) FROM {table}"
+                        ).fetchone()[0]
                         conn.execute(f"DELETE FROM {table}")
                     cleared[table] = int(before or 0)
                 except sqlite3.OperationalError:
@@ -638,8 +724,12 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                         removed_files += 1
                     except Exception:
                         pass
-            owner_slug = "".join(c if (c.isalnum() or c in "-_.@") else "_" for c in (user or "default"))
-            for state_path in [Path(DATA_DIR) / f"email_urgency_state_{owner_slug}.json"]:
+            owner_slug = "".join(
+                c if (c.isalnum() or c in "-_.@") else "_" for c in (user or "default")
+            )
+            for state_path in [
+                Path(DATA_DIR) / f"email_urgency_state_{owner_slug}.json"
+            ]:
                 try:
                     if state_path.exists():
                         state_path.unlink()
@@ -647,7 +737,12 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                 except Exception:
                     pass
 
-        return {"ok": True, "action": action, "cleared": cleared, "files": removed_files}
+        return {
+            "ok": True,
+            "action": action,
+            "cleared": cleared,
+            "files": removed_files,
+        }
 
     @router.get("/{task_id}")
     async def get_task(request: Request, task_id: str):
@@ -674,7 +769,9 @@ def setup_task_routes(task_scheduler) -> APIRouter:
             if user and task.owner != user:
                 raise HTTPException(403, "Access denied")
 
-            next_task_type = req.task_type if req.task_type is not None else task.task_type
+            next_task_type = (
+                req.task_type if req.task_type is not None else task.task_type
+            )
             next_action = req.action if req.action is not None else task.action
             _require_admin_for_task_action(user, next_task_type, next_action)
 
@@ -702,7 +799,9 @@ def setup_task_routes(task_scheduler) -> APIRouter:
             if req.trigger_count is not None:
                 task.trigger_count = req.trigger_count
             if req.then_task_id is not None:
-                task.then_task_id = _validate_then_task_id(db, req.then_task_id, user, current_task_id=task.id)
+                task.then_task_id = _validate_then_task_id(
+                    db, req.then_task_id, user, current_task_id=task.id
+                )
             if req.notifications_enabled is not None:
                 task.notifications_enabled = bool(req.notifications_enabled)
             if req.character_id is not None:
@@ -712,6 +811,7 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                 if req.cron_expression:
                     try:
                         from croniter import croniter
+
                         croniter(req.cron_expression)
                     except Exception:
                         raise HTTPException(400, "Invalid cron expression")
@@ -740,10 +840,16 @@ def setup_task_routes(task_scheduler) -> APIRouter:
             if req.cron_expression is not None:
                 schedule_changed = True
 
-            if schedule_changed and task.status == "active" and (task.trigger_type or "schedule") == "schedule":
+            if (
+                schedule_changed
+                and task.status == "active"
+                and (task.trigger_type or "schedule") == "schedule"
+            ):
                 task.next_run = compute_next_run(
-                    task.schedule, task.scheduled_time,
-                    task.scheduled_day, task.scheduled_date,
+                    task.schedule,
+                    task.scheduled_time,
+                    task.scheduled_day,
+                    task.scheduled_date,
                     cron_expression=task.cron_expression,
                 )
 
@@ -805,12 +911,18 @@ def setup_task_routes(task_scheduler) -> APIRouter:
             task.status = "active"
             if (task.trigger_type or "schedule") == "schedule":
                 task.next_run = compute_next_run(
-                    task.schedule, task.scheduled_time,
-                    task.scheduled_day, task.scheduled_date,
+                    task.schedule,
+                    task.scheduled_time,
+                    task.scheduled_day,
+                    task.scheduled_date,
                     cron_expression=task.cron_expression,
                 )
             db.commit()
-            return {"ok": True, "status": "active", "next_run": task.next_run.isoformat() + "Z" if task.next_run else None}
+            return {
+                "ok": True,
+                "status": "active",
+                "next_run": task.next_run.isoformat() + "Z" if task.next_run else None,
+            }
         finally:
             db.close()
 
@@ -845,7 +957,10 @@ def setup_task_routes(task_scheduler) -> APIRouter:
             task.next_run = None
             if task.trigger_type == "schedule":
                 task.next_run = compute_next_run(
-                    defs["schedule"], defs["scheduled_time"], None, None,
+                    defs["schedule"],
+                    defs["scheduled_time"],
+                    None,
+                    None,
                     cron_expression=defs["cron_expression"],
                 )
             db.commit()
@@ -870,7 +985,10 @@ def setup_task_routes(task_scheduler) -> APIRouter:
         started = await task_scheduler.run_task_now(task_id, force=force)
         if not started:
             raise HTTPException(409, "Task is already running")
-        return {"ok": True, "message": "Task triggered" + (" in parallel" if force else "")}
+        return {
+            "ok": True,
+            "message": "Task triggered" + (" in parallel" if force else ""),
+        }
 
     @router.post("/{task_id}/stop")
     async def stop_task_now(request: Request, task_id: str):
@@ -890,7 +1008,9 @@ def setup_task_routes(task_scheduler) -> APIRouter:
         return {"ok": True, "message": "Task stopped"}
 
     @router.get("/runs/recent")
-    async def list_recent_runs(request: Request, limit: int = 50, max_result_chars: int = 6000):
+    async def list_recent_runs(
+        request: Request, limit: int = 50, max_result_chars: int = 6000
+    ):
         """Recent task runs across ALL tasks for this owner. Drives the Activity view."""
         user = _owner(request)
         limit = max(1, min(limit, 200))
@@ -919,7 +1039,11 @@ def setup_task_routes(task_scheduler) -> APIRouter:
             seen_urgency_rows = set()
             for r, t in rows:
                 if (t.action or "") == "check_email_urgency":
-                    ts = r.started_at.replace(second=0, microsecond=0) if r.started_at else None
+                    ts = (
+                        r.started_at.replace(second=0, microsecond=0)
+                        if r.started_at
+                        else None
+                    )
                     text = (r.result or r.error or "").strip()
                     key = (ts, r.status or "", text)
                     if key in seen_urgency_rows:
@@ -934,7 +1058,10 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                 for key in ("result", "error"):
                     val = d.get(key)
                     if isinstance(val, str) and len(val) > max_result_chars:
-                        d[key] = val[:max_result_chars].rstrip() + "\n\n[Activity preview truncated]"
+                        d[key] = (
+                            val[:max_result_chars].rstrip()
+                            + "\n\n[Activity preview truncated]"
+                        )
                 return d
 
             return {
@@ -956,13 +1083,15 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                         "output_target": t.output_target or "session",
                     }
                     for r, t in deduped
-                ]
+                ],
             }
         finally:
             db.close()
 
     @router.get("/{task_id}/runs")
-    async def list_runs(request: Request, task_id: str, limit: int = 20, offset: int = 0):
+    async def list_runs(
+        request: Request, task_id: str, limit: int = 20, offset: int = 0
+    ):
         user = _owner(request)
         db = SessionLocal()
         try:
@@ -971,9 +1100,14 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                 raise HTTPException(404, "Task not found")
             if user and task.owner != user:
                 raise HTTPException(403, "Access denied")
-            runs = db.query(TaskRun).filter(TaskRun.task_id == task_id)\
-                .order_by(TaskRun.started_at.desc())\
-                .offset(offset).limit(limit).all()
+            runs = (
+                db.query(TaskRun)
+                .filter(TaskRun.task_id == task_id)
+                .order_by(TaskRun.started_at.desc())
+                .offset(offset)
+                .limit(limit)
+                .all()
+            )
             total = db.query(TaskRun).filter(TaskRun.task_id == task_id).count()
             return {"runs": [_run_to_dict(r) for r in runs], "total": total}
         finally:
@@ -984,22 +1118,55 @@ def setup_task_routes(task_scheduler) -> APIRouter:
         """List available output targets — only delivery/send tools, not all MCP tools."""
         _owner(request)
         targets = [
-            {"value": "session", "label": "Session", "description": "Save result to a chat session"},
-            {"value": "notification", "label": "Notification", "description": "Push a browser notification with the result (also saved to the session for history)"},
-            {"value": "email", "label": "Email me", "description": "Send result through your configured SMTP account"},
+            {
+                "value": "session",
+                "label": "Session",
+                "description": "Save result to a chat session",
+            },
+            {
+                "value": "notification",
+                "label": "Notification",
+                "description": "Push a browser notification with the result (also saved to the session for history)",
+            },
+            {
+                "value": "email",
+                "label": "Email me",
+                "description": "Send result through your configured SMTP account",
+            },
         ]
         # Only include tools whose NAME clearly indicates an outbound delivery
         # action — match by verb in the tool name, not by any mention of "email"
         # in the description (which falsely picked up search_email, list_email,
         # etc.). Also exclude read/search/list tools whose names happen to start
         # with a delivery verb.
-        _DELIVERY_VERBS = ("send", "notify", "post", "publish", "draft", "dispatch", "deliver")
+        _DELIVERY_VERBS = (
+            "send",
+            "notify",
+            "post",
+            "publish",
+            "draft",
+            "dispatch",
+            "deliver",
+        )
         _NON_DELIVERY = (
-            "search", "list", "get", "find", "read", "fetch", "view",
-            "tag", "label", "move", "archive", "delete", "mark", "schedule",
+            "search",
+            "list",
+            "get",
+            "find",
+            "read",
+            "fetch",
+            "view",
+            "tag",
+            "label",
+            "move",
+            "archive",
+            "delete",
+            "mark",
+            "schedule",
         )
         try:
             from src.tool_utils import get_mcp_manager
+
             mcp = get_mcp_manager()
             if mcp:
                 for tool in mcp.get_all_tools():
@@ -1008,11 +1175,13 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                         continue
                     if not any(v in name_lower for v in _DELIVERY_VERBS):
                         continue
-                    targets.append({
-                        "value": tool["qualified_name"],
-                        "label": f"{tool['server_name']} → {tool['name']}",
-                        "description": tool.get("description", ""),
-                    })
+                    targets.append(
+                        {
+                            "value": tool["qualified_name"],
+                            "label": f"{tool['server_name']} → {tool['name']}",
+                            "description": tool.get("description", ""),
+                        }
+                    )
         except Exception:
             pass
         return {"targets": targets}
@@ -1022,46 +1191,74 @@ def setup_task_routes(task_scheduler) -> APIRouter:
         """List available built-in actions."""
         user = _owner(request)
         from src.builtin_actions import BUILTIN_ACTION_INFO
-        return {"actions": [
-            {"name": name, "description": desc}
-            for name, desc in BUILTIN_ACTION_INFO.items()
-            if name not in _ADMIN_ONLY_ACTIONS or _is_admin(user)
-        ]}
+
+        return {
+            "actions": [
+                {"name": name, "description": desc}
+                for name, desc in BUILTIN_ACTION_INFO.items()
+                if name not in _ADMIN_ONLY_ACTIONS or _is_admin(user)
+            ]
+        }
 
     @router.get("/meta/events")
     async def list_events(request: Request):
         """List available event triggers."""
         _owner(request)
-        return {"events": [
-            {"name": "session_created", "description": "Fires when a new chat session is created"},
-            {"name": "message_sent", "description": "Fires when a user sends a message"},
-            {"name": "document_created", "description": "Fires when a document is created"},
-            {"name": "memory_added", "description": "Fires when a memory is added"},
-            {"name": "research_completed", "description": "Fires when a research report completes"},
-            {"name": "email_received", "description": "Fires when new inbox mail is observed"},
-            {"name": "skill_added", "description": "Fires when a new skill is created"},
-        ]}
+        return {
+            "events": [
+                {
+                    "name": "session_created",
+                    "description": "Fires when a new chat session is created",
+                },
+                {
+                    "name": "message_sent",
+                    "description": "Fires when a user sends a message",
+                },
+                {
+                    "name": "document_created",
+                    "description": "Fires when a document is created",
+                },
+                {"name": "memory_added", "description": "Fires when a memory is added"},
+                {
+                    "name": "research_completed",
+                    "description": "Fires when a research report completes",
+                },
+                {
+                    "name": "email_received",
+                    "description": "Fires when new inbox mail is observed",
+                },
+                {
+                    "name": "skill_added",
+                    "description": "Fires when a new skill is created",
+                },
+            ]
+        }
 
     @router.post("/{task_id}/webhook/{token}")
     async def webhook_trigger(task_id: str, token: str):
         """Unauthenticated endpoint — the token IS the auth."""
         db = SessionLocal()
         try:
-            task = db.query(ScheduledTask).filter(
-                ScheduledTask.id == task_id,
-                ScheduledTask.webhook_token == token,
-                ScheduledTask.status == "active",
-            ).first()
+            task = (
+                db.query(ScheduledTask)
+                .filter(
+                    ScheduledTask.id == task_id,
+                    ScheduledTask.webhook_token == token,
+                    ScheduledTask.status == "active",
+                )
+                .first()
+            )
             if not task:
                 raise HTTPException(404, "Not found")
-            if (
-                is_admin_only_task_action(task.task_type, task.action)
-                and not owner_has_admin_task_privileges(task.owner)
-            ):
+            if is_admin_only_task_action(
+                task.task_type, task.action
+            ) and not owner_has_admin_task_privileges(task.owner):
                 task.status = "paused"
                 task.next_run = None
                 db.commit()
-                raise HTTPException(403, f"Action '{task.action}' requires admin privileges")
+                raise HTTPException(
+                    403, f"Action '{task.action}' requires admin privileges"
+                )
         finally:
             db.close()
         started = await task_scheduler.run_task_now(task_id)
@@ -1087,16 +1284,18 @@ def setup_task_routes(task_scheduler) -> APIRouter:
 
     # --- PARSE NATURAL LANGUAGE → TASK DRAFT (AI) ---
     @router.post("/parse")
-    async def parse_task(request: Request) -> Dict[str, Any]:
+    async def parse_task(request: Request) -> dict[str, Any]:
         """Turn a free-form description ("every weekday at 7am research the top
         AI news and summarize it") into a structured task draft the frontend
         can pre-fill the form with. Returns a draft only — the user reviews and
         saves it, so a misread schedule never goes live unreviewed."""
+        import json as _json
+        import re as _re
+        from datetime import datetime as _dt
+
         from src.endpoint_resolver import resolve_endpoint
         from src.llm_core import llm_call_async
         from src.text_helpers import strip_think as _strip_think
-        import json as _json, re as _re
-        from datetime import datetime as _dt
 
         body = await request.json()
         desc = (body.get("description") or "").strip()
@@ -1135,10 +1334,16 @@ def setup_task_routes(task_scheduler) -> APIRouter:
             if not (url and model):
                 return {"success": False, "message": "No model endpoint configured"}
             raw = await llm_call_async(
-                url=url, model=model,
-                messages=[{"role": "system", "content": sys},
-                          {"role": "user", "content": desc[:1000]}],
-                temperature=0.2, max_tokens=400, headers=headers, timeout=45,
+                url=url,
+                model=model,
+                messages=[
+                    {"role": "system", "content": sys},
+                    {"role": "user", "content": desc[:1000]},
+                ],
+                temperature=0.2,
+                max_tokens=400,
+                headers=headers,
+                timeout=45,
             )
             text = _strip_think(raw or "", prose=False, prompt_echo=False).strip()
             if text.startswith("```"):
@@ -1146,12 +1351,12 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                 if text.lower().startswith("json"):
                     text = text[4:].lstrip()
             # Pull the first {...} block in case the model added stray text.
-            m = _re.search(r"\{.*\}", text, _re.S)
+            m = _re.search(r"\{.*\}", text, _re.DOTALL)
             draft = _json.loads(m.group(0) if m else text)
             if not isinstance(draft, dict):
                 raise ValueError("not an object")
             # Whitelist + light validation so the frontend gets clean fields.
-            out: Dict[str, Any] = {}
+            out: dict[str, Any] = {}
             if draft.get("task_type") in ("llm", "research"):
                 out["task_type"] = draft["task_type"]
             else:
@@ -1172,7 +1377,10 @@ def setup_task_routes(task_scheduler) -> APIRouter:
                 out["output_target"] = draft["output_target"]
             out["trigger_type"] = "schedule"
             if not out.get("prompt"):
-                return {"success": False, "message": "Could not extract a task instruction"}
+                return {
+                    "success": False,
+                    "message": "Could not extract a task instruction",
+                }
             return {"success": True, "draft": out}
         except Exception as e:
             logger.error(f"parse_task failed: {e}")

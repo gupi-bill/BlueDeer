@@ -4,27 +4,31 @@ import copy
 import io
 import ipaddress
 import json
+import logging
 import os
 import re
-import logging
 import socket
 import ssl
+from collections.abc import Iterable
 from datetime import datetime, timedelta
-from typing import Iterable, List, cast
+from typing import cast
 from urllib.parse import urljoin, urlparse
 
-import httpx
 import httpcore
+import httpx
 from bs4 import BeautifulSoup
-
-from src.constants import WEB_FETCH_SOFT_MAX_BYTES, WEB_FETCH_HARD_MAX_BYTES, WEB_FETCH_USER_AGENT
+from src.constants import (
+    WEB_FETCH_HARD_MAX_BYTES,
+    WEB_FETCH_SOFT_MAX_BYTES,
+    WEB_FETCH_USER_AGENT,
+)
 
 from .analytics import RateLimitError, error_logger
 from .cache import (
     CONTENT_CACHE_DIR,
+    cleanup_cache,
     content_cache_index,
     generate_cache_key,
-    cleanup_cache,
 )
 
 logger = logging.getLogger(__name__)
@@ -235,6 +239,7 @@ class _PinnedTransport(httpx.BaseTransport):
     def close(self) -> None:
         self._pool.close()
 
+
 class BodyTooLargeError(Exception):
     """The server declared a body larger than the hard fetch ceiling."""
 
@@ -256,11 +261,19 @@ class _CappedFetch:
     (wire bytes; None when absent).
     """
 
-    __slots__ = ("status_code", "headers", "content", "truncated",
-                 "declared_bytes", "encoding", "url")
+    __slots__ = (
+        "content",
+        "declared_bytes",
+        "encoding",
+        "headers",
+        "status_code",
+        "truncated",
+        "url",
+    )
 
-    def __init__(self, status_code, headers, content, truncated,
-                 declared_bytes, encoding, url):
+    def __init__(
+        self, status_code, headers, content, truncated, declared_bytes, encoding, url
+    ):
         self.status_code = status_code
         self.headers = headers
         self.content = content
@@ -283,8 +296,9 @@ class _CappedFetch:
             )
 
 
-def _get_public_url(url: str, headers: dict, timeout: int, max_redirects: int = 5,
-                    max_bytes: int = None) -> "_CappedFetch":
+def _get_public_url(
+    url: str, headers: dict, timeout: int, max_redirects: int = 5, max_bytes: int = None
+) -> "_CappedFetch":
     """Capped streaming GET with SSRF-guarded, DNS-pinned manual redirects.
 
     Each hop is resolved once, validated as public, and then the actual TCP
@@ -314,8 +328,15 @@ def _get_public_url(url: str, headers: dict, timeout: int, max_redirects: int = 
                 if response.status_code in (301, 302, 303, 307, 308):
                     location = response.headers.get("location")
                     if not location:
-                        return _CappedFetch(response.status_code, response.headers, b"",
-                                            False, None, response.encoding, str(response.url))
+                        return _CappedFetch(
+                            response.status_code,
+                            response.headers,
+                            b"",
+                            False,
+                            None,
+                            response.encoding,
+                            str(response.url),
+                        )
                     current = urljoin(str(response.url), location)
                     continue
 
@@ -353,11 +374,20 @@ def _get_public_url(url: str, headers: dict, timeout: int, max_redirects: int = 
                         break
                     chunks.append(chunk)
 
-                return _CappedFetch(response.status_code, response.headers,
-                                    b"".join(chunks), truncated, declared,
-                                    response.encoding, str(response.url))
+                return _CappedFetch(
+                    response.status_code,
+                    response.headers,
+                    b"".join(chunks),
+                    truncated,
+                    declared,
+                    response.encoding,
+                    str(response.url),
+                )
 
-    raise httpx.RequestError("Too many redirects", request=httpx.Request("GET", current))
+    raise httpx.RequestError(
+        "Too many redirects", request=httpx.Request("GET", current)
+    )
+
 
 # PDF extraction (optional dependency)
 try:
@@ -373,10 +403,12 @@ def _extract_meta(soup: BeautifulSoup) -> dict:
     """Pull meta description and keywords if present."""
     description = ""
     keywords = ""
-    desc_tag = soup.find("meta", attrs={"name": re.compile("description", re.I)})
+    desc_tag = soup.find(
+        "meta", attrs={"name": re.compile("description", re.IGNORECASE)}
+    )
     if desc_tag and desc_tag.get("content"):
         description = desc_tag["content"].strip()
-    kw_tag = soup.find("meta", attrs={"name": re.compile("keywords", re.I)})
+    kw_tag = soup.find("meta", attrs={"name": re.compile("keywords", re.IGNORECASE)})
     if kw_tag and kw_tag.get("content"):
         keywords = kw_tag["content"].strip()
     return {"description": description, "keywords": keywords}
@@ -399,12 +431,14 @@ def _extract_og_image(soup: BeautifulSoup) -> str:
     if tag and tag.get("content", "").strip():
         candidates.append(tag["content"].strip())
     for url in candidates:
-        if url.startswith(("https://", "http://")) and not url.endswith((".svg", ".ico")):
+        if url.startswith(("https://", "http://")) and not url.endswith(
+            (".svg", ".ico")
+        ):
             return url
     return ""
 
 
-def _extract_lists(soup: BeautifulSoup) -> List[List[str]]:
+def _extract_lists(soup: BeautifulSoup) -> list[list[str]]:
     """Return a list of lists, each inner list representing a <ul>/<ol>."""
     all_lists = []
     for lst in soup.find_all(["ul", "ol"]):
@@ -414,13 +448,16 @@ def _extract_lists(soup: BeautifulSoup) -> List[List[str]]:
     return all_lists
 
 
-def _extract_tables(soup: BeautifulSoup) -> List[List[List[str]]]:
+def _extract_tables(soup: BeautifulSoup) -> list[list[list[str]]]:
     """Return a list of tables, each table is a list of rows, each row a list of cell texts."""
     tables_data = []
     for table in soup.find_all("table"):
         rows = []
         for tr in table.find_all("tr"):
-            cells = [td.get_text(separator=" ", strip=True) for td in tr.find_all(["td", "th"])]
+            cells = [
+                td.get_text(separator=" ", strip=True)
+                for td in tr.find_all(["td", "th"])
+            ]
             if cells:
                 rows.append(cells)
         if rows:
@@ -428,7 +465,7 @@ def _extract_tables(soup: BeautifulSoup) -> List[List[List[str]]]:
     return tables_data
 
 
-def _extract_code_blocks(soup: BeautifulSoup) -> List[str]:
+def _extract_code_blocks(soup: BeautifulSoup) -> list[str]:
     """Collect text from <pre> and <code> blocks."""
     blocks = []
     for tag in soup.find_all(["pre", "code"]):
@@ -441,8 +478,17 @@ def _extract_code_blocks(soup: BeautifulSoup) -> List[str]:
 def _detect_js_frameworks(soup: BeautifulSoup) -> bool:
     """Very naive detection of common JS frameworks."""
     js_indicators = [
-        "react", "angular", "vue", "svelte", "next", "nuxt",
-        "ember", "backbone", "jquery", "polymer", "mithril",
+        "react",
+        "angular",
+        "vue",
+        "svelte",
+        "next",
+        "nuxt",
+        "ember",
+        "backbone",
+        "jquery",
+        "polymer",
+        "mithril",
     ]
     for script in soup.find_all("script"):
         src = script.get("src", "").lower()
@@ -478,8 +524,9 @@ def _empty_result(url: str, error: str = "") -> dict:
 # ----------------------------------------------------------------------
 # Main content fetcher
 # ----------------------------------------------------------------------
-def fetch_webpage_content(url: str, timeout: int = 5, retry_attempt: int = 0,
-                          max_bytes: int = None) -> dict:
+def fetch_webpage_content(
+    url: str, timeout: int = 5, retry_attempt: int = 0, max_bytes: int = None
+) -> dict:
     """Fetch and extract meaningful content from a webpage with caching.
 
     ``max_bytes`` raises the download budget per call (clamped to the hard
@@ -521,8 +568,9 @@ def fetch_webpage_content(url: str, timeout: int = 5, retry_attempt: int = 0,
             "Accept-Encoding": "identity",
             "Connection": "keep-alive",
         }
-        response = _get_public_url(url, headers=headers, timeout=timeout,
-                                   max_bytes=effective_cap)
+        response = _get_public_url(
+            url, headers=headers, timeout=timeout, max_bytes=effective_cap
+        )
 
         if response.status_code == 429:
             raise RateLimitError(f"Rate limit hit for {url} (attempt {retry_attempt})")
@@ -535,7 +583,9 @@ def fetch_webpage_content(url: str, timeout: int = 5, retry_attempt: int = 0,
         error_logger.warning(f"HTTP {e.response.status_code} fetching {url}: {e}")
         return _empty_result(url, f"HTTP {e.response.status_code}: {e}")
     except httpx.RequestError as e:
-        error_logger.error(f"NetworkError fetching {url} (attempt {retry_attempt}): {e}")
+        error_logger.error(
+            f"NetworkError fetching {url} (attempt {retry_attempt}): {e}"
+        )
         return _empty_result(url, f"NetworkError: {e}")
     except RateLimitError as e:
         error_logger.error(str(e))
@@ -605,7 +655,9 @@ def fetch_webpage_content(url: str, timeout: int = 5, retry_attempt: int = 0,
     looks_like_text_file = url_path.endswith(
         (".md", ".markdown", ".txt", ".text", ".json", ".jsonl")
     )
-    if not is_html and (content_type.startswith("text/") or is_json or looks_like_text_file):
+    if not is_html and (
+        content_type.startswith("text/") or is_json or looks_like_text_file
+    ):
         text_body = (response.text or "").strip()
         result = {
             "url": url,
@@ -629,7 +681,9 @@ def fetch_webpage_content(url: str, timeout: int = 5, retry_attempt: int = 0,
     try:
         soup = BeautifulSoup(response.text, "html.parser")
     except Exception as e:
-        error_logger.error(f"ParseError parsing HTML from {url} (attempt {retry_attempt}): {e}")
+        error_logger.error(
+            f"ParseError parsing HTML from {url} (attempt {retry_attempt}): {e}"
+        )
         result = _empty_result(url, f"ParseError: {e}")
         _cache_result(cache_file, cache_key, result, url)
         return result
@@ -639,14 +693,18 @@ def fetch_webpage_content(url: str, timeout: int = 5, retry_attempt: int = 0,
     meta_info = _extract_meta(soup)
     og_image = _extract_og_image(soup)
     js_rendered = _detect_js_frameworks(soup)
-    js_message = "Page appears to be rendered by a JavaScript framework; content may be incomplete." if js_rendered else ""
+    js_message = (
+        "Page appears to be rendered by a JavaScript framework; content may be incomplete."
+        if js_rendered
+        else ""
+    )
 
     # Main textual content (heuristic): prefer semantic / "content"-classed
     # containers to skip nav/footer/boilerplate; tuned for article pages.
     main_content = ""
     content_areas = soup.find_all(
         ["main", "article", "section", "div"],
-        class_=re.compile("content|main|body|article|post|entry|text", re.I),
+        class_=re.compile("content|main|body|article|post|entry|text", re.IGNORECASE),
     )
     if content_areas:
         for area in content_areas[:3]:
@@ -662,10 +720,21 @@ def fetch_webpage_content(url: str, timeout: int = 5, retry_attempt: int = 0,
         if body:
             body_copy = copy.copy(body)
             for noise in body_copy.find_all(
-                ["script", "style", "noscript", "template", "nav", "header", "footer", "aside"]
+                [
+                    "script",
+                    "style",
+                    "noscript",
+                    "template",
+                    "nav",
+                    "header",
+                    "footer",
+                    "aside",
+                ]
             ):
                 noise.extract()
-            body_text = re.sub(r"\s+", " ", body_copy.get_text(separator=" ", strip=True)).strip()
+            body_text = re.sub(
+                r"\s+", " ", body_copy.get_text(separator=" ", strip=True)
+            ).strip()
             if len(body_text) > len(main_content):
                 main_content = body_text
 
@@ -704,9 +773,9 @@ def _cache_result(cache_file, cache_key: str, result: dict, url: str):
 # ----------------------------------------------------------------------
 # Content summarization helpers
 # ----------------------------------------------------------------------
-def extract_key_points(text: str) -> List[str]:
+def extract_key_points(text: str) -> list[str]:
     """Pull out bullet-style key points from a block of text."""
-    points: List[str] = []
+    points: list[str] = []
     bullet_pat = re.compile(r"^\s*[-*•]\s+(.*)")
     numbered_pat = re.compile(r"^\s*\d+[\.\)]\s+(.*)")
     for line in text.splitlines():
@@ -723,14 +792,14 @@ def get_tldr(text: str, max_sentences: int = 3) -> str:
     return " ".join(selected)
 
 
-def extract_quotes(text: str) -> List[str]:
+def extract_quotes(text: str) -> list[str]:
     """Return quoted excerpts that are at least 15 characters long."""
     # Backreference the opening quote so the closing quote must match it —
     # otherwise `"text'` (open double, close single) is treated as a quote.
     return [m.group(2).strip() for m in re.finditer(r'(["\'])([^"\']{15,}?)\1', text)]
 
 
-def extract_statistics(text: str) -> List[str]:
+def extract_statistics(text: str) -> list[str]:
     """Find numbers, percentages, dates and simple measurements."""
     # Match a comma-grouped number (1,000,000) OR a plain digit run (50000) —
     # the old `\d{1,3}(?:,\d{3})*` matched only the first 3 digits of a

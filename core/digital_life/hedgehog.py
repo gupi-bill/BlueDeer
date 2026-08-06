@@ -3,6 +3,7 @@
 特殊行为：health < 30 时自动防御蜷缩（defending=True）。
 commit 28：行为池——巡视安全 / 缩球晒太阳 / 收集小物件
 """
+
 from __future__ import annotations
 
 import random
@@ -41,8 +42,8 @@ class Hedgehog(DigitalLifeForm):
                 "life_stages": ["ADULT", "MIDDLE"],
                 "probability": 0.015,
             },
-            "duration_sec": 600,       # 10 分钟
-            "cooldown_sec": 14400,     # 4 小时一次
+            "duration_sec": 600,  # 10 分钟
+            "cooldown_sec": 14400,  # 4 小时一次
             "animation": "walk",
             "particles": "sparkle",
         },
@@ -56,7 +57,7 @@ class Hedgehog(DigitalLifeForm):
                 "life_stages": ["JUVENILE", "ADULT", "MIDDLE", "ELDERLY"],
                 "probability": 0.03,
             },
-            "duration_sec": 600,       # 10 分钟
+            "duration_sec": 600,  # 10 分钟
             "cooldown_sec": 3600,
             "animation": "idle",
             "particles": "feather_shine",
@@ -70,7 +71,7 @@ class Hedgehog(DigitalLifeForm):
                 "life_stages": ["JUVENILE", "ADULT", "MIDDLE"],
                 "probability": 0.02,
             },
-            "duration_sec": 120,       # 2 分钟
+            "duration_sec": 120,  # 2 分钟
             "cooldown_sec": 1800,
             "animation": "work",
             "particles": "nut_bury",
@@ -79,12 +80,24 @@ class Hedgehog(DigitalLifeForm):
 
     __slots__ = ["defending"]
 
-    def __init__(self, name="戒备猬", gender="female", environment=None,
-                 birth_time=None, genome_override=None):
+    def __init__(
+        self,
+        name="戒备猬",
+        gender="female",
+        environment=None,
+        birth_time=None,
+        genome_override=None,
+    ):
         self.defending = False
         genome = self._build_genome(genome_override)
-        super().__init__(name=name, species="hedgehog", gender=gender,
-                         genome=genome, environment=environment, birth_time=birth_time)
+        super().__init__(
+            name=name,
+            species="hedgehog",
+            gender=gender,
+            genome=genome,
+            environment=environment,
+            birth_time=birth_time,
+        )
 
     def tick(self) -> None:
         """猬的 tick 额外处理防御状态。"""
@@ -136,6 +149,7 @@ class Hedgehog(DigitalLifeForm):
         return Hedgehog(
             name=f"{self._name_obj}的幼崽",
             gender=random.choice(["male", "female"]),
-            environment=environment, birth_time=birth_time,
+            environment=environment,
+            birth_time=birth_time,
             genome_override=genome,
         )

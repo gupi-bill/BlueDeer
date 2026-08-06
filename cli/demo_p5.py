@@ -17,11 +17,12 @@ from __future__ import annotations
 import asyncio
 import os
 import shutil
+from typing import Any
 
 from core.context import ContextManager
 from core.event_bus import EventBus
-from core.mcp import MCPClient, AuditLogger
-from core.security import SecurityGuard, SecurityScanner, RiskLevel, sanitize_log
+from core.mcp import AuditLogger, MCPClient
+from core.security import SecurityGuard, SecurityScanner, sanitize_log
 from core.task import Task
 from core.tracer import Tracer
 from models.router import Router
@@ -32,18 +33,20 @@ from tools.builtin.file_write_tool import FileWriteTool
 from tools.builtin.security_scan_tool import SecurityScanTool
 from tools.builtin.syntax_check_tool import SyntaxCheckTool
 from tools.registry import ToolRegistry
-from typing import Any
 
 
 # 测试用：构造一个高危工具（不真正执行危险动作，仅用于演示拦截）
 class HazardousExecTool(BaseTool):
     """演示用高危工具：模拟 shell 执行。"""
+
     @property
     def name(self) -> str:
         return "shell_exec"
+
     @property
     def category(self) -> ToolCategory:
         return ToolCategory.HAZARDOUS
+
     async def execute(self, params: dict[str, Any]) -> Any:
         return {"executed": True, "cmd": params.get("cmd", "")}
 
@@ -67,10 +70,10 @@ async def run_demo() -> None:
     audit = AuditLogger(log_path="logs/audit.json")
     mcp = MCPClient(guard=guard, audit_logger=audit)
 
-    print(f"  SecurityScanner  ✓ (4 类静态扫描)")
-    print(f"  SecurityGuard    ✓ (HAZARDOUS 白名单)")
-    print(f"  AuditLogger      ✓ (JSONL → logs/audit.json)")
-    print(f"  MCPClient        ✓ (统一调用入口)")
+    print("  SecurityScanner  ✓ (4 类静态扫描)")
+    print("  SecurityGuard    ✓ (HAZARDOUS 白名单)")
+    print("  AuditLogger      ✓ (JSONL → logs/audit.json)")
+    print("  MCPClient        ✓ (统一调用入口)")
 
     # ============== 2. 注册工具 ==============
     print("\n[2] 注册工具到 MCPClient...")
@@ -94,7 +97,9 @@ async def run_demo() -> None:
     for label, key, payload in attacks:
         report = scanner.scan_all(payload, target=label)
         print(f"\n  [{label}] payload={payload[:60]}")
-        print(f"    risk_level={report.risk_level.value}  passed={report.passed}  threats={len(report.threats)}")
+        print(
+            f"    risk_level={report.risk_level.value}  passed={report.passed}  threats={len(report.threats)}"
+        )
         for t in report.threats:
             print(f"    - {t.threat_type} [{t.risk.value}] @ {t.location}: {t.matched}")
 
@@ -112,7 +117,9 @@ async def run_demo() -> None:
     res = await mcp.call("squirrel", "shell_exec", {"cmd": "cat ../../etc/passwd"})
     print(f"    ok={res['ok']}  reason={res['reason'][:80]}")
     if res.get("report"):
-        print(f"    report.risk_level={res['report']['risk_level']}  threat_count={res['report']['threat_count']}")
+        print(
+            f"    report.risk_level={res['report']['risk_level']}  threat_count={res['report']['threat_count']}"
+        )
 
     # 4.3 安全命令 → 放行
     print("\n  [4.3] shell_exec 安全命令 → 放行")
@@ -121,9 +128,9 @@ async def run_demo() -> None:
 
     # 4.4 密钥参数注入 → 静态扫描拒绝
     print("\n  [4.4] echo 工具参数含密钥 → 静态扫描拒绝")
-    res = await mcp.call("squirrel", "echo", {
-        "message": "config api_key=AKIAIOSFODNN7EXAMPLE12345abcde"
-    })
+    res = await mcp.call(
+        "squirrel", "echo", {"message": "config api_key=AKIAIOSFODNN7EXAMPLE12345abcde"}
+    )
     print(f"    ok={res['ok']}  reason={res['reason'][:80]}")
 
     # ============== 5. 戒备猬 Agent 扫描代码 ==============
@@ -173,7 +180,9 @@ async def run_demo() -> None:
         if result.status.value == "success":
             report = result.output["scan_report"]
             print(f"    status={result.status.value}")
-            print(f"    risk_level={report['risk_level']}  passed={report['passed']}  threats={report['threat_count']}")
+            print(
+                f"    risk_level={report['risk_level']}  passed={report['passed']}  threats={report['threat_count']}"
+            )
             for t in report["threats"]:
                 print(f"    - {t['threat_type']} [{t['risk']}]: {t['matched']}")
             print(f"    model_used={result.output['model_used']}")
@@ -188,13 +197,15 @@ async def run_demo() -> None:
     denied = audit.query(status="denied")
     print(f"  拒绝记录: {len(denied)}")
     for r in denied[:5]:
-        print(f"    [{r.status}] agent={r.agent_id} tool={r.tool_name} reason={r.reason[:50]}")
+        print(
+            f"    [{r.status}] agent={r.agent_id} tool={r.tool_name} reason={r.reason[:50]}"
+        )
 
     success = audit.query(status="success")
     print(f"  成功记录: {len(success)}")
 
     stats = audit.stats()
-    print(f"\n  审计统计:")
+    print("\n  审计统计:")
     print(f"    total={stats['total']}  deny_rate={stats.get('deny_rate', 0)}")
     print(f"    by_status={stats.get('by_status', {})}")
     print(f"    by_tool={stats.get('by_tool', {})}")
@@ -221,18 +232,14 @@ async def run_demo() -> None:
 
     # ============== 8. 看板汇总 ==============
     print("\n[8] P5 链路总结:")
-    print(f"  扫描器共扫描 4 类攻击样本，全部命中 ✓")
+    print("  扫描器共扫描 4 类攻击样本，全部命中 ✓")
     print(f"  MCPClient 拦截高危调用 {len(denied)} 次 ✓")
     print(f"  戒备猬 Agent 端到端扫描 {len(scan_tasks)} 个任务 ✓")
     print(f"  审计日志落盘 {stats['total']} 条 → logs/audit.json ✓")
-    print(f"  日志脱敏校验通过 ✓")
+    print("  日志脱敏校验通过 ✓")
 
     print("\n" + "=" * 60)
-    if (
-        len(all_records) >= 4
-        and len(denied) >= 2
-        and stats.get("deny_rate", 0) > 0
-    ):
+    if len(all_records) >= 4 and len(denied) >= 2 and stats.get("deny_rate", 0) > 0:
         print("✓ P5 端到端链路验证通过！")
         print("  扫描器 → 守卫 → MCPClient → 戒备猬 → 审计日志 → 脱敏")
     else:

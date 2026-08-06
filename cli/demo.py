@@ -54,11 +54,11 @@ async def run_demo() -> None:
         context=context,
         tracer=tracer,
     )
-    print(f"  EventBus   ✓")
+    print("  EventBus   ✓")
     print(f"  Router     ✓ (默认模型: {router.default_model})")
-    print(f"  Context    ✓ (全局: project=BlueDeer, phase=P1)")
+    print("  Context    ✓ (全局: project=BlueDeer, phase=P1)")
     print(f"  Tools      ✓ (已注册: {tools.list_tools()})")
-    print(f"  Harness    ✓ (忧郁鹿总经理)")
+    print("  Harness    ✓ (忧郁鹿总经理)")
     print(f"  Agent      ✓ (demo-agent, topic={agent.topic})")
 
     # 2. 构造并下发任务
@@ -91,7 +91,9 @@ async def run_demo() -> None:
         print(f"  Error:        {result.error}")
     if result.output:
         print(f"  Model Output: {result.output.get('model_response', 'N/A')}")
-        print(f"  Tool Output:  {json.dumps(result.output.get('tool_output'), ensure_ascii=False)}")
+        print(
+            f"  Tool Output:  {json.dumps(result.output.get('tool_output'), ensure_ascii=False)}"
+        )
 
     # 5. 汇总看板
     print("\n[5] 任务看板汇总:")

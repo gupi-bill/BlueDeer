@@ -14,6 +14,7 @@
 3. HTML 邮件模板，紧急邮件用红色顶栏，日报用蓝色顶栏
 4. 异步发送（子线程），避免 SMTP 慢拖累主线程
 """
+
 from __future__ import annotations
 
 import datetime
@@ -25,6 +26,7 @@ from email.mime.text import MIMEText
 # ====================================================================
 # SMTP 发送核心
 # ====================================================================
+
 
 def _smtp_send(config: dict, subject: str, html_body: str) -> bool:
     """通过 SMTP 发送一封 HTML 邮件。
@@ -126,6 +128,7 @@ def _format_priority_tag(priority: str) -> str:
 # 即时通知（high 优先级）
 # ====================================================================
 
+
 def _send_instant(config: dict, message: dict) -> bool:
     """发送一封即时通知邮件（紧急消息）。"""
     sender = message.get("sender", "智能体")
@@ -150,6 +153,7 @@ def _send_instant(config: dict, message: dict) -> bool:
 # ====================================================================
 # 日报 / 摘要
 # ====================================================================
+
 
 def send_digest(config: dict, messages: list[dict]) -> bool:
     """发送一封摘要邮件（多条普通消息汇总）。
@@ -180,7 +184,7 @@ def send_digest(config: dict, messages: list[dict]) -> bool:
             f'<span class="msg-sender">{sender}</span>'
             f'<span class="msg-text">{text}</span>'
             f'<span class="msg-time">{t_str}</span>'
-            f'</li>'
+            f"</li>"
         )
     body_html = f"""
     <p>你有 <strong>{len(messages)}</strong> 条未读消息：</p>
@@ -238,26 +242,43 @@ def send_daily_report(config: dict, report_data: dict) -> bool:
         "<table><thead><tr>"
         "<th>姓名</th><th>物种</th><th>能量</th><th>健康</th><th>心情</th>"
         "</tr></thead><tbody>" + emp_rows + "</tbody></table>"
-        if emp_rows else "<p>暂无员工数据。</p>"
+        if emp_rows
+        else "<p>暂无员工数据。</p>"
     )
     # 重要事件
     events = report_data.get("events", [])
     events_html = "<p>今日无重要事件。</p>"
     if events:
-        events_html = "<ul>" + "".join(
-            f"<li><strong>{e.get('type', '')}</strong>：{e.get('desc', '')} "
-            f"<span class='msg-time'>({e.get('time', '')})</span></li>"
-            for e in events
-        ) + "</ul>"
+        events_html = (
+            "<ul>"
+            + "".join(
+                f"<li><strong>{e.get('type', '')}</strong>：{e.get('desc', '')} "
+                f"<span class='msg-time'>({e.get('time', '')})</span></li>"
+                for e in events
+            )
+            + "</ul>"
+        )
     # 预警
     warnings = report_data.get("warnings", [])
-    warnings_html = "<p>暂无预警。</p>" if not warnings else (
-        "<ul style='color: #ff4757;'>" + "".join(f"<li>{w}</li>" for w in warnings) + "</ul>"
+    warnings_html = (
+        "<p>暂无预警。</p>"
+        if not warnings
+        else (
+            "<ul style='color: #ff4757;'>"
+            + "".join(f"<li>{w}</li>" for w in warnings)
+            + "</ul>"
+        )
     )
     # 趣事
     funny = report_data.get("funny_logs", [])
-    funny_html = "<p>今日无趣事。</p>" if not funny else (
-        "<ul style='color: #825ee4;'>" + "".join(f"<li>{f}</li>" for f in funny) + "</ul>"
+    funny_html = (
+        "<p>今日无趣事。</p>"
+        if not funny
+        else (
+            "<ul style='color: #825ee4;'>"
+            + "".join(f"<li>{f}</li>" for f in funny)
+            + "</ul>"
+        )
     )
 
     body_html = f"""
@@ -286,6 +307,7 @@ def send_daily_report(config: dict, report_data: dict) -> bool:
 # 工厂：make_sender 返回即时通知用的 send 函数
 # ====================================================================
 
+
 def make_sender(config: dict):
     """工厂：返回一个 send(message_dict) 函数，用于即时发送紧急邮件。
 
@@ -295,6 +317,7 @@ def make_sender(config: dict):
     Returns:
         send(message_dict) → bool 函数
     """
+
     def _send(message: dict) -> bool:
         # 异步发送，避免 SMTP 慢拖累主线程
         def _worker():
@@ -302,7 +325,9 @@ def make_sender(config: dict):
                 _send_instant(config, message)
             except Exception:
                 pass
+
         t = threading.Thread(target=_worker, daemon=True)
         t.start()
         return True
+
     return _send

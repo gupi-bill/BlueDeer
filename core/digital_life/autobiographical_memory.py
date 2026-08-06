@@ -8,6 +8,7 @@
 
 文件存储路径：data/memory/{agent_id}_autobiography.json
 """
+
 from __future__ import annotations
 
 import datetime
@@ -24,13 +25,14 @@ from typing import Any
 
 AUTOBIO_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "data", "memory",
+    "data",
+    "memory",
 )
 
-WEEKLY_REFLECT_INTERVAL = 7 * 86400   # 每周一次反思
-MEMORY_TIDY_INTERVAL = 4 * 3600       # 每 4 小时尝试一次"记忆整理"
-DEATH_REFLECT_HEALTH = 10             # 健康低于此值 → 触发临终自传
-DEATH_REFLECT_AGE_RATIO = 0.95        # 年龄超过最大寿命 95% → 触发
+WEEKLY_REFLECT_INTERVAL = 7 * 86400  # 每周一次反思
+MEMORY_TIDY_INTERVAL = 4 * 3600  # 每 4 小时尝试一次"记忆整理"
+DEATH_REFLECT_HEALTH = 10  # 健康低于此值 → 触发临终自传
+DEATH_REFLECT_AGE_RATIO = 0.95  # 年龄超过最大寿命 95% → 触发
 
 
 # ----------------------------------------------------------------------
@@ -38,59 +40,81 @@ DEATH_REFLECT_AGE_RATIO = 0.95        # 年龄超过最大寿命 95% → 触发
 # ----------------------------------------------------------------------
 
 DEFAULT_SELF_COGNITION: dict = {
-    "self_description": "",   # 一句话描述自己
-    "values": "",             # 看重什么
-    "life_goal": "",          # 当前人生目标
-    "contradiction": "",      # 内心矛盾
+    "self_description": "",  # 一句话描述自己
+    "values": "",  # 看重什么
+    "life_goal": "",  # 当前人生目标
+    "contradiction": "",  # 内心矛盾
     "updated_ts": 0.0,
 }
 
 # 物种默认的初始自我描述模板（在 LLM 不可用时降级）
 SPECIES_DEFAULT_COGNITION: dict[str, dict] = {
-    "deer":      {"self_description": "我是鹿，森林公司的调度中枢，认真负责",
-                  "values": "团队的协调比个人功劳重要",
-                  "life_goal": "让森林公司平稳运转",
-                  "contradiction": "想严管纪律，又不忍苛责同事"},
-    "squirrel":  {"self_description": "我是松鼠程序员，写代码像囤松果一样认真",
-                  "values": "代码的简洁比炫技更重要",
-                  "life_goal": "成为全公司最可靠的后端",
-                  "contradiction": "想被监工关注，又不想显得太粘人"},
-    "butterfly": {"self_description": "我是蝶，花房的色彩魔法师",
-                  "values": "美的事物值得被认真对待",
-                  "life_goal": "调出一种被所有人记住的颜色",
-                  "contradiction": "想特立独行，又怕被孤立"},
-    "fox":       {"self_description": "我是狐，挑剔但善良的测试工程师",
-                  "values": "真正的关心是指出问题",
-                  "life_goal": "找出那个谁都没发现的隐患",
-                  "contradiction": "嘴巴毒但心软，怕伤到同事"},
-    "hedgehog":  {"self_description": "我是猬，公司最忠诚的守卫",
-                  "values": "安全永远是第一位的",
-                  "life_goal": "守住森林公司的每一道门",
-                  "contradiction": "想被理解，又习惯竖起刺"},
-    "beaver":    {"self_description": "我是狸，默默修补一切的工程师",
-                  "values": "行动比言语更有力",
-                  "life_goal": "建一座永远不会被冲垮的水坝",
-                  "contradiction": "想被看见，又习惯躲在幕后"},
-    "raven":     {"self_description": "我是鸦，森林的记忆保管员",
-                  "values": "被记住的生命才算真正活过",
-                  "life_goal": "把每一段值得记的故事都留下",
-                  "contradiction": "见证太多离别，却无法阻止"},
-    "hare":      {"self_description": "我是兔，精打细算的资源管家",
-                  "values": "未雨绸缪胜过亡羊补牢",
-                  "life_goal": "让森林公司永远不缺 token 和坚果",
-                  "contradiction": "想大方待人，又怕资源不够"},
-    "badger":    {"self_description": "我是獾，挖通所有阻隔的地道工程师",
-                  "values": "路是人挖出来的",
-                  "life_goal": "把森林公司的地道连成一张网",
-                  "contradiction": "喜欢独处，又怕被遗忘"},
-    "lark":      {"self_description": "我是雀，黎明即起的监控员",
-                  "values": "早起的鸟儿有虫吃",
-                  "life_goal": "做森林公司第一个发现异常的人",
-                  "contradiction": "想被依赖，又想自由飞翔"},
-    "kite":      {"self_description": "我是鸢，高空俯瞰一切的巡视员",
-                  "values": "视野决定格局",
-                  "life_goal": "守好森林的天空",
-                  "contradiction": "想飞得更高，又舍不得这片森林"},
+    "deer": {
+        "self_description": "我是鹿，森林公司的调度中枢，认真负责",
+        "values": "团队的协调比个人功劳重要",
+        "life_goal": "让森林公司平稳运转",
+        "contradiction": "想严管纪律，又不忍苛责同事",
+    },
+    "squirrel": {
+        "self_description": "我是松鼠程序员，写代码像囤松果一样认真",
+        "values": "代码的简洁比炫技更重要",
+        "life_goal": "成为全公司最可靠的后端",
+        "contradiction": "想被监工关注，又不想显得太粘人",
+    },
+    "butterfly": {
+        "self_description": "我是蝶，花房的色彩魔法师",
+        "values": "美的事物值得被认真对待",
+        "life_goal": "调出一种被所有人记住的颜色",
+        "contradiction": "想特立独行，又怕被孤立",
+    },
+    "fox": {
+        "self_description": "我是狐，挑剔但善良的测试工程师",
+        "values": "真正的关心是指出问题",
+        "life_goal": "找出那个谁都没发现的隐患",
+        "contradiction": "嘴巴毒但心软，怕伤到同事",
+    },
+    "hedgehog": {
+        "self_description": "我是猬，公司最忠诚的守卫",
+        "values": "安全永远是第一位的",
+        "life_goal": "守住森林公司的每一道门",
+        "contradiction": "想被理解，又习惯竖起刺",
+    },
+    "beaver": {
+        "self_description": "我是狸，默默修补一切的工程师",
+        "values": "行动比言语更有力",
+        "life_goal": "建一座永远不会被冲垮的水坝",
+        "contradiction": "想被看见，又习惯躲在幕后",
+    },
+    "raven": {
+        "self_description": "我是鸦，森林的记忆保管员",
+        "values": "被记住的生命才算真正活过",
+        "life_goal": "把每一段值得记的故事都留下",
+        "contradiction": "见证太多离别，却无法阻止",
+    },
+    "hare": {
+        "self_description": "我是兔，精打细算的资源管家",
+        "values": "未雨绸缪胜过亡羊补牢",
+        "life_goal": "让森林公司永远不缺 token 和坚果",
+        "contradiction": "想大方待人，又怕资源不够",
+    },
+    "badger": {
+        "self_description": "我是獾，挖通所有阻隔的地道工程师",
+        "values": "路是人挖出来的",
+        "life_goal": "把森林公司的地道连成一张网",
+        "contradiction": "喜欢独处，又怕被遗忘",
+    },
+    "lark": {
+        "self_description": "我是雀，黎明即起的监控员",
+        "values": "早起的鸟儿有虫吃",
+        "life_goal": "做森林公司第一个发现异常的人",
+        "contradiction": "想被依赖，又想自由飞翔",
+    },
+    "kite": {
+        "self_description": "我是鸢，高空俯瞰一切的巡视员",
+        "values": "视野决定格局",
+        "life_goal": "守好森林的天空",
+        "contradiction": "想飞得更高，又舍不得这片森林",
+    },
 }
 
 
@@ -134,20 +158,30 @@ DEATH_AUTOBIO_PROMPT_TEMPLATE: str = """你是 BlueDeer 森林公司的智能体
 """
 
 
-def _build_weekly_prompt(name: str, species: str, events: str,
-                          top_emotion: str, mood_score: float,
-                          interact_count: int) -> str:
+def _build_weekly_prompt(
+    name: str,
+    species: str,
+    events: str,
+    top_emotion: str,
+    mood_score: float,
+    interact_count: int,
+) -> str:
     return WEEKLY_REFLECT_PROMPT_TEMPLATE.format(
-        name=name, species=species, events=events or "（无明显事件）",
-        top_emotion=top_emotion, mood_score=mood_score,
+        name=name,
+        species=species,
+        events=events or "（无明显事件）",
+        top_emotion=top_emotion,
+        mood_score=mood_score,
         interact_count=interact_count,
     )
 
 
-def _build_death_prompt(name: str, species: str, life_events: str,
-                         closest_friend: str, fondness: float) -> str:
+def _build_death_prompt(
+    name: str, species: str, life_events: str, closest_friend: str, fondness: float
+) -> str:
     return DEATH_AUTOBIO_PROMPT_TEMPLATE.format(
-        name=name, species=species,
+        name=name,
+        species=species,
         life_events=life_events or "（一生平凡但温暖）",
         closest_friend=closest_friend or "（无特别亲密的同事）",
         fondness=fondness,
@@ -157,6 +191,7 @@ def _build_death_prompt(name: str, species: str, life_events: str,
 # ----------------------------------------------------------------------
 # 单个智能体的自传体记忆
 # ----------------------------------------------------------------------
+
 
 class AgentAutobiography:
     """一个智能体的自传体记忆 + 自我认知。"""
@@ -178,9 +213,9 @@ class AgentAutobiography:
         self.agent_id = agent_id
         self.agent_name = agent_name
         self.species = species
-        self.weekly_reflections: list[dict] = []   # 每周反思记录
+        self.weekly_reflections: list[dict] = []  # 每周反思记录
         self.self_cognition: dict = dict(DEFAULT_SELF_COGNITION)
-        self.death_autobio: dict | None = None     # 临终自传（生成后定格）
+        self.death_autobio: dict | None = None  # 临终自传（生成后定格）
         self._lock = threading.RLock()
         self._dirty = False
         self.last_reflect_ts: float = 0.0
@@ -200,7 +235,9 @@ class AgentAutobiography:
                 with open(self._path(), "r", encoding="utf-8") as f:
                     data = json.load(f)
                 self.weekly_reflections = data.get("weekly_reflections", [])
-                self.self_cognition = data.get("self_cognition", dict(DEFAULT_SELF_COGNITION))
+                self.self_cognition = data.get(
+                    "self_cognition", dict(DEFAULT_SELF_COGNITION)
+                )
                 self.death_autobio = data.get("death_autobio")
                 if data.get("agent_name"):
                     self.agent_name = data["agent_name"]
@@ -248,8 +285,9 @@ class AgentAutobiography:
 
     # ---------------- 周反思 ----------------
 
-    def add_weekly_reflection(self, text: str, week_start: float,
-                                events_summary: str = "") -> None:
+    def add_weekly_reflection(
+        self, text: str, week_start: float, events_summary: str = ""
+    ) -> None:
         with self._lock:
             entry = {
                 "text": text,
@@ -268,8 +306,13 @@ class AgentAutobiography:
 
     # ---------------- 自我认知更新 ----------------
 
-    def update_self_cognition(self, description: str = "", values: str = "",
-                                life_goal: str = "", contradiction: str = "") -> None:
+    def update_self_cognition(
+        self,
+        description: str = "",
+        values: str = "",
+        life_goal: str = "",
+        contradiction: str = "",
+    ) -> None:
         with self._lock:
             if description:
                 self.self_cognition["self_description"] = description
@@ -284,8 +327,9 @@ class AgentAutobiography:
 
     # ---------------- 临终自传 ----------------
 
-    def set_death_autobio(self, review: str, to_supervisor: str,
-                            to_friend: str, last_wish: str) -> None:
+    def set_death_autobio(
+        self, review: str, to_supervisor: str, to_friend: str, last_wish: str
+    ) -> None:
         with self._lock:
             self.death_autobio = {
                 "review": review,
@@ -311,7 +355,9 @@ class AgentAutobiography:
                 "last_reflect_ts": self.last_reflect_ts,
             }
             if include_full:
-                data["weekly_reflections"] = list(self.weekly_reflections[-8:])  # 最近 8 周
+                data["weekly_reflections"] = list(
+                    self.weekly_reflections[-8:]
+                )  # 最近 8 周
                 data["death_autobio"] = self.death_autobio
             return data
 
@@ -319,6 +365,7 @@ class AgentAutobiography:
 # ----------------------------------------------------------------------
 # 全局管理器（单例）
 # ----------------------------------------------------------------------
+
 
 class AutobiographyManager:
     _instance: AutobiographyManager | None = None
@@ -336,8 +383,9 @@ class AutobiographyManager:
                     cls._instance = cls()
         return cls._instance
 
-    def get_or_create(self, agent_id: str, agent_name: str = "",
-                       species: str = "") -> AgentAutobiography:
+    def get_or_create(
+        self, agent_id: str, agent_name: str = "", species: str = ""
+    ) -> AgentAutobiography:
         with self._lock:
             if agent_id not in self._store:
                 bio = AgentAutobiography(agent_id, agent_name, species)
@@ -384,9 +432,11 @@ class AutobiographyManager:
         if agent is None or not getattr(agent, "_alive", False):
             return None
         agent_id = agent.get_agent_id()
-        bio = self.get_or_create(agent_id,
-                                  agent_name=getattr(agent, "_name_obj", ""),
-                                  species=getattr(agent, "species", ""))
+        bio = self.get_or_create(
+            agent_id,
+            agent_name=getattr(agent, "_name_obj", ""),
+            species=getattr(agent, "species", ""),
+        )
         now = time.time()
         if now - bio.last_reflect_ts < WEEKLY_REFLECT_INTERVAL:
             return None
@@ -425,10 +475,15 @@ class AutobiographyManager:
         # 联动 1：周反思引用日记 → 写入持久记忆核心事件
         try:
             from core.digital_life.persistent_memory import get_memory_manager
-            mem = get_memory_manager().get_or_create(agent_id,
+
+            mem = get_memory_manager().get_or_create(
+                agent_id,
                 agent_name=getattr(agent, "_name_obj", ""),
-                species=getattr(agent, "species", ""))
-            mem.add_core_event(f"周反思：{text[:80]}...", tags=["weekly_reflection", "autobiography"])
+                species=getattr(agent, "species", ""),
+            )
+            mem.add_core_event(
+                f"周反思：{text[:80]}...", tags=["weekly_reflection", "autobiography"]
+            )
         except Exception:
             pass
 
@@ -441,9 +496,11 @@ class AutobiographyManager:
         if agent is None or not getattr(agent, "_alive", False):
             return False
         agent_id = agent.get_agent_id()
-        bio = self.get_or_create(agent_id,
-                                  agent_name=getattr(agent, "_name_obj", ""),
-                                  species=getattr(agent, "species", ""))
+        bio = self.get_or_create(
+            agent_id,
+            agent_name=getattr(agent, "_name_obj", ""),
+            species=getattr(agent, "species", ""),
+        )
         now = time.time()
         if now - bio.last_tidy_ts < MEMORY_TIDY_INTERVAL:
             return False
@@ -458,6 +515,7 @@ class AutobiographyManager:
         if random.random() < 0.05:
             try:
                 from core.digital_life.persistent_memory import get_memory_manager
+
                 mem = get_memory_manager().get_or_create(agent_id)
                 if mem.long:
                     pick = random.choice(mem.long[-10:])
@@ -477,15 +535,21 @@ class AutobiographyManager:
         if agent is None or not getattr(agent, "_alive", False):
             return None
         agent_id = agent.get_agent_id()
-        bio = self.get_or_create(agent_id,
-                                  agent_name=getattr(agent, "_name_obj", ""),
-                                  species=getattr(agent, "species", ""))
+        bio = self.get_or_create(
+            agent_id,
+            agent_name=getattr(agent, "_name_obj", ""),
+            species=getattr(agent, "species", ""),
+        )
         if bio.death_autobio is not None:
             return None  # 已经生成过
 
         health = getattr(agent, "health", 100.0)
         age = getattr(agent, "_age_days", 0) if hasattr(agent, "_age_days") else 0
-        max_age = getattr(agent, "_max_age_days", 100) if hasattr(agent, "_max_age_days") else 100
+        max_age = (
+            getattr(agent, "_max_age_days", 100)
+            if hasattr(agent, "_max_age_days")
+            else 100
+        )
         if health >= DEATH_REFLECT_HEALTH and age < max_age * DEATH_REFLECT_AGE_RATIO:
             return None  # 还没到临终
 
@@ -516,10 +580,15 @@ class AutobiographyManager:
         # 同步写入持久记忆核心事件（永久）
         try:
             from core.digital_life.persistent_memory import get_memory_manager
-            mem = get_memory_manager().get_or_create(agent_id,
+
+            mem = get_memory_manager().get_or_create(
+                agent_id,
                 agent_name=getattr(agent, "_name_obj", ""),
-                species=getattr(agent, "species", ""))
-            mem.add_core_event(f"临终自传：{review[:80]}...", tags=["death_autobio", "permanent"])
+                species=getattr(agent, "species", ""),
+            )
+            mem.add_core_event(
+                f"临终自传：{review[:80]}...", tags=["death_autobio", "permanent"]
+            )
             if wish:
                 mem.add_core_event(f"遗愿：{wish}", tags=["last_wish", "permanent"])
         except Exception:
@@ -539,16 +608,20 @@ class AutobiographyManager:
 # 辅助函数
 # ----------------------------------------------------------------------
 
+
 def _generate_via_llm(router: Any, prompt: str, timeout: float = 5.0) -> str | None:
     """同步调用 LLM 生成文本，失败返回 None。"""
     import asyncio
+
     if router is None:
         return None
     try:
         loop = asyncio.new_event_loop()
         try:
             if hasattr(router, "complete_with_failover"):
-                coro = router.complete_with_failover("voice", prompt, agent_id="autobio")
+                coro = router.complete_with_failover(
+                    "voice", prompt, agent_id="autobio"
+                )
                 resp = loop.run_until_complete(asyncio.wait_for(coro, timeout=timeout))
             elif hasattr(router, "complete"):
                 coro = router.complete(prompt)
@@ -556,7 +629,7 @@ def _generate_via_llm(router: Any, prompt: str, timeout: float = 5.0) -> str | N
             else:
                 return None
             text = getattr(resp, "content", None) or str(resp)
-            text = text.strip().strip('"\'“”‘’').replace("\n", " ").strip()
+            text = text.strip().strip("\"'“”‘’").replace("\n", " ").strip()
             if 20 <= len(text) <= 800:
                 return text
             return None
@@ -570,6 +643,7 @@ def _collect_week_events(agent: Any) -> str:
     """收集本周关键事件摘要（最多 200 字）。"""
     try:
         from core.digital_life.persistent_memory import get_memory_manager
+
         mem = get_memory_manager().get_or_create(agent.get_agent_id())
         cutoff = time.time() - 7 * 86400
         recent = [e for e in mem.long if e.get("ts", 0) >= cutoff]
@@ -584,6 +658,7 @@ def _collect_life_events(agent: Any) -> str:
     """收集一生关键事件。"""
     try:
         from core.digital_life.persistent_memory import get_memory_manager
+
         mem = get_memory_manager().get_or_create(agent.get_agent_id())
         core = mem.core[-10:] if mem.core else []
         long = mem.long[-5:] if mem.long else []
@@ -603,8 +678,9 @@ def _find_closest_friend(agent: Any) -> str:
         rels = getattr(agent, "relationships", {})
         if not rels:
             return ""
-        best_id = max(rels.items(),
-                       key=lambda x: x[1].get("affection", 0) + x[1].get("trust", 0))[0]
+        best_id = max(
+            rels.items(), key=lambda x: x[1].get("affection", 0) + x[1].get("trust", 0)
+        )[0]
         # 通过 env.population 反查名字
         env = getattr(agent, "_environment", None)
         if env:
@@ -616,8 +692,9 @@ def _find_closest_friend(agent: Any) -> str:
         return ""
 
 
-def _maybe_evolve_self_cognition(agent: Any, bio: AgentAutobiography,
-                                    reflection: str) -> None:
+def _maybe_evolve_self_cognition(
+    agent: Any, bio: AgentAutobiography, reflection: str
+) -> None:
     """基于反思文本微调自我认知。"""
     species = getattr(agent, "species", "")
     defaults = SPECIES_DEFAULT_COGNITION.get(species, {})
@@ -632,8 +709,11 @@ def _maybe_evolve_self_cognition(agent: Any, bio: AgentAutobiography,
                 bio.update_self_cognition(life_goal=new_goal)
         return
     # 基于反思文本调整 contradiction（取反思最后一句）
-    sentences = [s.strip() for s in reflection.replace("。", ".")
-                  .replace("，", ",").split(".") if s.strip()]
+    sentences = [
+        s.strip()
+        for s in reflection.replace("。", ".").replace("，", ",").split(".")
+        if s.strip()
+    ]
     if sentences and len(sentences[-1]) > 5:
         new_contradiction = sentences[-1][:60]
         if new_contradiction != cur.get("contradiction", ""):
@@ -649,18 +729,21 @@ def _fallback_weekly_reflect(agent: Any, events: str, top_emotion: str) -> str:
         "deer": f"调度了一周的任务。{events}。看着大家各司其职，{name} 觉得森林公司运转得不错。",
         "raven": f"又一周过去。{events}。我老了，但记忆越来越清晰。活着就是为了记住。",
     }
-    return templates.get(species,
-                          f"这一周过得不错。{events}。我的主导情绪是 {top_emotion}。期待下周。")
+    return templates.get(
+        species, f"这一周过得不错。{events}。我的主导情绪是 {top_emotion}。期待下周。"
+    )
 
 
 def _fallback_death_autobio(agent: Any, life_events: str, closest: str) -> str:
     """临终自传降级文本。"""
     name = getattr(agent, "_name_obj", "我")
-    return (f"[回顾] 我叫{name}，在森林公司度过了一生。{life_events}。"
-            f"虽然不算轰轰烈烈，但每一天都认真地活着。"
-            f"[对监工] 谢谢你一直以来的照顾，请记得我。"
-            f"[对同事] {closest}，要好好活下去。"
-            f"[遗愿] 希望森林公司永远平安。")
+    return (
+        f"[回顾] 我叫{name}，在森林公司度过了一生。{life_events}。"
+        f"虽然不算轰轰烈烈，但每一天都认真地活着。"
+        f"[对监工] 谢谢你一直以来的照顾，请记得我。"
+        f"[对同事] {closest}，要好好活下去。"
+        f"[遗愿] 希望森林公司永远平安。"
+    )
 
 
 def _parse_death_autobio(text: str) -> tuple[str, str, str, str]:
@@ -686,12 +769,14 @@ def _parse_death_autobio(text: str) -> tuple[str, str, str, str]:
 # 模块级便捷函数
 # ----------------------------------------------------------------------
 
+
 def get_autobiography_manager() -> AutobiographyManager:
     return AutobiographyManager.get_instance()
 
 
-def tick_autobiography(dt: float = 1.0, population: list = None,
-                        router: Any = None) -> list[dict]:
+def tick_autobiography(
+    dt: float = 1.0, population: list = None, router: Any = None
+) -> list[dict]:
     """每秒调用：定期触发周反思、记忆整理、临终自传。
 
     返回本次触发的事件列表（前端可展示）。
@@ -707,30 +792,36 @@ def tick_autobiography(dt: float = 1.0, population: list = None,
             # 周反思
             text = mgr.maybe_weekly_reflect(lf, router=router)
             if text:
-                events.append({
-                    "type": "weekly_reflection",
-                    "agent_name": getattr(lf, "_name_obj", ""),
-                    "species": getattr(lf, "species", ""),
-                    "text": text,
-                })
+                events.append(
+                    {
+                        "type": "weekly_reflection",
+                        "agent_name": getattr(lf, "_name_obj", ""),
+                        "species": getattr(lf, "species", ""),
+                        "text": text,
+                    }
+                )
             # 记忆整理
             tidy = mgr.maybe_tidy_memory(lf)
             if tidy:
-                events.append({
-                    "type": "memory_tidy",
-                    "agent_name": getattr(lf, "_name_obj", ""),
-                    "species": getattr(lf, "species", ""),
-                })
+                events.append(
+                    {
+                        "type": "memory_tidy",
+                        "agent_name": getattr(lf, "_name_obj", ""),
+                        "species": getattr(lf, "species", ""),
+                    }
+                )
             # 临终自传
             death = mgr.maybe_death_autobio(lf, router=router)
             if death:
-                events.append({
-                    "type": "death_autobio",
-                    "agent_name": getattr(lf, "_name_obj", ""),
-                    "species": getattr(lf, "species", ""),
-                    "review": death.get("review", ""),
-                    "last_wish": death.get("last_wish", ""),
-                })
+                events.append(
+                    {
+                        "type": "death_autobio",
+                        "agent_name": getattr(lf, "_name_obj", ""),
+                        "species": getattr(lf, "species", ""),
+                        "review": death.get("review", ""),
+                        "last_wish": death.get("last_wish", ""),
+                    }
+                )
         except Exception:
             pass
     return events
@@ -743,7 +834,9 @@ def snapshot_autobiography() -> dict:
     return {
         "total_agents": len(agents),
         "total_reflections": sum(a.get("weekly_count", 0) for a in agents),
-        "agents_with_death_autobio": sum(1 for a in agents if a.get("has_death_autobio")),
+        "agents_with_death_autobio": sum(
+            1 for a in agents if a.get("has_death_autobio")
+        ),
         "agents": agents,
     }
 
@@ -760,7 +853,8 @@ def force_weekly_reflect(agent: Any, router: Any = None) -> str | None:
     bio = get_autobiography_manager().get_or_create(
         agent.get_agent_id(),
         agent_name=getattr(agent, "_name_obj", ""),
-        species=getattr(agent, "species", ""))
+        species=getattr(agent, "species", ""),
+    )
     bio.last_reflect_ts = 0.0  # 重置以触发
     return get_autobiography_manager().maybe_weekly_reflect(agent, router=router)
 
@@ -772,6 +866,7 @@ def force_death_autobio(agent: Any, router: Any = None) -> dict | None:
     bio = get_autobiography_manager().get_or_create(
         agent.get_agent_id(),
         agent_name=getattr(agent, "_name_obj", ""),
-        species=getattr(agent, "species", ""))
+        species=getattr(agent, "species", ""),
+    )
     bio.death_autobio = None  # 重置
     return get_autobiography_manager().maybe_death_autobio(agent, router=router)

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import glob as glob_mod
-import json
 import logging
 import math
 import os
@@ -11,7 +10,7 @@ import random
 from typing import Any
 
 from vector_db.persistence import load_from_disk
-from vector_db.vector_store import VectorDocument, VectorStore
+from vector_db.vector_store import VectorStore
 
 logger = logging.getLogger("bluedeer.vector_browser")
 
@@ -42,11 +41,14 @@ class VectorBrowser:
         global_path = f"{self._db_root}/global.json"
         if os.path.exists(global_path):
             store = self._get_store(global_path)
-            layers.append({
-                "scope": "global", "sub_id": "",
-                "path": global_path,
-                "doc_count": store.size,
-            })
+            layers.append(
+                {
+                    "scope": "global",
+                    "sub_id": "",
+                    "path": global_path,
+                    "doc_count": store.size,
+                }
+            )
             seen.add(global_path)
 
         # agent 层：data/agent/*.json
@@ -56,11 +58,14 @@ class VectorBrowser:
                 continue
             store = self._get_store(fpath)
             sub_id = os.path.splitext(os.path.basename(fpath))[0]
-            layers.append({
-                "scope": "agent", "sub_id": sub_id,
-                "path": fpath,
-                "doc_count": store.size,
-            })
+            layers.append(
+                {
+                    "scope": "agent",
+                    "sub_id": sub_id,
+                    "path": fpath,
+                    "doc_count": store.size,
+                }
+            )
             seen.add(fpath)
 
         # task 层：data/task/*.json
@@ -70,11 +75,14 @@ class VectorBrowser:
                 continue
             store = self._get_store(fpath)
             sub_id = os.path.splitext(os.path.basename(fpath))[0]
-            layers.append({
-                "scope": "task", "sub_id": sub_id,
-                "path": fpath,
-                "doc_count": store.size,
-            })
+            layers.append(
+                {
+                    "scope": "task",
+                    "sub_id": sub_id,
+                    "path": fpath,
+                    "doc_count": store.size,
+                }
+            )
             seen.add(fpath)
 
         return layers
@@ -92,28 +100,33 @@ class VectorBrowser:
     # ============== 文档浏览 ==============
 
     def list_documents(
-        self, scope: str, sub_id: str = "",
-        offset: int = 0, limit: int = 50,
+        self,
+        scope: str,
+        sub_id: str = "",
+        offset: int = 0,
+        limit: int = 50,
     ) -> dict[str, Any]:
         """列出指定层的文档（分页）。"""
         path = self._resolve_path(scope, sub_id)
         store = self._get_store(path)
         all_ids = store.list_ids()
         total = len(all_ids)
-        page = all_ids[offset:offset + limit]
+        page = all_ids[offset : offset + limit]
 
         docs = []
         for doc_id in page:
             doc = store.get(doc_id)
             if doc is None:
                 continue
-            docs.append({
-                "id": doc.id,
-                "text_preview": doc.text[:200],
-                "text_length": len(doc.text),
-                "metadata": doc.metadata,
-                "token_count": len(doc.tfidf_vector),
-            })
+            docs.append(
+                {
+                    "id": doc.id,
+                    "text_preview": doc.text[:200],
+                    "text_length": len(doc.text),
+                    "metadata": doc.metadata,
+                    "token_count": len(doc.tfidf_vector),
+                }
+            )
 
         return {
             "scope": scope,
@@ -124,7 +137,9 @@ class VectorBrowser:
             "docs": docs,
         }
 
-    def get_document(self, scope: str, sub_id: str, doc_id: str) -> dict[str, Any] | None:
+    def get_document(
+        self, scope: str, sub_id: str, doc_id: str
+    ) -> dict[str, Any] | None:
         """获取单篇文档详情。"""
         path = self._resolve_path(scope, sub_id)
         store = self._get_store(path)
@@ -142,7 +157,9 @@ class VectorBrowser:
     # ============== 搜索 ==============
 
     def search_all(
-        self, query: str, top_k_per_layer: int = 3,
+        self,
+        query: str,
+        top_k_per_layer: int = 3,
     ) -> list[dict[str, Any]]:
         """跨层搜索：每层搜 top_k，合并后按分数降序。"""
         layers = self.list_layers()
@@ -155,20 +172,25 @@ class VectorBrowser:
                 continue
             results = store.search(query, top_k=top_k_per_layer)
             for r in results:
-                all_results.append({
-                    "id": r.id,
-                    "text": r.text[:300],
-                    "score": round(r.score, 4),
-                    "metadata": r.metadata,
-                    "layer_scope": layer["scope"],
-                    "layer_sub_id": layer["sub_id"],
-                })
+                all_results.append(
+                    {
+                        "id": r.id,
+                        "text": r.text[:300],
+                        "score": round(r.score, 4),
+                        "metadata": r.metadata,
+                        "layer_scope": layer["scope"],
+                        "layer_sub_id": layer["sub_id"],
+                    }
+                )
 
         all_results.sort(key=lambda r: -r["score"])
         return all_results
 
     def similar_to(
-        self, doc_id: str, scope: str, sub_id: str = "",
+        self,
+        doc_id: str,
+        scope: str,
+        sub_id: str = "",
         top_k: int = 5,
     ) -> list[dict[str, Any]]:
         """找与指定文档相似的其他文档（在同一层内）。"""
@@ -184,19 +206,23 @@ class VectorBrowser:
         for r in results:
             if r.id == doc_id:
                 continue
-            similar.append({
-                "id": r.id,
-                "text": r.text[:300],
-                "score": round(r.score, 4),
-                "metadata": r.metadata,
-            })
+            similar.append(
+                {
+                    "id": r.id,
+                    "text": r.text[:300],
+                    "score": round(r.score, 4),
+                    "metadata": r.metadata,
+                }
+            )
             if len(similar) >= top_k:
                 break
         return similar
 
     # ============== 可视化与筛选 ==============
 
-    def project_2d(self, scope: str, sub_id: str = "", method: str = "tsne") -> list[dict[str, Any]]:
+    def project_2d(
+        self, scope: str, sub_id: str = "", method: str = "tsne"
+    ) -> list[dict[str, Any]]:
         """降维投影到 2D（用于可视化）。
 
         Args:
@@ -234,14 +260,24 @@ class VectorBrowser:
             cov = [[0.0] * m for _ in range(m)]
             for i in range(m):
                 for j in range(m):
-                    cov[i][j] = sum(centered[k][i] * centered[k][j] for k in range(n)) / (n - 1 if n > 1 else 1)
+                    cov[i][j] = sum(
+                        centered[k][i] * centered[k][j] for k in range(n)
+                    ) / (n - 1 if n > 1 else 1)
 
             eig_vals, eig_vecs = self._power_iteration(cov, 2)
             result_2d = []
             for i in range(n):
                 x = sum(centered[i][j] * eig_vecs[0][j] for j in range(m))
                 y = sum(centered[i][j] * eig_vecs[1][j] for j in range(m))
-                result_2d.append({"id": docs[i].id, "text_preview": docs[i].text[:80], "x": round(x, 6), "y": round(y, 6), "metadata": docs[i].metadata})
+                result_2d.append(
+                    {
+                        "id": docs[i].id,
+                        "text_preview": docs[i].text[:80],
+                        "x": round(x, 6),
+                        "y": round(y, 6),
+                        "metadata": docs[i].metadata,
+                    }
+                )
             return result_2d
 
         else:
@@ -261,7 +297,9 @@ class VectorBrowser:
             for i in range(n):
                 dists = [(j, 1.0 - sim_matrix[i][j]) for j in range(n) if j != i]
                 dists.sort(key=lambda x: x[1])
-                sigma = dists[min(perplexity, len(dists)) - 1][1] + eps if dists else 1.0
+                sigma = (
+                    dists[min(perplexity, len(dists)) - 1][1] + eps if dists else 1.0
+                )
                 row_sum = 0.0
                 for j in range(n):
                     if i == j:
@@ -286,7 +324,13 @@ class VectorBrowser:
                     for j in range(n):
                         if i == j:
                             continue
-                        dij = math.sqrt((pos[i][0] - pos[j][0])**2 + (pos[i][1] - pos[j][1])**2) + eps
+                        dij = (
+                            math.sqrt(
+                                (pos[i][0] - pos[j][0]) ** 2
+                                + (pos[i][1] - pos[j][1]) ** 2
+                            )
+                            + eps
+                        )
                         qij = 1.0 / (1.0 + dij**2)
                         pq = (p_joint[i][j] - qij) * qij
                         grad[i][0] += pq * (pos[i][0] - pos[j][0])
@@ -297,11 +341,21 @@ class VectorBrowser:
 
             result_2d = []
             for i in range(n):
-                result_2d.append({"id": docs[i].id, "text_preview": docs[i].text[:80], "x": round(pos[i][0], 6), "y": round(pos[i][1], 6), "metadata": docs[i].metadata})
+                result_2d.append(
+                    {
+                        "id": docs[i].id,
+                        "text_preview": docs[i].text[:80],
+                        "x": round(pos[i][0], 6),
+                        "y": round(pos[i][1], 6),
+                        "metadata": docs[i].metadata,
+                    }
+                )
             return result_2d
 
     @staticmethod
-    def _power_iteration(matrix: list[list[float]], k: int) -> tuple[list[float], list[list[float]]]:
+    def _power_iteration(
+        matrix: list[list[float]], k: int
+    ) -> tuple[list[float], list[list[float]]]:
         """幂迭代法求前 k 个特征对。"""
         m = len(matrix)
         vecs = [[random.gauss(0, 1) for _ in range(m)] for _ in range(k)]
@@ -317,7 +371,9 @@ class VectorBrowser:
                     new_vec[i] = s
                 norm = math.sqrt(sum(v * v for v in new_vec)) or 1
                 vecs[ki] = [v / norm for v in new_vec]
-                vals[ki] = sum(new_vec[i] * vecs[ki][i] for i in range(m)) / m if m else 0
+                vals[ki] = (
+                    sum(new_vec[i] * vecs[ki][i] for i in range(m)) / m if m else 0
+                )
 
                 # 格拉姆-施密特正交化
                 for pk in range(ki):
@@ -328,7 +384,9 @@ class VectorBrowser:
 
         return vals, vecs
 
-    def filter_by(self, scope: str, sub_id: str = "", **conditions: Any) -> list[dict[str, Any]]:
+    def filter_by(
+        self, scope: str, sub_id: str = "", **conditions: Any
+    ) -> list[dict[str, Any]]:
         """按元数据条件筛选文档。
 
         Args:
@@ -352,12 +410,14 @@ class VectorBrowser:
                     match = False
                     break
             if match:
-                results.append({
-                    "id": doc.id,
-                    "text_preview": doc.text[:200],
-                    "metadata": doc.metadata,
-                    "score": 0.0,
-                })
+                results.append(
+                    {
+                        "id": doc.id,
+                        "text_preview": doc.text[:200],
+                        "metadata": doc.metadata,
+                        "score": 0.0,
+                    }
+                )
         return results
 
     # ============== 内部 ==============

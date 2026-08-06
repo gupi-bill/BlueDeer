@@ -7,19 +7,21 @@ tools.
 ``_internal_headers`` and ``_INTERNAL_BASE`` still live in
 tool_implementations.py and are pulled back function-locally where needed.
 """
+
 import re
-from typing import Any, Dict, Optional
+from typing import Any
 
 from src.constants import DEEP_RESEARCH_DIR
 from src.tools._common import _parse_tool_args
 
 
-async def do_manage_research(content: str, owner: Optional[str] = None) -> Dict:
+async def do_manage_research(content: str, owner: str | None = None) -> dict:
     """List, read/open, or delete saved deep-research results from the Library.
     Args (JSON): {"action": "list|read|delete", "id": "<id>", "search": "..."}.
     Research is stored as data/deep_research/<id>.json (query, summary, sources)."""
     import json as _json
     from pathlib import Path as _Path
+
     try:
         args = _parse_tool_args(content) if content.strip().startswith("{") else {}
     except ValueError:
@@ -27,7 +29,9 @@ async def do_manage_research(content: str, owner: Optional[str] = None) -> Dict:
     if not isinstance(args, dict):
         args = {}
     action = (args.get("action") or "list").lower()
-    rid = (args.get("id") or args.get("session_id") or args.get("research_id") or "").strip()
+    rid = (
+        args.get("id") or args.get("session_id") or args.get("research_id") or ""
+    ).strip()
     data_dir = _Path(DEEP_RESEARCH_DIR)
 
     # SECURITY: the research id is interpolated straight into a filesystem
@@ -52,12 +56,19 @@ async def do_manage_research(content: str, owner: Optional[str] = None) -> Dict:
         if not p.exists():
             return {"error": f"Research '{rid}' not found."}
         d = _load(p) or {}
-        summary = d.get("result") or d.get("raw_report") or d.get("summary") or d.get("report") or "(no report body)"
+        summary = (
+            d.get("result")
+            or d.get("raw_report")
+            or d.get("summary")
+            or d.get("report")
+            or "(no report body)"
+        )
         srcs = d.get("sources", []) or []
         out = f"# {d.get('query', '(untitled)')}\n\n{summary}"
         if srcs:
             out += "\n\nSources:\n" + "\n".join(
-                f"- {s.get('title') or s.get('url', '')}: {s.get('url', '')}" for s in srcs[:30]
+                f"- {s.get('title') or s.get('url', '')}: {s.get('url', '')}"
+                for s in srcs[:30]
             )
         return {"output": out[:16000], "exit_code": 0}
 
@@ -84,21 +95,42 @@ async def do_manage_research(content: str, owner: Optional[str] = None) -> Dict:
             q = d.get("query", "")
             if search and search not in q.lower():
                 continue
-            items.append((d.get("completed_at", 0) or 0, p.stem, q, len(d.get("sources", []) or [])))
+            items.append(
+                (
+                    d.get("completed_at", 0) or 0,
+                    p.stem,
+                    q,
+                    len(d.get("sources", []) or []),
+                )
+            )
     items.sort(reverse=True)
     if not items:
-        return {"output": "No research found in the library." + (f" (search: {search})" if search else ""), "exit_code": 0}
-    rows = "\n".join(f"- [{q or '(untitled)'}](#research-{sid}) — {n} sources" for _, sid, q, n in items[:50])
-    return {"output": f"Research library ({len(items)} item{'s' if len(items) != 1 else ''}):\n{rows}", "exit_code": 0}
+        return {
+            "output": "No research found in the library."
+            + (f" (search: {search})" if search else ""),
+            "exit_code": 0,
+        }
+    rows = "\n".join(
+        f"- [{q or '(untitled)'}](#research-{sid}) — {n} sources"
+        for _, sid, q, n in items[:50]
+    )
+    return {
+        "output": f"Research library ({len(items)} item{'s' if len(items) != 1 else ''}):\n{rows}",
+        "exit_code": 0,
+    }
 
 
-async def do_trigger_research(content: str, owner: Optional[str] = None) -> Dict:
+async def do_trigger_research(content: str, owner: str | None = None) -> dict:
     """Start a live deep-research job that appears in the Deep Research
     sidebar. Hits /api/research/start (the same path the sidebar's
     'Research' button uses) so the session is discoverable + streamable
     there, rather than creating a scheduled task that never surfaces."""
     import httpx
-    from src.tool_implementations import _internal_headers, _INTERNAL_BASE  # shared constants, still live in the facade
+    from src.tool_implementations import (  # shared constants, still live in the facade
+        _INTERNAL_BASE,
+        _internal_headers,
+    )
+
     try:
         args = _parse_tool_args(content)
     except ValueError:
@@ -106,24 +138,34 @@ async def do_trigger_research(content: str, owner: Optional[str] = None) -> Dict
     topic = args.get("topic", "") or args.get("query", "")
     if not topic:
         return {"error": "topic (or query) is required", "exit_code": 1}
-    payload: Dict[str, Any] = {"query": topic}
+    payload: dict[str, Any] = {"query": topic}
     # Optional knobs the research panel supports.
     if args.get("max_rounds") is not None:
-        try: payload["max_rounds"] = int(args["max_rounds"])
-        except (ValueError, TypeError): pass
+        try:
+            payload["max_rounds"] = int(args["max_rounds"])
+        except (ValueError, TypeError):
+            pass
     if args.get("max_time") is not None:
-        try: payload["max_time"] = int(args["max_time"])
-        except (ValueError, TypeError): pass
+        try:
+            payload["max_time"] = int(args["max_time"])
+        except (ValueError, TypeError):
+            pass
     if args.get("category"):
         payload["category"] = args["category"]
     if args.get("search_provider"):
         payload["search_provider"] = args["search_provider"]
     try:
         async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(f"{_INTERNAL_BASE}/api/research/start",
-                                     json=payload, headers=_internal_headers(owner))
+            resp = await client.post(
+                f"{_INTERNAL_BASE}/api/research/start",
+                json=payload,
+                headers=_internal_headers(owner),
+            )
         if resp.status_code >= 400:
-            return {"error": f"research/start returned HTTP {resp.status_code}: {resp.text[:200]}", "exit_code": 1}
+            return {
+                "error": f"research/start returned HTTP {resp.status_code}: {resp.text[:200]}",
+                "exit_code": 1,
+            }
         data = resp.json()
         sid = data.get("session_id", "?")
         return {

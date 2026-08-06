@@ -3,7 +3,6 @@ from pathlib import Path
 
 import pytest
 from fastapi import HTTPException, UploadFile
-
 from src.upload_limits import format_byte_limit, read_upload_limited
 
 REPO = Path(__file__).resolve().parent.parent
@@ -18,7 +17,10 @@ def _source(path: str) -> str:
 
 
 async def test_read_upload_limited_accepts_exact_limit():
-    assert await read_upload_limited(_upload("ok.bin", b"abcd"), 4, "Test upload") == b"abcd"
+    assert (
+        await read_upload_limited(_upload("ok.bin", b"abcd"), 4, "Test upload")
+        == b"abcd"
+    )
 
 
 async def test_read_upload_limited_rejects_oversized_upload():

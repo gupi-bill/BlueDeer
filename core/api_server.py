@@ -6,35 +6,39 @@
 
 from __future__ import annotations
 
-import json
+import asyncio
 import logging
 import os
 import time
 from typing import Any
 
-import asyncio
-
 from fastapi import APIRouter, HTTPException, Query, Request
 
+from core.config import get_config
 from core.event_bus import EventBus
 from core.harness import Harness
-from core.scheduler import Scheduler, JobDef
-from core.webhook import WebhookDispatcher, WebhookDef, _ALL_EVENTS
+from core.scheduler import JobDef, Scheduler
 from core.task import Task
+from core.webhook import _ALL_EVENTS, WebhookDef, WebhookDispatcher
 
 logger = logging.getLogger("bluedeer.api")
 
 router = APIRouter(prefix="/api/v1", tags=["BlueDeer API"])
 
 # ---- 限流配置 ----
-_RATE_LIMIT_REQUESTS = int(os.environ.get("BLUEDEER_RATE_LIMIT", "100"))
-_RATE_LIMIT_WINDOW = 60.0
+_api_config = get_config().api
+_RATE_LIMIT_REQUESTS = _api_config.rate_limit_requests
+_RATE_LIMIT_WINDOW = _api_config.rate_limit_window
 
 
 class RateLimiter:
     """滑动窗口限流器。"""
 
-    def __init__(self, max_requests: int = _RATE_LIMIT_REQUESTS, window: float = _RATE_LIMIT_WINDOW) -> None:
+    def __init__(
+        self,
+        max_requests: int = _RATE_LIMIT_REQUESTS,
+        window: float = _RATE_LIMIT_WINDOW,
+    ) -> None:
         self._max = max_requests
         self._window = window
         self._buckets: dict[str, list[float]] = {}
@@ -53,7 +57,9 @@ class RateLimiter:
     def cleanup(self) -> None:
         now = time.time()
         cutoff = now - self._window
-        self._buckets = {k: [ts for ts in v if ts > cutoff] for k, v in self._buckets.items()}
+        self._buckets = {
+            k: [ts for ts in v if ts > cutoff] for k, v in self._buckets.items()
+        }
 
 
 _rate_limiter = RateLimiter()
@@ -69,6 +75,7 @@ def graceful_shutdown(drain_period: float = 30.0) -> None:
     logger.warning("优雅关闭启动，drain 等待 %.1f 秒...", drain_period)
     _shutdown_event.set()
     import threading
+
     def _drain() -> None:
         deadline = time.time() + drain_period
         while time.time() < deadline:
@@ -76,7 +83,9 @@ def graceful_shutdown(drain_period: float = 30.0) -> None:
             logger.info("drain 剩余 %.1f 秒", remaining)
             time.sleep(1)
         logger.warning("drain 完成，可安全退出")
+
     threading.Thread(target=_drain, daemon=True).start()
+
 
 # 全局实例（由 init_api 注入）
 _bus: EventBus | None = None
@@ -102,13 +111,21 @@ def init_api(
 
 # ===== 健康检查 =====
 
+
 @router.get("/health")
 async def health(request: Request) -> dict[str, Any]:
-    allowed, current = _rate_limiter.check(f"health:{request.client.host if request.client else 'unknown'}")
-    return {"status": "ok", "service": "BlueDeer API", "shutting_down": _shutdown_event.is_set()}
+    allowed, current = _rate_limiter.check(
+        f"health:{request.client.host if request.client else 'unknown'}"
+    )
+    return {
+        "status": "ok",
+        "service": "BlueDeer API",
+        "shutting_down": _shutdown_event.is_set(),
+    }
 
 
 # ===== 任务管理 =====
+
 
 @router.post("/tasks")
 async def create_task(
@@ -156,8 +173,11 @@ async def get_task(task_id: str) -> dict[str, Any]:
 
 # ===== 看板持久化 =====
 
+
 @router.post("/board/save")
-async def save_board(file: str = Query(default="data/task_state.json")) -> dict[str, Any]:
+async def save_board(
+    file: str = Query(default="data/task_state.json"),
+) -> dict[str, Any]:
     if _harness is None:
         raise HTTPException(503, "Harness 未初始化")
     count = _harness.save_state(file)
@@ -165,7 +185,9 @@ async def save_board(file: str = Query(default="data/task_state.json")) -> dict[
 
 
 @router.post("/board/load")
-async def load_board(file: str = Query(default="data/task_state.json")) -> dict[str, Any]:
+async def load_board(
+    file: str = Query(default="data/task_state.json"),
+) -> dict[str, Any]:
     if _harness is None:
         raise HTTPException(503, "Harness 未初始化")
     count = _harness.load_state(file)
@@ -174,6 +196,7 @@ async def load_board(file: str = Query(default="data/task_state.json")) -> dict[
 
 # ===== 定时调度 =====
 
+
 @router.get("/schedules")
 async def list_schedules() -> dict[str, Any]:
     if _scheduler is None:
@@ -181,22 +204,35 @@ async def list_schedules() -> dict[str, Any]:
     jobs = _scheduler.list_jobs()
     return {
         "total": len(jobs),
-        "jobs": {jid: {"cron": j.cron, "task_type": j.task_type,
-                       "enabled": j.enabled, "description": j.description}
-                 for jid, j in jobs.items()},
+        "jobs": {
+            jid: {
+                "cron": j.cron,
+                "task_type": j.task_type,
+                "enabled": j.enabled,
+                "description": j.description,
+            }
+            for jid, j in jobs.items()
+        },
     }
 
 
 @router.post("/schedules")
 async def create_schedule(
-    job_id: str = Query(...), cron: str = Query(...),
-    task_type: str = Query(default="general"), assignee: str = Query(default=""),
+    job_id: str = Query(...),
+    cron: str = Query(...),
+    task_type: str = Query(default="general"),
+    assignee: str = Query(default=""),
     description: str = Query(default=""),
 ) -> dict[str, Any]:
     if _scheduler is None:
         raise HTTPException(503, "Scheduler 未初始化")
-    job = JobDef(id=job_id, cron=cron, task_type=task_type,
-                 assignee=assignee, description=description)
+    job = JobDef(
+        id=job_id,
+        cron=cron,
+        task_type=task_type,
+        assignee=assignee,
+        description=description,
+    )
     _scheduler.add_job(job)
     return {"job_id": job_id, "status": "created"}
 
@@ -213,6 +249,7 @@ async def delete_schedule(job_id: str) -> dict[str, Any]:
 
 # ===== Webhook 管理 =====
 
+
 @router.get("/webhooks")
 async def list_webhooks() -> dict[str, Any]:
     if _webhook is None:
@@ -220,23 +257,32 @@ async def list_webhooks() -> dict[str, Any]:
     hooks = _webhook.list_hooks()
     return {
         "total": len(hooks),
-        "webhooks": {hid: {"url": h.url, "events": h.events,
-                           "enabled": h.enabled, "description": h.description}
-                     for hid, h in hooks.items()},
+        "webhooks": {
+            hid: {
+                "url": h.url,
+                "events": h.events,
+                "enabled": h.enabled,
+                "description": h.description,
+            }
+            for hid, h in hooks.items()
+        },
     }
 
 
 @router.post("/webhooks")
 async def create_webhook(
-    hook_id: str = Query(...), url: str = Query(...),
+    hook_id: str = Query(...),
+    url: str = Query(...),
     events: str = Query(default=",".join(_ALL_EVENTS)),
-    secret: str = Query(default=""), description: str = Query(default=""),
+    secret: str = Query(default=""),
+    description: str = Query(default=""),
 ) -> dict[str, Any]:
     if _webhook is None:
         raise HTTPException(503, "WebhookDispatcher 未初始化")
     event_list = [e.strip() for e in events.split(",") if e.strip()]
-    hook = WebhookDef(id=hook_id, url=url, events=event_list,
-                      secret=secret, description=description)
+    hook = WebhookDef(
+        id=hook_id, url=url, events=event_list, secret=secret, description=description
+    )
     _webhook.add_hook(hook)
     return {"hook_id": hook_id, "status": "created"}
 
@@ -253,11 +299,13 @@ async def delete_webhook(hook_id: str) -> dict[str, Any]:
 
 # ===== 报告 =====
 
+
 @router.get("/report")
 async def generate_report(fmt: str = Query(default="markdown")) -> dict[str, Any]:
     if _harness is None:
         raise HTTPException(503, "Harness 未初始化")
     from core.reporter import ReportGenerator
+
     stats = _harness.aggregate()
     task_board = stats.get("tasks", {})
 
@@ -269,19 +317,28 @@ async def generate_report(fmt: str = Query(default="markdown")) -> dict[str, Any
 
     gen = ReportGenerator()
     path = gen.generate(
-        task_board=task_board, aggregate_stats=stats,
-        trace_lines=trace_lines, fmt=fmt,
+        task_board=task_board,
+        aggregate_stats=stats,
+        trace_lines=trace_lines,
+        fmt=fmt,
     )
     with open(path, "r", encoding="utf-8") as f:
         content = f.read()
-    return {"path": path, "format": fmt, "size": len(content), "content": content[:10000]}
+    return {
+        "path": path,
+        "format": fmt,
+        "size": len(content),
+        "content": content[:10000],
+    }
 
 
 # ===== DAG =====
 
+
 @router.get("/dag")
 async def list_dag() -> dict[str, Any]:
     from core.task_dag import TaskDAG
+
     dag = TaskDAG()
     nodes = dag.list_nodes()
     try:
@@ -304,6 +361,7 @@ async def list_dag() -> dict[str, Any]:
 @router.post("/dag/nodes")
 async def add_dag_node(body: dict[str, Any]) -> dict[str, Any]:
     from core.task_dag import TaskDAG
+
     dag = TaskDAG()
     node_id = body.get("id", "")
     if not node_id:
@@ -320,6 +378,7 @@ async def add_dag_node(body: dict[str, Any]) -> dict[str, Any]:
 @router.delete("/dag/nodes/{node_id}")
 async def delete_dag_node(node_id: str) -> dict[str, Any]:
     from core.task_dag import TaskDAG
+
     dag = TaskDAG()
     ok = dag.remove_node(node_id)
     if not ok:
@@ -333,6 +392,7 @@ async def dag_execution_plan(
     completed: str = Query(default="", description="逗号分隔的已完成 task_id"),
 ) -> dict[str, Any]:
     from core.task_dag import TaskDAG
+
     dag = TaskDAG()
     completed_set = set(filter(None, completed.split(","))) if completed else set()
     try:
@@ -345,12 +405,11 @@ async def dag_execution_plan(
 @router.get("/dag/subgraph/{root_id}")
 async def dag_subgraph(root_id: str) -> dict[str, Any]:
     from core.task_dag import TaskDAG
+
     dag = TaskDAG()
     nodes = dag.subgraph(root_id)
     return {
         "root": root_id,
-        "nodes": [
-            {"id": n.id, "depends_on": n.depends_on} for n in nodes
-        ],
+        "nodes": [{"id": n.id, "depends_on": n.depends_on} for n in nodes],
         "total": len(nodes),
     }

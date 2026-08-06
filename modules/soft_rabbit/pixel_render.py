@@ -11,15 +11,16 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
-
 # ============== 色彩系统 ==============
+
 
 @dataclass
 class Color:
     """RGB 色彩（0-255）。"""
+
     r: int = 255
     g: int = 255
     b: int = 255
@@ -29,6 +30,7 @@ class Color:
 
     def to_ansi256(self) -> int:
         """降级到 256 色 ANSI 索引。"""
+
         # 6×6×6 色立方体（16-231）
         def cube(v: int) -> int:
             if v < 48:
@@ -36,6 +38,7 @@ class Color:
             if v < 115:
                 return 1
             return min(5, (v - 35) // 40)
+
         return 16 + 36 * cube(self.r) + 6 * cube(self.g) + cube(self.b)
 
     def to_gray(self) -> int:
@@ -45,26 +48,27 @@ class Color:
 
 # 16 色复古主色板（跨端统一）
 PALETTE_16: dict[str, Color] = {
-    "bg":         Color(15, 15, 25),     # 深夜底色
-    "panel":      Color(25, 25, 40),     # 面板底
-    "border":     Color(80, 80, 110),    # 边框
-    "text":       Color(220, 220, 230),  # 正文
-    "text_dim":   Color(120, 120, 140),  # 备注
-    "title":      Color(255, 220, 80),   # 标题金
-    "success":    Color(80, 220, 100),   # 成功绿
-    "warning":    Color(255, 180, 60),   # 警告橙
-    "error":      Color(240, 80, 80),    # 错误红
-    "info":       Color(80, 180, 240),   # 信息蓝
-    "accent":     Color(200, 120, 240),  # 强调紫
-    "coin":       Color(255, 200, 60),   # 金币
-    "dream":      Color(120, 200, 255),  # 梦境
-    "security":   Color(255, 100, 100),  # 安全
-    "code":       Color(100, 240, 180),  # 代码
-    "shadow":     Color(8, 8, 16),       # 阴影
+    "bg": Color(15, 15, 25),  # 深夜底色
+    "panel": Color(25, 25, 40),  # 面板底
+    "border": Color(80, 80, 110),  # 边框
+    "text": Color(220, 220, 230),  # 正文
+    "text_dim": Color(120, 120, 140),  # 备注
+    "title": Color(255, 220, 80),  # 标题金
+    "success": Color(80, 220, 100),  # 成功绿
+    "warning": Color(255, 180, 60),  # 警告橙
+    "error": Color(240, 80, 80),  # 错误红
+    "info": Color(80, 180, 240),  # 信息蓝
+    "accent": Color(200, 120, 240),  # 强调紫
+    "coin": Color(255, 200, 60),  # 金币
+    "dream": Color(120, 200, 255),  # 梦境
+    "security": Color(255, 100, 100),  # 安全
+    "code": Color(100, 240, 180),  # 代码
+    "shadow": Color(8, 8, 16),  # 阴影
 }
 
 
 # ============== 色彩降级管线 ==============
+
 
 class ColorDowngradePipeline:
     """跨端色彩自动降级兼容管线。
@@ -78,10 +82,22 @@ class ColorDowngradePipeline:
 
     # 16 色基础色映射（ANSI 0-15）
     _ANSI16 = [
-        (0, 0, 0), (128, 0, 0), (0, 128, 0), (128, 128, 0),
-        (0, 0, 128), (128, 0, 128), (0, 128, 128), (192, 192, 192),
-        (128, 128, 128), (255, 0, 0), (0, 255, 0), (255, 255, 0),
-        (0, 0, 255), (255, 0, 255), (0, 255, 255), (255, 255, 255),
+        (0, 0, 0),
+        (128, 0, 0),
+        (0, 128, 0),
+        (128, 128, 0),
+        (0, 0, 128),
+        (128, 0, 128),
+        (0, 128, 128),
+        (192, 192, 192),
+        (128, 128, 128),
+        (255, 0, 0),
+        (0, 255, 0),
+        (255, 255, 0),
+        (0, 0, 255),
+        (255, 0, 255),
+        (0, 255, 255),
+        (255, 255, 255),
     ]
 
     LEVELS = ("truecolor", "256", "16", "gray")
@@ -133,6 +149,7 @@ class ColorDowngradePipeline:
 
 # ============== 8px 像素网格强制校准器 ==============
 
+
 class Grid8Aligner:
     """全局 8px 像素网格强制校准器。
 
@@ -172,6 +189,7 @@ class Grid8Aligner:
 
 # ============== 渲染后端抽象 ==============
 
+
 class RenderBackend:
     """渲染后端抽象基类。
 
@@ -185,8 +203,7 @@ class RenderBackend:
         self.width = width
         self.height = height
         self._buffer: list[list[tuple[Color, str]]] = [
-            [(PALETTE_16["bg"], " ") for _ in range(width)]
-            for _ in range(height)
+            [(PALETTE_16["bg"], " ") for _ in range(width)] for _ in range(height)
         ]
 
     def set_pixel(self, x: int, y: int, color: Color, char: str = " ") -> None:
@@ -194,7 +211,9 @@ class RenderBackend:
         if 0 <= x < self.width and 0 <= y < self.height:
             self._buffer[y][x] = (color, char if char else " ")
 
-    def draw_rect(self, x: int, y: int, w: int, h: int, color: Color, char: str = " ") -> None:
+    def draw_rect(
+        self, x: int, y: int, w: int, h: int, color: Color, char: str = " "
+    ) -> None:
         """填充矩形。"""
         for yy in range(y, y + h):
             for xx in range(x, x + w):
@@ -209,8 +228,7 @@ class RenderBackend:
         """清空画布。"""
         bg = PALETTE_16["bg"]
         self._buffer = [
-            [(bg, " ") for _ in range(self.width)]
-            for _ in range(self.height)
+            [(bg, " ") for _ in range(self.width)] for _ in range(self.height)
         ]
 
     def render(self) -> str:
@@ -278,13 +296,9 @@ class HtmlCanvasBackend(RenderBackend):
                 else:
                     cmds.append(
                         f'ctx.fillStyle="{color.to_hex()}";'
-                        f'ctx.fillRect({x*cell},{y*cell},{cell},{cell});'
+                        f"ctx.fillRect({x*cell},{y*cell},{cell},{cell});"
                     )
-        return (
-            '<canvas id="bd"></canvas><script>'
-            + "".join(cmds)
-            + '</script>'
-        )
+        return '<canvas id="bd"></canvas><script>' + "".join(cmds) + "</script>"
 
 
 class PyxelBackend(RenderBackend):
@@ -311,6 +325,7 @@ class PyxelBackend(RenderBackend):
 
 # ============== 渲染后端自动路由 ==============
 
+
 class RenderRouter:
     """多渲染后端自动适配路由。
 
@@ -324,7 +339,9 @@ class RenderRouter:
         "pyxel": PyxelBackend,
     }
 
-    def select(self, env: str = "auto", width: int = 80, height: int = 24) -> RenderBackend:
+    def select(
+        self, env: str = "auto", width: int = 80, height: int = 24
+    ) -> RenderBackend:
         """选择渲染后端。
 
         Args:
@@ -363,6 +380,7 @@ class RenderRouter:
 
 
 # ============== 统一渲染入口 ==============
+
 
 class PixelRenderEngine:
     """跨端统一渲染引擎入口。
@@ -420,7 +438,9 @@ class PixelRenderEngine:
         x, y = self._snap_point(x, y)
         self._backend.set_pixel(x, y, color, char)
 
-    def draw_rect(self, x: int, y: int, w: int, h: int, color: Color, char: str = " ") -> None:
+    def draw_rect(
+        self, x: int, y: int, w: int, h: int, color: Color, char: str = " "
+    ) -> None:
         x, y, w, h = self._snap_rect(x, y, w, h)
         self._backend.draw_rect(x, y, w, h, color, char)
 

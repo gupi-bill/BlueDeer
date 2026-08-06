@@ -9,16 +9,21 @@ import re
 import shlex
 import shutil
 import subprocess
-import uuid
 import tempfile
+import uuid
 from collections import namedtuple
 from pathlib import Path
-from typing import Dict, Any
-from core.platform_compat import IS_APPLE_SILICON, which_tool
+from typing import Any
+
 from core.middleware import INTERNAL_TOOL_USER
+from core.platform_compat import IS_APPLE_SILICON, which_tool
 from src.host_docker_access import (
     HOST_DOCKER_ACCESS_HINT,
+)
+from src.host_docker_access import (
     host_docker_access_enabled as _host_docker_access_enabled,
+)
+from src.host_docker_access import (
     running_in_container as _running_in_container,
 )
 from src.optional_deps import prepare_optional_dependency_import
@@ -38,16 +43,15 @@ except ImportError as exc:
 else:
     _PTY_IMPORT_ERROR = None
 
-from fastapi import APIRouter, Request, HTTPException
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
-
 from core.platform_compat import (
     IS_WINDOWS,
     detached_popen_kwargs,
     find_bash,
     git_bash_path,
 )
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 
 def _require_admin(request: Request):
@@ -201,7 +205,10 @@ def _package_installed_from_probe(name: str, probe: dict) -> bool:
         )
     if name == "sam_mask":
         return bool(
-            (dists.get("transformers") or modules.get("transformers", {}).get("real_module"))
+            (
+                dists.get("transformers")
+                or modules.get("transformers", {}).get("real_module")
+            )
             and (dists.get("torch") or modules.get("torch", {}).get("real_module"))
         )
     if name == "hf_transfer":
@@ -508,7 +515,9 @@ class ShellExecRequest(BaseModel):
     use_tmux: bool = False  # run in tmux session (survives browser disconnect)
 
 
-_REMOTE_TMUX_PATH_PREFIX = 'PATH="$HOME/.local/bin:$HOME/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"; '
+_REMOTE_TMUX_PATH_PREFIX = (
+    'PATH="$HOME/.local/bin:$HOME/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"; '
+)
 
 
 def _normalize_legacy_remote_tmux_exec(command: str) -> str:
@@ -542,10 +551,10 @@ def _normalize_legacy_remote_tmux_exec(command: str) -> str:
         break
     if remote_idx < 0 or remote_idx + 1 >= len(parts):
         return cmd
-    remote_cmd = " ".join(parts[remote_idx + 1:]).strip()
+    remote_cmd = " ".join(parts[remote_idx + 1 :]).strip()
     if not remote_cmd.startswith("tmux "):
         return cmd
-    repaired = parts[:remote_idx + 1] + [_REMOTE_TMUX_PATH_PREFIX + remote_cmd]
+    repaired = parts[: remote_idx + 1] + [_REMOTE_TMUX_PATH_PREFIX + remote_cmd]
     return shlex.join(repaired)
 
 
@@ -571,7 +580,7 @@ async def _create_shell(command: str, **kwargs):
     return await asyncio.create_subprocess_shell(command, **kwargs)
 
 
-async def _exec_shell(command: str, timeout: int = EXEC_TIMEOUT) -> Dict[str, Any]:
+async def _exec_shell(command: str, timeout: int = EXEC_TIMEOUT) -> dict[str, Any]:
     """Run a shell command and return stdout/stderr/exit_code."""
     proc = None
     try:
@@ -585,7 +594,7 @@ async def _exec_shell(command: str, timeout: int = EXEC_TIMEOUT) -> Dict[str, An
         stdout = stdout_b.decode(errors="replace")[:MAX_OUTPUT]
         stderr = stderr_b.decode(errors="replace")[:MAX_OUTPUT]
         return {"stdout": stdout, "stderr": stderr, "exit_code": proc.returncode}
-    except asyncio.TimeoutError:
+    except TimeoutError:
         if proc:
             try:
                 proc.kill()
@@ -659,7 +668,7 @@ async def _generate_pty(cmd: str, timeout: int, request: Request):
                     loop.run_in_executor(None, _pty_read, master_fd),
                     timeout=2.0,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             except OSError:
                 break
@@ -936,10 +945,8 @@ async def _generate_win_detached(cmd: str, request: Request):
                         yield f"data: {json.dumps({'stream': 'stdout', 'data': line})}\n\n"
                     lines_sent = len(lines)
                 exit_code = int(
-                    (
-                        exit_path.read_text(encoding="utf-8", errors="replace").strip()
-                        or "0"
-                    )
+                    exit_path.read_text(encoding="utf-8", errors="replace").strip()
+                    or "0"
                 )
             except Exception:
                 exit_code = 0
@@ -958,7 +965,7 @@ def setup_shell_routes() -> APIRouter:
     router = APIRouter(tags=["shell"])
 
     @router.post("/api/shell/exec")
-    async def shell_exec(request: Request, req: ShellExecRequest) -> Dict[str, Any]:
+    async def shell_exec(request: Request, req: ShellExecRequest) -> dict[str, Any]:
         """Execute a shell command and return output. Admin only."""
         _require_admin(request)
         cmd = req.command.strip()
@@ -1069,14 +1076,14 @@ def setup_shell_routes() -> APIRouter:
                     if deadline:
                         remaining = deadline - loop.time()
                         if remaining <= 0:
-                            raise asyncio.TimeoutError()
+                            raise TimeoutError()
                         wait = min(remaining, 2.0)
                     else:
                         wait = 2.0
 
                     try:
                         name, text = await asyncio.wait_for(q.get(), timeout=wait)
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         if await request.is_disconnected():
                             if proc:
                                 proc.kill()
@@ -1091,7 +1098,7 @@ def setup_shell_routes() -> APIRouter:
                 await proc.wait()
                 yield f"data: {json.dumps({'exit_code': proc.returncode})}\n\n"
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 if proc:
                     try:
                         proc.kill()
@@ -1119,15 +1126,30 @@ def setup_shell_routes() -> APIRouter:
             if line.startswith("ID=") or line.startswith("ID_LIKE="):
                 ids += line.split("=", 1)[1].strip().strip('"').split()
         ids = [i.lower() for i in ids]
-        if any(x in ids for x in ("debian", "ubuntu", "linuxmint", "pop", "elementary")):
+        if any(
+            x in ids for x in ("debian", "ubuntu", "linuxmint", "pop", "elementary")
+        ):
             return "debian"
-        if any(x in ids for x in ("arch", "manjaro", "endeavouros", "cachyos", "garuda")):
+        if any(
+            x in ids for x in ("arch", "manjaro", "endeavouros", "cachyos", "garuda")
+        ):
             return "arch"
-        if any(x in ids for x in ("fedora", "rhel", "centos", "rocky", "almalinux", "ol")):
+        if any(
+            x in ids for x in ("fedora", "rhel", "centos", "rocky", "almalinux", "ol")
+        ):
             return "fedora"
         if "alpine" in ids:
             return "alpine"
-        if any(x in ids for x in ("suse", "opensuse", "opensuse-leap", "opensuse-tumbleweed", "sles")):
+        if any(
+            x in ids
+            for x in (
+                "suse",
+                "opensuse",
+                "opensuse-leap",
+                "opensuse-tumbleweed",
+                "sles",
+            )
+        ):
             return "suse"
         return ""
 
@@ -1138,26 +1160,96 @@ def setup_shell_routes() -> APIRouter:
     # are added only when the detected backend needs them.
     _PKG_NAMES = {
         # canonical-name → {os_id: [actual_pkg_names_on_this_os]}
-        "cmake":           {"debian": ["cmake"], "arch": ["cmake"], "fedora": ["cmake"], "alpine": ["cmake"], "suse": ["cmake"], "macos": ["cmake"]},
-        "build-essential": {"debian": ["build-essential"], "arch": ["base-devel"], "fedora": ["gcc", "gcc-c++", "make"], "alpine": ["build-base"], "suse": ["gcc-c++", "make"], "macos": []},
-        "g++":             {"debian": ["g++"], "arch": ["gcc"], "fedora": ["gcc-c++"], "alpine": ["g++"], "suse": ["gcc-c++"], "macos": []},
-        "gcc":             {"debian": ["gcc"], "arch": ["gcc"], "fedora": ["gcc"], "alpine": ["gcc"], "suse": ["gcc"], "macos": []},
-        "make":            {"debian": ["make"], "arch": ["make"], "fedora": ["make"], "alpine": ["make"], "suse": ["make"], "macos": []},
-        "git":             {"debian": ["git"], "arch": ["git"], "fedora": ["git"], "alpine": ["git"], "suse": ["git"], "macos": ["git"]},
-        "tmux":            {"debian": ["tmux"], "arch": ["tmux"], "fedora": ["tmux"], "alpine": ["tmux"], "suse": ["tmux"], "macos": ["tmux"]},
+        "cmake": {
+            "debian": ["cmake"],
+            "arch": ["cmake"],
+            "fedora": ["cmake"],
+            "alpine": ["cmake"],
+            "suse": ["cmake"],
+            "macos": ["cmake"],
+        },
+        "build-essential": {
+            "debian": ["build-essential"],
+            "arch": ["base-devel"],
+            "fedora": ["gcc", "gcc-c++", "make"],
+            "alpine": ["build-base"],
+            "suse": ["gcc-c++", "make"],
+            "macos": [],
+        },
+        "g++": {
+            "debian": ["g++"],
+            "arch": ["gcc"],
+            "fedora": ["gcc-c++"],
+            "alpine": ["g++"],
+            "suse": ["gcc-c++"],
+            "macos": [],
+        },
+        "gcc": {
+            "debian": ["gcc"],
+            "arch": ["gcc"],
+            "fedora": ["gcc"],
+            "alpine": ["gcc"],
+            "suse": ["gcc"],
+            "macos": [],
+        },
+        "make": {
+            "debian": ["make"],
+            "arch": ["make"],
+            "fedora": ["make"],
+            "alpine": ["make"],
+            "suse": ["make"],
+            "macos": [],
+        },
+        "git": {
+            "debian": ["git"],
+            "arch": ["git"],
+            "fedora": ["git"],
+            "alpine": ["git"],
+            "suse": ["git"],
+            "macos": ["git"],
+        },
+        "tmux": {
+            "debian": ["tmux"],
+            "arch": ["tmux"],
+            "fedora": ["tmux"],
+            "alpine": ["tmux"],
+            "suse": ["tmux"],
+            "macos": ["tmux"],
+        },
     }
     _BACKEND_EXTRAS = {
-        "cuda":   {"debian": ["nvidia-cuda-toolkit"], "arch": ["cuda"], "fedora": ["cuda-toolkit"], "alpine": [], "suse": ["cuda"], "macos": []},
-        "rocm":   {"debian": ["rocm-dev"], "arch": ["rocm-hip-sdk"], "fedora": ["rocm-devel"], "alpine": [], "suse": ["rocm-dev"], "macos": []},
-        "vulkan": {"debian": ["libvulkan-dev", "vulkan-tools"], "arch": ["vulkan-headers", "vulkan-tools"], "fedora": ["vulkan-headers", "vulkan-tools"], "alpine": ["vulkan-loader-dev", "vulkan-tools"], "suse": ["vulkan-devel", "vulkan-tools"], "macos": []},
+        "cuda": {
+            "debian": ["nvidia-cuda-toolkit"],
+            "arch": ["cuda"],
+            "fedora": ["cuda-toolkit"],
+            "alpine": [],
+            "suse": ["cuda"],
+            "macos": [],
+        },
+        "rocm": {
+            "debian": ["rocm-dev"],
+            "arch": ["rocm-hip-sdk"],
+            "fedora": ["rocm-devel"],
+            "alpine": [],
+            "suse": ["rocm-dev"],
+            "macos": [],
+        },
+        "vulkan": {
+            "debian": ["libvulkan-dev", "vulkan-tools"],
+            "arch": ["vulkan-headers", "vulkan-tools"],
+            "fedora": ["vulkan-headers", "vulkan-tools"],
+            "alpine": ["vulkan-loader-dev", "vulkan-tools"],
+            "suse": ["vulkan-devel", "vulkan-tools"],
+            "macos": [],
+        },
     }
     _PKG_MGR = {
         "debian": "sudo apt install -y {pkgs}",
-        "arch":   "sudo pacman -S --needed {pkgs}",
+        "arch": "sudo pacman -S --needed {pkgs}",
         "fedora": "sudo dnf install -y {pkgs}",
         "alpine": "sudo apk add {pkgs}",
-        "suse":   "sudo zypper install -n {pkgs}",
-        "macos":  "brew install {pkgs}",
+        "suse": "sudo zypper install -n {pkgs}",
+        "macos": "brew install {pkgs}",
     }
 
     def _install_cmd_for_target(os_id: str, backend: str, missing: list[str]) -> str:
@@ -1169,13 +1261,15 @@ def setup_shell_routes() -> APIRouter:
         for m in missing:
             for p in _PKG_NAMES.get(m, {}).get(os_id, []):
                 if p not in seen:
-                    pkgs.append(p); seen.add(p)
+                    pkgs.append(p)
+                    seen.add(p)
         # Add backend-specific extras only when the build would actually
         # consume them (a CUDA toolkit isn't useful on a Vulkan box).
         backend = (backend or "").lower()
         for p in _BACKEND_EXTRAS.get(backend, {}).get(os_id, []):
             if p not in seen:
-                pkgs.append(p); seen.add(p)
+                pkgs.append(p)
+                seen.add(p)
         if not pkgs:
             return ""
         return _PKG_MGR[os_id].format(pkgs=" ".join(pkgs))
@@ -1200,8 +1294,8 @@ def setup_shell_routes() -> APIRouter:
         _require_admin(request)
         _reject_cross_site(request)
         import importlib.metadata as importlib_metadata
-        import shlex
         import json as _json
+        import shlex
         import site
         import sys
 
@@ -1209,8 +1303,7 @@ def setup_shell_routes() -> APIRouter:
         model_hint_l = (model_hint or "").strip().lower()
         has_krea_model = "krea" in model_hint_l
         has_lama_mlx_model = any(
-            key in model_hint_l
-            for key in ("lama", "mi-gan", "migan", "inpainting-mlx")
+            key in model_hint_l for key in ("lama", "mi-gan", "migan", "inpainting-mlx")
         )
         has_ddcolor_mlx_model = "ddcolor" in model_hint_l
         _prepend_user_install_bins_to_path()
@@ -1413,19 +1506,14 @@ def setup_shell_routes() -> APIRouter:
             pkg.setdefault("update_cmd", None)
         if not has_krea_model:
             packages = [
-                p for p in packages
+                p
+                for p in packages
                 if p.get("name") not in {"krea_diffusers", "transformers"}
             ]
         if not has_lama_mlx_model:
-            packages = [
-                p for p in packages
-                if p.get("name") != "mlx_lama_swift"
-            ]
+            packages = [p for p in packages if p.get("name") != "mlx_lama_swift"]
         if not has_ddcolor_mlx_model:
-            packages = [
-                p for p in packages
-                if p.get("name") != "mlx_ddcolor_swift"
-            ]
+            packages = [p for p in packages if p.get("name") != "mlx_ddcolor_swift"]
         # Remote check: for remote-target packages, probe the selected server's
         # venv over SSH so a remote `pip install` actually reflects here.
         remote_status: dict = {}
@@ -1486,17 +1574,24 @@ def setup_shell_routes() -> APIRouter:
                         stderr=asyncio.subprocess.PIPE,
                     )
                     out, _err = await asyncio.wait_for(proc.communicate(), timeout=8)
-                    llama_server_path = out.decode("utf-8", errors="replace").strip().splitlines()
-                    llama_server_path = llama_server_path[-1].strip() if llama_server_path else ""
+                    llama_server_path = (
+                        out.decode("utf-8", errors="replace").strip().splitlines()
+                    )
+                    llama_server_path = (
+                        llama_server_path[-1].strip() if llama_server_path else ""
+                    )
                     if llama_server_path:
                         remote_status["llama_cpp"] = True
                         probe = remote_details.setdefault("llama_cpp", {})
                         if isinstance(probe, dict):
-                            probe.setdefault("binaries", {})["llama-server"] = llama_server_path
+                            probe.setdefault("binaries", {})[
+                                "llama-server"
+                            ] = llama_server_path
                 except Exception as e:
                     if not remote_probe_error:
-                        remote_probe_error = f"SSH llama-server probe failed: {str(e)[:160]}"
-                    pass
+                        remote_probe_error = (
+                            f"SSH llama-server probe failed: {str(e)[:160]}"
+                        )
         # Union of system_names + every package's system_prereqs. Probing
         # the prereqs alongside the main system deps in a single SSH call
         # avoids a second round-trip per Cookbook → Dependencies refresh.
@@ -1516,9 +1611,11 @@ def setup_shell_routes() -> APIRouter:
                 for name in all_system_names:
                     qn = shlex.quote(name)
                     checks.append(
-                        f"PATH=\"$HOME/.local/bin:$HOME/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"; if command -v {qn} >/dev/null 2>&1; then echo {qn}=1; else echo {qn}=0; fi"
+                        f'PATH="$HOME/.local/bin:$HOME/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"; if command -v {qn} >/dev/null 2>&1; then echo {qn}=1; else echo {qn}=0; fi'
                     )
-                checks.append("echo '---OSREL---'; cat /etc/os-release 2>/dev/null || { [ \"$(uname -s 2>/dev/null)\" = \"Darwin\" ] && echo ID=macos; } || true")
+                checks.append(
+                    'echo \'---OSREL---\'; cat /etc/os-release 2>/dev/null || { [ "$(uname -s 2>/dev/null)" = "Darwin" ] && echo ID=macos; } || true'
+                )
                 inner = " ; ".join(checks)
                 argv = _ssh_base_argv(host, ssh_port) + [inner]
                 proc = await asyncio.create_subprocess_exec(
@@ -1531,7 +1628,8 @@ def setup_shell_routes() -> APIRouter:
                 _section, _osrel_lines = "probe", []
                 for line in txt.splitlines():
                     if line.strip() == "---OSREL---":
-                        _section = "osrel"; continue
+                        _section = "osrel"
+                        continue
                     if _section == "osrel":
                         _osrel_lines.append(line)
                         continue
@@ -1544,7 +1642,6 @@ def setup_shell_routes() -> APIRouter:
             except Exception as e:
                 if not remote_probe_error:
                     remote_probe_error = f"SSH system probe failed: {str(e)[:160]}"
-                pass
         elif not host:
             # Local target — probe in-process so the inline install command
             # still appears in the dep panel when the cookbook container
@@ -1560,17 +1657,25 @@ def setup_shell_routes() -> APIRouter:
             target_os_id = "macos"
 
         for pkg in packages:
-            if pkg.get("name") in {"mflux", "boogu_image_mlx", "mlx_vlm", "mlx_lama_swift", "mlx_ddcolor_swift"}:
+            if pkg.get("name") in {
+                "mflux",
+                "boogu_image_mlx",
+                "mlx_vlm",
+                "mlx_lama_swift",
+                "mlx_ddcolor_swift",
+            }:
                 is_apple_target = target_os_id == "macos" or (
                     not host and IS_APPLE_SILICON
                 )
-                known_non_apple_target = bool(target_os_id and target_os_id != "macos") or (
-                    not host and not IS_APPLE_SILICON
-                )
+                known_non_apple_target = bool(
+                    target_os_id and target_os_id != "macos"
+                ) or (not host and not IS_APPLE_SILICON)
                 pkg["applicable"] = is_apple_target
                 if known_non_apple_target:
                     pkg["installed"] = None
-                    pkg["status_note"] = "Only relevant for Apple Silicon / MLX image serving."
+                    pkg["status_note"] = (
+                        "Only relevant for Apple Silicon / MLX image serving."
+                    )
                     continue
             on_remote = bool(host and pkg.get("target") == "remote")
             probe = None
@@ -1674,14 +1779,16 @@ def setup_shell_routes() -> APIRouter:
                         probe = (
                             f'{_vp}python3 -c "import llama_cpp; import sys; '
                             'sys.exit(0 if llama_cpp.llama_supports_gpu_offload() else 1)" '
-                            '&& echo llama_cpp_gpu=1 || echo llama_cpp_gpu=0; '
-                            'command -v nvidia-smi >/dev/null 2>&1 '
+                            "&& echo llama_cpp_gpu=1 || echo llama_cpp_gpu=0; "
+                            "command -v nvidia-smi >/dev/null 2>&1 "
                             '&& nvidia-smi -L 2>/dev/null | grep -q "GPU " '
-                            '&& echo nvidia=1 || echo nvidia=0'
+                            "&& echo nvidia=1 || echo nvidia=0"
                         )
                         argv = _ssh_base_argv(host, ssh_port) + [probe]
                         proc = await asyncio.create_subprocess_exec(
-                            *argv, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+                            *argv,
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.PIPE,
                         )
                         out, _ = await asyncio.wait_for(proc.communicate(), timeout=8)
                         txt = out.decode("utf-8", errors="replace")
@@ -1694,13 +1801,16 @@ def setup_shell_routes() -> APIRouter:
                 else:
                     try:
                         import llama_cpp as _lcp  # type: ignore
+
                         _gpu_capable = bool(_lcp.llama_supports_gpu_offload())
                     except Exception:
                         _gpu_capable = False
                     _has_nvidia_target = shutil.which("nvidia-smi") is not None
                 if (not _gpu_capable) and _has_nvidia_target:
                     pkg["partial"] = True
-                    pkg["partial_reason"] = "Installed but CPU-only wheel — GPU detected on this target. Upgrade to a CUDA wheel for ~10× faster inference."
+                    pkg["partial_reason"] = (
+                        "Installed but CPU-only wheel — GPU detected on this target. Upgrade to a CUDA wheel for ~10× faster inference."
+                    )
                     pkg["partial_action"] = "reinstall_llama_cpp_cuda"
             # Attach per-package system_prereqs status. We probed each
             # prereq name above; surface "Missing build deps: …" ONLY
@@ -1727,16 +1837,26 @@ def setup_shell_routes() -> APIRouter:
                     # back to the multi-distro hint only when the target's
                     # OS can't be classified (e.g. ssh probe failed).
                     _resolved_os = target_os_id or "debian"  # safest default
-                    _cmd = _install_cmd_for_target(_resolved_os, backend or "", _missing)
+                    _cmd = _install_cmd_for_target(
+                        _resolved_os, backend or "", _missing
+                    )
                     if _cmd and target_os_id:
-                        _hint = "Missing build deps for this target: " + ", ".join(_missing)
+                        _hint = "Missing build deps for this target: " + ", ".join(
+                            _missing
+                        )
                         pkg["install_cmd_for_target"] = _cmd
                         pkg["install_cmd_os"] = target_os_id
                         pkg["install_cmd_backend"] = (backend or "").lower()
                     else:
-                        _hint = "Missing build deps: " + ", ".join(_missing) + ". Install via apt: cmake build-essential git / pacman: cmake base-devel git / dnf: cmake gcc-c++ make git / brew: cmake git."
+                        _hint = (
+                            "Missing build deps: "
+                            + ", ".join(_missing)
+                            + ". Install via apt: cmake build-essential git / pacman: cmake base-devel git / dnf: cmake gcc-c++ make git / brew: cmake git."
+                        )
                     _existing_note = pkg.get("status_note") or ""
-                    pkg["status_note"] = (_existing_note + " — " + _hint) if _existing_note else _hint
+                    pkg["status_note"] = (
+                        (_existing_note + " — " + _hint) if _existing_note else _hint
+                    )
                     pkg["build_deps_missing"] = _missing
 
             if pkg.get("installed"):
@@ -1827,34 +1947,57 @@ def setup_shell_routes() -> APIRouter:
         ALLOWED = {"cmake", "build-essential", "g++", "gcc", "git", "tmux", "make"}
         pkgs = [str(p).strip() for p in raw if str(p).strip() in ALLOWED]
         if not pkgs:
-            return {"ok": False, "error": "no installable packages requested (allowlist: " + ", ".join(sorted(ALLOWED)) + ")"}
+            return {
+                "ok": False,
+                "error": "no installable packages requested (allowlist: "
+                + ", ".join(sorted(ALLOWED))
+                + ")",
+            }
+
         # Re-map to the right package name per OS. apt/dpkg use the names
         # as-is; pacman has base-devel for build-essential, etc.
-        def _apt(names): return list(names)
+        def _apt(names):
+            return list(names)
+
         def _pacman(names):
             return ["base-devel" if n == "build-essential" else n for n in names]
+
         def _dnf(names):
             out = []
             for n in names:
-                if n == "build-essential": out += ["gcc", "gcc-c++", "make"]
-                elif n == "g++": out += ["gcc-c++"]
-                else: out.append(n)
+                if n == "build-essential":
+                    out += ["gcc", "gcc-c++", "make"]
+                elif n == "g++":
+                    out += ["gcc-c++"]
+                else:
+                    out.append(n)
             return out
+
         def _apk(names):
             out = []
             for n in names:
-                if n == "build-essential": out.append("build-base")
-                else: out.append(n)
+                if n == "build-essential":
+                    out.append("build-base")
+                else:
+                    out.append(n)
             return out
+
         def _zypper(names):
             out = []
             for n in names:
-                if n == "build-essential": out += ["gcc-c++", "make"]
-                elif n == "g++": out.append("gcc-c++")
-                else: out.append(n)
+                if n == "build-essential":
+                    out += ["gcc-c++", "make"]
+                elif n == "g++":
+                    out.append("gcc-c++")
+                else:
+                    out.append(n)
             return out
+
         def _brew(names):
-            return [n for n in names if n not in ("build-essential", "g++", "gcc", "make")]
+            return [
+                n for n in names if n not in ("build-essential", "g++", "gcc", "make")
+            ]
+
         # Build a single shell snippet that detects the package manager and
         # runs the right install. Non-interactive sudo (-n) only — if sudo
         # asks for a password the script reports it instead of hanging.
@@ -1869,28 +2012,28 @@ def setup_shell_routes() -> APIRouter:
         # left stderr empty and the frontend toast fell through to a
         # bare "HTTP 200" instead of surfacing the real reason.
         script = (
-            'set -e; '
+            "set -e; "
             'BREW="$(command -v brew 2>/dev/null || true)"; '
             'if [ -z "$BREW" ] && [ -x /opt/homebrew/bin/brew ]; then BREW=/opt/homebrew/bin/brew; fi; '
             'if [ -z "$BREW" ] && [ -x /usr/local/bin/brew ]; then BREW=/usr/local/bin/brew; fi; '
             'if [ -n "$BREW" ]; then '
             f'  if [ -z "{brew_pkgs}" ]; then echo "Nothing to install with brew for requested packages." >&2; exit 4; fi; "$BREW" install {brew_pkgs}; exit $?; '
-            'fi; '
+            "fi; "
             'if [ "$(id -u)" = "0" ]; then SUDO=""; '
             'elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then SUDO="sudo -n"; '
-            'else '
+            "else "
             '  echo "ERROR: this target needs sudo for its OS package manager, but passwordless sudo is unavailable. Open a terminal on the target and run the shown install command once, then retry in Cookbook." >&2; exit 2; fi; '
-            'if command -v apt-get >/dev/null 2>&1; then '
-            f'  $SUDO env DEBIAN_FRONTEND=noninteractive apt-get update -qq && $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends {apt_pkgs}; '
-            'elif command -v pacman >/dev/null 2>&1; then '
-            f'  $SUDO pacman -Sy --needed --noconfirm {pac_pkgs}; '
-            'elif command -v dnf >/dev/null 2>&1; then '
-            f'  $SUDO dnf install -y {dnf_pkgs}; '
-            'elif command -v apk >/dev/null 2>&1; then '
-            f'  $SUDO apk add --no-interactive {apk_pkgs}; '
-            'elif command -v zypper >/dev/null 2>&1; then '
-            f'  $SUDO zypper --non-interactive install {zypper_pkgs}; '
-            'else '
+            "if command -v apt-get >/dev/null 2>&1; then "
+            f"  $SUDO env DEBIAN_FRONTEND=noninteractive apt-get update -qq && $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends {apt_pkgs}; "
+            "elif command -v pacman >/dev/null 2>&1; then "
+            f"  $SUDO pacman -Sy --needed --noconfirm {pac_pkgs}; "
+            "elif command -v dnf >/dev/null 2>&1; then "
+            f"  $SUDO dnf install -y {dnf_pkgs}; "
+            "elif command -v apk >/dev/null 2>&1; then "
+            f"  $SUDO apk add --no-interactive {apk_pkgs}; "
+            "elif command -v zypper >/dev/null 2>&1; then "
+            f"  $SUDO zypper --non-interactive install {zypper_pkgs}; "
+            "else "
             '  echo "ERROR: no supported package manager (apt/pacman/dnf/apk/zypper/brew) on this target." >&2; exit 3; fi'
         )
         try:
@@ -1905,9 +2048,9 @@ def setup_shell_routes() -> APIRouter:
                 *argv, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
             out, err = await asyncio.wait_for(proc.communicate(), timeout=180)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return {"ok": False, "error": "Install timed out after 180s"}
-        ok = (proc.returncode == 0)
+        ok = proc.returncode == 0
         # Combine stderr + (last lines of stdout) into a single error
         # blob when ok=False — some package managers print useful failure
         # context to stdout, and a script that exits via `echo ...; exit N`
@@ -1962,7 +2105,7 @@ def setup_shell_routes() -> APIRouter:
                 *argv, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
             out, err = await asyncio.wait_for(proc.communicate(), timeout=30)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return {"ok": False, "error": "Rebuild-engine command timed out."}
         if proc.returncode == 0:
             return {"ok": True, "output": out.decode("utf-8", errors="replace")[-400:]}

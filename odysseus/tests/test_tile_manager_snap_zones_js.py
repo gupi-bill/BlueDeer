@@ -14,8 +14,7 @@ _HAS_NODE = shutil.which("node") is not None
 
 
 def _run_tile_case():
-    script = textwrap.dedent(
-        f"""
+    script = textwrap.dedent(f"""
         globalThis.window = {{
           innerWidth: 1200,
           innerHeight: 800,
@@ -70,8 +69,7 @@ def _run_tile_case():
           settingsTop: pick(mod._zoneForContentForTests(settingsContent, 500, 20)),
           settingsRight: pick(mod._zoneForContentForTests(settingsContent, 1190, 300)),
         }}));
-        """
-    )
+        """)
     proc = subprocess.run(
         ["node", "--input-type=module"],
         input=script,

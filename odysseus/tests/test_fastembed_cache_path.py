@@ -18,7 +18,7 @@ from __future__ import annotations
 import importlib
 import os
 
-import src.constants as constants
+from src import constants
 
 
 def _reload_with(monkeypatch, value):

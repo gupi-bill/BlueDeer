@@ -3,6 +3,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class AskUserTool:
     async def execute(self, content, ctx):
         """
@@ -22,7 +23,7 @@ class AskUserTool:
         if isinstance(parsed, dict):
             question = str(parsed.get("question", "")).strip()
             multi = bool(parsed.get("multi") or parsed.get("multiSelect"))
-            for opt in (parsed.get("options") or []):
+            for opt in parsed.get("options") or []:
                 if isinstance(opt, dict):
                     label = str(opt.get("label", "")).strip()
                     descr = str(opt.get("description", "")).strip()
@@ -52,8 +53,11 @@ class AskUserTool:
             "output": f"Asked the user: {question}\nOptions: {labels}\nAwaiting their selection.",
             "exit_code": 0,
         }
-        logger.info("Tool executed: %s (%d options, multi=%s)", desc, len(options), multi)
+        logger.info(
+            "Tool executed: %s (%d options, multi=%s)", desc, len(options), multi
+        )
         return desc, result
+
 
 class UpdatePlanTool:
     async def execute(self, content, ctx):
@@ -88,7 +92,11 @@ class UpdatePlanTool:
         desc = f"update_plan: {done}/{total} done" if total else "update_plan"
         result = {
             "plan_update": {"plan": plan},
-            "output": f"Plan updated ({done}/{total} steps complete)." if total else "Plan updated.",
+            "output": (
+                f"Plan updated ({done}/{total} steps complete)."
+                if total
+                else "Plan updated."
+            ),
             "exit_code": 0,
         }
         logger.info("Tool executed: %s", desc)

@@ -3,6 +3,7 @@
 特殊行为：完全变态发育 LARVA→PUPA→ADULT 三阶段。
 commit 28：行为池——晒太阳 / 访花 / 求偶舞
 """
+
 from __future__ import annotations
 
 import random
@@ -42,7 +43,7 @@ class Butterfly(DigitalLifeForm):
                 "life_stages": ["ADULT"],
                 "probability": 0.05,
             },
-            "duration_sec": 1200,      # 20 分钟
+            "duration_sec": 1200,  # 20 分钟
             "cooldown_sec": 7200,
             "animation": "idle",
             "particles": "feather_shine",
@@ -71,7 +72,7 @@ class Butterfly(DigitalLifeForm):
                 "life_stages": ["ADULT"],
                 "probability": 0.015,
             },
-            "duration_sec": 120,       # 2 分钟
+            "duration_sec": 120,  # 2 分钟
             "cooldown_sec": 3600,
             "animation": "react",
             "particles": "rainbow_tail",
@@ -80,12 +81,24 @@ class Butterfly(DigitalLifeForm):
 
     __slots__ = ["metamorphosis_stage"]
 
-    def __init__(self, name="彩纹蝶", gender="female", environment=None,
-                 birth_time=None, genome_override=None):
+    def __init__(
+        self,
+        name="彩纹蝶",
+        gender="female",
+        environment=None,
+        birth_time=None,
+        genome_override=None,
+    ):
         self.metamorphosis_stage = "LARVA"
         genome = self._build_genome(genome_override)
-        super().__init__(name=name, species="butterfly", gender=gender,
-                         genome=genome, environment=environment, birth_time=birth_time)
+        super().__init__(
+            name=name,
+            species="butterfly",
+            gender=gender,
+            genome=genome,
+            environment=environment,
+            birth_time=birth_time,
+        )
 
     def tick(self) -> None:
         """蝶的 tick 额外处理变态发育。"""
@@ -136,6 +149,7 @@ class Butterfly(DigitalLifeForm):
         return Butterfly(
             name=f"{self._name_obj}的幼虫",
             gender=random.choice(["male", "female"]),
-            environment=environment, birth_time=birth_time,
+            environment=environment,
+            birth_time=birth_time,
             genome_override=genome,
         )

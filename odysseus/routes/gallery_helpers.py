@@ -9,6 +9,6 @@ object. Keeps existing import paths working after slice 2a (#4082/#4071).
 
 import sys as _sys
 
-from routes.gallery import gallery_helpers as _canonical  # noqa: F401
+from routes.gallery import gallery_helpers as _canonical
 
 _sys.modules[__name__] = _canonical

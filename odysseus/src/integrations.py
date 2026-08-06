@@ -1,18 +1,17 @@
 import json
-import os
-import uuid
 import logging
+import os
 import re
-from typing import Dict, List, Optional, Any
+import uuid
+from typing import Any
 from urllib.parse import urljoin, urlparse, urlunparse
 
 import httpx
-from fastapi import HTTPException
-
 from core.atomic_io import atomic_write_json
 from core.platform_compat import safe_chmod
+from fastapi import HTTPException
+from src.constants import INTEGRATIONS_FILE, SETTINGS_FILE
 from src.secret_storage import decrypt, encrypt, is_encrypted
-from src.constants import DATA_DIR, INTEGRATIONS_FILE, SETTINGS_FILE
 
 log = logging.getLogger(__name__)
 
@@ -22,7 +21,7 @@ DATA_FILE = INTEGRATIONS_FILE
 # Presets
 # ---------------------------------------------------------------------------
 
-INTEGRATION_PRESETS: Dict[str, Dict[str, Any]] = {
+INTEGRATION_PRESETS: dict[str, dict[str, Any]] = {
     "miniflux": {
         "name": "Miniflux",
         "auth_type": "header",
@@ -31,15 +30,15 @@ INTEGRATION_PRESETS: Dict[str, Dict[str, Any]] = {
             "Miniflux RSS reader (v1 API). Key endpoints:\n"
             "  GET /v1/feeds — list all feeds\n"
             "  GET /v1/feeds/{id} — get feed details\n"
-            "  POST /v1/feeds — create feed {\"feed_url\": \"...\", \"category_id\": N}\n"
+            '  POST /v1/feeds — create feed {"feed_url": "...", "category_id": N}\n'
             "  PUT /v1/feeds/{id} — update feed\n"
             "  DELETE /v1/feeds/{id} — delete feed\n"
             "  GET /v1/feeds/{id}/entries — list entries for feed\n"
             "  GET /v1/entries — list all entries (params: status, limit, order, direction, category_id)\n"
             "  GET /v1/entries/{id} — get single entry\n"
-            "  PUT /v1/entries — update entries {\"entry_ids\": [...], \"status\": \"read|unread\"}\n"
+            '  PUT /v1/entries — update entries {"entry_ids": [...], "status": "read|unread"}\n'
             "  GET /v1/categories — list categories\n"
-            "  POST /v1/categories — create category {\"title\": \"...\"}\n"
+            '  POST /v1/categories — create category {"title": "..."}\n'
             "  GET /v1/feeds/{id}/icon — get feed icon\n"
             "  PUT /v1/entries/{id}/bookmark — toggle bookmark"
         ),
@@ -53,7 +52,7 @@ INTEGRATION_PRESETS: Dict[str, Dict[str, Any]] = {
             "  GET /api/v1/repos/search — search repositories\n"
             "  GET /api/v1/repos/{owner}/{repo} — get repo details\n"
             "  GET /api/v1/repos/{owner}/{repo}/issues — list issues\n"
-            "  POST /api/v1/repos/{owner}/{repo}/issues — create issue {\"title\": \"...\"}\n"
+            '  POST /api/v1/repos/{owner}/{repo}/issues — create issue {"title": "..."}\n'
             "  GET /api/v1/repos/{owner}/{repo}/pulls — list pull requests\n"
             "  GET /api/v1/repos/{owner}/{repo}/commits — list commits\n"
             "  GET /api/v1/user/repos — list your repos\n"
@@ -69,7 +68,7 @@ INTEGRATION_PRESETS: Dict[str, Dict[str, Any]] = {
             "Linkding bookmark manager API. Auth header value format: 'Token YOUR_TOKEN'. Key endpoints:\n"
             "  GET /api/bookmarks/ — list bookmarks (params: q, limit, offset)\n"
             "  GET /api/bookmarks/{id}/ — get bookmark\n"
-            "  POST /api/bookmarks/ — create bookmark {\"url\": \"...\", \"title\": \"...\", \"tag_names\": [...]}\n"
+            '  POST /api/bookmarks/ — create bookmark {"url": "...", "title": "...", "tag_names": [...]}\n'
             "  PUT /api/bookmarks/{id}/ — update bookmark\n"
             "  DELETE /api/bookmarks/{id}/ — delete bookmark\n"
             "  GET /api/bookmarks/archived/ — list archived bookmarks\n"
@@ -99,7 +98,7 @@ INTEGRATION_PRESETS: Dict[str, Dict[str, Any]] = {
             "ntfy push notification service. Key endpoints:\n"
             "  POST /{topic} — send notification. Body is the message text.\n"
             "    Headers: Title (notification title), Priority (1-5), Tags (comma-separated emoji tags)\n"
-            "  POST / — send JSON notification {\"topic\": \"...\", \"message\": \"...\", \"title\": \"...\", \"priority\": N}\n"
+            '  POST / — send JSON notification {"topic": "...", "message": "...", "title": "...", "priority": N}\n'
             "  GET /{topic}/json?poll=1 — poll for messages"
         ),
     },
@@ -112,8 +111,8 @@ INTEGRATION_PRESETS: Dict[str, Dict[str, Any]] = {
             "The secret is embedded in the URL — leave auth type as None.\n\n"
             "Use this integration as the target in Settings -> Reminders -> Webhook channel.\n"
             "Payload template examples:\n"
-            "  Simple:  {\"content\": \"{{title}}: {{message}}\"}\n"
-            "  Embed:   {\"embeds\": [{\"title\": \"{{title}}\", \"description\": \"{{message}}\", \"color\": 5793266}]}"
+            '  Simple:  {"content": "{{title}}: {{message}}"}\n'
+            '  Embed:   {"embeds": [{"title": "{{title}}", "description": "{{message}}", "color": 5793266}]}'
         ),
     },
     "vaultwarden": {
@@ -126,11 +125,11 @@ INTEGRATION_PRESETS: Dict[str, Dict[str, Any]] = {
             "Key endpoints:\n"
             "  GET /api/ciphers — list all vault items (logins, notes, cards, identities)\n"
             "  GET /api/ciphers/{id} — get a single vault item\n"
-            "  POST /api/ciphers — create vault item {\"type\": 1, \"name\": \"...\", \"login\": {\"uri\": \"...\", \"username\": \"...\", \"password\": \"...\"}}\n"
+            '  POST /api/ciphers — create vault item {"type": 1, "name": "...", "login": {"uri": "...", "username": "...", "password": "..."}}\n'
             "  PUT /api/ciphers/{id} — update vault item\n"
             "  DELETE /api/ciphers/{id} — delete vault item\n"
             "  GET /api/folders — list folders\n"
-            "  POST /api/folders — create folder {\"name\": \"...\"}\n"
+            '  POST /api/folders — create folder {"name": "..."}\n'
             "  GET /api/collections — list collections (org vaults)\n"
             "  POST /api/ciphers/{id}/password-history — get password history\n"
             "  GET /api/sends — list Bitwarden Send items\n"
@@ -163,9 +162,11 @@ def _ensure_data_dir() -> None:
     os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
 
 
-def _encrypt_integration_secrets(integrations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _encrypt_integration_secrets(
+    integrations: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     """Return storage-safe copies with API keys encrypted at rest."""
-    safe: List[Dict[str, Any]] = []
+    safe: list[dict[str, Any]] = []
     for item in integrations:
         copy = dict(item)
         api_key = copy.get("api_key", "")
@@ -175,9 +176,11 @@ def _encrypt_integration_secrets(integrations: List[Dict[str, Any]]) -> List[Dic
     return safe
 
 
-def _decrypt_integration_secrets(integrations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _decrypt_integration_secrets(
+    integrations: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     """Return runtime copies with API keys decrypted for callers."""
-    decoded: List[Dict[str, Any]] = []
+    decoded: list[dict[str, Any]] = []
     for item in integrations:
         copy = dict(item)
         api_key = copy.get("api_key", "")
@@ -187,14 +190,14 @@ def _decrypt_integration_secrets(integrations: List[Dict[str, Any]]) -> List[Dic
     return decoded
 
 
-def _has_plaintext_api_key(integrations: List[Dict[str, Any]]) -> bool:
+def _has_plaintext_api_key(integrations: list[dict[str, Any]]) -> bool:
     return any(
         bool(item.get("api_key")) and not is_encrypted(str(item.get("api_key")))
         for item in integrations
     )
 
 
-def mask_integration_secret(integration: Dict[str, Any]) -> Dict[str, Any]:
+def mask_integration_secret(integration: dict[str, Any]) -> dict[str, Any]:
     """Return a copy safe for API responses."""
     safe = dict(integration)
     api_key = safe.get("api_key", "")
@@ -212,7 +215,9 @@ def _normalize_integration_base_url(base_url: Any) -> str:
     parsed = urlparse(cleaned)
     if parsed.scheme.lower() not in ("http", "https") or not parsed.hostname:
         raise ValueError("Integration base URL must be an HTTP(S) URL")
-    return urlunparse(parsed._replace(scheme=parsed.scheme.lower(), query="", fragment="")).rstrip("/")
+    return urlunparse(
+        parsed._replace(scheme=parsed.scheme.lower(), query="", fragment="")
+    ).rstrip("/")
 
 
 def _join_integration_url(base_url: str, path: str) -> str:
@@ -226,7 +231,7 @@ def _join_integration_url(base_url: str, path: str) -> str:
     return urljoin(base + "/", rel)
 
 
-def load_integrations() -> List[Dict[str, Any]]:
+def load_integrations() -> list[dict[str, Any]]:
     """Load all integrations from disk with secrets decrypted for runtime use."""
     if not os.path.exists(DATA_FILE):
         return []
@@ -243,19 +248,19 @@ def load_integrations() -> List[Dict[str, Any]]:
         if _has_plaintext_api_key(integrations):
             save_integrations(_decrypt_integration_secrets(integrations))
         return _decrypt_integration_secrets(integrations)
-    except (json.JSONDecodeError, IOError) as exc:
+    except (OSError, json.JSONDecodeError) as exc:
         log.error("Failed to load integrations: %s", exc)
         return []
 
 
-def save_integrations(integrations: List[Dict[str, Any]]) -> None:
+def save_integrations(integrations: list[dict[str, Any]]) -> None:
     """Persist integrations list to disk with API keys encrypted at rest."""
     _ensure_data_dir()
     atomic_write_json(DATA_FILE, _encrypt_integration_secrets(integrations), indent=2)
     safe_chmod(DATA_FILE, 0o600)
 
 
-def get_integration(integration_id: str) -> Optional[Dict[str, Any]]:
+def get_integration(integration_id: str) -> dict[str, Any] | None:
     """Get a single integration by id."""
     for item in load_integrations():
         if item.get("id") == integration_id:
@@ -263,9 +268,9 @@ def get_integration(integration_id: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def add_integration(data: Dict[str, Any]) -> Dict[str, Any]:
+def add_integration(data: dict[str, Any]) -> dict[str, Any]:
     """Add a new integration. If 'preset' is given, merge preset defaults first."""
-    integration: Dict[str, Any] = {}
+    integration: dict[str, Any] = {}
 
     preset_key = data.get("preset")
     if preset_key and preset_key in INTEGRATION_PRESETS:
@@ -286,7 +291,9 @@ def add_integration(data: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(integration.get("name"), str) or not integration["name"].strip():
         raise HTTPException(400, "Integration name is required")
     try:
-        integration["base_url"] = _normalize_integration_base_url(integration.get("base_url"))
+        integration["base_url"] = _normalize_integration_base_url(
+            integration.get("base_url")
+        )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -296,10 +303,14 @@ def add_integration(data: Dict[str, Any]) -> Dict[str, Any]:
     return integration
 
 
-def update_integration(integration_id: str, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def update_integration(
+    integration_id: str, data: dict[str, Any]
+) -> dict[str, Any] | None:
     """Update fields on an existing integration. Returns updated integration or None."""
     data = dict(data)
-    if "name" in data and (not isinstance(data["name"], str) or not data["name"].strip()):
+    if "name" in data and (
+        not isinstance(data["name"], str) or not data["name"].strip()
+    ):
         raise HTTPException(400, "Integration name is required")
     if "base_url" in data:
         try:
@@ -332,6 +343,7 @@ def delete_integration(integration_id: str) -> bool:
 # API execution
 # ---------------------------------------------------------------------------
 
+
 def _strip_html_tags(html: str) -> str:
     """Rough HTML tag stripping."""
     text = re.sub(r"<[^>]+>", "", html)
@@ -339,7 +351,7 @@ def _strip_html_tags(html: str) -> str:
     return text
 
 
-def _find_integration(identifier: str) -> Optional[Dict[str, Any]]:
+def _find_integration(identifier: str) -> dict[str, Any] | None:
     """Find integration by id or name (case-insensitive)."""
     integrations = load_integrations()
     # try id first
@@ -358,10 +370,10 @@ async def execute_api_call(
     integration_id: str,
     method: str,
     path: str,
-    params: Optional[Dict[str, Any]] = None,
-    body: Optional[Any] = None,
-    extra_headers: Optional[Dict[str, str]] = None,
-) -> Dict[str, Any]:
+    params: dict[str, Any] | None = None,
+    body: Any | None = None,
+    extra_headers: dict[str, str] | None = None,
+) -> dict[str, Any]:
     """Execute an HTTP request against a registered integration."""
 
     integration = _find_integration(integration_id)
@@ -369,7 +381,10 @@ async def execute_api_call(
         return {"error": f"Integration not found: {integration_id}", "exit_code": 1}
 
     if not integration.get("enabled", True):
-        return {"error": f"Integration '{integration.get('name')}' is disabled", "exit_code": 1}
+        return {
+            "error": f"Integration '{integration.get('name')}' is disabled",
+            "exit_code": 1,
+        }
 
     try:
         base_url = _normalize_integration_base_url(integration.get("base_url", ""))
@@ -410,9 +425,10 @@ async def execute_api_call(
     # because LAN integrations (Home Assistant, Miniflux, ntfy) are the
     # primary use case.
     from src.url_safety import check_outbound_url
-    block_private = os.getenv(
-        "INTEGRATION_API_BLOCK_PRIVATE_IPS", "false"
-    ).lower() == "true"
+
+    block_private = (
+        os.getenv("INTEGRATION_API_BLOCK_PRIVATE_IPS", "false").lower() == "true"
+    )
     ok, reason = check_outbound_url(url, block_private=block_private)
     if not ok:
         return {"error": f"URL rejected: {reason}", "exit_code": 1}
@@ -420,7 +436,7 @@ async def execute_api_call(
     method = method.upper()
 
     # Build headers
-    headers: Dict[str, str] = {}
+    headers: dict[str, str] = {}
     if extra_headers:
         headers.update(extra_headers)
 
@@ -486,9 +502,14 @@ async def execute_api_call(
                         # Overhead: the sentinel appears as an extra array element.
                         # Add a conservative padding for the separating comma,
                         # newline, and indentation characters (~6 chars).
-                        sentinel_overhead = len(
-                            json.dumps(sentinel_placeholder, indent=2, ensure_ascii=False)
-                        ) + 6
+                        sentinel_overhead = (
+                            len(
+                                json.dumps(
+                                    sentinel_placeholder, indent=2, ensure_ascii=False
+                                )
+                            )
+                            + 6
+                        )
                         budget = 12000 - sentinel_overhead
                         lo, hi = 0, len(data)
                         while lo < hi:
@@ -528,24 +549,32 @@ async def execute_api_call(
                         )
                     else:
                         total = len(full)
-                        formatted = full[:12000] + f"\n... (truncated, {total} chars total)"
+                        formatted = (
+                            full[:12000] + f"\n... (truncated, {total} chars total)"
+                        )
                 else:
                     formatted = full
             except (json.JSONDecodeError, ValueError):
                 formatted = response.text
                 if len(formatted) > 12000:
                     total = len(formatted)
-                    formatted = formatted[:12000] + f"\n... (truncated, {total} chars total)"
+                    formatted = (
+                        formatted[:12000] + f"\n... (truncated, {total} chars total)"
+                    )
         elif "text/html" in content_type:
             formatted = _strip_html_tags(response.text)
             if len(formatted) > 12000:
                 total = len(formatted)
-                formatted = formatted[:12000] + f"\n... (truncated, {total} chars total)"
+                formatted = (
+                    formatted[:12000] + f"\n... (truncated, {total} chars total)"
+                )
         else:
             formatted = response.text
             if len(formatted) > 12000:
                 total = len(formatted)
-                formatted = formatted[:12000] + f"\n... (truncated, {total} chars total)"
+                formatted = (
+                    formatted[:12000] + f"\n... (truncated, {total} chars total)"
+                )
 
         output = f"HTTP {status}\n{formatted}"
 
@@ -555,7 +584,10 @@ async def execute_api_call(
         return {"output": output, "exit_code": 0}
 
     except httpx.TimeoutException:
-        return {"error": f"Request to {integration.get('name')} timed out", "exit_code": 1}
+        return {
+            "error": f"Request to {integration.get('name')} timed out",
+            "exit_code": 1,
+        }
     except httpx.RequestError as exc:
         return {"error": f"Request failed: {exc}", "exit_code": 1}
     except Exception as exc:
@@ -567,6 +599,7 @@ async def execute_api_call(
 # System prompt helper
 # ---------------------------------------------------------------------------
 
+
 def get_integrations_prompt() -> str:
     """Return a string describing all enabled integrations for system prompt injection.
 
@@ -577,7 +610,9 @@ def get_integrations_prompt() -> str:
     if not enabled:
         return ""
 
-    lines = ["You have access to the following API integrations via the api_call tool:\n"]
+    lines = [
+        "You have access to the following API integrations via the api_call tool:\n"
+    ]
     for integ in enabled:
         name = integ.get("name", integ.get("id", "unknown"))
         lines.append(f"## {name} (id: {integ['id']})")
@@ -593,6 +628,7 @@ def get_integrations_prompt() -> str:
 # Migration
 # ---------------------------------------------------------------------------
 
+
 def migrate_from_settings() -> None:
     """If data/settings.json has miniflux_url and miniflux_api_key, create a
     Miniflux integration and clear those keys from settings."""
@@ -603,7 +639,7 @@ def migrate_from_settings() -> None:
     try:
         with open(settings_path, "r", encoding="utf-8") as f:
             settings = json.load(f)
-    except (json.JSONDecodeError, IOError):
+    except (OSError, json.JSONDecodeError):
         return
 
     miniflux_url = settings.get("miniflux_url", "")
@@ -619,11 +655,13 @@ def migrate_from_settings() -> None:
             log.info("Miniflux integration already exists, skipping migration")
             return
 
-    add_integration({
-        "preset": "miniflux",
-        "base_url": miniflux_url.rstrip("/"),
-        "api_key": miniflux_key,
-    })
+    add_integration(
+        {
+            "preset": "miniflux",
+            "base_url": miniflux_url.rstrip("/"),
+            "api_key": miniflux_key,
+        }
+    )
 
     # Clear migrated keys
     settings.pop("miniflux_url", None)

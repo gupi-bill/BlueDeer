@@ -16,6 +16,7 @@
 
 数据持久化：data/role_history.json
 """
+
 from __future__ import annotations
 
 import json
@@ -26,7 +27,8 @@ from typing import Any
 
 _ROLE_HISTORY_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "data", "role_history.json",
+    "data",
+    "role_history.json",
 )
 
 # 6 种非正式角色定义
@@ -36,7 +38,7 @@ ROLE_DEFINITIONS: dict[str, dict] = {
         "icon": "🏆",
         "description": "被公认为技术最强，同事遇难题时首先求助的对象",
         "behavior_modifier": {
-            "teach_success_rate_boost": 0.2,   # 教学成功率 +20%
+            "teach_success_rate_boost": 0.2,  # 教学成功率 +20%
             "willing_to_help": True,
         },
     },
@@ -91,6 +93,7 @@ ROLE_DEFINITIONS: dict[str, dict] = {
 # 评估函数
 # ----------------------------------------------------------------------
 
+
 def _safe_attr(obj: Any, name: str, default: Any = None) -> Any:
     try:
         return getattr(obj, name, default)
@@ -110,10 +113,15 @@ def _evaluate_tech_leader(agent: Any, all_agents: list, stats: dict) -> bool:
     if help_count < 3:
         return False
     # 是不是所有人里最多的
-    max_help = max((s.get("help_count", 0) for s in
-                    [{"help_count": _safe_attr(a, "_help_count", 0) or 0}
-                     for a in all_agents]),
-                   default=0)
+    max_help = max(
+        (
+            s.get("help_count", 0)
+            for s in [
+                {"help_count": _safe_attr(a, "_help_count", 0) or 0} for a in all_agents
+            ]
+        ),
+        default=0,
+    )
     return help_count >= max_help and help_count > 0
 
 
@@ -161,10 +169,12 @@ def _evaluate_hermit(agent: Any, all_agents: list, stats: dict) -> bool:
     work_output = stats.get("work_output", 0)
     if not all_agents:
         return False
-    avg_social = sum(_safe_attr(a, "_social_count", 0) or 0
-                      for a in all_agents) / len(all_agents)
-    avg_work = sum(_safe_attr(a, "_work_output", 0) or 0
-                    for a in all_agents) / max(1, len(all_agents))
+    avg_social = sum(_safe_attr(a, "_social_count", 0) or 0 for a in all_agents) / len(
+        all_agents
+    )
+    avg_work = sum(_safe_attr(a, "_work_output", 0) or 0 for a in all_agents) / max(
+        1, len(all_agents)
+    )
     if avg_social == 0 or avg_work == 0:
         return False
     return social_count < avg_social * 0.5 and work_output > avg_work * 1.2
@@ -184,18 +194,20 @@ _EVALUATORS = {
 # 角色演化引擎（单例）
 # ----------------------------------------------------------------------
 
+
 class RoleEvolutionEngine:
     """角色演化引擎（单例）。
 
     每周自动评估一次所有智能体，赋予非正式角色。
     """
+
     _instance: RoleEvolutionEngine | None = None
     _instance_lock = threading.Lock()
 
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._biosphere_ref: Any = None
-        self._history: list[dict] = []   # 角色变更历史
+        self._history: list[dict] = []  # 角色变更历史
         self._eval_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._last_eval_date: str = ""
@@ -239,15 +251,19 @@ class RoleEvolutionEngine:
         """对所有活体智能体评估一次，更新角色。返回评估摘要。"""
         if self._biosphere_ref is None:
             return {"ok": False, "error": "biosphere not set"}
-        all_agents = [lf for lf in
-                      getattr(self._biosphere_ref, "employees", [])
-                      if _safe_attr(lf, "_alive", False)]
+        all_agents = [
+            lf
+            for lf in getattr(self._biosphere_ref, "employees", [])
+            if _safe_attr(lf, "_alive", False)
+        ]
         if not all_agents:
             return {"ok": False, "error": "no living agents"}
 
         # 收集每个智能体的统计数据
-        all_stats = {self._get_agent_id(a): self._collect_stats(a, all_agents)
-                     for a in all_agents}
+        all_stats = {
+            self._get_agent_id(a): self._collect_stats(a, all_agents)
+            for a in all_agents
+        }
 
         changes: list[dict] = []
         for agent in all_agents:
@@ -270,15 +286,17 @@ class RoleEvolutionEngine:
             added = [r for r in new_roles if r not in old_roles]
             removed = [r for r in old_roles if r not in new_roles]
             if added or removed:
-                changes.append({
-                    "agent_id": aid,
-                    "agent_name": _safe_attr(agent, "_name_obj", ""),
-                    "species": _safe_attr(agent, "species", ""),
-                    "added": added,
-                    "removed": removed,
-                    "current_roles": new_roles,
-                    "ts": time.time(),
-                })
+                changes.append(
+                    {
+                        "agent_id": aid,
+                        "agent_name": _safe_attr(agent, "_name_obj", ""),
+                        "species": _safe_attr(agent, "species", ""),
+                        "added": added,
+                        "removed": removed,
+                        "current_roles": new_roles,
+                        "ts": time.time(),
+                    }
+                )
 
         if changes:
             with self._lock:
@@ -306,9 +324,13 @@ class RoleEvolutionEngine:
         return {
             "help_count": int(_safe_attr(agent, "_help_count", 0) or 0),
             "social_count": int(_safe_attr(agent, "_social_count", 0) or 0),
-            "supervisor_interact_count": int(_safe_attr(agent, "_supervisor_interact_count", 0) or 0),
+            "supervisor_interact_count": int(
+                _safe_attr(agent, "_supervisor_interact_count", 0) or 0
+            ),
             "teach_count": int(_safe_attr(agent, "_teach_count", 0) or 0),
-            "crisis_resolved_count": int(_safe_attr(agent, "_crisis_resolved_count", 0) or 0),
+            "crisis_resolved_count": int(
+                _safe_attr(agent, "_crisis_resolved_count", 0) or 0
+            ),
             "work_output": int(_safe_attr(agent, "_work_output", 0) or 0),
         }
 
@@ -325,20 +347,24 @@ class RoleEvolutionEngine:
             roles = _safe_attr(lf, "informal_roles", []) or []
             if not roles:
                 continue
-            result.append({
-                "agent_id": self._get_agent_id(lf),
-                "agent_name": _safe_attr(lf, "_name_obj", ""),
-                "species": _safe_attr(lf, "species", ""),
-                "roles": [
-                    {
-                        "key": r,
-                        "name_zh": ROLE_DEFINITIONS.get(r, {}).get("name_zh", r),
-                        "icon": ROLE_DEFINITIONS.get(r, {}).get("icon", ""),
-                        "description": ROLE_DEFINITIONS.get(r, {}).get("description", ""),
-                    }
-                    for r in roles
-                ],
-            })
+            result.append(
+                {
+                    "agent_id": self._get_agent_id(lf),
+                    "agent_name": _safe_attr(lf, "_name_obj", ""),
+                    "species": _safe_attr(lf, "species", ""),
+                    "roles": [
+                        {
+                            "key": r,
+                            "name_zh": ROLE_DEFINITIONS.get(r, {}).get("name_zh", r),
+                            "icon": ROLE_DEFINITIONS.get(r, {}).get("icon", ""),
+                            "description": ROLE_DEFINITIONS.get(r, {}).get(
+                                "description", ""
+                            ),
+                        }
+                        for r in roles
+                    ],
+                }
+            )
         return result
 
     def list_history(self, limit: int = 50) -> list[dict]:
@@ -346,13 +372,16 @@ class RoleEvolutionEngine:
             return list(self._history[-limit:])
 
     def get_role_definitions(self) -> dict:
-        return {k: {
-            "key": k,
-            "name_zh": v["name_zh"],
-            "icon": v["icon"],
-            "description": v["description"],
-            "behavior_modifier": v["behavior_modifier"],
-        } for k, v in ROLE_DEFINITIONS.items()}
+        return {
+            k: {
+                "key": k,
+                "name_zh": v["name_zh"],
+                "icon": v["icon"],
+                "description": v["description"],
+                "behavior_modifier": v["behavior_modifier"],
+            }
+            for k, v in ROLE_DEFINITIONS.items()
+        }
 
     # ---------------- 调度 ----------------
 
@@ -362,7 +391,8 @@ class RoleEvolutionEngine:
             return
         self._stop_event.clear()
         self._eval_thread = threading.Thread(
-            target=self._eval_loop, daemon=True, name="role-evaluator")
+            target=self._eval_loop, daemon=True, name="role-evaluator"
+        )
         self._eval_thread.start()
 
     def stop_scheduler(self) -> None:
@@ -387,8 +417,9 @@ class RoleEvolutionEngine:
 
     # ---------------- 角色冲突：技术对决 ----------------
 
-    def trigger_tech_duel(self, agent_a: str, agent_b: str,
-                          task: str = "完成一个高难度算法题") -> dict:
+    def trigger_tech_duel(
+        self, agent_a: str, agent_b: str, task: str = "完成一个高难度算法题"
+    ) -> dict:
         """触发技术对决。
 
         简化版：用能量 + 技能数 + 经验数 + 随机 因子决定胜者。
@@ -402,6 +433,7 @@ class RoleEvolutionEngine:
             return {"ok": False, "error": "agent not found"}
 
         import random
+
         def _score(x):
             energy = float(_safe_attr(x, "energy", 50) or 50)
             skills = len(_safe_attr(x, "skills", []) or [])
@@ -433,9 +465,12 @@ class RoleEvolutionEngine:
 
         record = {
             "type": "tech_duel",
-            "agent_a": agent_a, "agent_b": agent_b,
-            "score_a": round(sa, 2), "score_b": round(sb, 2),
-            "winner": winner, "loser": loser,
+            "agent_a": agent_a,
+            "agent_b": agent_b,
+            "score_a": round(sa, 2),
+            "score_b": round(sb, 2),
+            "winner": winner,
+            "loser": loser,
             "task": task,
             "ts": time.time(),
         }
@@ -444,8 +479,12 @@ class RoleEvolutionEngine:
             if len(self._history) > 500:
                 self._history = self._history[-500:]
         self._save()
-        return {"ok": True, "winner": winner, "loser": loser,
-                "scores": {"a": round(sa, 2), "b": round(sb, 2)}}
+        return {
+            "ok": True,
+            "winner": winner,
+            "loser": loser,
+            "scores": {"a": round(sa, 2), "b": round(sb, 2)},
+        }
 
     def _find_agent(self, agent_id: str) -> Any:
         for lf in getattr(self._biosphere_ref, "employees", []):

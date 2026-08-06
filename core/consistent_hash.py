@@ -7,10 +7,13 @@ evolution（数据维度 - R190）：
 - 虚拟节点（每个物理节点对应多个虚拟节点）解决数据倾斜
 - 典型用途：分布式缓存（Memcached/Redis Cluster）、CDN 路由、分片定位
 """
+
 from __future__ import annotations
+
 import hashlib
 import threading
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 
 def _hash32(data: str | bytes) -> int:
@@ -44,7 +47,9 @@ class ConsistentHash:
     def __len__(self) -> int:
         return len(self._nodes)
 
-    def add_node(self, node: str, weight: int = 1, num_vnodes: int | None = None) -> int:
+    def add_node(
+        self, node: str, weight: int = 1, num_vnodes: int | None = None
+    ) -> int:
         """添加节点。weight 越大虚拟节点越多。num_vnodes 覆盖默认值。"""
         if weight < 1:
             raise ValueError("weight 必须 >= 1")

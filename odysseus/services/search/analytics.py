@@ -4,7 +4,7 @@ import json
 import logging
 from collections import Counter
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
 
 from core.constants import DATA_DIR
 
@@ -22,10 +22,14 @@ try:
     _log_dir.mkdir(parents=True, exist_ok=True)
     _error_handler = logging.FileHandler(_error_log_path, encoding="utf-8")
     _error_handler.setLevel(logging.WARNING)
-    _error_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
+    _error_handler.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
+    )
     error_logger.addHandler(_error_handler)
 except Exception as _e:
-    logging.getLogger(__name__).warning("search_engine_error log handler unavailable: %s", _e)
+    logging.getLogger(__name__).warning(
+        "search_engine_error log handler unavailable: %s", _e
+    )
 
 # Analytics file — also in the writable logs volume.
 ANALYTICS_FILE = _log_dir / "search_analytics.json"
@@ -53,7 +57,7 @@ class RateLimitError(SearchEngineError):
 # ----------------------------------------------------------------------
 # Analytics helpers
 # ----------------------------------------------------------------------
-def _default_analytics() -> Dict[str, Any]:
+def _default_analytics() -> dict[str, Any]:
     return {
         "total_queries": 0,
         "successful_queries": 0,
@@ -64,7 +68,7 @@ def _default_analytics() -> Dict[str, Any]:
     }
 
 
-def _load_analytics() -> Dict[str, Any]:
+def _load_analytics() -> dict[str, Any]:
     """Load analytics data from the JSON file, creating defaults if missing."""
     if not ANALYTICS_FILE.exists():
         default = _default_analytics()
@@ -85,7 +89,7 @@ def _load_analytics() -> Dict[str, Any]:
         return _default_analytics()
 
 
-def _save_analytics(data: Dict[str, Any]) -> None:
+def _save_analytics(data: dict[str, Any]) -> None:
     """Persist analytics data to the JSON file."""
     try:
         with open(ANALYTICS_FILE, "w", encoding="utf-8") as f:
@@ -120,7 +124,7 @@ def _record_query(query: str, success: bool, cache_hit: bool) -> None:
     _save_analytics(analytics)
 
 
-def get_search_stats() -> Dict[str, Any]:
+def get_search_stats() -> dict[str, Any]:
     """Return aggregated search analytics."""
     analytics = _load_analytics()
     total = analytics.get("total_queries", 0) or 1
@@ -128,9 +132,9 @@ def get_search_stats() -> Dict[str, Any]:
     cache_total = analytics.get("cache_hits", 0) + analytics.get("cache_misses", 0) or 1
     cache_hit_rate = analytics.get("cache_hits", 0) / cache_total
 
-    pattern_counter = Counter({
-        q: data["count"] for q, data in analytics.get("query_patterns", {}).items()
-    })
+    pattern_counter = Counter(
+        {q: data["count"] for q, data in analytics.get("query_patterns", {}).items()}
+    )
     most_common = [q for q, _ in pattern_counter.most_common(5)]
 
     return {

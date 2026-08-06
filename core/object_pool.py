@@ -9,14 +9,17 @@ evolution（数据维度 - R192）：
 - 后台清理 idle 过久的对象（节省内存）
 - 典型用途：连接池、线程池、字符串池
 """
+
 from __future__ import annotations
+
 import threading
 import time
-from typing import Any, Callable, Iterator
+from collections.abc import Callable
+from typing import Any
 
 
 class _Pooled:
-    __slots__ = ("obj", "created_at", "last_used", "use_count")
+    __slots__ = ("created_at", "last_used", "obj", "use_count")
 
     def __init__(self, obj: Any) -> None:
         self.obj = obj
@@ -189,8 +192,9 @@ class ObjectPool:
             except Exception:
                 pass
 
-    def acquire_ctx(self, timeout: float | None = None):
+    def acquire_ctx(self, timeout: float | None = None) -> Any:
         """上下文管理器：自动归还。"""
+
         class _Ctx:
             def __init__(self, pool, t):
                 self._pool = pool
@@ -204,10 +208,12 @@ class ObjectPool:
 
             def __exit__(self, exc_type, exc, tb):
                 if self._obj is not None:
-                    self._pool.release(self._obj, broken=self._broken or exc is not None)
+                    self._pool.release(
+                        self._obj, broken=self._broken or exc is not None
+                    )
                 return False
 
-            def mark_broken(self):
+            def mark_broken(self) -> None:
                 self._broken = True
 
         return _Ctx(self, timeout)
@@ -234,8 +240,7 @@ class ObjectPool:
             n = 0
             keep: list[_Pooled] = []
             for p in self._idle:
-                if (now - p.last_used > max_idle
-                        and len(keep) >= self._min):
+                if now - p.last_used > max_idle and len(keep) >= self._min:
                     self._destroy(p)
                     self._stats["evicted_idle"] += 1
                     n += 1
@@ -255,7 +260,7 @@ class ObjectPool:
 
     def leak_detect(self, max_age: float = 300.0) -> list[tuple[int, Any, float]]:
         """检测借出超过 max_age 秒的对象。
-        
+
         返回 [(对象ID, 对象, 已借出秒数)]。
         """
         with self._lock:

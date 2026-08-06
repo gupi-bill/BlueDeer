@@ -1,14 +1,14 @@
 import asyncio
-import os
+import collections
 import re
 import shutil
 import sys
 import time
-import collections
-from typing import Optional, Callable, Awaitable, Tuple, Dict
+from collections.abc import Awaitable, Callable
+
 from src.constants import MAX_OUTPUT_CHARS
 
-DEFAULT_BASH_TIMEOUT = 60 * 60     # 1 hour
+DEFAULT_BASH_TIMEOUT = 60 * 60  # 1 hour
 DEFAULT_PYTHON_TIMEOUT = 60 * 60
 
 PROGRESS_INTERVAL_S = 2.0
@@ -16,12 +16,12 @@ PROGRESS_TAIL_LINES = 12
 TMUX_CAPTURE_LINES = 2000
 
 
-def _tmux_session_name(session_id: Optional[str]) -> str:
+def _tmux_session_name(session_id: str | None) -> str:
     raw = re.sub(r"[^A-Za-z0-9_.-]+", "-", str(session_id or "default")).strip("-")
     return f"ody-agent-{raw[:80] or 'default'}"
 
 
-async def _run_exec(*args: str, timeout: float = 10) -> Tuple[str, str, int]:
+async def _run_exec(*args: str, timeout: float = 10) -> tuple[str, str, int]:
     proc = await asyncio.create_subprocess_exec(
         *args,
         stdout=asyncio.subprocess.PIPE,
@@ -29,7 +29,7 @@ async def _run_exec(*args: str, timeout: float = 10) -> Tuple[str, str, int]:
     )
     try:
         out_b, err_b = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         try:
             proc.kill()
         except Exception:
@@ -49,7 +49,14 @@ async def _tmux_has_session(name: str) -> bool:
 
 async def _tmux_capture(name: str) -> str:
     out, _, _ = await _run_exec(
-        "tmux", "capture-pane", "-p", "-J", "-S", f"-{TMUX_CAPTURE_LINES}", "-t", name,
+        "tmux",
+        "capture-pane",
+        "-p",
+        "-J",
+        "-S",
+        f"-{TMUX_CAPTURE_LINES}",
+        "-t",
+        name,
         timeout=5,
     )
     return out
@@ -61,12 +68,18 @@ async def _tmux_send_line(name: str, line: str) -> None:
     await _run_exec("tmux", "send-keys", "-t", name, "C-m", timeout=5)
 
 
-async def _ensure_tmux_session(name: str, cwd: str, env: Optional[dict]) -> None:
+async def _ensure_tmux_session(name: str, cwd: str, env: dict | None) -> None:
     if await _tmux_has_session(name):
         await _run_exec("tmux", "send-keys", "-t", name, "stty -echo", "C-m", timeout=5)
         return
     await _run_exec(
-        "tmux", "new-session", "-d", "-s", name, "-c", cwd,
+        "tmux",
+        "new-session",
+        "-d",
+        "-s",
+        name,
+        "-c",
+        cwd,
         "env",
         f"TERM={env.get('TERM', 'xterm-256color') if env else 'xterm-256color'}",
         f"COLUMNS={env.get('COLUMNS', '120') if env else '120'}",
@@ -81,7 +94,9 @@ async def _ensure_tmux_session(name: str, cwd: str, env: Optional[dict]) -> None
     await _run_exec("tmux", "send-keys", "-t", name, "stty -echo", "C-m", timeout=5)
 
 
-def _output_after_marker(capture: str, start_marker: str, end_marker: str) -> Tuple[str, bool]:
+def _output_after_marker(
+    capture: str, start_marker: str, end_marker: str
+) -> tuple[str, bool]:
     lines = capture.splitlines()
     start_idx = -1
     for idx, line in enumerate(lines):
@@ -94,15 +109,15 @@ def _output_after_marker(capture: str, start_marker: str, end_marker: str) -> Tu
         if lines[idx].strip().startswith(end_marker):
             end_idx = idx
     if end_idx < 0:
-        return "\n".join(lines[start_idx + 1:]), False
-    return "\n".join(lines[start_idx + 1:end_idx]), True
+        return "\n".join(lines[start_idx + 1 :]), False
+    return "\n".join(lines[start_idx + 1 : end_idx]), True
 
 
 def _extract_marker_rc(capture: str, end_marker: str) -> int:
     for line in reversed(capture.splitlines()):
         stripped = line.strip()
         if stripped.startswith(end_marker):
-            suffix = stripped[len(end_marker):].strip()
+            suffix = stripped[len(end_marker) :].strip()
             if suffix.isdigit():
                 return int(suffix)
     return 0
@@ -113,10 +128,10 @@ async def _run_tmux_bash(
     *,
     session_id: str,
     cwd: str,
-    env: Optional[dict],
+    env: dict | None,
     timeout: float,
-    progress_cb: Optional[Callable[[Dict], Awaitable[None]]] = None,
-) -> Tuple[str, str, Optional[int], bool]:
+    progress_cb: Callable[[dict], Awaitable[None]] | None = None,
+) -> tuple[str, str, int | None, bool]:
     name = _tmux_session_name(session_id)
     await _ensure_tmux_session(name, cwd, env)
 
@@ -141,11 +156,13 @@ async def _run_tmux_bash(
         if progress_cb and tail != last_tail:
             last_tail = tail
             try:
-                await progress_cb({
-                    "elapsed_s": round(time.time() - started, 1),
-                    "tail": tail,
-                    "tmux_session": name,
-                })
+                await progress_cb(
+                    {
+                        "elapsed_s": round(time.time() - started, 1),
+                        "tail": tail,
+                        "tmux_session": name,
+                    }
+                )
             except Exception:
                 pass
         if done:
@@ -183,12 +200,13 @@ def _clean_tmux_command_output(text: str, wrapped_command: str) -> str:
         cleaned.append(raw)
     return "\n".join(cleaned).strip()
 
+
 async def _run_subprocess_streaming(
     proc: asyncio.subprocess.Process,
     *,
     timeout: float,
-    progress_cb: Optional[Callable[[Dict], Awaitable[None]]] = None,
-) -> Tuple[str, str, Optional[int], bool]:
+    progress_cb: Callable[[dict], Awaitable[None]] | None = None,
+) -> tuple[str, str, int | None, bool]:
     started = time.time()
     stdout_full: list[str] = []
     stderr_full: list[str] = []
@@ -213,10 +231,12 @@ async def _run_subprocess_streaming(
         while True:
             if progress_cb:
                 try:
-                    await progress_cb({
-                        "elapsed_s": round(time.time() - started, 1),
-                        "tail": "\n".join(list(tail)),
-                    })
+                    await progress_cb(
+                        {
+                            "elapsed_s": round(time.time() - started, 1),
+                            "tail": "\n".join(list(tail)),
+                        }
+                    )
                 except Exception:
                     pass
             await asyncio.sleep(PROGRESS_INTERVAL_S)
@@ -228,7 +248,7 @@ async def _run_subprocess_streaming(
     timed_out = False
     try:
         await asyncio.wait_for(proc.wait(), timeout=timeout)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         timed_out = True
         try:
             proc.kill()
@@ -272,11 +292,18 @@ async def _run_subprocess_streaming(
         timed_out,
     )
 
+
 class BashTool:
     async def execute(self, content: str, ctx: dict) -> dict:
-        from src.tool_execution import agent_cwd, _truncate
+        from src.tool_execution import _truncate, agent_cwd
+
         if isinstance(content, dict):
-            content = str(content.get("command") or content.get("cmd") or content.get("code") or "")
+            content = str(
+                content.get("command")
+                or content.get("cmd")
+                or content.get("code")
+                or ""
+            )
         progress_cb = ctx.get("progress_cb")
         _subproc_env = ctx.get("subproc_env")
         session_id = ctx.get("session_id")
@@ -300,7 +327,11 @@ class BashTool:
             output = stdout.rstrip()
             err = stderr.rstrip()
             if err:
-                output = (output + "\nSTDERR: " + err).strip() if output else "STDERR: " + err
+                output = (
+                    (output + "\nSTDERR: " + err).strip()
+                    if output
+                    else "STDERR: " + err
+                )
             return {
                 "output": _truncate(output, MAX_OUTPUT_CHARS) or "(no output)",
                 "exit_code": rc or 0,
@@ -320,21 +351,33 @@ class BashTool:
             progress_cb=progress_cb,
         )
         if timed_out:
-            return {"error": f"bash: timed out after {DEFAULT_BASH_TIMEOUT}s — process killed", "exit_code": 124, "stdout": _truncate(stdout, MAX_OUTPUT_CHARS), "stderr": _truncate(stderr, MAX_OUTPUT_CHARS)}
+            return {
+                "error": f"bash: timed out after {DEFAULT_BASH_TIMEOUT}s — process killed",
+                "exit_code": 124,
+                "stdout": _truncate(stdout, MAX_OUTPUT_CHARS),
+                "stderr": _truncate(stderr, MAX_OUTPUT_CHARS),
+            }
         output = stdout.rstrip()
         err = stderr.rstrip()
         if err:
-            output = (output + "\nSTDERR: " + err).strip() if output else "STDERR: " + err
+            output = (
+                (output + "\nSTDERR: " + err).strip() if output else "STDERR: " + err
+            )
         output = _truncate(output, MAX_OUTPUT_CHARS)
         return {"output": output or "(no output)", "exit_code": rc or 0}
 
+
 class PythonTool:
     async def execute(self, content: str, ctx: dict) -> dict:
-        from src.tool_execution import agent_cwd, _truncate
+        from src.tool_execution import _truncate, agent_cwd
+
         progress_cb = ctx.get("progress_cb")
         _subproc_env = ctx.get("subproc_env")
         proc = await asyncio.create_subprocess_exec(
-            (sys.executable or "python"), "-I", "-c", content,
+            (sys.executable or "python"),
+            "-I",
+            "-c",
+            content,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=_subproc_env,
@@ -346,10 +389,17 @@ class PythonTool:
             progress_cb=progress_cb,
         )
         if timed_out:
-            return {"error": f"python: timed out after {DEFAULT_PYTHON_TIMEOUT}s — process killed", "exit_code": 124, "stdout": _truncate(stdout, MAX_OUTPUT_CHARS), "stderr": _truncate(stderr, MAX_OUTPUT_CHARS)}
+            return {
+                "error": f"python: timed out after {DEFAULT_PYTHON_TIMEOUT}s — process killed",
+                "exit_code": 124,
+                "stdout": _truncate(stdout, MAX_OUTPUT_CHARS),
+                "stderr": _truncate(stderr, MAX_OUTPUT_CHARS),
+            }
         output = stdout.rstrip()
         err = stderr.rstrip()
         if err:
-            output = (output + "\nSTDERR: " + err).strip() if output else "STDERR: " + err
+            output = (
+                (output + "\nSTDERR: " + err).strip() if output else "STDERR: " + err
+            )
         output = _truncate(output, MAX_OUTPUT_CHARS)
         return {"output": output or "(no output)", "exit_code": rc or 0}

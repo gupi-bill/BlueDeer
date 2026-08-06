@@ -5,10 +5,10 @@ It did `(raw_url or "").strip()`, so a non-string scalar (e.g. an int from a
 mis-typed config) reached `.strip()` and raised TypeError instead of the
 function\'s own ValueError.
 """
+
 import ipaddress
 
 import pytest
-
 from src import caldav_sync
 
 validate_caldav_url = caldav_sync.validate_caldav_url

@@ -24,16 +24,16 @@ from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
-
 from tests.helpers.import_state import clear_fake_database_modules
 
 clear_fake_database_modules()
 
-import core.database as cdb
 import routes.document_routes as droutes
+from routes.document_helpers import _owner_session_filter, _verify_doc_owner
+
+import core.database as cdb
 from core.database import Document
 from core.database import Session as DbSession
-from routes.document_helpers import _verify_doc_owner, _owner_session_filter
 
 _TMPDB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
 _ENGINE = create_engine(
@@ -57,7 +57,9 @@ def _endpoint(method, path):
     """Resolve a route endpoint from the document router."""
     router = droutes.setup_document_routes(MagicMock(), None)
     for route in router.routes:
-        if getattr(route, "path", None) == path and method in getattr(route, "methods", set()):
+        if getattr(route, "path", None) == path and method in getattr(
+            route, "methods", set()
+        ):
             return route.endpoint
     raise RuntimeError(f"{method} {path} not found")
 
@@ -74,20 +76,27 @@ def _seed(owner="alice"):
     doc_id = str(uuid.uuid4())
     db = _TS()
     try:
-        db.add(DbSession(
-            id=session_id, owner=owner, name=owner,
-            model="m", endpoint_url="http://x",
-        ))
-        db.add(Document(
-            id=doc_id,
-            session_id=session_id,
-            title=f"{owner} doc",
-            language="markdown",
-            current_content=f"{owner} body",
-            version_count=1,
-            is_active=True,
-            owner=owner,
-        ))
+        db.add(
+            DbSession(
+                id=session_id,
+                owner=owner,
+                name=owner,
+                model="m",
+                endpoint_url="http://x",
+            )
+        )
+        db.add(
+            Document(
+                id=doc_id,
+                session_id=session_id,
+                title=f"{owner} doc",
+                language="markdown",
+                current_content=f"{owner} body",
+                version_count=1,
+                is_active=True,
+                owner=owner,
+            )
+        )
         db.commit()
         return session_id, doc_id
     finally:
@@ -262,12 +271,27 @@ async def test_list_documents_hides_wrong_owner_docs(monkeypatch):
         bob_doc = str(uuid.uuid4())
         db = _TS()
         try:
-            db.add(DbSession(id=bob_session, owner="bob", name="bob", model="m", endpoint_url="http://x"))
-            db.add(Document(
-                id=bob_doc, session_id=alice_session,  # same session!
-                title="bob doc", language="markdown", current_content="bob body",
-                version_count=1, is_active=True, owner="bob",
-            ))
+            db.add(
+                DbSession(
+                    id=bob_session,
+                    owner="bob",
+                    name="bob",
+                    model="m",
+                    endpoint_url="http://x",
+                )
+            )
+            db.add(
+                Document(
+                    id=bob_doc,
+                    session_id=alice_session,  # same session!
+                    title="bob doc",
+                    language="markdown",
+                    current_content="bob body",
+                    version_count=1,
+                    is_active=True,
+                    owner="bob",
+                )
+            )
             db.commit()
         finally:
             db.close()

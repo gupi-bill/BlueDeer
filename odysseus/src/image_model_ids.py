@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 _IMAGE_MODEL_PREFIXES = (
     "gpt-image",
     "dall-e",
@@ -39,4 +38,3 @@ def looks_like_image_generation_model(model_id: str) -> bool:
     # Newer OpenAI image models use names like gpt-5-image instead of
     # gpt-image-1. Keep this pattern provider-agnostic.
     return leaf.startswith("gpt-") and "-image" in leaf
-

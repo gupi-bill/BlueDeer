@@ -10,8 +10,7 @@ import logging
 import os
 import time
 from collections import defaultdict
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 logger = logging.getLogger("bluedeer.comm_log")
 
@@ -80,7 +79,9 @@ class CommLog:
         max_chains: int = 50,
     ) -> CommLogResult:
         if not os.path.exists(self._trace_log):
-            return CommLogResult(chains=[], total_chains=0, total_entries=0, agent_list=[])
+            return CommLogResult(
+                chains=[], total_chains=0, total_entries=0, agent_list=[]
+            )
 
         entries_by_trace: dict[str, list[dict]] = defaultdict(list)
         all_agents: set[str] = set()
@@ -137,18 +138,20 @@ class CommLog:
                 if err:
                     error_count += 1
 
-                chain_entries.append(CommEntry(
-                    trace_id=tid,
-                    ts=ts,
-                    ts_str=self._ts_str(ts),
-                    component=comp,
-                    action=act,
-                    level=r.get("level", "INFO"),
-                    message=r.get("message", err or act),
-                    duration_ms=float(r.get("duration_ms", 0)),
-                    error=err,
-                    raw=r,
-                ))
+                chain_entries.append(
+                    CommEntry(
+                        trace_id=tid,
+                        ts=ts,
+                        ts_str=self._ts_str(ts),
+                        component=comp,
+                        action=act,
+                        level=r.get("level", "INFO"),
+                        message=r.get("message", err or act),
+                        duration_ms=float(r.get("duration_ms", 0)),
+                        error=err,
+                        raw=r,
+                    )
+                )
 
             if not chain_entries:
                 continue
@@ -177,7 +180,6 @@ class CommLog:
             total_entries=total_entries,
             agent_list=sorted(all_agents),
         )
-
 
     def search(self, query: str) -> list[CommEntry]:
         """按内容或发送者搜索通信条目。"""

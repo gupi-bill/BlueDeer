@@ -11,108 +11,16 @@ import logging
 import os
 import re
 import time
-from dataclasses import dataclass, field, asdict
-from enum import Enum
 from typing import Any
 
-from core.test_runner import TestFailure, TestRunner, TestRunResult
+from core.test_runner import TestFailure, TestRunner
 
 logger = logging.getLogger("bluedeer.healer")
 
+# ============== 拆分模块（P2-1） ==============
 
-# ============== 修复策略 ==============
-
-class FixStrategy(Enum):
-    """修复策略类型（P7 扩容：4 → 12 种）。
-
-    原始 4 种：RETRY_GENERATE / FIX_ASSERTION / FIX_IMPORT / ESCALATE
-    P7 扩容 8 种：FIX_DEADLOCK / FIX_DEPENDENCY / FIX_INTERFACE / FIX_PATH
-                 FIX_MEMORY_LEAK / FIX_TIMEOUT / FIX_ENCODING / FIX_PERMISSION
-    """
-    # 原始 4 种
-    RETRY_GENERATE = "retry_generate"      # 重新生成代码（语法/名称错误）
-    FIX_ASSERTION = "fix_assertion"        # 修正断言期望值
-    FIX_IMPORT = "fix_import"              # 补导入语句
-    ESCALATE = "escalate"                  # 升级告警（无法自动修复）
-    # P7 扩容 8 种工程级修复
-    FIX_DEADLOCK = "fix_deadlock"          # 并发死锁修复（加锁/超时）
-    FIX_DEPENDENCY = "fix_dependency"      # 依赖冲突修复（版本对齐）
-    FIX_INTERFACE = "fix_interface"        # 接口字段兼容（参数默认值）
-    FIX_PATH = "fix_path"                  # 路径兼容修复
-    FIX_MEMORY_LEAK = "fix_memory_leak"    # 内存泄漏修复（加 cleanup）
-    FIX_TIMEOUT = "fix_timeout"            # 超时修复（调大 timeout）
-    FIX_ENCODING = "fix_encoding"          # 编码修复（utf-8）
-    FIX_PERMISSION = "fix_permission"      # 权限修复（chmod）
-
-
-# 错误类型 → 修复策略映射（P7 扩容：6 → 14 条）
-_ERROR_STRATEGY: dict[str, FixStrategy] = {
-    # 原始映射
-    "SyntaxError": FixStrategy.RETRY_GENERATE,
-    "NameError": FixStrategy.RETRY_GENERATE,
-    "IndentationError": FixStrategy.RETRY_GENERATE,
-    "AssertionError": FixStrategy.FIX_ASSERTION,
-    "ImportError": FixStrategy.FIX_IMPORT,
-    "ModuleNotFoundError": FixStrategy.FIX_IMPORT,
-    # P7 扩容映射
-    "DeadlockError": FixStrategy.FIX_DEADLOCK,
-    "TimeoutError": FixStrategy.FIX_TIMEOUT,
-    "asyncio.TimeoutError": FixStrategy.FIX_TIMEOUT,
-    "RecursionError": FixStrategy.FIX_MEMORY_LEAK,
-    "MemoryError": FixStrategy.FIX_MEMORY_LEAK,
-    "UnicodeDecodeError": FixStrategy.FIX_ENCODING,
-    "UnicodeEncodeError": FixStrategy.FIX_ENCODING,
-    "PermissionError": FixStrategy.FIX_PERMISSION,
-    "FileNotFoundError": FixStrategy.FIX_PATH,
-    "DependencyError": FixStrategy.FIX_DEPENDENCY,
-    "TypeError": FixStrategy.FIX_INTERFACE,
-    "AttributeError": FixStrategy.FIX_INTERFACE,
-}
-
-
-@dataclass
-class FixRecord:
-    """修复记录。"""
-    timestamp: float
-    test_id: str
-    strategy: str
-    success: bool
-    target_file: str = ""
-    detail: str = ""
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
-
-
-@dataclass
-class FixResult:
-    """单次修复结果。"""
-    strategy: FixStrategy
-    applied: bool = False          # 是否应用了修复
-    detail: str = ""               # 修复详情
-    target_file: str = ""
-    success: bool = False          # 验证是否通过
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "strategy": self.strategy.value,
-            "applied": self.applied,
-            "detail": self.detail,
-            "target_file": self.target_file,
-            "success": self.success,
-        }
-
-
-# 代码模板（用于 RETRY_GENERATE）
-_RETRY_TEMPLATE = """\
-# 由 Healer 自动修复生成
-# 策略: {strategy}
-# 原因: {reason}
-
-def add(a, b):
-    \"\"\"返回两数之和。\"\"\"
-    return a + b
-"""
+from core.healer_records import FixRecord, FixResult
+from core.healer_strategies import _ERROR_STRATEGY, _RETRY_TEMPLATE, FixStrategy
 
 
 class Healer:
@@ -137,7 +45,9 @@ class Healer:
 
     # ============== 分析 ==============
 
-    def analyze(self, failures: list[TestFailure]) -> list[tuple[TestFailure, FixStrategy]]:
+    def analyze(
+        self, failures: list[TestFailure]
+    ) -> list[tuple[TestFailure, FixStrategy]]:
         """分析失败模式，匹配修复策略。
 
         Args:
@@ -152,7 +62,9 @@ class Healer:
             result.append((f, strategy))
             logger.info(
                 "分析失败: %s, error_type=%s → strategy=%s",
-                f.test_id, f.error_type, strategy.value,
+                f.test_id,
+                f.error_type,
+                strategy.value,
             )
         return result
 
@@ -230,7 +142,9 @@ class Healer:
 
             else:  # ESCALATE
                 result.applied = False
-                result.detail = f"无法自动修复: {failure.error_type}: {failure.error_message[:80]}"
+                result.detail = (
+                    f"无法自动修复: {failure.error_type}: {failure.error_message[:80]}"
+                )
                 logger.warning("升级告警: %s", result.detail)
 
         except Exception as e:
@@ -264,7 +178,9 @@ class Healer:
         # "cannot import name 'bar' from 'foo'" → from foo import bar
         msg = failure.error_message
         module_match = re.search(r"No module named ['\"](\S+)['\"]", msg)
-        import_match = re.search(r"cannot import name ['\"](\S+)['\"] from ['\"](\S+)['\"]", msg)
+        import_match = re.search(
+            r"cannot import name ['\"](\S+)['\"] from ['\"](\S+)['\"]", msg
+        )
 
         import_line = ""
         if import_match:
@@ -298,7 +214,9 @@ class Healer:
             original = f.read()
         # 把 .acquire() 替换为 .acquire(timeout=30)
         new_content = re.sub(
-            r"\.acquire\(\)", ".acquire(timeout=30)", original,
+            r"\.acquire\(\)",
+            ".acquire(timeout=30)",
+            original,
         )
         if new_content == original:
             # 无可替换的 acquire，记录告警但不算应用
@@ -506,13 +424,15 @@ class Healer:
         # 若测试失败但无具体 failures（收集阶段错误，如语法错误），
         # 合成一条收集错误记录，策略为 RETRY_GENERATE
         if not failures and not initial.passed:
-            failures = [TestFailure(
-                test_id=f"{test_path}::(collection)",
-                file=test_path,
-                test_name="(collection)",
-                error_type="SyntaxError",  # 收集错误最常见为语法错误
-                error_message="collection error (likely syntax error)",
-            )]
+            failures = [
+                TestFailure(
+                    test_id=f"{test_path}::(collection)",
+                    file=test_path,
+                    test_name="(collection)",
+                    error_type="SyntaxError",  # 收集错误最常见为语法错误
+                    error_message="collection error (likely syntax error)",
+                )
+            ]
             logger.info("测试失败但无具体 failures，按收集错误处理")
 
         analyzed = self.analyze(failures)
@@ -523,14 +443,16 @@ class Healer:
             fix = self.apply_fix(failure, strategy, target_file)
             fixes.append(fix)
             # 记录历史
-            self._history.append(FixRecord(
-                timestamp=time.time(),
-                test_id=failure.test_id,
-                strategy=strategy.value,
-                success=False,  # 待验证后更新
-                target_file=fix.target_file,
-                detail=fix.detail,
-            ))
+            self._history.append(
+                FixRecord(
+                    timestamp=time.time(),
+                    test_id=failure.test_id,
+                    strategy=strategy.value,
+                    success=False,  # 待验证后更新
+                    target_file=fix.target_file,
+                    detail=fix.detail,
+                )
+            )
 
         # 4. 验证
         final_passed = self.verify(test_path)
@@ -581,7 +503,9 @@ class Healer:
             with open(self._history_path, "w", encoding="utf-8") as f:
                 json.dump(
                     [r.to_dict() for r in self._history],
-                    f, ensure_ascii=False, indent=2,
+                    f,
+                    ensure_ascii=False,
+                    indent=2,
                 )
         except OSError as e:
             logger.warning("保存修复历史失败: %s", e)
@@ -590,6 +514,7 @@ class Healer:
 # ============== 熔断降级 ==============
 
 import enum
+
 
 class CircuitState(enum.Enum):
     CLOSED = "closed"
@@ -616,19 +541,22 @@ class CircuitBreaker:
 
     @property
     def state(self) -> CircuitState:
-        if self._state == CircuitState.OPEN and time.time() - self._last_failure_time > self._recovery_timeout:
+        if (
+            self._state == CircuitState.OPEN
+            and time.time() - self._last_failure_time > self._recovery_timeout
+        ):
             self._state = CircuitState.HALF_OPEN
             self._half_open_retries = 0
         return self._state
 
-    def call(self, fn, *args, **kwargs):
+    def call(self, fn: Any, *args: Any, **kwargs) -> Any:
         if self.state == CircuitState.OPEN:
-            raise RuntimeError(f"熔断器已断开，拒绝调用")
+            raise RuntimeError("熔断器已断开，拒绝调用")
         try:
             result = fn(*args, **kwargs)
             self._on_success()
             return result
-        except Exception as e:
+        except Exception:
             self._on_failure()
             raise
 
@@ -651,6 +579,7 @@ class CircuitBreaker:
 
 # ============== 自动恢复（指数退避重试） ==============
 
+
 def auto_heal(
     fn,
     max_retries: int = 3,
@@ -669,7 +598,7 @@ def auto_heal(
     import functools
 
     @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs) -> Any:
         last_exc: Exception | None = None
         delay = base_delay
         for attempt in range(max_retries + 1):
@@ -680,7 +609,9 @@ def auto_heal(
             except Exception as e:
                 last_exc = e
                 if attempt < max_retries:
-                    logger.warning("auto_heal 重试 %d/%d: %s", attempt + 1, max_retries, e)
+                    logger.warning(
+                        "auto_heal 重试 %d/%d: %s", attempt + 1, max_retries, e
+                    )
                     time.sleep(delay)
                     delay = min(delay * backoff_factor, max_delay)
                 else:

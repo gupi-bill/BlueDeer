@@ -10,7 +10,6 @@ from unittest.mock import MagicMock
 
 import pytest
 from fastapi import HTTPException
-
 from tests.helpers.import_state import clear_module
 
 

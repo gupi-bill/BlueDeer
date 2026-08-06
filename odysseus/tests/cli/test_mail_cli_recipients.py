@@ -15,7 +15,7 @@ def _load_mail_cli(monkeypatch):
     helpers._list_attachments_from_msg = lambda msg: []
 
     pollers = ModuleType("routes.email_pollers")
-    pollers._scheduled_poll_once = lambda: {}
+    pollers._scheduled_poll_once = dict
     pollers._run_auto_summarize_once = lambda **kwargs: ""
 
     monkeypatch.setitem(sys.modules, "routes.email_helpers", helpers)
@@ -32,7 +32,9 @@ def _load_mail_cli(monkeypatch):
 def test_recipient_list_trims_to_cc_and_bcc(monkeypatch):
     cli = _load_mail_cli(monkeypatch)
 
-    assert cli._recipient_list(" a@example.com, ", "b@example.com", " c@example.com ") == [
+    assert cli._recipient_list(
+        " a@example.com, ", "b@example.com", " c@example.com "
+    ) == [
         "a@example.com",
         "b@example.com",
         "c@example.com",

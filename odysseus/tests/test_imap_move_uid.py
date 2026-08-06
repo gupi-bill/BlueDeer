@@ -6,8 +6,6 @@ on message SEQUENCE NUMBERS. So a UID like 90521 was interpreted as sequence
 number 90521 — moving/deleting the wrong message or silently no-oping. It
 must use the UID commands.
 """
-import sys
-import types
 
 import pytest
 
@@ -17,6 +15,7 @@ def email_helpers(monkeypatch, tmp_path):
     # Keep _init_scheduled_db (run at import) off the real data dir.
     monkeypatch.setenv("ODYSSEUS_DATA_DIR", str(tmp_path))
     import routes.email_helpers as eh
+
     return eh
 
 
@@ -25,19 +24,24 @@ class _FakeIMAP:
         self.calls = []
 
     def select(self, mbox):
-        self.calls.append(("select", mbox)); return ("OK", [b""])
+        self.calls.append(("select", mbox))
+        return ("OK", [b""])
 
     def copy(self, *a):
-        self.calls.append(("copy",) + a); return ("OK", [b""])
+        self.calls.append(("copy",) + a)
+        return ("OK", [b""])
 
     def store(self, *a):
-        self.calls.append(("store",) + a); return ("OK", [b""])
+        self.calls.append(("store",) + a)
+        return ("OK", [b""])
 
     def uid(self, *a):
-        self.calls.append(("uid",) + a); return ("OK", [b""])
+        self.calls.append(("uid",) + a)
+        return ("OK", [b""])
 
     def expunge(self):
-        self.calls.append(("expunge",)); return ("OK", [b""])
+        self.calls.append(("expunge",))
+        return ("OK", [b""])
 
     def logout(self):
         pass

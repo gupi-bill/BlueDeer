@@ -8,8 +8,8 @@ from typing import Any
 from src import model_capabilities as mc
 from src.model_capability_readers import generic_openai
 from src.model_capability_readers.base import (
-    ModelCapabilityRecord,
     VENDOR_LMSTUDIO,
+    ModelCapabilityRecord,
     as_list,
     as_mapping,
     build_capability,
@@ -20,7 +20,6 @@ from src.model_capability_readers.base import (
     openai_model_items,
     stable_model_id_for,
 )
-
 
 vendor = VENDOR_LMSTUDIO
 
@@ -44,8 +43,12 @@ def _limits_from_model(raw: Mapping[str, Any]) -> dict[str, Any]:
     loaded_context = int_limit(raw.get("loaded_context_length")) or (
         min(loaded_contexts) if loaded_contexts else None
     )
-    configured_context = int_limit(raw.get("context_length")) or int_limit(raw.get("contextLength"))
-    max_context = int_limit(raw.get("max_context_length")) or int_limit(raw.get("maxContextLength"))
+    configured_context = int_limit(raw.get("context_length")) or int_limit(
+        raw.get("contextLength")
+    )
+    max_context = int_limit(raw.get("max_context_length")) or int_limit(
+        raw.get("maxContextLength")
+    )
     context_tokens = loaded_context or configured_context or max_context
     if context_tokens:
         limits["context_tokens"] = context_tokens
@@ -55,7 +58,11 @@ def _limits_from_model(raw: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _family_from_type(raw: Mapping[str, Any]) -> str:
-    kind = compact_str(raw.get("type") or raw.get("model_type") or raw.get("task")).lower().replace("-", "_")
+    kind = (
+        compact_str(raw.get("type") or raw.get("model_type") or raw.get("task"))
+        .lower()
+        .replace("-", "_")
+    )
     if kind in {"embedding", "embeddings", "text_embedding", "text_embeddings"}:
         return mc.FAMILY_EMBEDDING
     if kind in {"llm", "chat", "vlm", "vision", "text_generation"}:
@@ -95,7 +102,8 @@ def _unknown_record(
             endpoint_id=endpoint_id,
             base_url=base_url,
         ),
-        display_name=compact_str(raw.get("display_name") or raw.get("name")) or model_id,
+        display_name=compact_str(raw.get("display_name") or raw.get("name"))
+        or model_id,
         capability=mc.unknown_capability(
             source=mc.SOURCE_PROVIDER_READER,
             confidence=mc.CONFIDENCE_UNKNOWN,
@@ -158,7 +166,8 @@ def record_from_native_model(
             endpoint_id=endpoint_id,
             base_url=base_url,
         ),
-        display_name=compact_str(raw.get("display_name") or raw.get("name")) or model_id,
+        display_name=compact_str(raw.get("display_name") or raw.get("name"))
+        or model_id,
         capability=capability,
         raw=raw,
     )
@@ -172,7 +181,9 @@ def records_from_payload(
 ) -> tuple[ModelCapabilityRecord, ...]:
     records: list[ModelCapabilityRecord] = []
     for item in openai_model_items(payload):
-        record = record_from_native_model(item, endpoint_id=endpoint_id, base_url=base_url)
+        record = record_from_native_model(
+            item, endpoint_id=endpoint_id, base_url=base_url
+        )
         if record:
             records.append(record)
     if records:
@@ -180,7 +191,9 @@ def records_from_payload(
     for item in as_list(as_mapping(payload).get("models")):
         if not isinstance(item, Mapping):
             continue
-        record = record_from_native_model(item, endpoint_id=endpoint_id, base_url=base_url)
+        record = record_from_native_model(
+            item, endpoint_id=endpoint_id, base_url=base_url
+        )
         if record:
             records.append(record)
     return tuple(records)

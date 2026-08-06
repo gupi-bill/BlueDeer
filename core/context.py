@@ -77,7 +77,9 @@ class ContextManager:
     def clear_expired(self) -> int:
         with self._lock:
             now = time.monotonic()
-            expired = [tid for tid, ts in self._task_ts.items() if now - ts > self._task_ttl]
+            expired = [
+                tid for tid, ts in self._task_ts.items() if now - ts > self._task_ttl
+            ]
             for tid in expired:
                 self.clear_task(tid)
             return len(expired)

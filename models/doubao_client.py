@@ -55,7 +55,9 @@ class DoubaoClient(ModelClient):
                 "或传入 api_key 参数"
             )
 
-        logger.info("DoubaoClient 初始化: model=%s, endpoint=%s", model_name, self._endpoint)
+        logger.info(
+            "DoubaoClient 初始化: model=%s, endpoint=%s", model_name, self._endpoint
+        )
 
     @property
     def model_name(self) -> str:
@@ -88,13 +90,15 @@ class DoubaoClient(ModelClient):
         """
         temperature = kwargs.get("temperature", 0.7)
         max_tokens = kwargs.get("max_tokens", 4096)
-        payload = json.dumps({
-            "model": self._model_name,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "stream": True,
-        }).encode("utf-8")
+        payload = json.dumps(
+            {
+                "model": self._model_name,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "stream": True,
+            }
+        ).encode("utf-8")
 
         headers = {
             "Content-Type": "application/json",
@@ -113,7 +117,11 @@ class DoubaoClient(ModelClient):
                         break
                     try:
                         chunk = json.loads(data_str)
-                        delta = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                        delta = (
+                            chunk.get("choices", [{}])[0]
+                            .get("delta", {})
+                            .get("content", "")
+                        )
                         if delta:
                             yield delta
                     except json.JSONDecodeError:
@@ -127,12 +135,14 @@ class DoubaoClient(ModelClient):
         temperature = kwargs.get("temperature", 0.7)
         max_tokens = kwargs.get("max_tokens", 4096)
 
-        payload = json.dumps({
-            "model": self._model_name,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }).encode("utf-8")
+        payload = json.dumps(
+            {
+                "model": self._model_name,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+        ).encode("utf-8")
 
         last_error: Exception | None = None
         for attempt in range(1, self._max_retries + 1):
@@ -143,9 +153,7 @@ class DoubaoClient(ModelClient):
                 await asyncio.sleep(wait)
 
             try:
-                response_data = await asyncio.to_thread(
-                    self._http_post, payload
-                )
+                response_data = await asyncio.to_thread(self._http_post, payload)
                 resp = self._parse_response(response_data)
                 return resp
             except urllib.error.HTTPError as e:
@@ -156,13 +164,18 @@ class DoubaoClient(ModelClient):
                 last_error = e
                 logger.warning(
                     "DoubaoClient 调用失败（第 %d/%d 次）: code=%s type=%s",
-                    attempt, self._max_retries, e.code, error_type,
+                    attempt,
+                    self._max_retries,
+                    e.code,
+                    error_type,
                 )
             except Exception as e:
                 last_error = e
                 logger.warning(
                     "DoubaoClient 调用失败（第 %d/%d 次）: %s",
-                    attempt, self._max_retries, e,
+                    attempt,
+                    self._max_retries,
+                    e,
                 )
 
         raise RuntimeError(

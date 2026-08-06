@@ -8,9 +8,11 @@ evolution（数据维度 - R195）：
 - 与 R180 互补：R180 固定容量，本模块无限增长
 - Cassandra/ScyllaDB 用类似机制管理 SSTable 的布隆过滤器
 """
+
 from __future__ import annotations
+
 import threading
-from typing import Iterable
+from collections.abc import Iterable
 
 from core.bloom_filter import BloomFilter
 
@@ -90,7 +92,7 @@ class BloomFilterChain:
             prod = 1.0
             for bf in self._levels:
                 p = bf.estimated_false_positive_rate()
-                prod *= (1 - p)
+                prod *= 1 - p
             return 1.0 - prod
 
     def ensure_capacity(self, n: int) -> None:
@@ -117,7 +119,7 @@ class BloomFilterChain:
             self._levels = [BloomFilter(self._cap, self._err)]
             self._total_added = 0
 
-    def merge(self, other: "BloomFilterChain") -> None:
+    def merge(self, other: BloomFilterChain) -> None:
         """合并另一个 chain（追加其所有层）。
 
         注意：要求 capacity 和 error_rate 相同。

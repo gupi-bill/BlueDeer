@@ -9,12 +9,12 @@ The client-supplied ``_endpoint`` is already validated through
 ``check_outbound_url`` before the first request; this pins the same guard on the
 *result* URL pulled from the response body, which previously went unchecked.
 """
+
 import base64
 
 import pytest
 from fastapi import HTTPException
-
-import routes.gallery_routes as gallery_routes
+from routes import gallery_routes
 
 
 class _FakeResp:
@@ -57,9 +57,9 @@ async def test_rejects_link_local_result_url():
             "http://169.254.169.254/latest/meta-data"
         )
     assert exc.value.status_code == 502
-    assert all(c.gets == [] for c in _FakeAsyncClient.instances), (
-        "the unsafe result URL must not be fetched"
-    )
+    assert all(
+        c.gets == [] for c in _FakeAsyncClient.instances
+    ), "the unsafe result URL must not be fetched"
 
 
 async def test_fetches_safe_result_url():

@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Iterable
-
+from collections.abc import Iterable
+from typing import Any
 
 DATA_URL_RE = re.compile(
     r"data:[^;,\s\"']+;base64,[A-Za-z0-9+/=]+",
@@ -61,7 +61,9 @@ def attachment_ref(info: dict[str, Any]) -> dict[str, Any]:
     return ref
 
 
-def attachment_refs_from_metadata(metadata: dict[str, Any] | None) -> list[dict[str, Any]]:
+def attachment_refs_from_metadata(
+    metadata: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
     """Extract attachment refs from message metadata."""
     attachments = (metadata or {}).get("attachments") or []
     if not isinstance(attachments, list):
@@ -137,12 +139,16 @@ def persistable_message_content(
         refs = attachment_refs_from_metadata(metadata)
         ref_lines = [_ref_line(ref) for ref in refs]
         if ref_lines:
-            text = "\n".join([part for part in (text, "\n".join(ref_lines)) if part]).strip()
+            text = "\n".join(
+                [part for part in (text, "\n".join(ref_lines)) if part]
+            ).strip()
         return text
     if isinstance(content, str):
         return strip_inline_data_urls(content)
     try:
-        return strip_inline_data_urls(json.dumps(content, ensure_ascii=True, sort_keys=True))
+        return strip_inline_data_urls(
+            json.dumps(content, ensure_ascii=True, sort_keys=True)
+        )
     except TypeError:
         return strip_inline_data_urls(str(content))
 

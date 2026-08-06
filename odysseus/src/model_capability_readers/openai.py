@@ -13,14 +13,13 @@ from typing import Any
 
 from src import model_capabilities as mc
 from src.model_capability_readers.base import (
-    ModelCapabilityRecord,
     VENDOR_OPENAI,
+    ModelCapabilityRecord,
     compact_str,
     model_id_from,
     openai_model_items,
     stable_model_id_for,
 )
-
 
 vendor = VENDOR_OPENAI
 
@@ -41,7 +40,9 @@ def record_from_model(
     return ModelCapabilityRecord(
         vendor=VENDOR_OPENAI,
         model_id=model_id,
-        stable_model_id=stable_model_id_for(VENDOR_OPENAI, model_id, endpoint_id=endpoint_id, base_url=base_url),
+        stable_model_id=stable_model_id_for(
+            VENDOR_OPENAI, model_id, endpoint_id=endpoint_id, base_url=base_url
+        ),
         display_name=compact_str(raw.get("name") or raw.get("display_name")),
         capability=mc.unknown_capability(
             source=mc.SOURCE_PROVIDER_READER,

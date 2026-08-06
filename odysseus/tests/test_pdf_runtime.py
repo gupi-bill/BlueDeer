@@ -1,7 +1,6 @@
 import builtins
 
 import pytest
-
 from src.pdf_runtime import PDF_VIEWER_PYMUPDF_MISSING, load_pymupdf_for_pdf_viewer
 
 

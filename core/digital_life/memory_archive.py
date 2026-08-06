@@ -11,6 +11,7 @@
 4. 每个物种文件是 list，按时间顺序存历代逝者
 5. 线程安全（threading.RLock）
 """
+
 from __future__ import annotations
 
 import json
@@ -198,6 +199,7 @@ class MemoryArchive:
     # ── 模糊搜索 ────────────────────────────────────────────────
     def fuzzy_search(self, query: str, threshold: float = 0.6) -> list[dict]:
         import difflib
+
         with self._lock:
             results = []
             for species, entries in self._cache.items():

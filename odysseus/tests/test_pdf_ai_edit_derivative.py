@@ -10,7 +10,10 @@ def test_pdf_ai_edit_derivative_strips_pdf_plumbing():
 - Hello world <!-- annotation id=a1 page=1 x=1 y=2 w=3 h=4 kind=text -->
 """
 
-    assert _strip_pdf_editor_markers(raw) == "# Contract\n\n- **Name:** Felix\n- Hello world"
+    assert (
+        _strip_pdf_editor_markers(raw)
+        == "# Contract\n\n- **Name:** Felix\n- Hello world"
+    )
 
 
 def test_pdf_ai_edit_derivative_strips_form_source_marker():

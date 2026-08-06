@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Iterable
+from typing import Any
 
 from sqlalchemy import text
 
@@ -73,7 +74,11 @@ def _snippet(content: str, query: str, radius: int = 60) -> str:
 
     start = max(0, idx - radius)
     end = min(len(content), idx + len(query) + radius)
-    return ("..." if start > 0 else "") + content[start:end] + ("..." if end < len(content) else "")
+    return (
+        ("..." if start > 0 else "")
+        + content[start:end]
+        + ("..." if end < len(content) else "")
+    )
 
 
 def _sanitize_fts_query(query: str) -> str | None:
@@ -118,7 +123,9 @@ def _has_fts_table(db) -> bool:
         return False
     try:
         row = db.execute(
-            text("SELECT 1 FROM sqlite_master WHERE type='table' AND name='chat_messages_fts' LIMIT 1")
+            text(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='chat_messages_fts' LIMIT 1"
+            )
         ).first()
         return row is not None
     except Exception as e:
@@ -134,7 +141,9 @@ def _owner_filter(query, owner: str | None, include_legacy_owner: bool):
     return query.filter((DBSession.owner == owner) | (DBSession.owner.is_(None)))
 
 
-def _context_for_message(db, msg: DBChatMessage, count: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _context_for_message(
+    db, msg: DBChatMessage, count: int
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     if count <= 0 or not msg.timestamp:
         return [], []
 
@@ -165,7 +174,12 @@ def _context_for_message(db, msg: DBChatMessage, count: int) -> tuple[list[dict[
     return before, after
 
 
-def _rows_to_results(db, rows: Iterable[tuple[DBChatMessage, str, str]], query: str, context_messages: int) -> list[SessionSearchResult]:
+def _rows_to_results(
+    db,
+    rows: Iterable[tuple[DBChatMessage, str, str]],
+    query: str,
+    context_messages: int,
+) -> list[SessionSearchResult]:
     results: list[SessionSearchResult] = []
     for msg, session_name, snippet in rows:
         before, after = _context_for_message(db, msg, context_messages)
@@ -211,7 +225,10 @@ def _search_like(
     if restrict_owner:
         q = _owner_filter(q, owner, include_legacy_owner)
     rows = q.order_by(DBChatMessage.timestamp.desc()).limit(limit).all()
-    shaped = ((msg, session_name, _snippet(msg.content or "", query)) for msg, session_name in rows)
+    shaped = (
+        (msg, session_name, _snippet(msg.content or "", query))
+        for msg, session_name in rows
+    )
     return _rows_to_results(db, shaped, query, context_messages)
 
 
@@ -260,8 +277,7 @@ def _search_fts(
     if restrict_owner and owner is not None:
         params["owner"] = owner
 
-    sql = text(
-        f"""
+    sql = text(f"""
         SELECT
             m.id AS message_id,
             snippet(chat_messages_fts, 0, '', '', '...', 24) AS content_snippet
@@ -275,8 +291,7 @@ def _search_fts(
           AND m.role IN ('user', 'assistant')
         ORDER BY bm25(chat_messages_fts), m.timestamp DESC
         LIMIT :limit
-        """
-    )
+        """)
 
     try:
         hits = db.execute(sql, params).fetchall()

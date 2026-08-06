@@ -9,8 +9,7 @@ import asyncio
 import json
 from pathlib import Path
 
-import src.agent_loop as agent_loop
-
+from src import agent_loop
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -40,12 +39,19 @@ def test_ask_user_is_emitted_last_and_persisted(monkeypatch):
         "multi": False,
     }
 
-    monkeypatch.setattr(agent_loop, "get_setting", lambda key, default=None: default, raising=False)
+    monkeypatch.setattr(
+        agent_loop, "get_setting", lambda key, default=None: default, raising=False
+    )
     monkeypatch.setattr(agent_loop, "get_mcp_manager", lambda: None, raising=False)
-    monkeypatch.setattr(agent_loop, "estimate_tokens", lambda *args, **kwargs: 10, raising=False)
+    monkeypatch.setattr(
+        agent_loop, "estimate_tokens", lambda *args, **kwargs: 10, raising=False
+    )
 
     async def fake_stream(_candidates, messages, **kwargs):
-        call = {"name": "ask_user", "arguments": json.dumps(payload, ensure_ascii=False)}
+        call = {
+            "name": "ask_user",
+            "arguments": json.dumps(payload, ensure_ascii=False),
+        }
         yield f'data: {json.dumps({"type": "tool_calls", "calls": [call]})}\n\n'
         yield "data: [DONE]\n\n"
 
@@ -60,7 +66,9 @@ def test_ask_user_is_emitted_last_and_persisted(monkeypatch):
             },
         )
 
-    monkeypatch.setattr(agent_loop, "stream_llm_with_fallback", fake_stream, raising=False)
+    monkeypatch.setattr(
+        agent_loop, "stream_llm_with_fallback", fake_stream, raising=False
+    )
     monkeypatch.setattr(agent_loop, "execute_tool_block", fake_execute, raising=False)
 
     chunks = _collect(
@@ -74,8 +82,12 @@ def test_ask_user_is_emitted_last_and_persisted(monkeypatch):
     )
     events = _events(chunks)
 
-    tool_output_index = next(i for i, event in enumerate(events) if event.get("type") == "tool_output")
-    ask_user_index = next(i for i, event in enumerate(events) if event.get("type") == "ask_user")
+    tool_output_index = next(
+        i for i, event in enumerate(events) if event.get("type") == "tool_output"
+    )
+    ask_user_index = next(
+        i for i, event in enumerate(events) if event.get("type") == "ask_user"
+    )
     assert tool_output_index < ask_user_index
 
     tool_output = events[tool_output_index]

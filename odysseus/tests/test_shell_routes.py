@@ -11,22 +11,21 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
 from routes.shell_routes import (
+    DOCKER_IN_CONTAINER_HINT,
+    _docker_row_status,
     _find_line_break,
     _host_docker_access_enabled,
     _import_optional_dependency_for_status,
-    _running_in_container,
-    _docker_row_status,
     _package_installed_from_probe,
     _package_pip_update_status,
     _package_probe_script,
     _package_status_note,
     _prepend_user_install_bins_to_path,
     _reject_cross_site,
+    _running_in_container,
     _ssh_base_argv,
     _venv_activate_prefix,
-    DOCKER_IN_CONTAINER_HINT,
 )
 
 
@@ -62,7 +61,7 @@ def test_shell_routes_import_without_posix_pty_modules(monkeypatch):
 
 async def test_generate_pty_reports_explicit_unsupported_error(monkeypatch):
     """Clients can distinguish unsupported PTY mode from process failures."""
-    import routes.shell_routes as shell_routes
+    from routes import shell_routes
 
     monkeypatch.setattr(shell_routes, "PTY_SUPPORTED", False)
     monkeypatch.setattr(
@@ -175,7 +174,7 @@ class TestAppleSiliconDetection:
     """APFEL should only surface as available on native Apple Silicon Macs."""
 
     def test_reports_true_on_macos_arm64(self, monkeypatch):
-        import core.platform_compat as platform_compat
+        from core import platform_compat
 
         monkeypatch.setattr(platform_compat.platform, "system", lambda: "Darwin")
         monkeypatch.setattr(platform_compat.platform, "machine", lambda: "arm64")
@@ -185,7 +184,7 @@ class TestAppleSiliconDetection:
 
     @pytest.mark.parametrize("machine", ["x86_64", "amd64"])
     def test_reports_false_off_apple_silicon(self, monkeypatch, machine):
-        import core.platform_compat as platform_compat
+        from core import platform_compat
 
         monkeypatch.setattr(platform_compat.platform, "system", lambda: "Darwin")
         monkeypatch.setattr(platform_compat.platform, "machine", lambda: machine)
@@ -194,7 +193,7 @@ class TestAppleSiliconDetection:
         assert platform_compat.IS_APPLE_SILICON is False
 
     def test_reports_false_on_non_macos(self, monkeypatch):
-        import core.platform_compat as platform_compat
+        from core import platform_compat
 
         monkeypatch.setattr(platform_compat.platform, "system", lambda: "Linux")
         monkeypatch.setattr(platform_compat.platform, "machine", lambda: "arm64")
@@ -435,7 +434,7 @@ class TestPackageProbeStatus:
         assert "shutil.which(b)" in script
 
     def test_status_import_prepares_optional_dependency(self, monkeypatch):
-        import routes.shell_routes as shell_routes
+        from routes import shell_routes
 
         calls = []
         monkeypatch.setattr(

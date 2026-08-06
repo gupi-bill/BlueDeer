@@ -6,24 +6,37 @@ evolution（并发维度 - R179）：
 - DAG 编排：声明任务和依赖，按拓扑并行执行无依赖的任务
 - 支持失败传播、超时、取消
 """
+
 from __future__ import annotations
+
+import asyncio
+import inspect
 import logging
 import threading
 import time
-from concurrent.futures import (
-    ThreadPoolExecutor, Future, as_completed, TimeoutError as FutureTimeout,
-)
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from core.exceptions import TaskDependencyError, TaskExecutionError, TaskTimeoutError
 
 logger = logging.getLogger("bluedeer.orch")
 
+__all__ = ["TaskExecutor", "TaskNode", "TaskOrchestrator"]
+
 
 class TaskNode:
     """任务节点。"""
-    __slots__ = ("name", "func", "deps", "result", "exception", "state",
-                 "started_at", "finished_at")
+
+    __slots__ = (
+        "deps",
+        "exception",
+        "finished_at",
+        "func",
+        "name",
+        "result",
+        "started_at",
+        "state",
+    )
 
     def __init__(self, name: str, func: Callable, deps: list[str] | None = None):
         self.name = name
@@ -34,6 +47,34 @@ class TaskNode:
         self.state = "pending"  # pending/running/done/failed/cancelled
         self.started_at = 0.0
         self.finished_at = 0.0
+
+
+class TaskExecutor:
+    """任务执行器：封装并发控制与任务执行逻辑。
+
+    负责：
+    - 并发度控制（asyncio.Semaphore）
+    - 同步/异步函数统一执行
+    - 执行异常捕获与日志
+    """
+
+    def __init__(self, max_workers: int = 4) -> None:
+        if max_workers < 1:
+            raise ValueError("max_workers 必须 >= 1")
+        self._max_workers = max_workers
+        self._sem = asyncio.Semaphore(max_workers)
+
+    async def execute(self, node: TaskNode, dep_results: list) -> Any:
+        """执行单个任务节点。"""
+        async with self._sem:
+            try:
+                result = node.func(*dep_results)
+                if inspect.isawaitable(result):
+                    result = await result
+                return result
+            except Exception as exc:
+                logger.warning("任务 %s 执行失败: %s", node.name, exc)
+                raise
 
 
 class TaskOrchestrator:
@@ -57,13 +98,14 @@ class TaskOrchestrator:
         self._tasks: dict[str, TaskNode] = {}
         self._lock = threading.RLock()
         self._dag = dag
+        self._executor = TaskExecutor(max_workers)
 
     def add_task(
         self,
         name: str,
         func: Callable,
         deps: list[str] | None = None,
-    ) -> "TaskOrchestrator":
+    ) -> TaskOrchestrator:
         """添加任务。返回 self 便于链式。"""
         with self._lock:
             if name in self._tasks:
@@ -86,7 +128,7 @@ class TaskOrchestrator:
         WHITE, GRAY, BLACK = 0, 1, 2
         color = {n: WHITE for n in self._tasks}
 
-        def visit(node):
+        def visit(node) -> Any:
             if color[node] == GRAY:
                 raise TaskDependencyError(f"检测到循环依赖：{node}")
             if color[node] == BLACK:
@@ -112,8 +154,7 @@ class TaskOrchestrator:
 
     def _has_failed_deps(self, node: TaskNode) -> bool:
         """检查依赖是否有失败。"""
-        return any(self._tasks[d].state in ("failed", "cancelled")
-                   for d in node.deps)
+        return any(self._tasks[d].state in ("failed", "cancelled") for d in node.deps)
 
     def run(self, timeout: float = None) -> dict[str, Any]:
         """运行所有任务。返回 {name: result}。
@@ -122,106 +163,127 @@ class TaskOrchestrator:
         - 依赖任务失败时，下游任务被取消
         - 超时取消所有未完成任务
         """
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(self._run_async(timeout))
+        raise RuntimeError(
+            "TaskOrchestrator.run() 不能在有运行事件循环的协程中调用，"
+            "请改用 await orch.run_async(timeout=...)"
+        )
+
+    async def _invoke(self, node: TaskNode, dep_results: list) -> Any:
+        """执行节点函数（委托给 TaskExecutor）。"""
+        return await self._executor.execute(node, dep_results)
+
+    async def run_async(self, timeout: float = None) -> dict[str, Any]:
+        """协程友好的编排入口：await orch.run_async(timeout=...)。"""
+        return await self._run_async(timeout)
+
+    async def _run_async(self, timeout: float = None) -> dict[str, Any]:
+        """asyncio 版本的编排执行（按拓扑并行 + 超时 + 失败传播）。"""
         with self._lock:
             self._validate()
             tasks_snapshot = dict(self._tasks)
 
-        end = None if timeout is None else time.time() + timeout
-        completed_futures: dict[Future, str] = {}
+        deadline = None if timeout is None else time.monotonic() + timeout
+        pending: dict[asyncio.Task, str] = {}
         results: dict[str, Any] = {}
-        any_failed = False
 
-        with ThreadPoolExecutor(max_workers=self._max_workers) as ex:
-            try:
-                while True:
-                    # 检查超时
-                    if end is not None and time.time() >= end:
-                        # 取消所有 pending
-                        for t in self._tasks.values():
-                            if t.state == "pending":
-                                t.state = "cancelled"
-                        raise TaskTimeoutError(f"编排超时 {timeout}s")
-
-                    # 找就绪任务
-                    ready = self._get_ready()
-                    submitted_any = False
-                    for name in ready:
-                        t = self._tasks[name]
-                        # 检查依赖失败
-                        if self._has_failed_deps(t):
+        try:
+            while True:
+                # 检查超时
+                if deadline is not None and time.monotonic() >= deadline:
+                    for t in tasks_snapshot.values():
+                        if t.state in ("pending", "running"):
                             t.state = "cancelled"
-                            continue
-                        # 收集依赖结果作为参数
-                        dep_results = [self._tasks[d].result for d in t.deps]
-                        t.state = "running"
-                        t.started_at = time.time()
-                        fut = ex.submit(self._run_task, t, dep_results)
-                        completed_futures[fut] = name
-                        submitted_any = True
+                    for fut in list(pending):
+                        fut.cancel()
+                    pending.clear()
+                    raise TaskTimeoutError(f"编排超时 {timeout}s")
 
-                    if not submitted_any:
-                        # 没有可提交的：要么全完成，要么全失败/取消
-                        pending = [t for t in self._tasks.values()
-                                   if t.state == "pending"]
-                        if not pending and not completed_futures:
-                            break
-                        if not pending and completed_futures:
-                            # 等待未完成的 future
-                            pass
-
-                    # 等待至少一个完成
-                    if completed_futures:
-                        if end is not None:
-                            remaining = end - time.time()
-                            if remaining <= 0:
-                                continue
-                        else:
-                            remaining = None
-                        # 用 as_completed 等一个
-                        done_set = set()
+                # 清理已完成的 task
+                for fut in list(pending):
+                    if fut.done():
+                        name = pending.pop(fut)
+                        t = tasks_snapshot[name]
+                        t.finished_at = time.time()
                         try:
-                            for fut in list(as_completed(
-                                completed_futures.keys(),
-                                timeout=remaining,
-                            )):
-                                done_set.add(fut)
-                                name = completed_futures.pop(fut)
-                                t = self._tasks[name]
-                                t.finished_at = time.time()
-                                if fut.exception() is not None:
-                                    t.exception = fut.exception()
-                                    t.state = "failed"
-                                    any_failed = True
-                                else:
-                                    t.result = fut.result()
-                                    t.state = "done"
-                                    results[name] = t.result
-                                break  # 处理一个就回到循环重新检查 ready
-                        except FutureTimeout:
-                            # as_completed 超时
-                            if end is not None and time.time() >= end:
-                                for t in self._tasks.values():
-                                    if t.state in ("pending", "running"):
-                                        t.state = "cancelled"
-                                raise TaskTimeoutError(f"编排超时 {timeout}s")
-                            continue
-                    else:
-                        # 没有 future 在跑，检查是否还有 pending
-                        pending = [t for t in self._tasks.values()
-                                   if t.state == "pending"]
-                        if pending and all(self._has_failed_deps(t) for t in pending):
-                            # 全是依赖失败的 pending
-                            for t in pending:
-                                t.state = "cancelled"
-                        if not pending:
-                            break
-            except TaskTimeoutError:
-                raise
+                            t.result = fut.result()
+                            t.state = "done"
+                            results[name] = t.result
+                        except Exception as e:
+                            t.exception = e
+                            t.state = "failed"
+                        fut.cancel()
+
+                # 就绪注入
+                ready = self._get_ready()
+                submitted_any = False
+                for name in ready:
+                    t = tasks_snapshot[name]
+                    if self._has_failed_deps(t):
+                        t.state = "cancelled"
+                        continue
+                    if t.state == "running":
+                        continue
+                    dep_results = [tasks_snapshot[d].result for d in t.deps]
+                    t.state = "running"
+                    t.started_at = time.time()
+                    fut = asyncio.ensure_future(self._invoke(t, dep_results))
+                    pending[fut] = name
+                    submitted_any = True
+
+                if not pending:
+                    # 全完成 or 全失败/取消
+                    if not any(t.state == "running" for t in tasks_snapshot.values()):
+                        break
+                    # 理论上不会到这；防死循环
+                    await asyncio.sleep(0.01)
+                    continue
+
+                if submitted_any:
+                    await asyncio.sleep(0)
+                    continue
+
+                # 等最先完成的那批
+                if deadline is not None:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        continue
+                    try:
+                        done, _ = await asyncio.wait(
+                            list(pending.keys()),
+                            timeout=remaining,
+                            return_when=asyncio.FIRST_COMPLETED,
+                        )
+                    except TimeoutError:
+                        continue
+                else:
+                    done, _ = await asyncio.wait(
+                        list(pending.keys()),
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+                for fut in done:
+                    name = pending[fut]
+                    t = tasks_snapshot[name]
+                    t.finished_at = time.time()
+                    try:
+                        t.result = fut.result()
+                        t.state = "done"
+                        results[name] = t.result
+                    except Exception as e:
+                        t.exception = e
+                        t.state = "failed"
+                    del pending[fut]
+                    fut.cancel()
+        except TaskTimeoutError:
+            raise
 
         return results
 
     def _run_task(self, node: TaskNode, dep_results: list) -> Any:
-        """实际执行任务（在工作线程中）。"""
+        """实际执行任务（同步包装 _invoke，供外部同步场景使用）。"""
         try:
             return node.func(*dep_results)
         except Exception as e:
@@ -250,16 +312,20 @@ class TaskOrchestrator:
                 "deps": list(t.deps),
                 "started_at": t.started_at,
                 "finished_at": t.finished_at,
-                "duration": (t.finished_at - t.started_at
-                            if t.finished_at else 0.0),
+                "duration": (t.finished_at - t.started_at if t.finished_at else 0.0),
                 "has_result": t.result is not None,
                 "exception": str(t.exception) if t.exception else None,
             }
 
     def status(self) -> dict:
         with self._lock:
-            states = {"pending": 0, "running": 0, "done": 0,
-                      "failed": 0, "cancelled": 0}
+            states = {
+                "pending": 0,
+                "running": 0,
+                "done": 0,
+                "failed": 0,
+                "cancelled": 0,
+            }
             for t in self._tasks.values():
                 states[t.state] = states.get(t.state, 0) + 1
             return {
@@ -321,12 +387,20 @@ class TaskOrchestrator:
             if node is None:
                 raise KeyError(task_id)
             if node.state != "failed":
-                raise ValueError(f"任务 {task_id} 状态为 {node.state}，只能重试 failed 任务")
+                raise ValueError(
+                    f"任务 {task_id} 状态为 {node.state}，只能重试 failed 任务"
+                )
 
         last_exc = None
         for attempt in range(1, max_retries + 1):
             delay = base_delay * (2 ** (attempt - 1))
-            logger.info("重试任务 %s 第 %d/%d 次，等待 %.1fs", task_id, attempt, max_retries, delay)
+            logger.info(
+                "重试任务 %s 第 %d/%d 次，等待 %.1fs",
+                task_id,
+                attempt,
+                max_retries,
+                delay,
+            )
             time.sleep(delay)
             try:
                 with self._lock:
@@ -346,7 +420,9 @@ class TaskOrchestrator:
 
         with self._lock:
             node.exception = last_exc
-        raise TaskExecutionError(f"任务 {task_id} 重试 {max_retries} 次均失败") from last_exc
+        raise TaskExecutionError(
+            f"任务 {task_id} 重试 {max_retries} 次均失败"
+        ) from last_exc
 
     def reset(self) -> None:
         with self._lock:

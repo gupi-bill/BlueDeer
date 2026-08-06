@@ -12,11 +12,12 @@
     ht.get("k1")  # "v1"
     ht.delete("k1")
 """
+
 from __future__ import annotations
 
 import threading
-from typing import Any, Iterator, Optional, Tuple
-
+from collections.abc import Iterator
+from typing import Any
 
 _EMPTY = 0
 _FILLED = 1
@@ -24,7 +25,7 @@ _TOMB = 2
 
 
 class _Slot:
-    __slots__ = ("state", "key", "value", "hash", "dist")
+    __slots__ = ("dist", "hash", "key", "state", "value")
 
     def __init__(self) -> None:
         self.state = _EMPTY
@@ -38,8 +39,7 @@ class HashTable:
     """开放寻址哈希表（Robin Hood hashing）。"""
 
     def __init__(self, capacity: int = 16, load_factor: float = 0.75) -> None:
-        if capacity < 4:
-            capacity = 4
+        capacity = max(capacity, 4)
         cap = 1
         while cap < capacity:
             cap <<= 1
@@ -66,7 +66,7 @@ class HashTable:
     def _hash(key) -> int:
         return hash(key)
 
-    def _probe(self, key, h: int) -> Tuple[int, Optional[int]]:
+    def _probe(self, key, h: int) -> tuple[int, int | None]:
         """返回 (找到的槽 idx or -1, 插入位置 idx or None)。
 
         Robin Hood：寻找时跟踪探测距离，找到第一个 dist < cur_dist 的槽即为插入点。
@@ -98,10 +98,19 @@ class HashTable:
             slot = self._slots[idx]
             if slot.state == _EMPTY or slot.state == _TOMB:
                 return idx
-            if slot.state == _FILLED and slot.hash == h and self._keys_equal(slot.key, key):
+            if (
+                slot.state == _FILLED
+                and slot.hash == h
+                and self._keys_equal(slot.key, key)
+            ):
                 return idx
             if slot.state == _FILLED and slot.dist < cur_dist:
-                self._slots[idx], key, h, cur_dist = _Slot(), slot.key, slot.hash, slot.dist
+                self._slots[idx], key, h, cur_dist = (
+                    _Slot(),
+                    slot.key,
+                    slot.hash,
+                    slot.dist,
+                )
                 self._slots[idx].state = _FILLED
                 self._slots[idx].key = key
                 self._slots[idx].hash = h
@@ -119,7 +128,11 @@ class HashTable:
             slot = self._slots[idx]
             if slot.state == _EMPTY:
                 return -1
-            if slot.state == _FILLED and slot.hash == h and self._keys_equal(slot.key, key):
+            if (
+                slot.state == _FILLED
+                and slot.hash == h
+                and self._keys_equal(slot.key, key)
+            ):
                 return idx
             idx = (idx + 1) & self._mask
         return -1
@@ -130,14 +143,14 @@ class HashTable:
             return False
         return a == b
 
-    def get(self, key, default=None) -> Any:
+    def get(self, key: Any, default: Any = None) -> Any:
         with self._lock:
             idx = self._find(key, self._hash(key))
             if idx < 0:
                 return default
             return self._slots[idx].value
 
-    def put(self, key, value: Any) -> None:
+    def put(self, key: Any, value: Any) -> None:
         with self._lock:
             h = self._hash(key)
             idx = self._find(key, h)
@@ -198,7 +211,7 @@ class HashTable:
                 if slot.state == _FILLED:
                     yield slot.key
 
-    def items(self) -> Iterator[Tuple]:
+    def items(self) -> Iterator[tuple]:
         with self._lock:
             for slot in self._slots:
                 if slot.state == _FILLED:

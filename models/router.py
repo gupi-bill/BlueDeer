@@ -16,14 +16,14 @@ from __future__ import annotations
 import logging
 import os
 import time
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable
-
-from models.client import ModelClient, ModelResponse
-from models.mock_client import MockClient
+from typing import Any
 
 from core.config import get_config
+from models.client import ModelClient, ModelResponse
+from models.mock_client import MockClient
 
 logger = logging.getLogger("bluedeer.router")
 
@@ -53,7 +53,10 @@ class CircuitBreaker:
         self.state = CircuitState.CLOSED
 
     def try_half_open(self) -> bool:
-        if self.state == CircuitState.OPEN and time.time() - self.last_failure > self.timeout:
+        if (
+            self.state == CircuitState.OPEN
+            and time.time() - self.last_failure > self.timeout
+        ):
             self.state = CircuitState.HALF_OPEN
             return True
         return False
@@ -91,7 +94,10 @@ class Router:
         if self._use_real_api:
             # 延迟导入，避免无 Key 时导入失败
             from models.doubao_client import DoubaoClient
-            model_names = set(get_config().model.task_model_map.values()) | {get_config().model.default_model}
+
+            model_names = set(get_config().model.task_model_map.values()) | {
+                get_config().model.default_model
+            }
             for name in model_names:
                 try:
                     self._clients[name] = DoubaoClient(model_name=name)
@@ -99,12 +105,14 @@ class Router:
                     logger.warning("DoubaoClient 初始化失败，回退 MockClient: %s", name)
                     self._clients[name] = MockClient(name=name)
             self._default_client = self._clients.get(
-                get_config().model.default_model, MockClient(name=get_config().model.default_model)
+                get_config().model.default_model,
+                MockClient(name=get_config().model.default_model),
             )
             logger.info("Router 模式: 真实 Doubao API")
         else:
             self._clients = {
-                name: MockClient(name=name) for name in set(get_config().model.task_model_map.values())
+                name: MockClient(name=name)
+                for name in set(get_config().model.task_model_map.values())
             }
             self._default_client = MockClient(name=get_config().model.default_model)
             logger.info("Router 模式: MockClient（未设置 DOUBAO_API_KEY）")
@@ -135,7 +143,9 @@ class Router:
         Returns:
             对应的 ModelClient 实例。
         """
-        model_name = get_config().model.task_model_map.get(task_type, get_config().model.default_model)
+        model_name = get_config().model.task_model_map.get(
+            task_type, get_config().model.default_model
+        )
         client = self._clients.get(model_name, self._default_client)
 
         logger.info(
@@ -156,8 +166,10 @@ class Router:
             return
         now = time.time()
         expired = [
-            name for name in list(self._degraded)
-            if now - self._degraded_at.get(name, now) > get_config().model.degrade_ttl_seconds
+            name
+            for name in list(self._degraded)
+            if now - self._degraded_at.get(name, now)
+            > get_config().model.degrade_ttl_seconds
         ]
         for name in expired:
             self._degraded.discard(name)
@@ -182,7 +194,9 @@ class Router:
         """
         self._recover_expired_degraded()
 
-        primary_name = get_config().model.task_model_map.get(task_type, get_config().model.default_model)
+        primary_name = get_config().model.task_model_map.get(
+            task_type, get_config().model.default_model
+        )
         fallback_names = get_config().model.task_fallbacks.get(task_type, [])
 
         candidates: list[ModelClient] = []
@@ -246,7 +260,8 @@ class Router:
                 others = [c for c in candidates if "Turbo" not in c.model_name]
                 candidates = turbo + others
                 logger.info(
-                    "perk 命中[低成本模型优先]: agent=%s, Turbo 候选前置", agent_id,
+                    "perk 命中[低成本模型优先]: agent=%s, Turbo 候选前置",
+                    agent_id,
                 )
 
         errors: list[str] = []
@@ -258,7 +273,8 @@ class Router:
                 self._model_failures[client.model_name] = 0
                 logger.info(
                     "模型调用成功: task=%s model=%s",
-                    task_type, client.model_name,
+                    task_type,
+                    client.model_name,
                 )
                 return response
             except Exception as e:
@@ -266,7 +282,9 @@ class Router:
                 self._record_failure(client.model_name)
                 logger.warning(
                     "模型调用失败，尝试下一个候选: task=%s model=%s err=%s",
-                    task_type, client.model_name, e,
+                    task_type,
+                    client.model_name,
+                    e,
                 )
 
         raise RuntimeError(
@@ -277,12 +295,17 @@ class Router:
         """记录模型失败，超阈值降级。"""
         count = self._model_failures.get(model_name, 0) + 1
         self._model_failures[model_name] = count
-        if count >= get_config().model.fail_threshold and model_name not in self._degraded:
+        if (
+            count >= get_config().model.fail_threshold
+            and model_name not in self._degraded
+        ):
             self._degraded.add(model_name)
             self._degraded_at[model_name] = time.time()
             logger.error(
                 "模型 %s 连续失败 %d 次，已降级（%g 秒后自动恢复）",
-                model_name, count, get_config().model.degrade_ttl_seconds,
+                model_name,
+                count,
+                get_config().model.degrade_ttl_seconds,
             )
 
     def reset_model(self, model_name: str) -> None:
@@ -328,7 +351,9 @@ class Router:
         """
         if model_name in get_config().model.task_model_map:
             model_name = get_config().model.task_model_map[model_name]
-        clients_for_model = [c for c in self._clients.values() if c.model_name == model_name]
+        clients_for_model = [
+            c for c in self._clients.values() if c.model_name == model_name
+        ]
         if not clients_for_model:
             return self._default_client
         if strategy == "least_busy":

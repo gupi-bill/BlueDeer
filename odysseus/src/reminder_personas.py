@@ -73,6 +73,6 @@ def synthesis_system_prompt(persona_id: str) -> str:
             persona_prompt
             + "\n\n"
             + "You are now writing a single one-line reminder for the user. "
-              "Keep it under 18 words and in the voice above."
+            "Keep it under 18 words and in the voice above."
         )
     return _DEFAULT_SYNTHESIS_TONE

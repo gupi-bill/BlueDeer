@@ -12,6 +12,6 @@ actually uses. Keeps existing import paths working after slice 2h
 
 import sys as _sys
 
-from routes.admin_wipe import admin_wipe_routes as _canonical  # noqa: F401
+from routes.admin_wipe import admin_wipe_routes as _canonical
 
 _sys.modules[__name__] = _canonical

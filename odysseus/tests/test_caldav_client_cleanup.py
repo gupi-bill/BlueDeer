@@ -11,9 +11,9 @@ needed.
 
 import sys
 import types
+from unittest.mock import MagicMock
 
 import pytest
-from unittest.mock import MagicMock
 
 
 def _stub_sync_deps(monkeypatch):
@@ -77,7 +77,8 @@ def test_sync_closes_client_when_url_fallback_fails(monkeypatch):
     client.principal.side_effect = RuntimeError("no principal endpoint")
     monkeypatch.setattr(sync, "_build_dav_client", lambda *a, **k: client)
     monkeypatch.setattr(
-        sync, "_open_url_as_calendar",
+        sync,
+        "_open_url_as_calendar",
         MagicMock(side_effect=RuntimeError("not a calendar")),
     )
 
@@ -137,7 +138,10 @@ def test_sync_closes_client_when_session_local_raises(monkeypatch):
 
     # Make SessionLocal blow up before any DB work
     import sys
-    sys.modules["core.database"].SessionLocal.side_effect = RuntimeError("DB unavailable")
+
+    sys.modules["core.database"].SessionLocal.side_effect = RuntimeError(
+        "DB unavailable"
+    )
 
     with pytest.raises(RuntimeError, match="DB unavailable"):
         sync._sync_blocking("alice", "https://dav.example.com/", "u", "p")

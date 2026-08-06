@@ -1,4 +1,5 @@
 """Regression tests for task-result delivery into chat sessions (issue #326)."""
+
 import asyncio
 import sys
 import types as _types
@@ -11,15 +12,16 @@ if not isinstance(sqlalchemy, _types.ModuleType):
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
 from tests.helpers.import_state import clear_fake_database_modules
 
 clear_fake_database_modules()
 
-import core.database as cdb
-from core.database import Base, Session as DbSession
 from core.models import ChatMessage as MemChatMessage
 from src.task_scheduler import TaskScheduler
+
+import core.database as cdb
+from core.database import Base
+from core.database import Session as DbSession
 
 # This test needs the real core.database (real SQLAlchemy Base/ChatMessage).
 # test_null_owner_gates.py no longer leaks its stubs (per-test fixture cleanup
@@ -30,7 +32,9 @@ from src.task_scheduler import TaskScheduler
 # Skip in that case — the test passes correctly in isolation or when collected
 # before the stubbing files.
 if type(Base).__name__ == "MagicMock":
-    pytest.skip("core.database is stubbed — run this file in isolation", allow_module_level=True)
+    pytest.skip(
+        "core.database is stubbed — run this file in isolation", allow_module_level=True
+    )
 
 
 def _make_db():
@@ -110,6 +114,5 @@ def test_session_delivery_uses_in_memory_messages_with_manager(monkeypatch):
     ]
     assert all(session_id == "existing-session" for session_id, _ in manager.messages)
     assert all(
-        message.metadata == {"model": "test-model"}
-        for _, message in manager.messages
+        message.metadata == {"model": "test-model"} for _, message in manager.messages
     )

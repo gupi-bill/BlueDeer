@@ -14,26 +14,28 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from core.rag import RAGSystem, RagCapable
+from core.rag import RAGSystem
 
 logger = logging.getLogger("bluedeer.library")
 
 
 class LibraryScope(Enum):
     """资料库作用域。"""
-    GLOBAL = "global"          # 全局公共库
-    ROLE = "role"              # 岗位私有库
-    TASK = "task"              # 临时任务库
+
+    GLOBAL = "global"  # 全局公共库
+    ROLE = "role"  # 岗位私有库
+    TASK = "task"  # 临时任务库
 
 
 @dataclass
 class KnowledgeEntry:
     """知识条目。"""
+
     entry_id: str
     title: str
     content: str
     scope: LibraryScope
-    scope_key: str             # role 时为岗位名，task 时为 task_id，global 为 "common"
+    scope_key: str  # role 时为岗位名，task 时为 task_id，global 为 "common"
     tags: list[str] = field(default_factory=list)
     author: str = ""
     created_at: float = field(default_factory=time.time)
@@ -86,7 +88,9 @@ class Library:
             "title": title,
             "author": author,
         }
-        rag_sub_id = scope_key if scope in (LibraryScope.ROLE, LibraryScope.TASK) else ""
+        rag_sub_id = (
+            scope_key if scope in (LibraryScope.ROLE, LibraryScope.TASK) else ""
+        )
         self._rag.ingest(
             scope=scope.value,
             id=entry_id,
@@ -164,16 +168,15 @@ class Library:
         """按名称或标签本地搜索条目（不依赖 RAG）。"""
         q = query.lower()
         return [
-            e for e in self._entries.values()
-            if q in e.title.lower()
-            or any(q in t.lower() for t in e.tags)
+            e
+            for e in self._entries.values()
+            if q in e.title.lower() or any(q in t.lower() for t in e.tags)
         ]
 
     def categorize(self, tags: list[str]) -> dict[str, list[KnowledgeEntry]]:
         """按标签分组条目。"""
         return {
-            tag: [e for e in self._entries.values() if tag in e.tags]
-            for tag in tags
+            tag: [e for e in self._entries.values() if tag in e.tags] for tag in tags
         }
 
     def list_by_category(self) -> dict[str, list[KnowledgeEntry]]:
@@ -184,10 +187,13 @@ class Library:
             groups.setdefault(key, []).append(e)
         return groups
 
-    def get_by_scope(self, scope: LibraryScope, scope_key: str = "common") -> list[KnowledgeEntry]:
+    def get_by_scope(
+        self, scope: LibraryScope, scope_key: str = "common"
+    ) -> list[KnowledgeEntry]:
         """按作用域获取所有条目。"""
         return [
-            e for e in self._entries.values()
+            e
+            for e in self._entries.values()
             if e.scope == scope and e.scope_key == scope_key
         ]
 
@@ -204,9 +210,7 @@ class Library:
         for e in self._entries.values():
             key = f"{e.scope.value}/{e.scope_key}"
             rag_sub_id = (
-                e.scope_key
-                if e.scope in (LibraryScope.ROLE, LibraryScope.TASK)
-                else ""
+                e.scope_key if e.scope in (LibraryScope.ROLE, LibraryScope.TASK) else ""
             )
             doc_counts[key] = self._rag.get_store_size(e.scope.value, rag_sub_id)
         return {

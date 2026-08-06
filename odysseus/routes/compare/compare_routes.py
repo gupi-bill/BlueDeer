@@ -1,17 +1,18 @@
 # routes/compare_routes.py
 """Model A/B comparison routes."""
+
 import json
-import uuid
-import random
-from datetime import datetime
-from fastapi import APIRouter, Form, HTTPException, Request
-from typing import List
-from pydantic import BaseModel
 import logging
+import random
+import uuid
+from datetime import datetime
+
+from core.session_manager import SessionManager
+from fastapi import APIRouter, Form, HTTPException, Request
+from pydantic import BaseModel
+from src.auth_helpers import get_current_user
 
 from core.database import Comparison, SessionLocal
-from core.session_manager import SessionManager
-from src.auth_helpers import get_current_user
 from routes.session_routes import _reject_raw_endpoint_url_for_non_admin
 
 logger = logging.getLogger(__name__)
@@ -33,8 +34,10 @@ def _owned_endpoint_by_url(db, base_url, owner):
     session_routes._owned_endpoint. A null/empty owner is a no-op (single-user /
     legacy mode).
     """
-    from core.database import ModelEndpoint
     from src.auth_helpers import owner_filter
+
+    from core.database import ModelEndpoint
+
     q = db.query(ModelEndpoint).filter(ModelEndpoint.base_url == base_url)
     return owner_filter(q, ModelEndpoint, owner).first()
 
@@ -51,16 +54,18 @@ def _owned_endpoint_by_id(db, endpoint_id, owner):
     only falls back to URL matching for legacy / admin raw-URL callers. Owner
     scoping is identical to _owned_endpoint_by_url (a null/empty owner is a no-op).
     """
-    from core.database import ModelEndpoint
     from src.auth_helpers import owner_filter
+
+    from core.database import ModelEndpoint
+
     q = db.query(ModelEndpoint).filter(ModelEndpoint.id == endpoint_id)
     return owner_filter(q, ModelEndpoint, owner).first()
 
 
 class RecordVoteRequest(BaseModel):
     prompt: str
-    models: List[str]
-    winner: str           # model name or "tie"
+    models: list[str]
+    winner: str  # model name or "tie"
     is_blind: bool = True
 
 
@@ -84,7 +89,7 @@ def setup_compare_routes(session_manager: SessionManager):
         Returns the comparison ID and the two session IDs so the client
         can fire two independent SSE streams to /api/chat_stream.
         """
-        user = getattr(request.state, 'current_user', None)
+        user = getattr(request.state, "current_user", None)
         comp_id = str(uuid.uuid4())
         sid_a = str(uuid.uuid4())
         sid_b = str(uuid.uuid4())
@@ -116,6 +121,7 @@ def setup_compare_routes(session_manager: SessionManager):
         # resolution + raw-URL rejection up front means a 403 on either endpoint
         # aborts the whole request with nothing created and no header copied.
         from src.endpoint_resolver import build_chat_url, build_headers, normalize_base
+
         resolved = []
         db = SessionLocal()
         try:
@@ -142,7 +148,8 @@ def setup_compare_routes(session_manager: SessionManager):
                     endpoint = ep.base_url
                 elif not endpoint:
                     raise HTTPException(
-                        422, "endpoint_a/endpoint_b or endpoint_a_id/endpoint_b_id is required"
+                        422,
+                        "endpoint_a/endpoint_b or endpoint_a_id/endpoint_b_id is required",
                     )
                 else:
                     # Resolve the supplied URL to a ModelEndpoint the caller owns
@@ -170,12 +177,18 @@ def setup_compare_routes(session_manager: SessionManager):
                 # `_reject_raw_endpoint_url_for_non_admin` is a no-op and `ep`
                 # is None. Mirrors the registered-endpoint path in session_routes.
                 session_endpoint_url = (
-                    build_chat_url(normalize_base(ep.base_url)) if ep is not None else endpoint
+                    build_chat_url(normalize_base(ep.base_url))
+                    if ep is not None
+                    else endpoint
                 )
                 # Headers come only from a matched endpoint's key; None when
                 # `ep` is None (raw admin URL or no match), so a comparison can
                 # never inherit another user's key/headers.
-                headers = build_headers(ep.api_key, ep.base_url) if (ep and ep.api_key) else None
+                headers = (
+                    build_headers(ep.api_key, ep.base_url)
+                    if (ep and ep.api_key)
+                    else None
+                )
                 resolved.append((sid, model, session_endpoint_url, headers))
         finally:
             db.close()
@@ -183,7 +196,9 @@ def setup_compare_routes(session_manager: SessionManager):
         # Both endpoints validated — only now create the ephemeral [CMP]
         # sessions and copy any resolved headers.
         for sid, model, session_endpoint_url, headers in resolved:
-            name = f"[CMP] {slot_name[sid]}" if blind else f"[CMP] {model.split('/')[-1]}"
+            name = (
+                f"[CMP] {slot_name[sid]}" if blind else f"[CMP] {model.split('/')[-1]}"
+            )
             session_manager.create_session(
                 session_id=sid,
                 name=name,
@@ -228,8 +243,12 @@ def setup_compare_routes(session_manager: SessionManager):
             "id": comp_id,
             "session_left": session_left,
             "session_right": session_right,
-            "model_left": None if blind else (model_a if mapping["left"] == "a" else model_b),
-            "model_right": None if blind else (model_a if mapping["right"] == "a" else model_b),
+            "model_left": (
+                None if blind else (model_a if mapping["left"] == "a" else model_b)
+            ),
+            "model_right": (
+                None if blind else (model_a if mapping["right"] == "a" else model_b)
+            ),
             "is_blind": blind,
             "mapping": None if blind else mapping,
         }
@@ -254,7 +273,11 @@ def setup_compare_routes(session_manager: SessionManager):
             if comp.winner:
                 raise HTTPException(400, "Already voted")
 
-            mapping = json.loads(comp.blind_mapping) if comp.blind_mapping else {"left": "a", "right": "b"}
+            mapping = (
+                json.loads(comp.blind_mapping)
+                if comp.blind_mapping
+                else {"left": "a", "right": "b"}
+            )
 
             if winner == "tie":
                 comp.winner = "tie"

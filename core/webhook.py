@@ -12,16 +12,12 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
-import json
 import logging
-import os
-import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from typing import Any
-from urllib.parse import urlparse
 
-from core.event_bus import EventBus, Handler
-from core.task import RESULT_TOPIC, TaskResult, TaskStatus, Message
+from core.event_bus import EventBus
+from core.task import RESULT_TOPIC, Message, TaskResult, TaskStatus
 
 logger = logging.getLogger("bluedeer.webhook")
 
@@ -35,13 +31,20 @@ EVENT_TASK_ALLOCATED = "task.allocated"
 EVENT_DAG_COMPLETED = "dag.completed"
 EVENT_DAG_BLOCKED = "dag.blocked"
 
-_ALL_EVENTS = (EVENT_TASK_COMPLETED, EVENT_TASK_FAILED, EVENT_TASK_STARTED,
-               EVENT_TASK_ALLOCATED, EVENT_DAG_COMPLETED, EVENT_DAG_BLOCKED)
+_ALL_EVENTS = (
+    EVENT_TASK_COMPLETED,
+    EVENT_TASK_FAILED,
+    EVENT_TASK_STARTED,
+    EVENT_TASK_ALLOCATED,
+    EVENT_DAG_COMPLETED,
+    EVENT_DAG_BLOCKED,
+)
 
 
 @dataclass(slots=True)
 class WebhookDef:
     """Webhook 定义。"""
+
     id: str
     url: str
     events: list[str] = field(default_factory=lambda: list(_ALL_EVENTS))
@@ -141,7 +144,11 @@ class WebhookDispatcher:
         if not isinstance(msg, TaskResult):
             return
 
-        event = EVENT_TASK_COMPLETED if msg.status == TaskStatus.SUCCESS else EVENT_TASK_FAILED
+        event = (
+            EVENT_TASK_COMPLETED
+            if msg.status == TaskStatus.SUCCESS
+            else EVENT_TASK_FAILED
+        )
         payload = self._build_payload(event, msg)
         tasks = []
         for hook in self._hooks.values():
@@ -171,6 +178,7 @@ class WebhookDispatcher:
 
     async def _send(self, hook: WebhookDef, payload: dict[str, Any]) -> None:
         import aiohttp
+
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession()
 
@@ -190,16 +198,27 @@ class WebhookDispatcher:
                         logger.debug("Webhook %s → %d", hook.id, resp.status)
                         return
                     else:
-                        logger.warning("Webhook %s 返回 %d（第 %d/%d 次）",
-                                       hook.id, resp.status, attempt, hook.max_retries)
-            except asyncio.TimeoutError:
-                logger.warning("Webhook %s 超时（第 %d/%d 次）",
-                               hook.id, attempt, hook.max_retries)
+                        logger.warning(
+                            "Webhook %s 返回 %d（第 %d/%d 次）",
+                            hook.id,
+                            resp.status,
+                            attempt,
+                            hook.max_retries,
+                        )
+            except TimeoutError:
+                logger.warning(
+                    "Webhook %s 超时（第 %d/%d 次）", hook.id, attempt, hook.max_retries
+                )
             except Exception as e:
-                logger.warning("Webhook %s 发送失败（第 %d/%d 次）: %s",
-                               hook.id, attempt, hook.max_retries, e)
+                logger.warning(
+                    "Webhook %s 发送失败（第 %d/%d 次）: %s",
+                    hook.id,
+                    attempt,
+                    hook.max_retries,
+                    e,
+                )
             if attempt < hook.max_retries:
-                await asyncio.sleep(2 ** attempt)
+                await asyncio.sleep(2**attempt)
 
     # ---- 辅助 ----
 
@@ -225,7 +244,9 @@ class WebhookDispatcher:
     # ---- 独立工具函数 ----
 
     @staticmethod
-    async def deliver_with_retry(event: str, url: str, max_retries: int = 3) -> tuple[bool, str]:
+    async def deliver_with_retry(
+        event: str, url: str, max_retries: int = 3
+    ) -> tuple[bool, str]:
         """带指数退避重试的事件投递。
         Args:
             event: 事件数据（JSON 序列化）。
@@ -235,16 +256,21 @@ class WebhookDispatcher:
             (成功?, 消息)。
         """
         import aiohttp
+
         for attempt in range(1, max_retries + 1):
             try:
                 async with aiohttp.ClientSession() as session:
-                    async with session.post(url, json={"event": event}, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    async with session.post(
+                        url,
+                        json={"event": event},
+                        timeout=aiohttp.ClientTimeout(total=10),
+                    ) as resp:
                         if resp.status < 500:
                             return True, f"投递成功 (HTTP {resp.status})"
             except Exception as e:
                 if attempt == max_retries:
                     return False, f"投递失败: {e}"
-                await asyncio.sleep(2 ** attempt)
+                await asyncio.sleep(2**attempt)
         return False, "重试耗尽"
 
     @staticmethod
@@ -256,7 +282,9 @@ class WebhookDispatcher:
         Returns:
             hex 签名。
         """
-        return hmac.new(secret.encode("utf-8"), data.encode("utf-8"), hashlib.sha256).hexdigest()
+        return hmac.new(
+            secret.encode("utf-8"), data.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
 
     @staticmethod
     def verify_signature(payload: str, signature: str, secret: str) -> bool:
@@ -276,6 +304,7 @@ class WebhookDispatcher:
     def _load_hooks(self) -> None:
         try:
             from core.database import Database
+
             rows = Database().load_webhooks()
             for item in rows:
                 hook = WebhookDef(**item)
@@ -287,6 +316,7 @@ class WebhookDispatcher:
         try:
             raw = {hid: asdict(h) for hid, h in self._hooks.items()}
             from core.database import Database
+
             Database().save_webhooks(raw)
         except Exception as e:
             logger.warning("保存 webhook 到数据库失败: %s", e)

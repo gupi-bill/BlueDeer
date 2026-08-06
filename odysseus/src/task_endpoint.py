@@ -5,18 +5,22 @@ from src.endpoint_resolver import (
     resolve_endpoint,
     resolve_utility_fallback_candidates,
 )
-from src.llm_core import llm_call_async_with_fallback
 from src.interactive_gate import wait_for_interactive_quiet
+from src.llm_core import llm_call_async_with_fallback
 
 
-def resolve_task_endpoint(fallback_url=None, fallback_model=None, fallback_headers=None, owner=None):
+def resolve_task_endpoint(
+    fallback_url=None, fallback_model=None, fallback_headers=None, owner=None
+):
     """Return (endpoint_url, model, headers) for background tasks.
 
     Reads task_endpoint_id / task_model from admin settings.
     Falls back to the provided values when the setting is empty or the
     endpoint cannot be resolved.
     """
-    return resolve_endpoint("task", fallback_url, fallback_model, fallback_headers, owner=owner)
+    return resolve_endpoint(
+        "task", fallback_url, fallback_model, fallback_headers, owner=owner
+    )
 
 
 def resolve_task_candidates(
@@ -44,7 +48,11 @@ def resolve_task_candidates(
             return
         candidates.append((url, model, headers or {}))
 
-    _append(*resolve_task_endpoint(fallback_url, fallback_model, fallback_headers, owner=owner))
+    _append(
+        *resolve_task_endpoint(
+            fallback_url, fallback_model, fallback_headers, owner=owner
+        )
+    )
     _append(*resolve_endpoint("utility", owner=owner))
     _append(*resolve_endpoint("default", owner=owner))
     for url, model, headers in resolve_utility_fallback_candidates(owner=owner):

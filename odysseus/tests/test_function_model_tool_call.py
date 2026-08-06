@@ -15,7 +15,10 @@ def test_function_model_wrapper_runs_web_search_and_strips_markup():
     assert len(blocks) == 1
     assert blocks[0].tool_type == "web_search"
     assert blocks[0].content == "Sweden news today July 2026"
-    assert strip_tool_blocks(raw, skip_fenced=True) == "Sure, let me check what's making headlines in Sweden today."
+    assert (
+        strip_tool_blocks(raw, skip_fenced=True)
+        == "Sure, let me check what's making headlines in Sweden today."
+    )
 
 
 def test_function_model_wrapper_with_unknown_tool_is_stripped_but_not_executed():

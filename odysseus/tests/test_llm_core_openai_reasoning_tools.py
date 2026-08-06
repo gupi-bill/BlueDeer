@@ -25,7 +25,13 @@ def test_openai_chat_tools_force_gpt5_reasoning_effort_none():
 
 
 def test_openai_chat_tools_match_gpt5_variants():
-    for model in ["gpt-5", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "openai/gpt-5.6-luna"]:
+    for model in [
+        "gpt-5",
+        "gpt-5.6-sol",
+        "gpt-5.6-terra",
+        "gpt-5.6-luna",
+        "openai/gpt-5.6-luna",
+    ]:
         payload = {"tools": [_tool()], "reasoning_effort": "medium"}
 
         llm_core._scrub_openai_chat_tool_reasoning(

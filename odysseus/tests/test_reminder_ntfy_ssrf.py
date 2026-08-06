@@ -7,22 +7,24 @@ the integration's base_url with no check, so a base_url pointing at the cloud
 metadata range (169.254.169.254) was fetched server-side — with the
 integration's Authorization header attached — every time a reminder fired.
 """
+
 import asyncio
 from unittest.mock import MagicMock, patch
 
 import httpx
-
 from routes.note_routes import dispatch_reminder
 
 
 def _ntfy_integration(base_url):
-    return [{
-        "preset": "ntfy",
-        "enabled": True,
-        "base_url": base_url,
-        "api_key": "secret-token",
-        "name": "ntfy",
-    }]
+    return [
+        {
+            "preset": "ntfy",
+            "enabled": True,
+            "base_url": base_url,
+            "api_key": "secret-token",
+            "name": "ntfy",
+        }
+    ]
 
 
 def _settings(**extra):
@@ -36,6 +38,7 @@ def _settings(**extra):
 
 class _SpyAsyncClient:
     """Stands in for httpx.AsyncClient; records posts, returns success."""
+
     calls = []
 
     def __init__(self, **kwargs):
@@ -56,17 +59,24 @@ class _SpyAsyncClient:
 
 
 def _dispatch():
-    return asyncio.run(dispatch_reminder(
-        "Title", "Body", note_id="", queue_browser=True,
-        settings_override=_settings(),
-    ))
+    return asyncio.run(
+        dispatch_reminder(
+            "Title",
+            "Body",
+            note_id="",
+            queue_browser=True,
+            settings_override=_settings(),
+        )
+    )
 
 
 def test_metadata_ip_ntfy_base_url_is_rejected_and_not_fetched():
     _SpyAsyncClient.calls = []
     with (
-        patch("src.integrations.load_integrations",
-              return_value=_ntfy_integration("http://169.254.169.254")),
+        patch(
+            "src.integrations.load_integrations",
+            return_value=_ntfy_integration("http://169.254.169.254"),
+        ),
         patch.object(httpx, "AsyncClient", _SpyAsyncClient),
     ):
         result = _dispatch()
@@ -80,8 +90,10 @@ def test_public_ntfy_base_url_still_sends():
     _SpyAsyncClient.calls = []
     with (
         # 93.184.216.34 is a public literal — no DNS resolution involved.
-        patch("src.integrations.load_integrations",
-              return_value=_ntfy_integration("http://93.184.216.34")),
+        patch(
+            "src.integrations.load_integrations",
+            return_value=_ntfy_integration("http://93.184.216.34"),
+        ),
         patch.object(httpx, "AsyncClient", _SpyAsyncClient),
     ):
         result = _dispatch()
@@ -96,8 +108,10 @@ def test_private_ntfy_base_url_blocked_only_with_env_knob(monkeypatch):
     _SpyAsyncClient.calls = []
     monkeypatch.delenv("REMINDER_WEBHOOK_BLOCK_PRIVATE_IPS", raising=False)
     with (
-        patch("src.integrations.load_integrations",
-              return_value=_ntfy_integration("http://192.168.1.50")),
+        patch(
+            "src.integrations.load_integrations",
+            return_value=_ntfy_integration("http://192.168.1.50"),
+        ),
         patch.object(httpx, "AsyncClient", _SpyAsyncClient),
     ):
         result = _dispatch()
@@ -107,8 +121,10 @@ def test_private_ntfy_base_url_blocked_only_with_env_knob(monkeypatch):
     _SpyAsyncClient.calls = []
     monkeypatch.setenv("REMINDER_WEBHOOK_BLOCK_PRIVATE_IPS", "true")
     with (
-        patch("src.integrations.load_integrations",
-              return_value=_ntfy_integration("http://192.168.1.50")),
+        patch(
+            "src.integrations.load_integrations",
+            return_value=_ntfy_integration("http://192.168.1.50"),
+        ),
         patch.object(httpx, "AsyncClient", _SpyAsyncClient),
     ):
         result = _dispatch()

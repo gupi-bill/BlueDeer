@@ -25,6 +25,7 @@ handler that sleeps until cancelled, closes the generator mid-tool-call (the
 same way a dropped SSE connection would), and asserts the fake handler
 actually observed cancellation.
 """
+
 import asyncio
 import json
 
@@ -44,7 +45,9 @@ def test_tool_task_cancelled_on_generator_close(monkeypatch):
             raise
         return ("bash", {"output": "ok", "exit_code": 0})
 
-    monkeypatch.setattr(al, "get_setting", lambda key, default=None: default, raising=False)
+    monkeypatch.setattr(
+        al, "get_setting", lambda key, default=None: default, raising=False
+    )
     monkeypatch.setattr(al, "get_mcp_manager", lambda: None, raising=False)
     monkeypatch.setattr(al, "estimate_tokens", lambda *a, **k: 10, raising=False)
     monkeypatch.setattr(al, "execute_tool_block", _slow_exec, raising=False)
@@ -60,7 +63,8 @@ def test_tool_task_cancelled_on_generator_close(monkeypatch):
 
     async def _run():
         gen = al.stream_agent_loop(
-            "https://api.openai.com/v1", "gpt-4o",
+            "https://api.openai.com/v1",
+            "gpt-4o",
             [{"role": "user", "content": "run sleep 60"}],
             max_rounds=2,
             relevant_tools={"bash"},
@@ -70,11 +74,16 @@ def test_tool_task_cancelled_on_generator_close(monkeypatch):
         async for chunk in gen:
             if '"type": "tool_start"' in chunk:
                 saw_tool_start = True
-            elif '"type": "tool_progress" ' in chunk or '"type": "tool_progress"' in chunk:
+            elif (
+                '"type": "tool_progress" ' in chunk
+                or '"type": "tool_progress"' in chunk
+            ):
                 saw_tool_progress = True
                 break
         assert saw_tool_start, "expected a tool_start event before the tool ran"
-        assert saw_tool_progress, "expected a tool_progress event once the fake tool started (task must exist by now)"
+        assert (
+            saw_tool_progress
+        ), "expected a tool_progress event once the fake tool started (task must exist by now)"
         # Simulate an SSE client disconnecting mid tool-call: close the
         # generator while it is suspended awaiting the next progress event.
         await gen.aclose()

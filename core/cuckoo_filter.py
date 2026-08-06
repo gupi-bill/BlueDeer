@@ -8,11 +8,12 @@ evolution（数据维度 - R203）：
 - 应用：缓存去重、黑名单、计数（需多版本）
 - 与 Bloom Filter Chain 互补：BFC 滚动扩容，CF 支持删除
 """
+
 from __future__ import annotations
+
 import hashlib
 import random
 import threading
-from typing import Any
 
 
 class CuckooFilter:
@@ -91,7 +92,7 @@ class CuckooFilter:
 
     def _relocate(self, idx: int, fp: int) -> bool:
         """重定位：从 idx 桶踢出指纹，尝试放入另一候选桶。
-        
+
         带 max_relocate 限制 + 随机 reseed 策略避免无限循环。
         """
         for kick in range(self._max_kicks):

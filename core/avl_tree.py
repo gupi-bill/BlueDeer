@@ -8,14 +8,18 @@ evolution（数据维度 - R205）：
 - 与 B+树互补：B+树磁盘友好，AVL 内存友好且严格平衡
 - 与跳表互补：跳表概率平衡，AVL 确定性平衡
 """
+
 from __future__ import annotations
+
 import threading
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 
 class _Node:
     """AVL 节点。"""
-    __slots__ = ("key", "value", "left", "right", "height")
+
+    __slots__ = ("height", "key", "left", "right", "value")
 
     def __init__(self, key, value):
         self.key = key
@@ -95,7 +99,7 @@ class AVLTree:
             return AVLTree._rotate_left(node)
         return node
 
-    def insert_iterative(self, key, value: Any = None) -> bool:
+    def insert_iterative(self, key: Any, value: Any = None) -> bool:
         with self._lock:
             if self._root is None:
                 self._root = _Node(key, value)
@@ -209,7 +213,7 @@ class AVLTree:
                         gp.right = new_sub
             return True
 
-    def insert(self, key, value: Any = None) -> bool:
+    def insert(self, key: Any, value: Any = None) -> bool:
         """插入。返回是否新增（False=更新）。"""
         with self._lock:
             result = [True]
@@ -296,7 +300,7 @@ class AVLTree:
                 node = node.right
             return (node.key, node.value)
 
-    def range(self, lo=None, hi=None) -> list[tuple[Any, Any]]:
+    def range(self, lo: Any = None, hi: Any = None) -> list[tuple[Any, Any]]:
         """返回 [lo, hi] 内的元素。"""
         result = []
         with self._lock:
@@ -331,12 +335,14 @@ class AVLTree:
     def is_balanced(self) -> bool:
         """验证所有节点平衡因子在 [-1, 1]。"""
         with self._lock:
-            def check(n):
+
+            def check(n) -> Any:
                 if n is None:
                     return True
                 if abs(self._balance_factor(n)) > 1:
                     return False
                 return check(n.left) and check(n.right)
+
             return check(self._root)
 
     def status(self) -> dict:

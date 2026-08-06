@@ -2,10 +2,10 @@ import json
 import os
 import platform
 import re
+import shlex
 import shutil
 import subprocess
 import time
-import shlex
 
 from core.platform_compat import (
     NVIDIA_PATH_CANDIDATES,
@@ -13,15 +13,21 @@ from core.platform_compat import (
     run_ssh_command,
 )
 
-CACHE_TTL = 24 * 3600  # 24 h — hardware probes are user-initiated via the Rescan button; bumped
-                       # from 30 min so changing filters doesn't keep re-probing the rig every
-                       # half-hour during a long session.
+CACHE_TTL = (
+    24 * 3600
+)  # 24 h — hardware probes are user-initiated via the Rescan button; bumped
+# from 30 min so changing filters doesn't keep re-probing the rig every
+# half-hour during a long session.
 
 
 _remote_host = None  # set by detect_system(host=...)
 _remote_port = None  # set by detect_system(ssh_port=...)
-_remote_platform = None  # set by detect_system(platform=...): "windows", "linux", "termux"
-_last_gpu_error = None  # set by _detect_nvidia() when nvidia-smi errors (driver mismatch, etc.)
+_remote_platform = (
+    None  # set by detect_system(platform=...): "windows", "linux", "termux"
+)
+_last_gpu_error = (
+    None  # set by _detect_nvidia() when nvidia-smi errors (driver mismatch, etc.)
+)
 
 
 def _run(cmd):
@@ -84,7 +90,9 @@ def _group_gpus(gpus):
 def _detect_nvidia():
     global _last_gpu_error
     _last_gpu_error = None
-    out = _run(["nvidia-smi", "--query-gpu=memory.total,name", "--format=csv,noheader,nounits"])
+    out = _run(
+        ["nvidia-smi", "--query-gpu=memory.total,name", "--format=csv,noheader,nounits"]
+    )
     # Fallback: a non-interactive shell (or WSL) often has a minimal PATH
     # that omits where nvidia-smi lives (/usr/bin, /usr/local/cuda/bin,
     # /usr/lib/wsl/lib), so the first call silently returns nothing →
@@ -105,9 +113,17 @@ def _detect_nvidia():
             # Use list form so subprocess.run (local) resolves the absolute path
             # correctly instead of treating the whole string as an executable name.
             if _remote_host:
-                out = _run(f"{_p} --query-gpu=memory.total,name --format=csv,noheader,nounits")
+                out = _run(
+                    f"{_p} --query-gpu=memory.total,name --format=csv,noheader,nounits"
+                )
             else:
-                out = _run([_p, "--query-gpu=memory.total,name", "--format=csv,noheader,nounits"])
+                out = _run(
+                    [
+                        _p,
+                        "--query-gpu=memory.total,name",
+                        "--format=csv,noheader,nounits",
+                    ]
+                )
             if out:
                 break
     if not out:
@@ -117,9 +133,13 @@ def _detect_nvidia():
     # without a reboot). It prints an error and no GPU rows — surface that as a
     # driver error rather than the misleading "No GPU".
     _low = out.lower()
-    if ("nvml" in _low or "driver/library version mismatch" in _low
-            or "couldn't communicate" in _low or "no devices were found" in _low
-            or "failed to initialize" in _low):
+    if (
+        "nvml" in _low
+        or "driver/library version mismatch" in _low
+        or "couldn't communicate" in _low
+        or "no devices were found" in _low
+        or "failed to initialize" in _low
+    ):
         _last_gpu_error = out.strip().split("\n")[0][:140] or "NVIDIA driver error"
         return None
 
@@ -133,7 +153,9 @@ def _detect_nvidia():
         if len(parts) >= 2:
             try:
                 vram_mb = float(parts[0])
-                gpus.append({"index": idx, "name": parts[1], "vram_gb": vram_mb / 1024.0})
+                gpus.append(
+                    {"index": idx, "name": parts[1], "vram_gb": vram_mb / 1024.0}
+                )
             except ValueError:
                 # Grace Blackwell GB10 / DGX Spark and other unified-memory
                 # NVIDIA parts report memory.total as "[N/A]"/"Not Supported"
@@ -150,7 +172,10 @@ def _detect_nvidia():
             # Cookbook recommends models and serving works. The pool is shared
             # (not per-GPU discrete VRAM), so report the RAM total once.
             ram_gb = round(_get_ram_gb(), 1)
-            gpus = [{"index": g["index"], "name": g["name"], "vram_gb": ram_gb} for g in unified]
+            gpus = [
+                {"index": g["index"], "name": g["name"], "vram_gb": ram_gb}
+                for g in unified
+            ]
             return {
                 "gpu_name": gpus[0]["name"],
                 "gpu_vram_gb": ram_gb,
@@ -206,6 +231,7 @@ def _detect_amd():
     """Detect AMD GPUs. Handles both discrete cards (with mem_info_vram_total)
     and APUs / unified-memory SoCs like Strix Halo (which expose
     mem_info_vis_vram_total instead, or only mem_info_gtt_total)."""
+
     def _read(path):
         if _remote_host:
             val = _run(["cat", path])
@@ -223,7 +249,11 @@ def _detect_amd():
                 return []
             return [e for e in out.split() if e.startswith("card") and "-" not in e]
         try:
-            return [e for e in os.listdir("/sys/class/drm") if e.startswith("card") and "-" not in e]
+            return [
+                e
+                for e in os.listdir("/sys/class/drm")
+                if e.startswith("card") and "-" not in e
+            ]
         except Exception:
             return []
 
@@ -264,7 +294,9 @@ def _detect_amd():
             if vram_bytes <= 0:
                 continue
             name = _read(f"{base}/product_name") or f"AMD GPU ({entry})"
-            cards.append({"index": _cidx, "name": name, "vram_gb": vram_bytes / (1024**3)})
+            cards.append(
+                {"index": _cidx, "name": name, "vram_gb": vram_bytes / (1024**3)}
+            )
 
         if not cards:
             return None
@@ -290,7 +322,8 @@ def _detect_amd():
             # host misleads downstream env-var pinning
             # (HIP_VISIBLE_DEVICES is a no-op there).
             "backend": (
-                "rocm" if (_run(["which", "rocminfo"]) or _run(["which", "hipconfig"]))
+                "rocm"
+                if (_run(["which", "rocminfo"]) or _run(["which", "hipconfig"]))
                 else ("vulkan" if _run(["which", "vulkaninfo"]) else "rocm")
             ),
             "unified_memory": is_apu,
@@ -335,7 +368,9 @@ def _detect_apple_silicon():
 
     # Chip name, e.g. "Apple M4 Max" — carries the Pro/Max/Ultra variant that
     # the fit bandwidth table keys off of.
-    brand = (_run(["sysctl", "-n", "machdep.cpu.brand_string"]) or "Apple Silicon").strip()
+    brand = (
+        _run(["sysctl", "-n", "machdep.cpu.brand_string"]) or "Apple Silicon"
+    ).strip()
 
     # Total unified memory in bytes.
     memsize = _run(["sysctl", "-n", "hw.memsize"])
@@ -373,9 +408,13 @@ def _detect_apple_silicon():
                 return None
         return None
 
-    gpu_cores = _parse_apple_gpu_cores(_run(["system_profiler", "SPDisplaysDataType", "-json"]))
+    gpu_cores = _parse_apple_gpu_cores(
+        _run(["system_profiler", "SPDisplaysDataType", "-json"])
+    )
     if gpu_cores is None:
-        gpu_cores = _parse_apple_gpu_cores(_run(["system_profiler", "SPDisplaysDataType"]))
+        gpu_cores = _parse_apple_gpu_cores(
+            _run(["system_profiler", "SPDisplaysDataType"])
+        )
 
     # Usable GPU budget. macOS lets Metal use most of unified memory, but the
     # default working-set limit scales with RAM: small machines have to keep
@@ -452,7 +491,11 @@ def _get_ram_gb():
 
     # os.sysconf only exists on Unix; on Windows it's absent (AttributeError)
     # and these constants aren't defined — guard so this never raises there.
-    if not _remote_host and hasattr(os, "sysconf") and "SC_PHYS_PAGES" in getattr(os, "sysconf_names", {}):
+    if (
+        not _remote_host
+        and hasattr(os, "sysconf")
+        and "SC_PHYS_PAGES" in getattr(os, "sysconf_names", {})
+    ):
         try:
             pages = os.sysconf("SC_PHYS_PAGES")
             page_size = os.sysconf("SC_PAGE_SIZE")
@@ -538,6 +581,7 @@ def _powershell_exe():
     path so we don't depend on a particular PATH ordering."""
     return shutil.which("pwsh") or shutil.which("powershell") or "powershell"
 
+
 def _powershell_encoded_for_ssh(script: str):
     """Run a PowerShell script on a remote Windows host over SSH.
 
@@ -545,6 +589,7 @@ def _powershell_encoded_for_ssh(script: str):
     OpenSSH's cmd wrapper; -EncodedCommand avoids that.
     """
     import base64
+
     encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
     return _run(f"powershell -NoProfile -EncodedCommand {encoded}")
 
@@ -573,8 +618,7 @@ def _detect_windows():
       * local   -> `_run` executes a list argv directly (no shell quoting hell).
     """
     # Single PowerShell command that gathers all hardware info at once
-    ps_cmd = (
-        """
+    ps_cmd = """
         $r = @{}
         $os = Get-CimInstance Win32_OperatingSystem
         $r.ram_gb = [math]::Round($os.TotalVisibleMemorySize / 1048576, 1)
@@ -624,7 +668,6 @@ def _detect_windows():
         }
         $r | ConvertTo-Json -Compress
     """
-    )
     if _remote_host:
         # Remote: use -EncodedCommand so OpenSSH/cmd quoting does not break the script.
         out = _powershell_encoded_for_ssh(ps_cmd.strip())
@@ -632,12 +675,16 @@ def _detect_windows():
         # Local: pass a LIST argv straight to subprocess so the OS hands ps_cmd
         # to PowerShell verbatim — no fragile string-level quote escaping. Prefer
         # pwsh (PS7), else Windows PowerShell 5.1.
-        out = _run([_powershell_exe(), "-NoProfile", "-NonInteractive", "-Command", ps_cmd])
+        out = _run(
+            [_powershell_exe(), "-NoProfile", "-NonInteractive", "-Command", ps_cmd]
+        )
     if not out:
         return None
     import json as _json
+
     try:
         d = _json.loads(out)
+
         # PowerShell's Measure-Object .Sum / .Count come back as JSON numbers and
         # decode to float; the Linux path returns plain ints for these — coerce
         # so the dict shape (and downstream int math) matches across platforms.
@@ -646,7 +693,8 @@ def _detect_windows():
                 return int(v)
             except (TypeError, ValueError):
                 return default
-        _cpu_name = (d.get("cpu_name") or "unknown")
+
+        _cpu_name = d.get("cpu_name") or "unknown"
         if isinstance(_cpu_name, str):
             _cpu_name = _cpu_name.strip() or "unknown"
         result = {
@@ -671,15 +719,18 @@ def _detect_windows():
         if result["has_gpu"] and _n > 0:
             _each = round((result["gpu_vram_gb"] or 0) / _n, 1)
             result["gpus"] = [
-                {"index": i, "name": result["gpu_name"], "vram_gb": _each} for i in range(_n)
+                {"index": i, "name": result["gpu_name"], "vram_gb": _each}
+                for i in range(_n)
             ]
-            result["gpu_groups"] = [{
-                "name": result["gpu_name"],
-                "vram_each": _each,
-                "count": _n,
-                "indices": list(range(_n)),
-                "vram_total": result["gpu_vram_gb"],
-            }]
+            result["gpu_groups"] = [
+                {
+                    "name": result["gpu_name"],
+                    "vram_each": _each,
+                    "count": _n,
+                    "indices": list(range(_n)),
+                    "vram_total": result["gpu_vram_gb"],
+                }
+            ]
             result["homogeneous"] = True
         return result
     except Exception:
@@ -777,7 +828,9 @@ def _attach_probe_context(result, host=""):
     is_remote = bool(host)
     containerized = False if is_remote else _is_containerized()
 
-    result["probe_scope"] = "remote" if is_remote else ("container" if containerized else "native")
+    result["probe_scope"] = (
+        "remote" if is_remote else ("container" if containerized else "native")
+    )
     result["containerized"] = containerized
 
     warning = _hardware_visibility_warning(result)

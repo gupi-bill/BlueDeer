@@ -10,9 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import json
 import logging
-import os
 import smtplib
 import time
 from abc import ABC, abstractmethod
@@ -28,13 +26,13 @@ class NotificationChannel(ABC):
     """通知渠道基类。"""
 
     @abstractmethod
-    async def send(self, title: str, body: str, **kwargs: Any) -> bool:
-        ...
+    async def send(self, title: str, body: str, **kwargs: Any) -> bool: ...
 
 
 @dataclass(slots=True)
 class EmailConfig:
     """SMTP 邮件配置。"""
+
     smtp_host: str = "localhost"
     smtp_port: int = 25
     smtp_user: str = ""
@@ -64,8 +62,9 @@ class EmailChannel(NotificationChannel):
 
         def _send() -> None:
             try:
-                with smtplib.SMTP(self._cfg.smtp_host, self._cfg.smtp_port,
-                                  timeout=10) as s:
+                with smtplib.SMTP(
+                    self._cfg.smtp_host, self._cfg.smtp_port, timeout=10
+                ) as s:
                     if self._cfg.use_tls:
                         s.starttls()
                     if self._cfg.smtp_user:
@@ -88,29 +87,34 @@ class DingTalkChannel(NotificationChannel):
 
     async def send(self, title: str, body: str, **kwargs: Any) -> bool:
         import aiohttp
+
         payload = {
             "msgtype": "markdown",
             "markdown": {"title": title, "text": f"## {title}\n\n{body}"},
         }
         if self._secret:
-            import time, hashlib, base64
+            import base64
+            import hashlib
+            import time
+
             timestamp = str(round(time.time() * 1000))
             sign_str = f"{timestamp}\n{self._secret}"
-            sign = base64.b64encode(
-                hashlib.sha256(sign_str.encode()).digest()
-            ).decode()
+            sign = base64.b64encode(hashlib.sha256(sign_str.encode()).digest()).decode()
             payload["sign"] = sign
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    self._url, json=payload,
+            async with (
+                aiohttp.ClientSession() as session,
+                session.post(
+                    self._url,
+                    json=payload,
                     timeout=aiohttp.ClientTimeout(total=10),
-                ) as resp:
-                    if resp.status == 200:
-                        return True
-                    logger.warning("钉钉通知返回 %d", resp.status)
-                    return False
+                ) as resp,
+            ):
+                if resp.status == 200:
+                    return True
+                logger.warning("钉钉通知返回 %d", resp.status)
+                return False
         except Exception as e:
             logger.error("钉钉通知失败: %s", e)
             return False
@@ -124,6 +128,7 @@ class FeishuChannel(NotificationChannel):
 
     async def send(self, title: str, body: str, **kwargs: Any) -> bool:
         import aiohttp
+
         payload = {
             "msg_type": "interactive",
             "card": {
@@ -132,12 +137,15 @@ class FeishuChannel(NotificationChannel):
             },
         }
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    self._url, json=payload,
+            async with (
+                aiohttp.ClientSession() as session,
+                session.post(
+                    self._url,
+                    json=payload,
                     timeout=aiohttp.ClientTimeout(total=10),
-                ) as resp:
-                    return resp.status == 200
+                ) as resp,
+            ):
+                return resp.status == 200
         except Exception as e:
             logger.error("飞书通知失败: %s", e)
             return False
@@ -151,6 +159,7 @@ class SlackChannel(NotificationChannel):
 
     async def send(self, title: str, body: str, **kwargs: Any) -> bool:
         import aiohttp
+
         payload = {
             "blocks": [
                 {"type": "header", "text": {"type": "plain_text", "text": title}},
@@ -158,12 +167,15 @@ class SlackChannel(NotificationChannel):
             ]
         }
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    self._url, json=payload,
+            async with (
+                aiohttp.ClientSession() as session,
+                session.post(
+                    self._url,
+                    json=payload,
                     timeout=aiohttp.ClientTimeout(total=10),
-                ) as resp:
-                    return resp.status == 200
+                ) as resp,
+            ):
+                return resp.status == 200
         except Exception as e:
             logger.error("Slack 通知失败: %s", e)
             return False
@@ -209,7 +221,9 @@ class Notifier:
             del self._seen[k]
         return d in self._seen and (self._seen[d] != now)
 
-    async def send(self, channel: str, title: str, body: str, dedup: bool = False, **kwargs: Any) -> bool:
+    async def send(
+        self, channel: str, title: str, body: str, dedup: bool = False, **kwargs: Any
+    ) -> bool:
         if dedup and self.is_dup(title, body):
             logger.debug("去重跳过: [%s] %s", channel, title)
             return True
@@ -230,7 +244,9 @@ class Notifier:
 
         return await asyncio.gather(*[_one(n) for n in notifs])
 
-    async def broadcast(self, title: str, body: str, dedup: bool = False, **kwargs: Any) -> dict[str, bool]:
+    async def broadcast(
+        self, title: str, body: str, dedup: bool = False, **kwargs: Any
+    ) -> dict[str, bool]:
         if dedup and self.is_dup(title, body):
             logger.debug("去重跳过广播: %s", title)
             return {n: True for n in self._channels}

@@ -13,7 +13,9 @@ def get_app_root() -> str:
     together with the executable payload.
     """
     if getattr(sys, "frozen", False):
-        return getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(sys.executable)))
+        return getattr(
+            sys, "_MEIPASS", os.path.dirname(os.path.abspath(sys.executable))
+        )
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 

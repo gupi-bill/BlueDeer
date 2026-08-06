@@ -7,14 +7,13 @@ from typing import Any
 
 from src import model_capabilities as mc
 from src.model_capability_readers.base import (
-    ModelCapabilityRecord,
     VENDOR_GENERIC_OPENAI,
+    ModelCapabilityRecord,
     compact_str,
     model_id_from,
     openai_model_items,
     stable_model_id_for,
 )
-
 
 vendor = VENDOR_GENERIC_OPENAI
 
@@ -36,7 +35,9 @@ def record_from_model(
     return ModelCapabilityRecord(
         vendor=vendor_id,
         model_id=model_id,
-        stable_model_id=stable_model_id_for(vendor_id, model_id, endpoint_id=endpoint_id, base_url=base_url),
+        stable_model_id=stable_model_id_for(
+            vendor_id, model_id, endpoint_id=endpoint_id, base_url=base_url
+        ),
         display_name=compact_str(raw.get("display_name") or raw.get("name")),
         capability=capability,
         raw=raw,
@@ -52,7 +53,9 @@ def records_from_payload(
 ) -> tuple[ModelCapabilityRecord, ...]:
     records: list[ModelCapabilityRecord] = []
     for item in openai_model_items(payload):
-        record = record_from_model(item, vendor_id=vendor_id, endpoint_id=endpoint_id, base_url=base_url)
+        record = record_from_model(
+            item, vendor_id=vendor_id, endpoint_id=endpoint_id, base_url=base_url
+        )
         if record:
             records.append(record)
     return tuple(records)

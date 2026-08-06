@@ -11,12 +11,12 @@ from __future__ import annotations
 
 import argparse
 import base64
+import logging
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
-import logging
 from pathlib import Path
 
 import uvicorn
@@ -52,7 +52,9 @@ _args: argparse.Namespace
 def _steps(quality: str) -> int:
     if _args.steps:
         return int(_args.steps)
-    return {"low": 8, "medium": 20, "high": 32, "auto": 20}.get((quality or "medium").lower(), 20)
+    return {"low": 8, "medium": 20, "high": 32, "auto": 20}.get(
+        (quality or "medium").lower(), 20
+    )
 
 
 def _size(size: str) -> tuple[int, int]:
@@ -172,10 +174,13 @@ def _weights_path(model: str) -> Path:
 
 def _write_bridge_input_image(raw: bytes, out_path: Path) -> None:
     try:
-        from PIL import Image
         import io
+
+        from PIL import Image
     except Exception as e:
-        raise HTTPException(503, "Pillow is required for MLX image edit bridge inputs.") from e
+        raise HTTPException(
+            503, "Pillow is required for MLX image edit bridge inputs."
+        ) from e
     try:
         img = Image.open(io.BytesIO(raw)).convert("RGBA")
         img.save(out_path, format="PNG")
@@ -185,10 +190,13 @@ def _write_bridge_input_image(raw: bytes, out_path: Path) -> None:
 
 def _write_bridge_mask(raw: bytes, out_path: Path) -> None:
     try:
-        from PIL import Image
         import io
+
+        from PIL import Image
     except Exception as e:
-        raise HTTPException(503, "Pillow is required for MLX image edit bridge masks.") from e
+        raise HTTPException(
+            503, "Pillow is required for MLX image edit bridge masks."
+        ) from e
     try:
         img = Image.open(io.BytesIO(raw))
         if img.mode == "RGBA":
@@ -204,10 +212,17 @@ def _write_bridge_mask(raw: bytes, out_path: Path) -> None:
 
 def _run_bridge(cmd: list[str]) -> None:
     env = os.environ.copy()
-    proc = subprocess.run(cmd, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.run(
+        cmd, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "MLX Swift bridge failed").strip()
-        logger.error("MLX Swift bridge failed (%s): %s\n%s", proc.returncode, " ".join(cmd), detail[-4000:])
+        logger.error(
+            "MLX Swift bridge failed (%s): %s\n%s",
+            proc.returncode,
+            " ".join(cmd),
+            detail[-4000:],
+        )
         raise HTTPException(500, detail[-4000:])
 
 
@@ -220,16 +235,24 @@ def _run_ddcolor_bridge(model: str, image_raw: bytes, out_path: Path) -> None:
         _write_bridge_input_image(image_raw, inp)
         weights = _weights_path(model)
         tier = "tiny" if "tiny" in model.lower() else "large"
-        _run_bridge([
-            bridge,
-            "--model", str(weights),
-            "--image", str(inp),
-            "--output", str(out_path),
-            "--tier", tier,
-        ])
+        _run_bridge(
+            [
+                bridge,
+                "--model",
+                str(weights),
+                "--image",
+                str(inp),
+                "--output",
+                str(out_path),
+                "--tier",
+                tier,
+            ]
+        )
 
 
-def _run_inpaint_bridge(model: str, image_raw: bytes, mask_raw: bytes | None, out_path: Path) -> None:
+def _run_inpaint_bridge(
+    model: str, image_raw: bytes, mask_raw: bytes | None, out_path: Path
+) -> None:
     if not mask_raw:
         raise HTTPException(
             422,
@@ -244,22 +267,37 @@ def _run_inpaint_bridge(model: str, image_raw: bytes, mask_raw: bytes | None, ou
         _write_bridge_input_image(image_raw, inp)
         _write_bridge_mask(mask_raw, mask)
         weights = _weights_path(model)
-        mode = "fast" if ("mi-gan" in model.lower() or "migan" in model.lower()) else "best"
-        _run_bridge([
-            bridge,
-            "--model", str(weights),
-            "--image", str(inp),
-            "--mask", str(mask),
-            "--output", str(out_path),
-            "--mode", mode,
-        ])
+        mode = (
+            "fast"
+            if ("mi-gan" in model.lower() or "migan" in model.lower())
+            else "best"
+        )
+        _run_bridge(
+            [
+                bridge,
+                "--model",
+                str(weights),
+                "--image",
+                str(inp),
+                "--mask",
+                str(mask),
+                "--output",
+                str(out_path),
+                "--mode",
+                mode,
+            ]
+        )
 
 
-def _generate_hidream(model: str, prompt: str, out_path: Path, width: int, height: int, steps: int) -> None:
+def _generate_hidream(
+    model: str, prompt: str, out_path: Path, width: int, height: int, steps: int
+) -> None:
     model_path = _snapshot_path(model)
     script = model_path / "scripts" / "hidream_o1" / "generate_hidream_o1_mlx.py"
     if not script.exists():
-        raise HTTPException(500, f"HiDream generator script not found in snapshot: {script}")
+        raise HTTPException(
+            500, f"HiDream generator script not found in snapshot: {script}"
+        )
     cmd = [
         sys.executable,
         str(script),
@@ -278,13 +316,17 @@ def _generate_hidream(model: str, prompt: str, out_path: Path, width: int, heigh
         "--no-snap-resolution",
     ]
     env = os.environ.copy()
-    proc = subprocess.run(cmd, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.run(
+        cmd, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "HiDream generator failed").strip()
         raise HTTPException(500, detail[-4000:])
 
 
-def _generate_boogu(model: str, prompt: str, out_path: Path, width: int, height: int, steps: int) -> None:
+def _generate_boogu(
+    model: str, prompt: str, out_path: Path, width: int, height: int, steps: int
+) -> None:
     try:
         from boogu_image_mlx.pipeline_mlx import BooguImagePipeline
         from PIL import Image
@@ -296,7 +338,9 @@ def _generate_boogu(model: str, prompt: str, out_path: Path, width: int, height:
         ) from e
 
     model_path = _snapshot_path(model)
-    vlm_model = (_args.vlm_model or os.environ.get("ODYSSEUS_MLX_IMAGE_VLM_MODEL") or "").strip()
+    vlm_model = (
+        _args.vlm_model or os.environ.get("ODYSSEUS_MLX_IMAGE_VLM_MODEL") or ""
+    ).strip()
     if not vlm_model:
         raise HTTPException(
             422,
@@ -335,9 +379,13 @@ def generate(req: ImageRequest):
         with tempfile.TemporaryDirectory(prefix="odysseus-mlx-image-") as td:
             out_path = Path(td) / "image.png"
             if _is_hidream(model):
-                _generate_hidream(model, req.prompt, out_path, width, height, _steps(req.quality))
+                _generate_hidream(
+                    model, req.prompt, out_path, width, height, _steps(req.quality)
+                )
             elif _is_boogu(model):
-                _generate_boogu(model, req.prompt, out_path, width, height, _steps(req.quality))
+                _generate_boogu(
+                    model, req.prompt, out_path, width, height, _steps(req.quality)
+                )
             elif _is_lama_inpaint(model) or _is_ddcolor(model):
                 raise _unsupported_swift_mlx_runtime(model)
             else:
@@ -371,13 +419,26 @@ def generate(req: ImageRequest):
                 if "qwen" not in model.lower():
                     cmd += ["--width", str(width), "--height", str(height)]
                 env = os.environ.copy()
-                proc = subprocess.run(cmd, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                proc = subprocess.run(
+                    cmd,
+                    env=env,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
                 if proc.returncode != 0:
                     detail = (proc.stderr or proc.stdout or f"{cli} failed").strip()
-                    logger.error("MLX image command failed (%s): %s\n%s", proc.returncode, " ".join(cmd), detail[-4000:])
+                    logger.error(
+                        "MLX image command failed (%s): %s\n%s",
+                        proc.returncode,
+                        " ".join(cmd),
+                        detail[-4000:],
+                    )
                     raise HTTPException(500, detail[-4000:])
             if not out_path.exists():
-                raise HTTPException(500, f"MLX image generator completed but did not write {out_path}")
+                raise HTTPException(
+                    500, f"MLX image generator completed but did not write {out_path}"
+                )
             b64 = base64.b64encode(out_path.read_bytes()).decode("ascii")
             out_images.append({"b64_json": b64})
     return {"created": 0, "data": out_images}
@@ -407,8 +468,16 @@ async def edit_image(
                 else:
                     _run_inpaint_bridge(active_model, image_raw, mask_raw, out_path)
                 if not out_path.exists():
-                    raise HTTPException(500, f"MLX Swift bridge completed but did not write {out_path}")
-                out_images.append({"b64_json": base64.b64encode(out_path.read_bytes()).decode("ascii")})
+                    raise HTTPException(
+                        500, f"MLX Swift bridge completed but did not write {out_path}"
+                    )
+                out_images.append(
+                    {
+                        "b64_json": base64.b64encode(out_path.read_bytes()).decode(
+                            "ascii"
+                        )
+                    }
+                )
         return {"created": 0, "data": out_images}
     raise HTTPException(
         422,
@@ -424,7 +493,9 @@ def harmonize_image(req: HarmonizeRequest):
         try:
             image_raw = base64.b64decode(req.image.split(",", 1)[-1])
             mask_b64 = req.body_mask or req.mask
-            mask_raw = base64.b64decode(mask_b64.split(",", 1)[-1]) if mask_b64 else None
+            mask_raw = (
+                base64.b64decode(mask_b64.split(",", 1)[-1]) if mask_b64 else None
+            )
         except Exception as e:
             raise HTTPException(400, f"Invalid base64 image payload: {e}") from e
         with tempfile.TemporaryDirectory(prefix="odysseus-mlx-harmonize-") as td:
@@ -434,7 +505,9 @@ def harmonize_image(req: HarmonizeRequest):
             else:
                 _run_inpaint_bridge(active_model, image_raw, mask_raw, out_path)
             if not out_path.exists():
-                raise HTTPException(500, f"MLX Swift bridge completed but did not write {out_path}")
+                raise HTTPException(
+                    500, f"MLX Swift bridge completed but did not write {out_path}"
+                )
             return {"image": base64.b64encode(out_path.read_bytes()).decode("ascii")}
     raise HTTPException(
         422,

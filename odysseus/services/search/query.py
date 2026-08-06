@@ -1,9 +1,8 @@
 """Query enhancement, entity extraction, and cache duration helpers."""
 
-import re
 import logging
+import re
 from datetime import timedelta
-from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +10,7 @@ logger = logging.getLogger(__name__)
 # ----------------------------------------------------------------------
 # Query processing helpers
 # ----------------------------------------------------------------------
-def _detect_question_type(query: str) -> Optional[str]:
+def _detect_question_type(query: str) -> str | None:
     """Return the leading question word if present (who, what, when, where, why, how)."""
     if not isinstance(query, str):
         return None
@@ -25,15 +24,15 @@ def _detect_question_type(query: str) -> Optional[str]:
     return None
 
 
-def _extract_entities(query: str) -> Dict[str, List[str]]:
+def _extract_entities(query: str) -> dict[str, list[str]]:
     """Lightweight entity extraction: capitalized words and date patterns."""
     if not isinstance(query, str):
         return {"names": [], "dates": []}
-    entities: Dict[str, List[str]] = {"names": [], "dates": []}
+    entities: dict[str, list[str]] = {"names": [], "dates": []}
     qtype = _detect_question_type(query)
     cleaned = query
     if qtype:
-        cleaned = re.sub(rf"^{qtype}\b", "", cleaned, flags=re.I).strip()
+        cleaned = re.sub(rf"^{qtype}\b", "", cleaned, flags=re.IGNORECASE).strip()
     # Unicode-aware capitalized-word (name) detection. The old [A-Z][a-zA-Z]+
     # class missed non-ASCII names like "İstanbul"/"Zürich" (dropped) and
     # "São" (shredded). Keep the ASCII behaviour — the word boundary already
@@ -47,33 +46,33 @@ def _extract_entities(query: str) -> Dict[str, List[str]]:
     month_day_year = re.findall(
         r"\b(?:Jan|January|Feb|February|Mar|March|Apr|April|May|Jun|June|Jul|July|Aug|August|Sep|Sept|September|Oct|October|Nov|November|Dec|December)\s+\d{1,2},?\s*\d{4}\b",
         cleaned,
-        flags=re.I,
+        flags=re.IGNORECASE,
     )
     entities["dates"].extend(month_day_year)
     return entities
 
 
-def _split_multi_part(query: str) -> List[str]:
+def _split_multi_part(query: str) -> list[str]:
     """Split a query into sub-queries on common conjunctions."""
     if not isinstance(query, str):
         return []
-    parts = re.split(r"\s+and\s+|\s+or\s+|;", query, flags=re.I)
+    parts = re.split(r"\s+and\s+|\s+or\s+|;", query, flags=re.IGNORECASE)
     return [p.strip() for p in parts if p.strip()]
 
 
-def _extract_site_filter(query: str) -> Tuple[str, Optional[str]]:
+def _extract_site_filter(query: str) -> tuple[str, str | None]:
     """Detect a 'site:example.com' token. Returns (query_without_token, site_or_None)."""
     if not isinstance(query, str):
         return "", None
-    match = re.search(r"\bsite:([^\s]+)", query, flags=re.I)
+    match = re.search(r"\bsite:([^\s]+)", query, flags=re.IGNORECASE)
     if match:
         site = match.group(1)
-        new_query = re.sub(r"\bsite:[^\s]+", "", query, flags=re.I).strip()
+        new_query = re.sub(r"\bsite:[^\s]+", "", query, flags=re.IGNORECASE).strip()
         return new_query, site
     return query, None
 
 
-def _boost_entities_in_query(base_query: str, entities: Dict[str, List[str]]) -> str:
+def _boost_entities_in_query(base_query: str, entities: dict[str, list[str]]) -> str:
     """Append extracted entities to the query using OR to increase relevance."""
     parts = [base_query]
     if entities.get("names"):
@@ -83,14 +82,14 @@ def _boost_entities_in_query(base_query: str, entities: Dict[str, List[str]]) ->
     return " ".join(parts)
 
 
-def enhance_query(original_query: str) -> Tuple[str, Optional[str]]:
+def enhance_query(original_query: str) -> tuple[str, str | None]:
     """Process the original query: site filter, question type boosts, entity extraction."""
     if not isinstance(original_query, str):
         original_query = ""
     query_without_site, site = _extract_site_filter(original_query)
     sub_queries = _split_multi_part(query_without_site)
 
-    enhanced_subs: List[str] = []
+    enhanced_subs: list[str] = []
     for sub in sub_queries:
         qtype = _detect_question_type(sub)
         boost_keywords = []
@@ -135,7 +134,16 @@ def build_enhanced_query(query: str, time_filter: str = None) -> str:
 # ----------------------------------------------------------------------
 def _is_news_query(query: str) -> bool:
     """Lightweight heuristic to decide if a query is news-oriented."""
-    news_terms = {"news", "latest", "breaking", "today", "today's", "current", "updates", "happening"}
+    news_terms = {
+        "news",
+        "latest",
+        "breaking",
+        "today",
+        "today's",
+        "current",
+        "updates",
+        "happening",
+    }
     if not isinstance(query, str):
         return False
     tokens = set(re.findall(r"\b\w+\b", query.lower()))

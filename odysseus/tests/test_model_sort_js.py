@@ -5,9 +5,10 @@ from pathlib import Path
 
 import pytest
 
-
 ROOT = Path(__file__).resolve().parents[1]
-pytestmark = pytest.mark.skipif(not shutil.which("node"), reason="node binary not on PATH")
+pytestmark = pytest.mark.skipif(
+    not shutil.which("node"), reason="node binary not on PATH"
+)
 
 
 def _node_eval(source: str):
@@ -22,8 +23,7 @@ def _node_eval(source: str):
 
 
 def test_model_sort_helpers_ignore_non_arrays():
-    values = _node_eval(
-        """
+    values = _node_eval("""
         import { sortModelIds, sortModelObjects } from './static/js/modelSort.js';
         console.log(JSON.stringify({
           idsObject: sortModelIds({bad: true}),
@@ -31,8 +31,7 @@ def test_model_sort_helpers_ignore_non_arrays():
           objectsNull: sortModelObjects(null),
           objectsObject: sortModelObjects({bad: true})
         }));
-        """
-    )
+        """)
 
     assert values == {
         "idsObject": [],
@@ -43,15 +42,13 @@ def test_model_sort_helpers_ignore_non_arrays():
 
 
 def test_model_sort_helpers_keep_valid_arrays():
-    values = _node_eval(
-        """
+    values = _node_eval("""
         import { sortModelIds, sortModelObjects } from './static/js/modelSort.js';
         console.log(JSON.stringify({
           ids: sortModelIds(['zeta/10', 'alpha/2', 'alpha/11']),
           objects: sortModelObjects([{id: 'zeta/10'}, {id: 'alpha/2'}]).map(m => m.id)
         }));
-        """
-    )
+        """)
 
     assert values == {
         "ids": ["alpha/2", "zeta/10", "alpha/11"],

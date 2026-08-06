@@ -13,7 +13,6 @@ import socket
 import uuid
 
 import bcrypt
-
 from src.constants import AUTH_FILE
 
 PAIRING_VERSION = 1
@@ -87,22 +86,24 @@ def mint_token(owner: str, name: str = "companion") -> tuple[str, str]:
     are persisted. Mirrors routes/api_token_routes.py so cookie- and
     companion-minted tokens are indistinguishable to the auth middleware.
     """
-    from core.database import get_db_session, ApiToken
+    from core.database import ApiToken, get_db_session
 
     raw_token = "ody_" + secrets.token_urlsafe(32)
     token_hash = bcrypt.hashpw(raw_token.encode(), bcrypt.gensalt()).decode()
     token_id = str(uuid.uuid4())[:8]
 
     with get_db_session() as db:
-        db.add(ApiToken(
-            id=token_id,
-            owner=owner,
-            name=name,
-            token_hash=token_hash,
-            token_prefix=raw_token[:8],
-            scopes=COMPANION_SCOPE,
-            is_active=True,
-        ))
+        db.add(
+            ApiToken(
+                id=token_id,
+                owner=owner,
+                name=name,
+                token_hash=token_hash,
+                token_prefix=raw_token[:8],
+                scopes=COMPANION_SCOPE,
+                is_active=True,
+            )
+        )
     return token_id, raw_token
 
 

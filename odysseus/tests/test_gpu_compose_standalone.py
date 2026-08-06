@@ -128,9 +128,7 @@ def test_nvidia_odysseus_adds_only_overlay(base):
     # deploy block is new and matches the overlay's GPU reservation exactly.
     assert "deploy" not in base_svc
     devices = svc["deploy"]["resources"]["reservations"]["devices"]
-    assert devices == [
-        {"driver": "nvidia", "count": "all", "capabilities": ["gpu"]}
-    ]
+    assert devices == [{"driver": "nvidia", "count": "all", "capabilities": ["gpu"]}]
 
     # No Docker or AMD groups are added.
     assert "devices" not in svc
@@ -185,9 +183,7 @@ def test_nvidia_plus_host_docker_preserves_gpu_and_docker_access(base):
     service = merged["services"][SERVICE]
 
     devices = service["deploy"]["resources"]["reservations"]["devices"]
-    assert devices == [
-        {"driver": "nvidia", "count": "all", "capabilities": ["gpu"]}
-    ]
+    assert devices == [{"driver": "nvidia", "count": "all", "capabilities": ["gpu"]}]
     assert "/var/run/docker.sock:/var/run/docker.sock" in service["volumes"]
     assert "ODYSSEUS_ENABLE_HOST_DOCKER=true" in service["environment"]
     assert service["group_add"] == ["${DOCKER_GID:-963}"]

@@ -10,9 +10,12 @@ evolution（数据维度 - R186）：
 - 用 rehash_idx 跟踪迁移进度，每次 put/get 触发迁移 N 个分片
 - 写锁是分片级（细粒度），扩容是全局的
 """
+
 from __future__ import annotations
+
 import threading
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 
 class ShardHash:
@@ -33,7 +36,9 @@ class ShardHash:
         self._shard_count = shard_count
         self._max_load = max_load
         self._shards: list[dict[Any, Any]] = [dict() for _ in range(shard_count)]
-        self._shard_locks: list[threading.RLock] = [threading.RLock() for _ in range(shard_count)]
+        self._shard_locks: list[threading.RLock] = [
+            threading.RLock() for _ in range(shard_count)
+        ]
         self._weights: list[float] = [1.0] * shard_count
         self._global_lock = threading.RLock()
         self._rehash_idx = -1

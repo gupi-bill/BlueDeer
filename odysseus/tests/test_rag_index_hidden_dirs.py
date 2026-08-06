@@ -9,11 +9,12 @@ junk multiplied indexing time and polluted retrieval.
 These tests are hermetic — no chromadb; VectorRAG is created via __new__ (skip
 Chroma connect) with add_document stubbed to record which files get indexed.
 """
+
 import os
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 
-import src.rag_vector as rag_vector
+from src import rag_vector
 
 
 def _make_rag(recorded_sources):

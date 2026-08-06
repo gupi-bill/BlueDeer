@@ -12,22 +12,24 @@
     c.put("k1", "v1")
     c.get("k1")  # freq("k1")=2
 """
+
 from __future__ import annotations
 
 import threading
 from collections import deque
-from typing import Any, Iterator, List, Optional, Tuple
+from collections.abc import Iterator
+from typing import Any
 
 
 class _Node:
-    __slots__ = ("key", "value", "freq", "prev", "next")
+    __slots__ = ("freq", "key", "next", "prev", "value")
 
     def __init__(self, key=None, value=None):
         self.key = key
         self.value = value
         self.freq = 1
-        self.prev: Optional[_Node] = None
-        self.next: Optional[_Node] = None
+        self.prev: _Node | None = None
+        self.next: _Node | None = None
 
 
 class _FreqList:
@@ -51,7 +53,7 @@ class _FreqList:
         node.prev.next = node.next
         node.next.prev = node.prev
 
-    def pop_tail(self) -> Optional[_Node]:
+    def pop_tail(self) -> _Node | None:
         if self.head.next is self.tail:
             return None
         node = self.tail.prev
@@ -71,9 +73,12 @@ class LFUCache:
         frequency_decay: 频率衰减因子 [0, 1)，每次 decay() 按比例降低所有频率。
     """
 
-    def __init__(self, capacity: int = 128,
-                 eviction_policy: str = "LFU",
-                 frequency_decay: float = 0.0) -> None:
+    def __init__(
+        self,
+        capacity: int = 128,
+        eviction_policy: str = "LFU",
+        frequency_decay: float = 0.0,
+    ) -> None:
         if capacity <= 0:
             raise ValueError("capacity 必须 > 0")
         if eviction_policy.upper() not in ("LFU", "LRU", "FIFO"):
@@ -113,7 +118,7 @@ class LFUCache:
         node.freq = old_freq + 1
         self._get_freq_list(node.freq).add_front(node)
 
-    def get(self, key, default=None) -> Any:
+    def get(self, key: Any, default: Any = None) -> Any:
         with self._lock:
             node = self._key_map.get(key)
             if node is None:
@@ -124,12 +129,12 @@ class LFUCache:
                 self._access_order.append(key)
             return node.value
 
-    def peek(self, key, default=None) -> Any:
+    def peek(self, key: Any, default: Any = None) -> Any:
         with self._lock:
             node = self._key_map.get(key)
             return node.value if node else default
 
-    def put(self, key, value: Any) -> None:
+    def put(self, key: Any, value: Any) -> None:
         with self._lock:
             node = self._key_map.get(key)
             if node:
@@ -233,11 +238,11 @@ class LFUCache:
     def frequency_decay(self) -> float:
         return self._frequency_decay
 
-    def keys(self) -> List:
+    def keys(self) -> list:
         with self._lock:
             return list(self._key_map.keys())
 
-    def items(self) -> Iterator[Tuple]:
+    def items(self) -> Iterator[tuple]:
         with self._lock:
             for k, n in self._key_map.items():
                 yield (k, n.value)

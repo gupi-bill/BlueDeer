@@ -38,19 +38,21 @@ class SecurityScanSkill:
             return await self.scan_file(str(payload["path"]))
         if "text" in payload:
             return await self.scan_text(str(payload["text"]))
-        raise ValueError(
-            "hedgehog 任务 payload 必须包含 code / path / text 之一"
-        )
+        raise ValueError("hedgehog 任务 payload 必须包含 code / path / text 之一")
 
 
 _SCAN_HISTORY: list[dict[str, Any]] = []
 
 
 def record_scan(target: str, risk_level: str, threat_count: int) -> None:
-    _SCAN_HISTORY.append({
-        "target": target, "risk_level": risk_level,
-        "threat_count": threat_count, "timestamp": __import__("time").time(),
-    })
+    _SCAN_HISTORY.append(
+        {
+            "target": target,
+            "risk_level": risk_level,
+            "threat_count": threat_count,
+            "timestamp": __import__("time").time(),
+        }
+    )
     if len(_SCAN_HISTORY) > 100:
         _SCAN_HISTORY.pop(0)
 

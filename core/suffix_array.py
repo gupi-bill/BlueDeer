@@ -6,9 +6,11 @@ evolution（数据维度 - R202）：
 - 应用：全文搜索、数据压缩、生物信息学序列比对
 - 与 Trie/Radix 互补：Trie 前缀匹配，后缀数组子串匹配
 """
+
 from __future__ import annotations
+
 import threading
-from typing import Iterator
+from collections.abc import Iterator
 
 
 class SuffixArray:
@@ -81,7 +83,7 @@ class SuffixArray:
         with self._lock:
             if i < 0 or i >= self._n:
                 raise IndexError(i)
-            return self._text[self._sa[i]:]
+            return self._text[self._sa[i] :]
 
     def __getitem__(self, i: int) -> int:
         with self._lock:
@@ -105,7 +107,7 @@ class SuffixArray:
             return result
 
     def _suffix_at(self, sa_idx: int) -> str:
-        return self._text[self._sa[sa_idx]:]
+        return self._text[self._sa[sa_idx] :]
 
     def _lower_bound(self, pattern: str) -> int:
         lo, hi = 0, self._n
@@ -172,7 +174,7 @@ class SuffixArray:
                 if length > max_len:
                     max_len = length
                     max_idx = self._sa[i]
-            return self._text[max_idx:max_idx + max_len]
+            return self._text[max_idx : max_idx + max_len]
 
     def distinct_substrings(self) -> int:
         with self._lock:

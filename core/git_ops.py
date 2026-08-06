@@ -15,8 +15,8 @@ import json
 import logging
 import os
 import subprocess
-import urllib.request
 import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
@@ -26,17 +26,25 @@ logger = logging.getLogger("bluedeer.gitops")
 
 # 禁止提交的文件模式（安全黑名单）
 _FORBIDDEN_PATTERNS: tuple[str, ...] = (
-    ".env", "credentials", "secret", "token", "apikey", "private_key",
-    "__pycache__", ".pyc", ".log",
+    ".env",
+    "credentials",
+    "secret",
+    "token",
+    "apikey",
+    "private_key",
+    "__pycache__",
+    ".pyc",
+    ".log",
 )
 
 
 @dataclass
 class GitStatus:
     """Git 状态快照。"""
+
     branch: str = ""
     changed: list[str] = None  # type: ignore
-    staged: list[str] = None    # type: ignore
+    staged: list[str] = None  # type: ignore
     untracked: list[str] = None  # type: ignore
     has_changes: bool = False
 
@@ -88,7 +96,9 @@ class GitOps:
                 timeout=30,
             )
             if check and proc.returncode != 0:
-                logger.warning("git 命令失败: %s → %s", " ".join(cmd), proc.stderr.strip())
+                logger.warning(
+                    "git 命令失败: %s → %s", " ".join(cmd), proc.stderr.strip()
+                )
             # 注意：只去尾随换行，不去首部空格（git status --porcelain 输出首字符可能是空格）
             return proc.returncode, proc.stdout.rstrip("\n"), proc.stderr.rstrip("\n")
         except subprocess.TimeoutExpired:
@@ -237,7 +247,9 @@ class GitOps:
 
     def stash(self) -> bool:
         """暂存当前改动（git stash push）。"""
-        rc, _, _ = self._run(["stash", "push", "-m", "bluedeer-auto-stash"], check=False)
+        rc, _, _ = self._run(
+            ["stash", "push", "-m", "bluedeer-auto-stash"], check=False
+        )
         return rc == 0
 
     def stash_pop(self) -> bool:
@@ -254,7 +266,9 @@ class GitOps:
         Returns:
             (无冲突?, 详情消息)
         """
-        rc, out, err = self._run(["merge", "--no-commit", "--no-ff", branch], check=False)
+        rc, out, err = self._run(
+            ["merge", "--no-commit", "--no-ff", branch], check=False
+        )
         # 无论结果都 abort，模拟结束
         self._run(["merge", "--abort"], check=False)
         if rc != 0:
@@ -267,6 +281,7 @@ class GitOps:
 
 
 # ============== GitHubClient ==============
+
 
 class GitHubClient:
     """GitHub REST API 客户端（urllib + token 鉴权）。

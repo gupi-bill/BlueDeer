@@ -6,6 +6,7 @@ double space after "Re:" on every non-ASCII subject, a spurious space in
 "Name <addr>" senders, and violated RFC 2047 6.2 which requires whitespace
 between two adjacent encoded-words to be dropped.
 """
+
 import json
 import sqlite3
 
@@ -27,12 +28,29 @@ def _clear_mcp_email_owner_env(monkeypatch):
 
 def _init_accounts_db(path, rows=None):
     rows = rows or [
-        ("acct-alice", "alice", "Alice Mail", 1, "alice@example.com", "alice@example.com", "alice@example.com", "2026-01-01"),
-        ("acct-bob", "bob", "Bob Mail", 1, "bob@example.com", "bob@example.com", "bob@example.com", "2026-01-02"),
+        (
+            "acct-alice",
+            "alice",
+            "Alice Mail",
+            1,
+            "alice@example.com",
+            "alice@example.com",
+            "alice@example.com",
+            "2026-01-01",
+        ),
+        (
+            "acct-bob",
+            "bob",
+            "Bob Mail",
+            1,
+            "bob@example.com",
+            "bob@example.com",
+            "bob@example.com",
+            "2026-01-02",
+        ),
     ]
     conn = sqlite3.connect(path)
-    conn.execute(
-        """
+    conn.execute("""
         CREATE TABLE email_accounts (
             id TEXT PRIMARY KEY,
             owner TEXT,
@@ -52,8 +70,7 @@ def _init_accounts_db(path, rows=None):
             from_address TEXT,
             created_at TEXT
         )
-        """
-    )
+        """)
     conn.executemany(
         """
         INSERT INTO email_accounts
@@ -105,7 +122,9 @@ async def test_mcp_email_accounts_are_filtered_by_hidden_owner(tmp_path, monkeyp
 
 
 @pytest.mark.asyncio
-async def test_mcp_email_requires_owner_when_multiple_account_owners_exist(tmp_path, monkeypatch):
+async def test_mcp_email_requires_owner_when_multiple_account_owners_exist(
+    tmp_path, monkeypatch
+):
     db_path = tmp_path / "app.db"
     _init_accounts_db(db_path)
     monkeypatch.setattr(es, "APP_DB", str(db_path))
@@ -117,12 +136,23 @@ async def test_mcp_email_requires_owner_when_multiple_account_owners_exist(tmp_p
 
 
 @pytest.mark.asyncio
-async def test_mcp_email_requires_owner_when_any_account_owner_exists(tmp_path, monkeypatch):
+async def test_mcp_email_requires_owner_when_any_account_owner_exists(
+    tmp_path, monkeypatch
+):
     db_path = tmp_path / "app.db"
     _init_accounts_db(
         db_path,
         rows=[
-            ("acct-alice", "alice", "Alice Mail", 1, "alice@example.com", "alice@example.com", "alice@example.com", "2026-01-01"),
+            (
+                "acct-alice",
+                "alice",
+                "Alice Mail",
+                1,
+                "alice@example.com",
+                "alice@example.com",
+                "alice@example.com",
+                "2026-01-01",
+            ),
         ],
     )
     monkeypatch.setattr(es, "APP_DB", str(db_path))
@@ -147,7 +177,9 @@ async def test_mcp_email_configured_owner_filters_accounts(tmp_path, monkeypatch
     assert "Bob Mail" not in text
 
 
-def test_mcp_email_scoped_owner_without_visible_account_skips_legacy_fallback(tmp_path, monkeypatch):
+def test_mcp_email_scoped_owner_without_visible_account_skips_legacy_fallback(
+    tmp_path, monkeypatch
+):
     db_path = tmp_path / "app.db"
     settings_path = tmp_path / "settings.json"
     _init_accounts_db(db_path)
@@ -179,8 +211,10 @@ def test_mcp_email_scoped_owner_without_visible_account_skips_legacy_fallback(tm
 
 
 @pytest.mark.asyncio
-async def test_mcp_email_owner_cannot_use_other_owner_account_for_list_read_send_or_draft(tmp_path, monkeypatch):
-    import src.constants as constants
+async def test_mcp_email_owner_cannot_use_other_owner_account_for_list_read_send_or_draft(
+    tmp_path, monkeypatch
+):
+    from src import constants
 
     db_path = tmp_path / "app.db"
     scheduled_path = tmp_path / "scheduled_emails.db"
@@ -192,18 +226,24 @@ async def test_mcp_email_owner_cannot_use_other_owner_account_for_list_read_send
     calls = [
         ("list_emails", {"account": "Bob Mail"}),
         ("read_email", {"uid": "1", "account": "Bob Mail"}),
-        ("send_email", {
-            "to": "recipient@example.com",
-            "subject": "Blocked",
-            "body": "Do not stage.",
-            "account": "Bob Mail",
-        }),
-        ("draft_email", {
-            "to": "recipient@example.com",
-            "subject": "Blocked",
-            "body": "Do not draft.",
-            "account": "Bob Mail",
-        }),
+        (
+            "send_email",
+            {
+                "to": "recipient@example.com",
+                "subject": "Blocked",
+                "body": "Do not stage.",
+                "account": "Bob Mail",
+            },
+        ),
+        (
+            "draft_email",
+            {
+                "to": "recipient@example.com",
+                "subject": "Blocked",
+                "body": "Do not draft.",
+                "account": "Bob Mail",
+            },
+        ),
     ]
 
     for tool_name, args in calls:
@@ -215,8 +255,10 @@ async def test_mcp_email_owner_cannot_use_other_owner_account_for_list_read_send
 
 
 @pytest.mark.asyncio
-async def test_mcp_send_email_stages_with_visible_owner_account_id(tmp_path, monkeypatch):
-    import src.constants as constants
+async def test_mcp_send_email_stages_with_visible_owner_account_id(
+    tmp_path, monkeypatch
+):
+    from src import constants
 
     app_db_path = tmp_path / "app.db"
     scheduled_path = tmp_path / "scheduled_emails.db"
@@ -249,7 +291,7 @@ async def test_mcp_send_email_stages_with_visible_owner_account_id(tmp_path, mon
 
 @pytest.mark.asyncio
 async def test_mcp_send_email_stages_owner_scoped_pending_draft(tmp_path, monkeypatch):
-    import src.constants as constants
+    from src import constants
 
     db_path = tmp_path / "scheduled_emails.db"
     monkeypatch.setattr(es, "APP_DB", str(tmp_path / "missing-app.db"))

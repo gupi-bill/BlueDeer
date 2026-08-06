@@ -15,10 +15,10 @@ This is distinct from #1874, which fixes the auto-spam poller's `_imap_move` in
 `routes/email_helpers.py`; this covers the user-facing endpoints in
 `routes/email_routes.py`.
 """
-import pytest
 
+import pytest
 from routes import email_routes
-from routes.email_routes import _store_email_flag, _move_email_message
+from routes.email_routes import _move_email_message, _store_email_flag
 
 
 class _FakeConn:
@@ -27,6 +27,7 @@ class _FakeConn:
     The sequence-number commands (store/copy/expunge) raise if ever called —
     the whole point of the fix is that they must not be reached.
     """
+
     def __init__(self, uid_present, uid_move_ok=True):
         self.uid_present = uid_present
         self.uid_move_ok = uid_move_ok
@@ -46,20 +47,25 @@ class _FakeConn:
 
     # Sequence-number APIs — must never be used with a UID.
     def store(self, *a):
-        self.seqno_calls.append(("store", a)); return ("OK", [b""])
+        self.seqno_calls.append(("store", a))
+        return ("OK", [b""])
 
     def copy(self, *a):
-        self.seqno_calls.append(("copy", a)); return ("OK", [b""])
+        self.seqno_calls.append(("copy", a))
+        return ("OK", [b""])
 
     def expunge(self, *a):
-        self.seqno_calls.append(("expunge", a)); return ("OK", [b""])
+        self.seqno_calls.append(("expunge", a))
+        return ("OK", [b""])
 
 
 @pytest.fixture(autouse=True)
 def _no_folder_resolution(monkeypatch):
     # _move_email_message resolves the destination folder via the connection;
     # short-circuit it so the test focuses on the UID-vs-seqno behaviour.
-    monkeypatch.setattr(email_routes, "_resolve_mail_folder", lambda conn, dest, role="": dest)
+    monkeypatch.setattr(
+        email_routes, "_resolve_mail_folder", lambda conn, dest, role="": dest
+    )
 
 
 def test_store_flag_missing_uid_fails_safe():

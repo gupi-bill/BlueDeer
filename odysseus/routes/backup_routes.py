@@ -4,10 +4,10 @@ import json
 import logging
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Request, Response
 from core.middleware import require_admin
+from fastapi import APIRouter, HTTPException, Request, Response
 from src.auth_helpers import get_current_user
-from src.settings import load_settings, save_settings, load_features, save_features
+from src.settings import load_features, load_settings, save_features, save_settings
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +38,7 @@ def setup_backup_routes(memory_manager, preset_manager, skills_manager) -> APIRo
 
         # User preferences
         from routes.prefs_routes import _load_for_user
+
         preferences = _load_for_user(user)
 
         export_data = {
@@ -81,8 +82,11 @@ def setup_backup_routes(memory_manager, preset_manager, skills_manager) -> APIRo
             # rows (load_all) meant a memory whose text matched any other
             # user's was silently skipped, so the importing user lost their own
             # data. The full store is still saved back below.
-            existing_texts = {e.get("text", "").strip().lower()
-                              for e in existing if e.get("owner") == user}
+            existing_texts = {
+                e.get("text", "").strip().lower()
+                for e in existing
+                if e.get("owner") == user
+            }
             added = 0
             for mem in body["memories"]:
                 if not isinstance(mem, dict) or not mem.get("text"):
@@ -118,8 +122,10 @@ def setup_backup_routes(memory_manager, preset_manager, skills_manager) -> APIRo
                 if not isinstance(skill, dict):
                     continue
                 title = (
-                    skill.get("title") or skill.get("description")
-                    or skill.get("name") or ""
+                    skill.get("title")
+                    or skill.get("description")
+                    or skill.get("name")
+                    or ""
                 ).strip()
                 if not title:
                     continue
@@ -175,9 +181,7 @@ def setup_backup_routes(memory_manager, preset_manager, skills_manager) -> APIRo
         if "presets" in body and isinstance(body["presets"], dict):
             current = preset_manager.get_all()
             for key, value in body["presets"].items():
-                if isinstance(value, dict):
-                    current[key] = value
-                elif isinstance(value, list):
+                if isinstance(value, dict) or isinstance(value, list):
                     current[key] = value
             preset_manager.save(current)
             imported.append("presets")
@@ -199,6 +203,7 @@ def setup_backup_routes(memory_manager, preset_manager, skills_manager) -> APIRo
         # ── Preferences ──
         if "preferences" in body and isinstance(body["preferences"], dict):
             from routes.prefs_routes import _load_for_user, _save_for_user
+
             current = _load_for_user(user)
             current.update(body["preferences"])
             _save_for_user(user, current)
@@ -207,6 +212,10 @@ def setup_backup_routes(memory_manager, preset_manager, skills_manager) -> APIRo
         if not imported:
             return {"ok": False, "message": "No recognized data found in the file"}
 
-        return {"ok": True, "imported": imported, "message": f"Imported: {', '.join(imported)}"}
+        return {
+            "ok": True,
+            "imported": imported,
+            "message": f"Imported: {', '.join(imported)}",
+        }
 
     return router

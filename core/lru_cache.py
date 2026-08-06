@@ -12,24 +12,26 @@
     c.put("k1", "v1")
     c.get("k1")
 """
+
 from __future__ import annotations
 
 import logging
 import threading
 import time
-from typing import Any, Callable, Iterator, Optional
+from collections.abc import Callable, Iterator
+from typing import Any
 
 logger = logging.getLogger("bluedeer.cache")
 
 
 class _Node:
-    __slots__ = ("key", "value", "prev", "next", "expire_at")
+    __slots__ = ("expire_at", "key", "next", "prev", "value")
 
     def __init__(self, key=None, value=None):
         self.key = key
         self.value = value
-        self.prev: Optional[_Node] = None
-        self.next: Optional[_Node] = None
+        self.prev: _Node | None = None
+        self.next: _Node | None = None
         self.expire_at: float | None = None
 
 
@@ -82,7 +84,7 @@ class LRUCache:
     def _is_expired(self, node: _Node) -> bool:
         return node.expire_at is not None and self._clock() >= node.expire_at
 
-    def get(self, key, default=None) -> Any:
+    def get(self, key: Any, default: Any = None) -> Any:
         with self._lock:
             node = self._map.get(key)
             if node is None:
@@ -97,14 +99,14 @@ class LRUCache:
             self._move_to_front(node)
             return node.value
 
-    def peek(self, key, default=None) -> Any:
+    def peek(self, key: Any, default: Any = None) -> Any:
         with self._lock:
             node = self._map.get(key)
             if node is None or self._is_expired(node):
                 return default
             return node.value
 
-    def put(self, key, value: Any, ttl: float | None = None) -> None:
+    def put(self, key: Any, value: Any, ttl: float | None = None) -> None:
         with self._lock:
             now = self._clock()
             expire_at: float | None
@@ -171,7 +173,7 @@ class LRUCache:
                 cur = prev
         return n
 
-    def keys(self):
+    def keys(self) -> Any:
         with self._lock:
             result = []
             n = self._head.next
@@ -187,7 +189,7 @@ class LRUCache:
                 yield (n.key, n.value)
                 n = n.next
 
-    def values(self):
+    def values(self) -> Any:
         with self._lock:
             return [n.value for n in self._iter_nodes()]
 
@@ -198,13 +200,13 @@ class LRUCache:
             n = n.next
 
     @property
-    def lru_key(self):
+    def lru_key(self) -> Any:
         with self._lock:
             n = self._tail.prev
             return n.key if n is not self._head else None
 
     @property
-    def mru_key(self):
+    def mru_key(self) -> Any:
         with self._lock:
             n = self._head.next
             return n.key if n is not self._tail else None

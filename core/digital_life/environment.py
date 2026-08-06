@@ -23,6 +23,7 @@ commit 29：动态生态系统
 - 随机生态事件触发器（虫子入侵/突然灵感/花开放/溪流涨水/大扫除）
 - 生态数据统计（每日资源峰谷/植物总量/事件列表/活动占比/互动次数/区域热度）
 """
+
 from __future__ import annotations
 
 import datetime
@@ -71,13 +72,48 @@ MICROCLIMATE_ZONES: dict[str, dict] = {
 # ==================== commit 29：天气类型 ====================
 # weather_key: {label, 户外活动倍率, 能量消耗倍率, 户外能量恢复倍率}
 WEATHER_TYPES: dict[str, dict] = {
-    "sunny":   {"label": "晴天",   "outdoor_act_mult": 1.30, "energy_cost_mult": 0.90, "recover_mult": 1.00},
-    "cloudy":  {"label": "阴天",   "outdoor_act_mult": 1.00, "energy_cost_mult": 1.00, "recover_mult": 0.85},
-    "light_rain": {"label": "小雨", "outdoor_act_mult": 0.80, "energy_cost_mult": 1.00, "recover_mult": 0.80},
-    "heavy_rain": {"label": "大雨/雷暴", "outdoor_act_mult": 0.10, "energy_cost_mult": 1.20, "recover_mult": 0.60},
-    "snow":    {"label": "雪",     "outdoor_act_mult": 0.50, "energy_cost_mult": 1.10, "recover_mult": 0.80},
-    "hot":     {"label": "极高温", "outdoor_act_mult": 0.85, "energy_cost_mult": 1.15, "recover_mult": 0.90},
-    "cold":    {"label": "极低温", "outdoor_act_mult": 0.30, "energy_cost_mult": 1.25, "recover_mult": 0.70},
+    "sunny": {
+        "label": "晴天",
+        "outdoor_act_mult": 1.30,
+        "energy_cost_mult": 0.90,
+        "recover_mult": 1.00,
+    },
+    "cloudy": {
+        "label": "阴天",
+        "outdoor_act_mult": 1.00,
+        "energy_cost_mult": 1.00,
+        "recover_mult": 0.85,
+    },
+    "light_rain": {
+        "label": "小雨",
+        "outdoor_act_mult": 0.80,
+        "energy_cost_mult": 1.00,
+        "recover_mult": 0.80,
+    },
+    "heavy_rain": {
+        "label": "大雨/雷暴",
+        "outdoor_act_mult": 0.10,
+        "energy_cost_mult": 1.20,
+        "recover_mult": 0.60,
+    },
+    "snow": {
+        "label": "雪",
+        "outdoor_act_mult": 0.50,
+        "energy_cost_mult": 1.10,
+        "recover_mult": 0.80,
+    },
+    "hot": {
+        "label": "极高温",
+        "outdoor_act_mult": 0.85,
+        "energy_cost_mult": 1.15,
+        "recover_mult": 0.90,
+    },
+    "cold": {
+        "label": "极低温",
+        "outdoor_act_mult": 0.30,
+        "energy_cost_mult": 1.25,
+        "recover_mult": 0.70,
+    },
 }
 
 
@@ -87,21 +123,21 @@ ECO_EVENTS: list[dict] = [
     {
         "name": "bug_invasion",
         "label": "真·虫子入侵",
-        "probability": 0.03,    # 3%/天
-        "duration_sec": 600,    # 10 分钟
+        "probability": 0.03,  # 3%/天
+        "duration_sec": 600,  # 10 分钟
         "effect_type": "work_halt",  # 工作效率归 0
     },
     {
         "name": "inspiration",
         "label": "突然灵感",
-        "probability": 0.05,    # 5%/天/人（在 tick 中按人触发）
-        "duration_sec": 3600,   # 1 小时
+        "probability": 0.05,  # 5%/天/人（在 tick 中按人触发）
+        "duration_sec": 3600,  # 1 小时
         "effect_type": "work_boost",  # 工作效率翻倍
     },
     {
         "name": "flower_bloom",
         "label": "季节性花开放",
-        "probability": 0.20,    # 春季 20%/天
+        "probability": 0.20,  # 春季 20%/天
         "season": "spring",
         "duration_sec": 86400,  # 一整天
         "effect_type": "social_boost",  # 社交行为增加
@@ -109,7 +145,7 @@ ECO_EVENTS: list[dict] = [
     {
         "name": "flood_risk",
         "label": "溪流涨水",
-        "probability": 0.50,    # 大雨后 50%
+        "probability": 0.50,  # 大雨后 50%
         "requires_weather": "heavy_rain",
         "duration_sec": 1800,
         "effect_type": "dam_reinforce",  # 海狸紧急加固
@@ -117,9 +153,9 @@ ECO_EVENTS: list[dict] = [
     {
         "name": "cleaning_day",
         "label": "大扫除日",
-        "probability": 1.0,     # 每月 1 日必触发
+        "probability": 1.0,  # 每月 1 日必触发
         "day_of_month": 1,
-        "duration_sec": 7200,   # 2 小时
+        "duration_sec": 7200,  # 2 小时
         "effect_type": "cleaning",  # 全员情绪提升
     },
 ]
@@ -128,15 +164,15 @@ ECO_EVENTS: list[dict] = [
 # ==================== commit 29：物种间关系（好感网络） ====================
 # 互助对（天生亲近）：相遇时 mood 加成更多
 SPECIES_AFFINITY: dict[str, list[str]] = {
-    "deer": ["raven"],          # 智者同盟
+    "deer": ["raven"],  # 智者同盟
     "raven": ["deer"],
-    "squirrel": ["fox"],        # 最佳损友
+    "squirrel": ["fox"],  # 最佳损友
     "fox": ["squirrel"],
-    "lark": ["hare"],           # 数据搭档
+    "lark": ["hare"],  # 数据搭档
     "hare": ["lark"],
-    "butterfly": ["badger"],    # 獾欣赏蝶
+    "butterfly": ["badger"],  # 獾欣赏蝶
     "badger": ["butterfly"],
-    "beaver": ["kite"],         # 鸢帮海狸侦察
+    "beaver": ["kite"],  # 鸢帮海狸侦察
     "kite": ["beaver"],
 }
 
@@ -147,25 +183,25 @@ class Environment:
     # Borg：所有实例共享 __dict__
     __shared_state: dict = {
         "food_available": 1000.0,
-        "population": [],         # list[DigitalLifeForm]
-        "event_log": None,        # 后续在 __init__ 中初始化为 deque
+        "population": [],  # list[DigitalLifeForm]
+        "event_log": None,  # 后续在 __init__ 中初始化为 deque
         "death_log": [],
         "birth_log": [],
-        "_lock": None,            # 后续在 __init__ 中初始化
+        "_lock": None,  # 后续在 __init__ 中初始化
         "_init_done": False,
         # commit 29：生态系统状态
-        "plant_biomass": 500.0,           # 植物总量（食物链基础）
-        "insect_count": 50,               # 昆虫数量（随植物增多）
-        "current_weather": "sunny",       # 当前天气 key
-        "weather_changed_at": 0.0,        # 天气切换时间戳
+        "plant_biomass": 500.0,  # 植物总量（食物链基础）
+        "insect_count": 50,  # 昆虫数量（随植物增多）
+        "current_weather": "sunny",  # 当前天气 key
+        "weather_changed_at": 0.0,  # 天气切换时间戳
         "weather_change_interval": 3600,  # 每 1 小时切换一次天气
-        "active_eco_events": [],          # 当前活跃的生态事件列表
-        "_last_eco_event_check": 0.0,     # 上次生态事件检查时间
-        "_last_weather_check": 0.0,       # 上次天气切换检查时间
-        "eco_stats": None,                # 生态数据统计 dict
-        "zone_occupancy": {},             # 区域占用统计 {zone_id: 停留总秒数}
-        "interaction_count": {},          # 物种间互动次数 {"deer-raven": N, ...}
-        "_last_stats_rollover": 0.0,      # 上次统计数据滚动时间
+        "active_eco_events": [],  # 当前活跃的生态事件列表
+        "_last_eco_event_check": 0.0,  # 上次生态事件检查时间
+        "_last_weather_check": 0.0,  # 上次天气切换检查时间
+        "eco_stats": None,  # 生态数据统计 dict
+        "zone_occupancy": {},  # 区域占用统计 {zone_id: 停留总秒数}
+        "interaction_count": {},  # 物种间互动次数 {"deer-raven": N, ...}
+        "_last_stats_rollover": 0.0,  # 上次统计数据滚动时间
         # commit 30：情感与关系系统状态
         #   relics: 遗物列表 [{"name","species","owner","relic_name","desc","time","zone_id"}]
         #   relationship_events: 关系事件 [{"time","type","a","b","tag",...}]
@@ -236,11 +272,16 @@ class Environment:
     @property
     def time_of_day(self) -> str:
         h = datetime.datetime.now().hour
-        if 5 <= h < 8: return "dawn"
-        if 8 <= h < 12: return "morning"
-        if 12 <= h < 14: return "noon"
-        if 14 <= h < 18: return "afternoon"
-        if 18 <= h < 21: return "evening"
+        if 5 <= h < 8:
+            return "dawn"
+        if 8 <= h < 12:
+            return "morning"
+        if 12 <= h < 14:
+            return "noon"
+        if 14 <= h < 18:
+            return "afternoon"
+        if 18 <= h < 21:
+            return "evening"
         return "night"
 
     def tick(self, dt: float = 1.0, router: Any = None) -> dict:
@@ -289,23 +330,29 @@ class Environment:
     def regenerate(self) -> None:
         """每 tick 自动再生资源（基于植物总量 × 季节 × 天气）。"""
         season = self.current_season()
-        season_mult = {"spring": 1.5, "summer": 1.2, "autumn": 1.0, "winter": 0.5}[season]
+        season_mult = {"spring": 1.5, "summer": 1.2, "autumn": 1.0, "winter": 0.5}[
+            season
+        ]
         # commit 29：植物总量影响再生速率（植物多 → 食物多）
         plant_factor = max(0.2, self.plant_biomass / 500.0)  # 500 为基准
         # 天气影响：晴天/雨天植物生长快
         weather_mult = {
-            "sunny": 1.2, "cloudy": 0.9, "light_rain": 1.1,
-            "heavy_rain": 0.7, "snow": 0.4, "hot": 0.6, "cold": 0.5,
+            "sunny": 1.2,
+            "cloudy": 0.9,
+            "light_rain": 1.1,
+            "heavy_rain": 0.7,
+            "snow": 0.4,
+            "hot": 0.6,
+            "cold": 0.5,
         }.get(self.current_weather, 1.0)
         with self._lock:
             self.food_available = min(
                 2000.0,
-                self.food_available + 1.0 * season_mult * plant_factor * weather_mult
+                self.food_available + 1.0 * season_mult * plant_factor * weather_mult,
             )
             # 植物缓慢生长（每 tick +0.5，受季节 × 天气影响）
             self.plant_biomass = min(
-                2000.0,
-                self.plant_biomass + 0.5 * season_mult * weather_mult
+                2000.0, self.plant_biomass + 0.5 * season_mult * weather_mult
             )
             # 昆虫随植物增多
             target_insects = int(self.plant_biomass / 10)
@@ -351,28 +398,38 @@ class Environment:
         season = self.current_season()
         # 极温检查
         if season == "summer" and 12 <= hour <= 15:
-            new_weather = "hot" if random.random() < 0.4 else self._pick_normal_weather(season)
+            new_weather = (
+                "hot" if random.random() < 0.4 else self._pick_normal_weather(season)
+            )
         elif season == "winter" and (hour < 6 or hour >= 22):
-            new_weather = "cold" if random.random() < 0.4 else self._pick_normal_weather(season)
+            new_weather = (
+                "cold" if random.random() < 0.4 else self._pick_normal_weather(season)
+            )
         else:
             new_weather = self._pick_normal_weather(season)
         if new_weather != self.current_weather:
             old = self.current_weather
             self.current_weather = new_weather
             self.weather_changed_at = now_ts
-            self.broadcast_event("weather_change", {
-                "from": old, "to": new_weather,
-                "label": WEATHER_TYPES.get(new_weather, {}).get("label", new_weather),
-            })
+            self.broadcast_event(
+                "weather_change",
+                {
+                    "from": old,
+                    "to": new_weather,
+                    "label": WEATHER_TYPES.get(new_weather, {}).get(
+                        "label", new_weather
+                    ),
+                },
+            )
 
     def _pick_normal_weather(self, season: str) -> str:
         """根据季节抽取普通天气。"""
         # 各季节天气权重
         weights = {
-            "spring":  {"sunny": 4, "cloudy": 3, "light_rain": 2, "heavy_rain": 1},
-            "summer":  {"sunny": 6, "cloudy": 2, "light_rain": 1, "heavy_rain": 1},
-            "autumn":  {"sunny": 3, "cloudy": 4, "light_rain": 2, "heavy_rain": 1},
-            "winter":  {"sunny": 2, "cloudy": 3, "snow": 4, "light_rain": 1},
+            "spring": {"sunny": 4, "cloudy": 3, "light_rain": 2, "heavy_rain": 1},
+            "summer": {"sunny": 6, "cloudy": 2, "light_rain": 1, "heavy_rain": 1},
+            "autumn": {"sunny": 3, "cloudy": 4, "light_rain": 2, "heavy_rain": 1},
+            "winter": {"sunny": 2, "cloudy": 3, "snow": 4, "light_rain": 1},
         }.get(season, {"sunny": 3, "cloudy": 3, "light_rain": 1})
         keys = list(weights.keys())
         vals = list(weights.values())
@@ -388,14 +445,17 @@ class Environment:
 
     def zone_microclimate(self, zone_id: str) -> dict:
         """返回某 zone 的微气候信息。"""
-        return MICROCLIMATE_ZONES.get(zone_id, {
-            "label": "室外",
-            "temp_delta": 0,
-            "humidity_delta": 0,
-            "species_bonus": {},
-            "species_penalty": {},
-            "is_outdoor": True,
-        })
+        return MICROCLIMATE_ZONES.get(
+            zone_id,
+            {
+                "label": "室外",
+                "temp_delta": 0,
+                "humidity_delta": 0,
+                "species_bonus": {},
+                "species_penalty": {},
+                "is_outdoor": True,
+            },
+        )
 
     def species_zone_modifier(self, species: str, zone_id: str) -> float:
         """返回某物种在某 zone 的能量恢复倍率修正（1.0 = 中性）。"""
@@ -426,8 +486,7 @@ class Environment:
         # 1. 清理过期事件
         with self._lock:
             self.active_eco_events = [
-                e for e in self.active_eco_events
-                if now_ts < e.get("end_ts", 0)
+                e for e in self.active_eco_events if now_ts < e.get("end_ts", 0)
             ]
         # 2. 每小时检查一次新事件
         if now_ts - self._last_eco_event_check < 3600:
@@ -467,18 +526,23 @@ class Environment:
         }
         with self._lock:
             self.active_eco_events.append(ev)
-        self.broadcast_event("eco_event", {
-            "name": ev["name"],
-            "label": ev["label"],
-            "effect_type": ev["effect_type"],
-            "duration_sec": ev_def["duration_sec"],
-        })
+        self.broadcast_event(
+            "eco_event",
+            {
+                "name": ev["name"],
+                "label": ev["label"],
+                "effect_type": ev["effect_type"],
+                "duration_sec": ev_def["duration_sec"],
+            },
+        )
         # 记入今日事件统计
-        self.eco_stats["events_today"].append({
-            "time": datetime.datetime.now().isoformat(),
-            "name": ev["name"],
-            "label": ev["label"],
-        })
+        self.eco_stats["events_today"].append(
+            {
+                "time": datetime.datetime.now().isoformat(),
+                "name": ev["name"],
+                "label": ev["label"],
+            }
+        )
 
     def trigger_inspiration(self, life_form) -> bool:
         """检查某个生命体是否触发"突然灵感"（5%/天/人 = 每小时 ~0.21%）。
@@ -501,20 +565,25 @@ class Environment:
             }
             with self._lock:
                 self.active_eco_events.append(ev)
-            self.broadcast_event("eco_event", {
-                "name": "inspiration",
-                "label": "突然灵感",
-                "effect_type": "work_boost",
-                "target": ev["target"],
-                "target_species": ev["target_species"],
-                "duration_sec": 3600,
-            })
-            self.eco_stats["events_today"].append({
-                "time": datetime.datetime.now().isoformat(),
-                "name": "inspiration",
-                "label": "突然灵感",
-                "target": ev["target"],
-            })
+            self.broadcast_event(
+                "eco_event",
+                {
+                    "name": "inspiration",
+                    "label": "突然灵感",
+                    "effect_type": "work_boost",
+                    "target": ev["target"],
+                    "target_species": ev["target_species"],
+                    "duration_sec": 3600,
+                },
+            )
+            self.eco_stats["events_today"].append(
+                {
+                    "time": datetime.datetime.now().isoformat(),
+                    "name": "inspiration",
+                    "label": "突然灵感",
+                    "target": ev["target"],
+                }
+            )
             return True
         return False
 
@@ -541,14 +610,14 @@ class Environment:
     def _init_eco_stats(self) -> dict:
         """初始化生态统计数据结构。"""
         return {
-            "food_peak": 0.0,           # 今日食物峰值
-            "food_valley": 9999.0,      # 今日食物谷值
-            "plant_total": 0.0,         # 今日植物生长总量
-            "events_today": [],         # 今日触发的事件列表
-            "outdoor_time": {},         # {species: 户外秒数}
-            "indoor_time": {},          # {species: 室内秒数}
-            "interaction_rank": [],     # 物种间互动次数排行
-            "popular_zones": {},        # {zone_id: 累计停留秒数}
+            "food_peak": 0.0,  # 今日食物峰值
+            "food_valley": 9999.0,  # 今日食物谷值
+            "plant_total": 0.0,  # 今日植物生长总量
+            "events_today": [],  # 今日触发的事件列表
+            "outdoor_time": {},  # {species: 户外秒数}
+            "indoor_time": {},  # {species: 室内秒数}
+            "interaction_rank": [],  # 物种间互动次数排行
+            "popular_zones": {},  # {zone_id: 累计停留秒数}
             "date": datetime.datetime.now().date().isoformat(),
         }
 
@@ -569,23 +638,32 @@ class Environment:
             self.eco_stats["date"] = today
         # 更新峰谷
         with self._lock:
-            self.eco_stats["food_peak"] = max(self.eco_stats["food_peak"], self.food_available)
-            self.eco_stats["food_valley"] = min(self.eco_stats["food_valley"], self.food_available)
+            self.eco_stats["food_peak"] = max(
+                self.eco_stats["food_peak"], self.food_available
+            )
+            self.eco_stats["food_valley"] = min(
+                self.eco_stats["food_valley"], self.food_available
+            )
             # 累加植物生长总量
             self.eco_stats["plant_total"] += 0.5  # 估算值，与 regenerate 中 0.5 一致
 
-    def record_zone_stay(self, zone_id: str, seconds: float, is_outdoor: bool, species: str) -> None:
+    def record_zone_stay(
+        self, zone_id: str, seconds: float, is_outdoor: bool, species: str
+    ) -> None:
         """记录某物种在某 zone 停留的时间。"""
         with self._lock:
-            self.eco_stats["popular_zones"][zone_id] = \
+            self.eco_stats["popular_zones"][zone_id] = (
                 self.eco_stats["popular_zones"].get(zone_id, 0) + seconds
+            )
             key = species
             if is_outdoor:
-                self.eco_stats["outdoor_time"][key] = \
+                self.eco_stats["outdoor_time"][key] = (
                     self.eco_stats["outdoor_time"].get(key, 0) + seconds
+                )
             else:
-                self.eco_stats["indoor_time"][key] = \
+                self.eco_stats["indoor_time"][key] = (
                     self.eco_stats["indoor_time"].get(key, 0) + seconds
+                )
 
     def record_interaction(self, sp1: str, sp2: str) -> None:
         """记录一次物种间互动。"""
@@ -618,18 +696,23 @@ class Environment:
             # 上限 50 件，超出删除最早的
             if len(self.relics) > 50:
                 self.relics = self.relics[-50:]
-        self.broadcast_event("relic_added", {
-            "owner": relic["owner"], "species": relic["species"],
-            "relic_name": relic["relic_name"],
-        })
+        self.broadcast_event(
+            "relic_added",
+            {
+                "owner": relic["owner"],
+                "species": relic["species"],
+                "relic_name": relic["relic_name"],
+            },
+        )
 
     def get_relics(self) -> list:
         """返回全部遗物列表（按时间倒序）。"""
         with self._lock:
             return list(reversed(self.relics))
 
-    def record_relationship_event(self, event_type: str, a: str, b: str,
-                                  extra: dict | None = None) -> None:
+    def record_relationship_event(
+        self, event_type: str, a: str, b: str, extra: dict | None = None
+    ) -> None:
         """记录一个关系事件（首次挚友/单恋被发现/关系破裂等）。
 
         Args:
@@ -642,7 +725,8 @@ class Environment:
             evt = {
                 "time": time.time(),
                 "type": event_type,
-                "a": a, "b": b,
+                "a": a,
+                "b": b,
             }
             if extra:
                 evt.update(extra)
@@ -656,8 +740,9 @@ class Environment:
         with self._lock:
             return list(reversed(self.relationship_events))[:limit]
 
-    def push_dialogue_bubble(self, speaker: str, text: str,
-                             target: str = "", duration: float = 3.0) -> int:
+    def push_dialogue_bubble(
+        self, speaker: str, text: str, target: str = "", duration: float = 3.0
+    ) -> int:
         """推送一条对话气泡到队列（前端 3 秒淡出）。
 
         Args:
@@ -710,10 +795,18 @@ class Environment:
 
         # 高频层：每 tick
         if True:
-            self._call_subsystem("atmosphere_system", "update_atmosphere", self.population, dt)
+            self._call_subsystem(
+                "atmosphere_system", "update_atmosphere", self.population, dt
+            )
             self._call_subsystem("memory_fragment", "update_fragments", dt)
             self._call_subsystem("spontaneous_social", "update_social", dt)
-            self._call_subsystem("spontaneous_social", "scan_social", self.population, env=self, router=router)
+            self._call_subsystem(
+                "spontaneous_social",
+                "scan_social",
+                self.population,
+                env=self,
+                router=router,
+            )
             self._call_subsystem("desktop_pet", "update_desktop_pet", self.population)
 
         # 中频层：每 10 tick
@@ -721,17 +814,29 @@ class Environment:
             self._call_subsystem("persistent_memory", "tick_persistent_memory", dt)
             weather = getattr(self, "weather", "sunny")
             season = getattr(self, "season", "spring")
-            ills = self._call_subsystem("illness_system", "update_illness", self.population, dt, weather=weather, season=season)
+            ills = self._call_subsystem(
+                "illness_system",
+                "update_illness",
+                self.population,
+                dt,
+                weather=weather,
+                season=season,
+            )
             ills = ills if isinstance(ills, list) else []
             for ev in ills:
                 self.broadcast_event("illness_event", ev)
-                if ev.get("type") in ("rescue_needed", "epidemic_start", "rescue_failed"):
+                if ev.get("type") in (
+                    "rescue_needed",
+                    "epidemic_start",
+                    "rescue_failed",
+                ):
                     self.push_active_message(
                         sender=ev.get("agent_name", "系统"),
                         sender_species=ev.get("species", ""),
                         text=self._format_illness_event_text(ev),
                         category="crisis_alert",
-                        priority="high")
+                        priority="high",
+                    )
 
         # 低频层：每 60 tick
         if tc % 60 == 0:
@@ -740,8 +845,10 @@ class Environment:
                 ("diary_system", "tick_diary", {}),
                 ("work_artifacts", "tick_artifacts", {}),
             ]:
-                evts = self._call_subsystem(mod, fn, dt, population=self.population, router=router)
-                for ev in (evts or []):
+                evts = self._call_subsystem(
+                    mod, fn, dt, population=self.population, router=router
+                )
+                for ev in evts or []:
                     self.broadcast_event(f"{mod.split('_')[0]}_event", ev)
 
     def _call_subsystem(self, module: str, func: str, *args, **kwargs) -> Any:
@@ -766,11 +873,15 @@ class Environment:
         if t == "illness_cured":
             return f"{name} 康复了：{ev.get('label', '')}（{ev.get('reason', '')}）"
         if t == "rescue_needed":
-            return f"急救警报！{name} 因 {ev.get('disease', '')} 濒危，请在 2 小时内急救！"
+            return (
+                f"急救警报！{name} 因 {ev.get('disease', '')} 濒危，请在 2 小时内急救！"
+            )
         if t == "rescue_failed":
             return f"急救失败，{name} 已离世……"
         if t == "epidemic_start":
-            return f"疫情爆发：{ev.get('label', '')}，已 {ev.get('sick_count', 0)} 人感染"
+            return (
+                f"疫情爆发：{ev.get('label', '')}，已 {ev.get('sick_count', 0)} 人感染"
+            )
         if t == "epidemic_end":
             return f"疫情结束：{ev.get('label', '')} 已平息"
         if t == "memory_heartbreak":
@@ -781,9 +892,14 @@ class Environment:
     # commit 31：主动消息系统
     # ------------------------------------------------------------------
 
-    def push_active_message(self, sender: str, sender_species: str,
-                            text: str, category: str,
-                            priority: str = "low") -> bool:
+    def push_active_message(
+        self,
+        sender: str,
+        sender_species: str,
+        text: str,
+        category: str,
+        priority: str = "low",
+    ) -> bool:
         """推送一条智能体主动消息。
 
         全局速率限制：每小时最多 HOURLY_LIMIT 条。
@@ -801,6 +917,7 @@ class Environment:
             True 表示入队成功，False 表示被速率限制拦截
         """
         from core.digital_life.active_messaging import HOURLY_LIMIT
+
         now = time.time()
         with self._lock:
             # 每小时重置计数器
@@ -855,8 +972,14 @@ class Environment:
         with self._lock:
             pop = list(self.population)
         employees = []
-        emo_sum = {"joy": 0, "sadness": 0, "anxiety": 0,
-                   "contentment": 0, "loneliness": 0, "curiosity": 0}
+        emo_sum = {
+            "joy": 0,
+            "sadness": 0,
+            "anxiety": 0,
+            "contentment": 0,
+            "loneliness": 0,
+            "curiosity": 0,
+        }
         n = 0
         for lf in pop:
             if not getattr(lf, "_alive", False):
@@ -867,21 +990,25 @@ class Environment:
                     continue
                 # 主导情感
                 top = max(emo.items(), key=lambda x: x[1])[0] if emo else "neutral"
-                employees.append({
-                    "name": lf._name_obj,
-                    "species": lf.species,
-                    "emotional_state": {k: round(v, 2) for k, v in emo.items()},
-                    "mood_score": round(getattr(lf, "mood_score", 50.0), 1),
-                    "top_emotion": top,
-                    "wisdom": round(getattr(lf, "wisdom", 0.0), 1),
-                    "retirement_wish": getattr(lf, "retirement_wish", ""),
-                    "wish_fulfilled": getattr(lf, "wish_fulfilled", False),
-                    "tags": [
-                        {"target": tid, "tags": list(ts)}
-                        for tid, ts in (getattr(lf, "relationship_tags", {}) or {}).items()
-                        if ts
-                    ],
-                })
+                employees.append(
+                    {
+                        "name": lf._name_obj,
+                        "species": lf.species,
+                        "emotional_state": {k: round(v, 2) for k, v in emo.items()},
+                        "mood_score": round(getattr(lf, "mood_score", 50.0), 1),
+                        "top_emotion": top,
+                        "wisdom": round(getattr(lf, "wisdom", 0.0), 1),
+                        "retirement_wish": getattr(lf, "retirement_wish", ""),
+                        "wish_fulfilled": getattr(lf, "wish_fulfilled", False),
+                        "tags": [
+                            {"target": tid, "tags": list(ts)}
+                            for tid, ts in (
+                                getattr(lf, "relationship_tags", {}) or {}
+                            ).items()
+                            if ts
+                        ],
+                    }
+                )
                 for k in emo_sum:
                     emo_sum[k] += emo.get(k, 0)
                 n += 1
@@ -904,11 +1031,13 @@ class Environment:
         for lf in pop:
             if not getattr(lf, "_alive", False):
                 continue
-            nodes.append({
-                "id": lf._name_obj,
-                "name": lf._name_obj,
-                "species": lf.species,
-            })
+            nodes.append(
+                {
+                    "id": lf._name_obj,
+                    "name": lf._name_obj,
+                    "species": lf.species,
+                }
+            )
             rels = getattr(lf, "relationships", {}) or {}
             tags_map = getattr(lf, "relationship_tags", {}) or {}
             for other_id, rel in rels.items():
@@ -920,35 +1049,37 @@ class Environment:
                 tags = tags_map.get(other_id, [])
                 if not tags and max(rel.values(), default=0) < 0.5:
                     continue
-                edges.append({
-                    "a": lf._name_obj,
-                    "b": other_id,
-                    "tags": list(tags),
-                    "affection": round(rel.get("affection", 0), 2),
-                    "trust": round(rel.get("trust", 0), 2),
-                    "respect": round(rel.get("respect", 0), 2),
-                    "familiarity": round(rel.get("familiarity", 0), 2),
-                })
+                edges.append(
+                    {
+                        "a": lf._name_obj,
+                        "b": other_id,
+                        "tags": list(tags),
+                        "affection": round(rel.get("affection", 0), 2),
+                        "trust": round(rel.get("trust", 0), 2),
+                        "respect": round(rel.get("respect", 0), 2),
+                        "familiarity": round(rel.get("familiarity", 0), 2),
+                    }
+                )
         return {"nodes": nodes, "edges": edges}
 
     def eco_status(self) -> dict:
         """返回生态数据完整状态。"""
         with self._lock:
             # 互动排行（按次数降序，前 10）
-            inter_rank = sorted(
-                self.interaction_count.items(),
-                key=lambda x: -x[1]
-            )[:10]
+            inter_rank = sorted(self.interaction_count.items(), key=lambda x: -x[1])[
+                :10
+            ]
             # 区域热度排行
             zone_rank = sorted(
-                self.eco_stats.get("popular_zones", {}).items(),
-                key=lambda x: -x[1]
+                self.eco_stats.get("popular_zones", {}).items(), key=lambda x: -x[1]
             )[:10]
             return {
                 "plant_biomass": round(self.plant_biomass, 1),
                 "insect_count": self.insect_count,
                 "weather": self.current_weather,
-                "weather_label": WEATHER_TYPES.get(self.current_weather, {}).get("label", ""),
+                "weather_label": WEATHER_TYPES.get(self.current_weather, {}).get(
+                    "label", ""
+                ),
                 "weather_info": self.weather_info(),
                 "active_eco_events": [
                     {
@@ -956,8 +1087,14 @@ class Environment:
                         "label": e["label"],
                         "effect_type": e.get("effect_type"),
                         "target": e.get("target"),
-                        "remaining_sec": max(0, int(e.get("end_ts", 0) - datetime.datetime.now().timestamp())),
-                    } for e in self.active_eco_events
+                        "remaining_sec": max(
+                            0,
+                            int(
+                                e.get("end_ts", 0) - datetime.datetime.now().timestamp()
+                            ),
+                        ),
+                    }
+                    for e in self.active_eco_events
                 ],
                 "eco_stats": {
                     "date": self.eco_stats.get("date"),
@@ -967,7 +1104,9 @@ class Environment:
                     "events_today": list(self.eco_stats.get("events_today", []))[-20:],
                     "outdoor_time": dict(self.eco_stats.get("outdoor_time", {})),
                     "indoor_time": dict(self.eco_stats.get("indoor_time", {})),
-                    "interaction_rank": [{"pair": k, "count": v} for k, v in inter_rank],
+                    "interaction_rank": [
+                        {"pair": k, "count": v} for k, v in inter_rank
+                    ],
                     "popular_zones": [{"zone": k, "seconds": v} for k, v in zone_rank],
                 },
             }
@@ -982,11 +1121,13 @@ class Environment:
         格式：{"time": ISO字符串, "type": event_type, "data": {...}}
         """
         with self._lock:
-            self.event_log.append({
-                "time": datetime.datetime.now().isoformat(),
-                "type": event_type,
-                "data": dict(data) if data else {},
-            })
+            self.event_log.append(
+                {
+                    "time": datetime.datetime.now().isoformat(),
+                    "type": event_type,
+                    "data": dict(data) if data else {},
+                }
+            )
 
     # ------------------------------------------------------------------
     # 统计
@@ -1032,7 +1173,9 @@ class Environment:
                 "plant_biomass": round(self.plant_biomass, 1),
                 "insect_count": self.insect_count,
                 "weather": self.current_weather,
-                "weather_label": WEATHER_TYPES.get(self.current_weather, {}).get("label", ""),
+                "weather_label": WEATHER_TYPES.get(self.current_weather, {}).get(
+                    "label", ""
+                ),
             }
 
     # ------------------------------------------------------------------

@@ -31,10 +31,14 @@ def get_storage_stats() -> dict[str, Any]:
         for f in sorted(p.rglob("*"), key=lambda x: x.stat().st_mtime, reverse=True):
             if f.suffix in exts or f.name.endswith(".db"):
                 sz = f.stat().st_size
-                stats["files"].append({
-                    "path": str(f), "size_bytes": sz, "size_str": _fmt_size(sz),
-                    "modified": f.stat().st_mtime,
-                })
+                stats["files"].append(
+                    {
+                        "path": str(f),
+                        "size_bytes": sz,
+                        "size_str": _fmt_size(sz),
+                        "modified": f.stat().st_mtime,
+                    }
+                )
                 stats["total_bytes"] += sz
     stats["total_str"] = _fmt_size(stats["total_bytes"])
     return stats
@@ -62,6 +66,7 @@ def run_cleanup(dry_run: bool = False, max_days: int = 14) -> CleanupResult:
     if os.path.exists(db_path) and not dry_run:
         try:
             import sqlite3
+
             conn = sqlite3.connect(db_path)
             conn.execute("VACUUM")
             conn.close()
@@ -73,7 +78,9 @@ def run_cleanup(dry_run: bool = False, max_days: int = 14) -> CleanupResult:
     return result
 
 
-def _clean_jsonl(path: str, cutoff: float, result: CleanupResult, dry_run: bool) -> None:
+def _clean_jsonl(
+    path: str, cutoff: float, result: CleanupResult, dry_run: bool
+) -> None:
     if not os.path.exists(path):
         return
     kept: list[str] = []
@@ -86,10 +93,16 @@ def _clean_jsonl(path: str, cutoff: float, result: CleanupResult, dry_run: bool)
                     continue
                 try:
                     obj = json.loads(line)
-                    ts = obj.get("timestamp") or obj.get("created_at") or obj.get("time") or 0
+                    ts = (
+                        obj.get("timestamp")
+                        or obj.get("created_at")
+                        or obj.get("time")
+                        or 0
+                    )
                     if isinstance(ts, str):
                         try:
                             from datetime import datetime
+
                             ts = datetime.fromisoformat(ts).timestamp()
                         except Exception:
                             ts = 0
@@ -168,6 +181,7 @@ def run_cleanup_priority(
     if os.path.exists(db_path) and not dry_run:
         try:
             import sqlite3
+
             conn = sqlite3.connect(db_path)
             conn.execute("VACUUM")
             conn.close()

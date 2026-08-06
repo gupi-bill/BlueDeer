@@ -9,6 +9,7 @@
 - LLM 可用时调 LLM 生成文本，不可用时降级到预置语料库。
 - 消息分优先级：low / medium / high，前端按优先级显示气泡 + 浏览器通知。
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -27,25 +28,29 @@ from typing import Any
 #   high:   危机/死亡/警报，立即发送并触发浏览器通知
 MESSAGE_CATEGORIES: dict[str, dict] = {
     # 状态类（低优先级，2 小时冷却）
-    "work_done":           {"priority": "low",    "cooldown": 7200,  "label": "工作完成"},
-    "resource_warning":    {"priority": "low",    "cooldown": 7200,  "label": "资源预警"},
-    "health_crisis":       {"priority": "medium", "cooldown": 1800,  "label": "健康危机"},
-    "emotion_distress":    {"priority": "medium", "cooldown": 3600,  "label": "情绪波动"},
+    "work_done": {"priority": "low", "cooldown": 7200, "label": "工作完成"},
+    "resource_warning": {"priority": "low", "cooldown": 7200, "label": "资源预警"},
+    "health_crisis": {"priority": "medium", "cooldown": 1800, "label": "健康危机"},
+    "emotion_distress": {"priority": "medium", "cooldown": 3600, "label": "情绪波动"},
     # 事件类（中高优先级，无冷却）
-    "new_recruit":         {"priority": "medium", "cooldown": 0,     "label": "新员工入职"},
-    "death_notice":        {"priority": "high",   "cooldown": 0,     "label": "员工离世"},
-    "relationship_milestone": {"priority": "medium", "cooldown": 0,  "label": "关系里程碑"},
-    "crisis_alert":        {"priority": "high",   "cooldown": 0,     "label": "危机警报"},
+    "new_recruit": {"priority": "medium", "cooldown": 0, "label": "新员工入职"},
+    "death_notice": {"priority": "high", "cooldown": 0, "label": "员工离世"},
+    "relationship_milestone": {
+        "priority": "medium",
+        "cooldown": 0,
+        "label": "关系里程碑",
+    },
+    "crisis_alert": {"priority": "high", "cooldown": 0, "label": "危机警报"},
     # 社交类（低优先级，4 小时冷却）
-    "morning_greeting":    {"priority": "low",    "cooldown": 14400, "label": "早安问候"},
-    "share_discovery":     {"priority": "low",    "cooldown": 14400, "label": "分享发现"},
-    "missing_supervisor":  {"priority": "low",    "cooldown": 14400, "label": "想念监工"},
-    "retirement_wish":     {"priority": "medium", "cooldown": 0,     "label": "退休愿望"},
+    "morning_greeting": {"priority": "low", "cooldown": 14400, "label": "早安问候"},
+    "share_discovery": {"priority": "low", "cooldown": 14400, "label": "分享发现"},
+    "missing_supervisor": {"priority": "low", "cooldown": 14400, "label": "想念监工"},
+    "retirement_wish": {"priority": "medium", "cooldown": 0, "label": "退休愿望"},
     # commit 34：疾病急救相关
-    "illness_onset":       {"priority": "medium", "cooldown": 1800,  "label": "生病通知"},
-    "rescue_please":       {"priority": "high",   "cooldown": 0,     "label": "请求急救"},
-    "epidemic_alert":      {"priority": "high",   "cooldown": 0,     "label": "疫情警报"},
-    "memory_reunion":      {"priority": "medium", "cooldown": 0,     "label": "重逢问候"},
+    "illness_onset": {"priority": "medium", "cooldown": 1800, "label": "生病通知"},
+    "rescue_please": {"priority": "high", "cooldown": 0, "label": "请求急救"},
+    "epidemic_alert": {"priority": "high", "cooldown": 0, "label": "疫情警报"},
+    "memory_reunion": {"priority": "medium", "cooldown": 0, "label": "重逢问候"},
 }
 
 # 全局速率限制：每小时最多推送 N 条（超出则汇总）
@@ -59,24 +64,24 @@ HOURLY_LIMIT: int = 10
 
 MESSAGE_TEMPLATES: dict[str, dict[str, list[str]]] = {
     "work_done": {
-        "deer":      ["鹿·{name}：调度了 {detail}，一切顺利。"],
-        "squirrel":  ["鼠·{name}：刚写完一段代码，编译过了。"],
+        "deer": ["鹿·{name}：调度了 {detail}，一切顺利。"],
+        "squirrel": ["鼠·{name}：刚写完一段代码，编译过了。"],
         "butterfly": ["蝶·{name}：花房的配色今天调好了。"],
-        "fox":       ["狐·{name}：又抓到 {detail} 个 bug。"],
-        "hedgehog":  ["猬·{name}：巡视完毕，无异常。"],
-        "beaver":    ["狸·{name}：水坝加固完成。"],
-        "raven":     ["鸦·{name}：今日故事已记录在案。"],
-        "hare":      ["兔·{name}：今日账目结算完毕。"],
-        "badger":    ["獾·{name}：地道新支线挖通。"],
-        "lark":      ["雀·{name}：监控系统全绿。"],
-        "kite":      ["鸢·{name}：高空巡视完毕。"],
-        "_generic":  ["{name}：工作完成。"],
+        "fox": ["狐·{name}：又抓到 {detail} 个 bug。"],
+        "hedgehog": ["猬·{name}：巡视完毕，无异常。"],
+        "beaver": ["狸·{name}：水坝加固完成。"],
+        "raven": ["鸦·{name}：今日故事已记录在案。"],
+        "hare": ["兔·{name}：今日账目结算完毕。"],
+        "badger": ["獾·{name}：地道新支线挖通。"],
+        "lark": ["雀·{name}：监控系统全绿。"],
+        "kite": ["鸢·{name}：高空巡视完毕。"],
+        "_generic": ["{name}：工作完成。"],
     },
     "resource_warning": {
-        "hare":      ["兔·{name}：Token 还够 {detail} 天，要注意。"],
-        "squirrel":  ["鼠·{name}：坚果快不够了，能补点吗？"],
-        "beaver":    ["狸·{name}：水坝材料不太够了。"],
-        "_generic":  ["{name}：资源有点紧张，请留意。"],
+        "hare": ["兔·{name}：Token 还够 {detail} 天，要注意。"],
+        "squirrel": ["鼠·{name}：坚果快不够了，能补点吗？"],
+        "beaver": ["狸·{name}：水坝材料不太够了。"],
+        "_generic": ["{name}：资源有点紧张，请留意。"],
     },
     "health_crisis": {
         "_generic": [
@@ -92,13 +97,13 @@ MESSAGE_TEMPLATES: dict[str, dict[str, list[str]]] = {
         ],
     },
     "new_recruit": {
-        "deer":  ["鹿·{name}：新同事 {detail} 已到岗，安排好了。"],
-        "kite":  ["鸢·{name}：从空中看到新面孔 {detail} 报到了。"],
+        "deer": ["鹿·{name}：新同事 {detail} 已到岗，安排好了。"],
+        "kite": ["鸢·{name}：从空中看到新面孔 {detail} 报到了。"],
         "_generic": ["{name}：欢迎新同事 {detail}！"],
     },
     "death_notice": {
         "raven": ["鸦·{name}：{detail} 走了。我会记得它的故事。"],
-        "deer":  ["鹿·{name}：{detail} 离开了我们。它工作到最后一刻。"],
+        "deer": ["鹿·{name}：{detail} 离开了我们。它工作到最后一刻。"],
         "_generic": ["{name}：{detail} 已经不在了。请节哀。"],
     },
     "relationship_milestone": {
@@ -109,21 +114,21 @@ MESSAGE_TEMPLATES: dict[str, dict[str, list[str]]] = {
     },
     "crisis_alert": {
         "hedgehog": ["猬·{name}：【警报】发现安全威胁：{detail}！请立即处理。"],
-        "fox":      ["狐·{name}：【警报】代码出现严重 bug：{detail}！"],
+        "fox": ["狐·{name}：【警报】代码出现严重 bug：{detail}！"],
         "_generic": ["{name}：【警报】{detail}"],
     },
     "morning_greeting": {
-        "lark":      ["雀·{name}：早安，监工！今天也一起加油。"],
-        "deer":      ["鹿·{name}：早上好，今天也请多关照。"],
+        "lark": ["雀·{name}：早安，监工！今天也一起加油。"],
+        "deer": ["鹿·{name}：早上好，今天也请多关照。"],
         "butterfly": ["蝶·{name}：早～花房刚开好，色彩不错。"],
-        "_generic":  ["{name}：早安。"],
+        "_generic": ["{name}：早安。"],
     },
     "share_discovery": {
-        "squirrel":  ["鼠·{name}：发现一颗超大的代码坚果！快看快看！"],
+        "squirrel": ["鼠·{name}：发现一颗超大的代码坚果！快看快看！"],
         "butterfly": ["蝶·{name}：调出一种新配色，叫'暮色蓝'！"],
-        "fox":       ["狐·{name}：刚才发现松鼠代码里一个特别搞笑的 bug。"],
-        "badger":    ["獾·{name}：挖地道时挖到一块亮晶晶的矿石。"],
-        "_generic":  ["{name}：发现了一件有意思的事。"],
+        "fox": ["狐·{name}：刚才发现松鼠代码里一个特别搞笑的 bug。"],
+        "badger": ["獾·{name}：挖地道时挖到一块亮晶晶的矿石。"],
+        "_generic": ["{name}：发现了一件有意思的事。"],
     },
     "missing_supervisor": {
         "_generic": [
@@ -159,15 +164,20 @@ LLM_PROMPT_TEMPLATE: str = """你是 BlueDeer 森林公司的智能体 {name}（
 # 工具函数
 # ====================================================================
 
+
 def get_category_config(category: str) -> dict:
     """获取消息类别的配置（优先级 + 冷却）。"""
-    return MESSAGE_CATEGORIES.get(category, {
-        "priority": "low", "cooldown": 3600, "label": category,
-    })
+    return MESSAGE_CATEGORIES.get(
+        category,
+        {
+            "priority": "low",
+            "cooldown": 3600,
+            "label": category,
+        },
+    )
 
 
-def pick_template(category: str, species: str, name: str,
-                  detail: str = "") -> str:
+def pick_template(category: str, species: str, name: str, detail: str = "") -> str:
     """从语料库随机选一条模板并填充占位符。
 
     Args:
@@ -190,13 +200,22 @@ def pick_template(category: str, species: str, name: str,
         return text.replace("{name}", name).replace("{detail}", detail)
 
 
-def build_llm_prompt(name: str, species: str, energy: float, health: float,
-                     top_emotion: str, category: str, context: str) -> str:
+def build_llm_prompt(
+    name: str,
+    species: str,
+    energy: float,
+    health: float,
+    top_emotion: str,
+    category: str,
+    context: str,
+) -> str:
     """构建 LLM prompt。"""
     cfg = get_category_config(category)
     return LLM_PROMPT_TEMPLATE.format(
-        name=name, species=species,
-        energy=energy, health=health,
+        name=name,
+        species=species,
+        energy=energy,
+        health=health,
         top_emotion=top_emotion,
         category_label=cfg.get("label", category),
         context=context or "（无额外上下文）",
@@ -224,7 +243,9 @@ def generate_via_llm(router: Any, prompt: str, timeout: float = 3.0) -> str | No
             # 优先用 complete_with_failover（Router 接口）
             if hasattr(router, "complete_with_failover"):
                 task_type = "voice"  # 短文本生成走 voice 任务类型
-                coro = router.complete_with_failover(task_type, prompt, agent_id="active_msg")
+                coro = router.complete_with_failover(
+                    task_type, prompt, agent_id="active_msg"
+                )
                 resp = loop.run_until_complete(asyncio.wait_for(coro, timeout=timeout))
             elif hasattr(router, "complete"):
                 # 直接 client 接口
@@ -236,7 +257,7 @@ def generate_via_llm(router: Any, prompt: str, timeout: float = 3.0) -> str | No
             text = getattr(resp, "content", None) or str(resp)
             text = text.strip()
             # 简单清洗：去掉引号、去掉换行
-            text = text.strip('"\'“”‘’').replace("\n", " ").strip()
+            text = text.strip("\"'“”‘’").replace("\n", " ").strip()
             if 5 <= len(text) <= 200:
                 return text
             return None
@@ -249,6 +270,7 @@ def generate_via_llm(router: Any, prompt: str, timeout: float = 3.0) -> str | No
 # ====================================================================
 # 主动消息触发器
 # ====================================================================
+
 
 def trigger_active_message(
     agent: Any,
@@ -295,8 +317,9 @@ def trigger_active_message(
     text = None
     # 优先尝试 LLM（如果传入了 router）
     if router is not None:
-        prompt = build_llm_prompt(name, species, energy, health,
-                                  top_e, category, context or detail)
+        prompt = build_llm_prompt(
+            name, species, energy, health, top_e, category, context or detail
+        )
         text = generate_via_llm(router, prompt)
 
     # LLM 失败或未传 router → 降级到模板
@@ -322,14 +345,17 @@ def trigger_active_message(
     # 失败不影响管控台消息队列（已入队），仅静默跳过
     try:
         from core.digital_life.message_router import dispatch_active_message
-        dispatch_active_message({
-            "sender": name,
-            "sender_species": species,
-            "text": text,
-            "category": category,
-            "priority": cfg.get("priority", "low"),
-            "time": time.time(),
-        })
+
+        dispatch_active_message(
+            {
+                "sender": name,
+                "sender_species": species,
+                "text": text,
+                "category": category,
+                "priority": cfg.get("priority", "low"),
+                "time": time.time(),
+            }
+        )
     except Exception:
         pass
 
@@ -346,6 +372,7 @@ def trigger_active_message(
 # ====================================================================
 # 触发条件检测函数（供 DigitalLifeForm.tick 调用）
 # ====================================================================
+
 
 def detect_and_trigger(agent: Any, router: Any = None) -> None:
     """扫描智能体状态，按需触发主动消息。
@@ -367,23 +394,34 @@ def detect_and_trigger(agent: Any, router: Any = None) -> None:
     # 1. 健康危机：能量 < 20 或健康 < 30
     if energy < 20 or health < 30:
         detail = f"能量{energy:.0f}/健康{health:.0f}"
-        trigger_active_message(agent, "health_crisis", detail=detail,
-                               context=f"健康危机：{detail}", router=router)
+        trigger_active_message(
+            agent,
+            "health_crisis",
+            detail=detail,
+            context=f"健康危机：{detail}",
+            router=router,
+        )
         return  # 危机期间不发其他消息
 
     # 2. 情绪波动：焦虑 > 0.8 或悲伤 > 0.7
     if anxiety > 0.8 or sadness > 0.7:
         detail = f"焦虑{anxiety:.2f}/悲伤{sadness:.2f}"
-        trigger_active_message(agent, "emotion_distress", detail=detail,
-                               context=f"情绪波动：{detail}", router=router)
+        trigger_active_message(
+            agent,
+            "emotion_distress",
+            detail=detail,
+            context=f"情绪波动：{detail}",
+            router=router,
+        )
         return
 
     # 3. 想念监工：距上次 fondness 衰减时间 > 3 天无互动
     #    用 _last_supervisor_interact_ts 字段（在 interact_* 中更新）
     last_interact = getattr(agent, "_last_supervisor_interact_ts", 0.0)
     if last_interact > 0 and now - last_interact > 3 * 86400:
-        trigger_active_message(agent, "missing_supervisor",
-                               context="已 3 天未与监工互动", router=router)
+        trigger_active_message(
+            agent, "missing_supervisor", context="已 3 天未与监工互动", router=router
+        )
         return
 
     # 4. 早安问候：每天早晨 7-9 点之间，且今天还没问候过
@@ -397,8 +435,10 @@ def detect_and_trigger(agent: Any, router: Any = None) -> None:
             if last_dt.date() == now_dt.date():
                 pass  # 今天已问候
             else:
-                trigger_active_message(agent, "morning_greeting",
-                                       context="早安问候", router=router)
+                trigger_active_message(
+                    agent, "morning_greeting", context="早安问候", router=router
+                )
         else:
-            trigger_active_message(agent, "morning_greeting",
-                                   context="早安问候", router=router)
+            trigger_active_message(
+                agent, "morning_greeting", context="早安问候", router=router
+            )

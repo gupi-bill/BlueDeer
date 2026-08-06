@@ -15,10 +15,12 @@ _upload_handler = None
 # MCP Manager singleton
 # ---------------------------------------------------------------------------
 
+
 def set_mcp_manager(manager):
     """Set the global MCP manager instance."""
     global _mcp_manager
     _mcp_manager = manager
+
 
 def get_mcp_manager():
     """Get the global MCP manager instance."""
@@ -29,6 +31,7 @@ def get_mcp_manager():
 # Shared upload lifecycle handler
 # ---------------------------------------------------------------------------
 
+
 def set_upload_handler(handler):
     """Register the process's UploadHandler without importing app modules."""
     global _upload_handler
@@ -38,6 +41,7 @@ def set_upload_handler(handler):
 def get_upload_handler():
     """Return the shared UploadHandler used by route and agent writers."""
     return _upload_handler
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -86,7 +90,10 @@ def _parse_tool_args(content):
         and len(args) == 1
         and "body" in args
         and isinstance(args["body"], dict)
-        and "action" in args["body"]  # extra safety: only unwrap if the inner dict looks like a tool call
+        and "action"
+        in args[
+            "body"
+        ]  # extra safety: only unwrap if the inner dict looks like a tool call
     ):
         args = args["body"]
     return args

@@ -9,15 +9,15 @@ Shared constants ``_internal_headers`` and ``_INTERNAL_BASE`` still live in
 them does a function-local import to avoid a top-level circular dependency,
 matching the system-domain split.
 """
+
 import asyncio
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import HTTPException
 from routes._validators import validate_remote_host, validate_ssh_port
-
 from src.tools._common import _parse_tool_args
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,9 @@ def _string_arg(value: Any) -> str:
     return "" if value is None else str(value).strip()
 
 
-def _validate_cookbook_ssh_target(remote_host: Any, ssh_port: Any = "") -> tuple[str, str]:
+def _validate_cookbook_ssh_target(
+    remote_host: Any, ssh_port: Any = ""
+) -> tuple[str, str]:
     remote = validate_remote_host(_string_arg(remote_host) or None) or ""
     sport = validate_ssh_port(_string_arg(ssh_port) or None) or ""
     return remote, sport
@@ -38,10 +40,14 @@ def _cookbook_label_key(value: Any) -> str:
 
 
 def _cookbook_is_exact_repo_id(value: Any) -> bool:
-    return bool(re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", str(value or "").strip()))
+    return bool(
+        re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", str(value or "").strip())
+    )
 
 
-def _cookbook_match_saved_preset(query: str, presets: List[Any], host: str = "") -> Optional[Dict[str, Any]]:
+def _cookbook_match_saved_preset(
+    query: str, presets: list[Any], host: str = ""
+) -> dict[str, Any] | None:
     """Resolve a user-facing model label to a saved serve preset.
 
     The launch agent should be callable directly. If the model says
@@ -54,7 +60,7 @@ def _cookbook_match_saved_preset(query: str, presets: List[Any], host: str = "")
         return None
     host = str(host or "")
     exact_repo = _cookbook_is_exact_repo_id(query)
-    candidates: List[tuple[int, Dict[str, Any]]] = []
+    candidates: list[tuple[int, dict[str, Any]]] = []
     for p in presets or []:
         if not isinstance(p, dict):
             continue
@@ -84,33 +90,45 @@ def _cookbook_match_saved_preset(query: str, presets: List[Any], host: str = "")
     return candidates[0][1]
 
 
-async def _cookbook_servers() -> Dict[str, Any]:
+async def _cookbook_servers() -> dict[str, Any]:
     """Return the cookbook's configured servers + the currently-selected
     default host. Shape: {default_host, hosts: [{host, platform, env, envPath}]}.
     The agent uses this to route downloads/serves to the right machine
     instead of silently defaulting to localhost."""
-    from src.tool_implementations import _internal_headers, _INTERNAL_BASE  # shared, lives in facade
     import httpx
+    from src.tool_implementations import (  # shared, lives in facade
+        _INTERNAL_BASE,
+        _internal_headers,
+    )
+
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(f"{_INTERNAL_BASE}/api/cookbook/state", headers=_internal_headers())
-            state = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+            r = await client.get(
+                f"{_INTERNAL_BASE}/api/cookbook/state", headers=_internal_headers()
+            )
+            state = (
+                r.json()
+                if r.headers.get("content-type", "").startswith("application/json")
+                else {}
+            )
     except Exception:
         return {"default_host": "", "hosts": []}
     env = (state or {}).get("env") or {}
     if not isinstance(env, dict):
         return {"default_host": "", "hosts": []}
     hosts = []
-    for s in (env.get("servers") or []):
+    for s in env.get("servers") or []:
         if isinstance(s, dict):
-            hosts.append({
-                "name": s.get("name") or "",
-                "host": s.get("host") or "",   # "" = Local
-                "platform": s.get("platform") or "",
-                "env": s.get("env") or "",
-                "envPath": s.get("envPath") or "",
-                "port": s.get("port") or "",
-            })
+            hosts.append(
+                {
+                    "name": s.get("name") or "",
+                    "host": s.get("host") or "",  # "" = Local
+                    "platform": s.get("platform") or "",
+                    "env": s.get("env") or "",
+                    "envPath": s.get("envPath") or "",
+                    "port": s.get("port") or "",
+                }
+            )
     return {"default_host": env.get("remoteHost") or "", "hosts": hosts}
 
 
@@ -133,7 +151,7 @@ async def _resolve_cookbook_host(name_or_host: str) -> str:
     # Name match (case-insensitive)
     for h in servers.get("hosts") or []:
         if (h.get("name") or "").lower() == low:
-            return h.get("host") or ""   # "" for the Local entry
+            return h.get("host") or ""  # "" for the Local entry
     # Substring name match as a fallback
     for h in servers.get("hosts") or []:
         if low and low in (h.get("name") or "").lower():
@@ -143,7 +161,7 @@ async def _resolve_cookbook_host(name_or_host: str) -> str:
     return val
 
 
-async def _cookbook_env_for_host(host: str) -> Dict[str, Any]:
+async def _cookbook_env_for_host(host: str) -> dict[str, Any]:
     """Resolve env_prefix / gpus / platform / hf_token / ssh_port for a
     given host by looking it up in cookbook_state.env. The user
     configures these per-host in the Cookbook UI; without them, raw
@@ -154,14 +172,24 @@ async def _cookbook_env_for_host(host: str) -> Dict[str, Any]:
     payload: env_prefix, gpus, platform, hf_token, ssh_port.
     Falls back to the top-level env settings if no per-host entry exists.
     """
-    from src.tool_implementations import _internal_headers, _INTERNAL_BASE  # shared, lives in facade
     import httpx
+    from src.tool_implementations import (  # shared, lives in facade
+        _INTERNAL_BASE,
+        _internal_headers,
+    )
+
     headers = _internal_headers()
-    state: Dict[str, Any] = {}
+    state: dict[str, Any] = {}
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(f"{_INTERNAL_BASE}/api/cookbook/state", headers=headers)
-            state = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+            r = await client.get(
+                f"{_INTERNAL_BASE}/api/cookbook/state", headers=headers
+            )
+            state = (
+                r.json()
+                if r.headers.get("content-type", "").startswith("application/json")
+                else {}
+            )
     except Exception as e:
         logger.debug(f"cookbook env lookup failed for host={host!r}: {e}")
         return {}
@@ -172,8 +200,8 @@ async def _cookbook_env_for_host(host: str) -> Dict[str, Any]:
         return {}
 
     # Per-host entry takes precedence over top-level.
-    per_host: Dict[str, Any] = {}
-    for s in (env_root.get("servers") or []):
+    per_host: dict[str, Any] = {}
+    for s in env_root.get("servers") or []:
         if isinstance(s, dict) and (s.get("host") or "") == (host or ""):
             per_host = s
             break
@@ -186,10 +214,18 @@ async def _cookbook_env_for_host(host: str) -> Dict[str, Any]:
     env_prefix = ""
     if env_kind == "venv" and env_path:
         if platform == "windows":
-            activate = env_path if env_path.endswith("\\Scripts\\Activate.ps1") else env_path.rstrip("\\") + "\\Scripts\\Activate.ps1"
+            activate = (
+                env_path
+                if env_path.endswith("\\Scripts\\Activate.ps1")
+                else env_path.rstrip("\\") + "\\Scripts\\Activate.ps1"
+            )
             env_prefix = f"& {activate}"
         else:
-            activate = env_path if env_path.endswith("/bin/activate") else env_path.rstrip("/") + "/bin/activate"
+            activate = (
+                env_path
+                if env_path.endswith("/bin/activate")
+                else env_path.rstrip("/") + "/bin/activate"
+            )
             env_prefix = f"source {activate}"
     elif env_kind == "conda" and env_path:
         if platform == "windows":
@@ -198,6 +234,7 @@ async def _cookbook_env_for_host(host: str) -> Dict[str, Any]:
             env_prefix = f'eval "$(conda shell.bash hook)" && conda activate {env_path}'
 
     from routes.cookbook_helpers import load_stored_hf_token
+
     return {
         "env_prefix": env_prefix,
         "env_type": env_kind,
@@ -243,15 +280,21 @@ async def _ensure_served_endpoint(
     model: str,
     cmd: str,
     host: str | None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Register/fetch a model endpoint for a running serve session."""
-    from src.tool_implementations import _internal_headers, _INTERNAL_BASE  # shared, lives in facade
     import httpx
+    from src.tool_implementations import (  # shared, lives in facade
+        _INTERNAL_BASE,
+        _internal_headers,
+    )
+
     endpoint_host, container_local = _infer_serve_host(host)
     port = _infer_serve_port(cmd)
     base_url = f"http://{endpoint_host}:{port}/v1"
     short_name = model.split("/")[-1] if "/" in model else model
-    is_image = "diffusion_server.py" in (cmd or "") or "mlx_image_server.py" in (cmd or "")
+    is_image = "diffusion_server.py" in (cmd or "") or "mlx_image_server.py" in (
+        cmd or ""
+    )
     payload = {
         "name": short_name if not is_image else f"{short_name} (image)",
         "base_url": base_url,
@@ -266,12 +309,21 @@ async def _ensure_served_endpoint(
                 data=payload,
                 headers=_internal_headers(),
             )
-            data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+            data = (
+                resp.json()
+                if resp.headers.get("content-type", "").startswith("application/json")
+                else {}
+            )
         if resp.status_code >= 400:
             logger.debug(
                 f"ensure endpoint failed for {model!r}: status={resp.status_code} data={data}"
             )
-            return {"added": False, "endpoint_id": "", "base_url": base_url, "error": data}
+            return {
+                "added": False,
+                "endpoint_id": "",
+                "base_url": base_url,
+                "error": data,
+            }
         ep_id = data.get("id") if isinstance(data, dict) else None
         return {
             "added": bool(ep_id),
@@ -281,7 +333,12 @@ async def _ensure_served_endpoint(
         }
     except Exception as e:
         logger.debug(f"ensure endpoint exception for {model!r}: {e}")
-        return {"added": False, "endpoint_id": "", "base_url": base_url, "error": str(e)}
+        return {
+            "added": False,
+            "endpoint_id": "",
+            "base_url": base_url,
+            "error": str(e),
+        }
 
 
 async def _cookbook_register_task(
@@ -299,14 +356,25 @@ async def _cookbook_register_task(
     spawns tmux but leaves state-writing to the UI; the agent needs to
     do that here so the task shows up in the Cookbook tab.
     Returns True on success, False if the write failed (best-effort)."""
-    from src.tool_implementations import _internal_headers, _INTERNAL_BASE  # shared, lives in facade
-    import httpx
     import time as _time
+
+    import httpx
+    from src.tool_implementations import (  # shared, lives in facade
+        _INTERNAL_BASE,
+        _internal_headers,
+    )
+
     headers = _internal_headers()
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(f"{_INTERNAL_BASE}/api/cookbook/state", headers=headers)
-            state = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+            r = await client.get(
+                f"{_INTERNAL_BASE}/api/cookbook/state", headers=headers
+            )
+            state = (
+                r.json()
+                if r.headers.get("content-type", "").startswith("application/json")
+                else {}
+            )
     except Exception as e:
         logger.debug(f"cookbook state read failed: {e}")
         return False
@@ -330,60 +398,67 @@ async def _cookbook_register_task(
         f"  target:  {target}{(cmd.split() or [''])[0] if cmd else ''}\n"
         f"  cmd:     {cmd[:200]}{'…' if len(cmd) > 200 else ''}"
     )
-    tasks.append({
-        "id": session_id,
-        "sessionId": session_id,
-        "name": display_name,
-        "modelId": model,
-        "type": task_type,
-        "status": "running",
-        "output": placeholder,
-        "ts": int(_time.time() * 1000),
-        "payload": {"repo_id": model, "remote_host": host or "", "_cmd": cmd},
-        "remoteHost": host or "",
-        "sshPort": "",
-        "platform": "linux",
-        "_serveReady": False,
-        "_endpointAdded": bool(endpoint_added),
-        "_endpointId": endpoint_id or "",
-    })
+    tasks.append(
+        {
+            "id": session_id,
+            "sessionId": session_id,
+            "name": display_name,
+            "modelId": model,
+            "type": task_type,
+            "status": "running",
+            "output": placeholder,
+            "ts": int(_time.time() * 1000),
+            "payload": {"repo_id": model, "remote_host": host or "", "_cmd": cmd},
+            "remoteHost": host or "",
+            "sshPort": "",
+            "platform": "linux",
+            "_serveReady": False,
+            "_endpointAdded": bool(endpoint_added),
+            "_endpointId": endpoint_id or "",
+        }
+    )
     state["tasks"] = tasks
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.post(f"{_INTERNAL_BASE}/api/cookbook/state",
-                                  json=state, headers=headers)
+            r = await client.post(
+                f"{_INTERNAL_BASE}/api/cookbook/state", json=state, headers=headers
+            )
         return r.status_code < 400
     except Exception as e:
         logger.debug(f"cookbook state write failed: {e}")
         return False
 
 
-
-
 # Patterns for detecting running LLM/diffusion model servers outside
 # the cookbook's task tracker. Each entry: (label, substring-list).
 # Match is case-insensitive against the FULL cmdline. First-match wins.
 _MODEL_PROCESS_PATTERNS = [
-    ("vLLM",            ["vllm.entrypoints", "vllm serve", "/vllm/", "vllm-openai"]),
-    ("SGLang",          ["sglang.launch_server", "sglang/launch_server"]),
-    ("MLX Image",       ["mlx_image_server.py", "mflux-generate-qwen", "mflux-generate"]),
-    ("MLX",             ["mlx_lm.server", "mlx-lm"]),
-    ("llama.cpp",       ["llama-server", "llama_cpp_server", "llamacppserver"]),
-    ("Ollama",          ["ollama serve", "ollama runner", "/ollama "]),
-    ("ComfyUI",         ["comfyui/main.py", "/ComfyUI/main.py", "ComfyUI"]),
-    ("A1111 WebUI",     ["stable-diffusion-webui/webui", "stable-diffusion-webui/launch", "webui.sh"]),
-    ("Fooocus",         ["Fooocus/entry_with_update", "Fooocus/launch"]),
-    ("InvokeAI",        ["invokeai-web", "invokeai.app", "invokeai/api_app"]),
-    ("Forge WebUI",     ["stable-diffusion-webui-forge", "forge/webui"]),
-    ("SD.Next",         ["automatic/webui", "sd.next"]),
-    ("TGI",             ["text-generation-launcher", "text_generation_launcher"]),
-    ("Aphrodite",       ["aphrodite.endpoints", "aphrodite-engine"]),
-    ("Triton",          ["tritonserver", "triton/main"]),
-    ("Diffusers",       ["diffusers.pipelines", "StableDiffusionInpaintPipeline", "DiffusionPipeline"]),
+    ("vLLM", ["vllm.entrypoints", "vllm serve", "/vllm/", "vllm-openai"]),
+    ("SGLang", ["sglang.launch_server", "sglang/launch_server"]),
+    ("MLX Image", ["mlx_image_server.py", "mflux-generate-qwen", "mflux-generate"]),
+    ("MLX", ["mlx_lm.server", "mlx-lm"]),
+    ("llama.cpp", ["llama-server", "llama_cpp_server", "llamacppserver"]),
+    ("Ollama", ["ollama serve", "ollama runner", "/ollama "]),
+    ("ComfyUI", ["comfyui/main.py", "/ComfyUI/main.py", "ComfyUI"]),
+    (
+        "A1111 WebUI",
+        ["stable-diffusion-webui/webui", "stable-diffusion-webui/launch", "webui.sh"],
+    ),
+    ("Fooocus", ["Fooocus/entry_with_update", "Fooocus/launch"]),
+    ("InvokeAI", ["invokeai-web", "invokeai.app", "invokeai/api_app"]),
+    ("Forge WebUI", ["stable-diffusion-webui-forge", "forge/webui"]),
+    ("SD.Next", ["automatic/webui", "sd.next"]),
+    ("TGI", ["text-generation-launcher", "text_generation_launcher"]),
+    ("Aphrodite", ["aphrodite.endpoints", "aphrodite-engine"]),
+    ("Triton", ["tritonserver", "triton/main"]),
+    (
+        "Diffusers",
+        ["diffusers.pipelines", "StableDiffusionInpaintPipeline", "DiffusionPipeline"],
+    ),
 ]
 
 
-def _cookbook_apply_retry_suggestion(cmd: str, suggestion: Dict[str, Any]) -> str:
+def _cookbook_apply_retry_suggestion(cmd: str, suggestion: dict[str, Any]) -> str:
     """Apply a structured Cookbook diagnosis suggestion to a serve command."""
     if not cmd or not suggestion:
         return cmd
@@ -405,12 +480,18 @@ def _cookbook_apply_retry_suggestion(cmd: str, suggestion: Dict[str, Any]) -> st
             return cmd
         repl = f"{flag} {value}"
         if re.search(rf"(^|\s){re.escape(flag)}(\s+\S+)?", cmd):
-            return re.sub(rf"(^|\s){re.escape(flag)}(?:\s+\S+)?", lambda m: (m.group(1) or " ") + repl, cmd).strip()
+            return re.sub(
+                rf"(^|\s){re.escape(flag)}(?:\s+\S+)?",
+                lambda m: (m.group(1) or " ") + repl,
+                cmd,
+            ).strip()
         return f"{cmd.rstrip()} {repl}"
     return cmd
 
 
-def _cookbook_engine_from_model_info(repo_id: str, info: Optional[Dict[str, Any]], host_meta: Optional[Dict[str, Any]] = None) -> str:
+def _cookbook_engine_from_model_info(
+    repo_id: str, info: dict[str, Any] | None, host_meta: dict[str, Any] | None = None
+) -> str:
     """Choose a conservative serve engine from repo metadata and target host.
 
     This is intentionally heuristic: the model card / file list tells us the
@@ -428,30 +509,56 @@ def _cookbook_engine_from_model_info(repo_id: str, info: Optional[Dict[str, Any]
         "diffusers" in tags
         or "text-to-image" in tags
         or "image-to-image" in tags
-        or any(k in rid for k in ("qwen-image", "z-image", "flux", "stable-diffusion", "sdxl", "hidream", "boogu", "krea-2"))
+        or any(
+            k in rid
+            for k in (
+                "qwen-image",
+                "z-image",
+                "flux",
+                "stable-diffusion",
+                "sdxl",
+                "hidream",
+                "boogu",
+                "krea-2",
+            )
+        )
     )
-    is_mlx_image = is_image and ("mlx" in tags or "mlx" in rid or "mlx-community/" in rid)
+    is_mlx_image = is_image and (
+        "mlx" in tags or "mlx" in rid or "mlx-community/" in rid
+    )
     if is_mlx_image:
         return "mlx_image"
     if is_image:
         return "diffusers"
-    if "mlx" in tags or "mlx" in rid or "mlx-community/" in rid or platform in {"macos", "darwin"}:
+    if (
+        "mlx" in tags
+        or "mlx" in rid
+        or "mlx-community/" in rid
+        or platform in {"macos", "darwin"}
+    ):
         return "mlx"
     if "gguf" in tags or "gguf" in rid or ".gguf" in files:
         return "llama.cpp"
     if "sglang" in tags or "sglang" in rid:
         return "sglang"
-    if any(q in rid or q in files or q in tags for q in ("awq", "fp8", "gptq", "bnb", "bitsandbytes")):
+    if any(
+        q in rid or q in files or q in tags
+        for q in ("awq", "fp8", "gptq", "bnb", "bitsandbytes")
+    ):
         return "vllm"
     return "vllm"
 
 
-def _cookbook_default_launch_cmd(repo_id: str, engine: str, *, port: int = 8000, info: Optional[Dict[str, Any]] = None) -> str:
+def _cookbook_default_launch_cmd(
+    repo_id: str, engine: str, *, port: int = 8000, info: dict[str, Any] | None = None
+) -> str:
     """Build a simple first-attempt command for a selected engine."""
     engine = (engine or "vllm").lower()
     port = int(port or 8000)
     if engine in {"mlx", "mlx-lm", "mlx_lm"}:
-        return f"python3 -m mlx_lm.server --model {repo_id} --host 0.0.0.0 --port {port}"
+        return (
+            f"python3 -m mlx_lm.server --model {repo_id} --host 0.0.0.0 --port {port}"
+        )
     if engine in {"mlx_image", "mlx-image", "mflux"}:
         return f"python3 scripts/mlx_image_server.py --model {repo_id} --host 0.0.0.0 --port {port}"
     if engine in {"diffusers", "diffusion", "image"}:
@@ -459,7 +566,11 @@ def _cookbook_default_launch_cmd(repo_id: str, engine: str, *, port: int = 8000,
     if engine in {"sglang", "sgl"}:
         return f"python3 -m sglang.launch_server --model-path {repo_id} --host 0.0.0.0 --port {port}"
     if engine in {"llama.cpp", "llamacpp", "llama"}:
-        siblings = [str(s) for s in ((info or {}).get("siblings") or []) if str(s).lower().endswith(".gguf")]
+        siblings = [
+            str(s)
+            for s in ((info or {}).get("siblings") or [])
+            if str(s).lower().endswith(".gguf")
+        ]
         if siblings:
             # llama-server accepts HF repo + filename separately on recent builds.
             return f"llama-server -hf {repo_id} -hfr {siblings[0]} --host 0.0.0.0 --port {port}"
@@ -467,7 +578,7 @@ def _cookbook_default_launch_cmd(repo_id: str, engine: str, *, port: int = 8000,
     return f"vllm serve {repo_id} --host 0.0.0.0 --port {port}"
 
 
-async def _cookbook_hf_model_info(repo_id: str) -> Dict[str, Any]:
+async def _cookbook_hf_model_info(repo_id: str) -> dict[str, Any]:
     """Fetch lightweight official Hugging Face metadata for launch planning.
 
     Uses the public HF API directly so this works even when huggingface_hub is
@@ -480,7 +591,7 @@ async def _cookbook_hf_model_info(repo_id: str) -> Dict[str, Any]:
     repo_id = (repo_id or "").strip().strip("/")
     if not repo_id:
         return {"error": "repo_id is required"}
-    headers: Dict[str, str] = {"Accept": "application/json"}
+    headers: dict[str, str] = {"Accept": "application/json"}
     token = load_stored_hf_token()
     if token:
         headers["Authorization"] = f"Bearer {token}"
@@ -519,7 +630,7 @@ async def _cookbook_hf_model_info(repo_id: str) -> Dict[str, Any]:
     }
 
 
-def _cookbook_host_meta(host: str, servers: Dict[str, Any]) -> Dict[str, Any]:
+def _cookbook_host_meta(host: str, servers: dict[str, Any]) -> dict[str, Any]:
     for item in servers.get("hosts") or []:
         if not isinstance(item, dict):
             continue
@@ -528,30 +639,37 @@ def _cookbook_host_meta(host: str, servers: Dict[str, Any]) -> Dict[str, Any]:
     return {}
 
 
-def _cookbook_find_task(tasks: List[Dict[str, Any]], session_id: str) -> Optional[Dict[str, Any]]:
+def _cookbook_find_task(
+    tasks: list[dict[str, Any]], session_id: str
+) -> dict[str, Any] | None:
     for task in tasks or []:
         if not isinstance(task, dict):
             continue
-        if task.get("session_id") == session_id or task.get("sessionId") == session_id or task.get("id") == session_id:
+        if (
+            task.get("session_id") == session_id
+            or task.get("sessionId") == session_id
+            or task.get("id") == session_id
+        ):
             return task
     return None
 
 
-def _cookbook_phase(task: Optional[Dict[str, Any]]) -> str:
+def _cookbook_phase(task: dict[str, Any] | None) -> str:
     if not task:
         return "unknown"
     return str(task.get("phase") or task.get("status") or "unknown").lower()
 
 
-def _scan_running_model_processes() -> List[Dict[str, Any]]:
+def _scan_running_model_processes() -> list[dict[str, Any]]:
     """Scan /proc for running model server processes. Linux-only; returns
     [] on other platforms or if /proc isn't accessible. Each match returns
     a dict shaped like a cookbook task so the caller can merge cleanly.
     """
     import os
+
     if not os.path.isdir("/proc"):
         return []
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     seen_keys = set()
     try:
         for pid_dir in os.listdir("/proc"):
@@ -565,7 +683,9 @@ def _scan_running_model_processes() -> List[Dict[str, Any]]:
             if not raw:
                 continue
             # cmdline is NUL-separated; join with spaces for matching/display
-            cmdline = raw.replace(b"\x00", b" ").decode("utf-8", errors="replace").strip()
+            cmdline = (
+                raw.replace(b"\x00", b" ").decode("utf-8", errors="replace").strip()
+            )
             if not cmdline:
                 continue
             lower = cmdline.lower()
@@ -580,32 +700,47 @@ def _scan_running_model_processes() -> List[Dict[str, Any]]:
                     # Try to pluck a model name out of the cmdline.
                     model = ""
                     for tok in cmdline.split():
-                        if "/" in tok and any(s in tok.lower() for s in (
-                            "model", "checkpoint", ".safetensors", ".gguf", ".bin", "huggingface"
-                        )):
+                        if "/" in tok and any(
+                            s in tok.lower()
+                            for s in (
+                                "model",
+                                "checkpoint",
+                                ".safetensors",
+                                ".gguf",
+                                ".bin",
+                                "huggingface",
+                            )
+                        ):
                             model = tok
                             break
-                    out.append({
-                        "session_id": f"pid-{pid_dir}",
-                        "model": model or label,
-                        "phase": "running (external)",
-                        "type": "serve",
-                        "remote": "local",
-                        "pid": int(pid_dir),
-                        "label": label,
-                        "cmdline_preview": cmdline[:140] + ("…" if len(cmdline) > 140 else ""),
-                        "external": True,
-                    })
+                    out.append(
+                        {
+                            "session_id": f"pid-{pid_dir}",
+                            "model": model or label,
+                            "phase": "running (external)",
+                            "type": "serve",
+                            "remote": "local",
+                            "pid": int(pid_dir),
+                            "label": label,
+                            "cmdline_preview": cmdline[:140]
+                            + ("…" if len(cmdline) > 140 else ""),
+                            "external": True,
+                        }
+                    )
                     break
     except Exception as e:
         logger.debug(f"_scan_running_model_processes failed: {e}")
     return out
 
 
-async def do_download_model(content: str, owner: Optional[str] = None) -> Dict:
+async def do_download_model(content: str, owner: str | None = None) -> dict:
     """Download a HuggingFace model via the cookbook API."""
-    from src.tool_implementations import _internal_headers, _INTERNAL_BASE  # shared, lives in facade
     import httpx
+    from src.tool_implementations import (  # shared, lives in facade
+        _INTERNAL_BASE,
+        _internal_headers,
+    )
+
     try:
         args = _parse_tool_args(content)
     except ValueError:
@@ -638,25 +773,46 @@ async def do_download_model(content: str, owner: Optional[str] = None) -> Dict:
         payload["include"] = args["include"]
     # Per-host env_prefix + hf_token from cookbook_state (same as serve).
     env_cfg = await _cookbook_env_for_host(host)
-    if env_cfg.get("env_prefix"): payload["env_prefix"] = env_cfg["env_prefix"]
-    if env_cfg.get("hf_token"):   payload["hf_token"]   = env_cfg["hf_token"]
-    if env_cfg.get("platform"):   payload["platform"]   = env_cfg["platform"]
-    if env_cfg.get("ssh_port"):   payload["ssh_port"]   = env_cfg["ssh_port"]
+    if env_cfg.get("env_prefix"):
+        payload["env_prefix"] = env_cfg["env_prefix"]
+    if env_cfg.get("hf_token"):
+        payload["hf_token"] = env_cfg["hf_token"]
+    if env_cfg.get("platform"):
+        payload["platform"] = env_cfg["platform"]
+    if env_cfg.get("ssh_port"):
+        payload["ssh_port"] = env_cfg["ssh_port"]
     try:
         async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(f"{_INTERNAL_BASE}/api/model/download",
-                                     json=payload, headers=_internal_headers())
+            resp = await client.post(
+                f"{_INTERNAL_BASE}/api/model/download",
+                json=payload,
+                headers=_internal_headers(),
+            )
             data = resp.json()
         if data.get("ok"):
             sid = data.get("session_id", "?")
             registered = await _cookbook_register_task(
-                session_id=sid, model=repo_id, host=host,
-                cmd=(f"ollama pull {repo_id}" if backend == "ollama" else f"hf download {repo_id}"),
+                session_id=sid,
+                model=repo_id,
+                host=host,
+                cmd=(
+                    f"ollama pull {repo_id}"
+                    if backend == "ollama"
+                    else f"hf download {repo_id}"
+                ),
                 task_type="download",
             )
-            note = "" if registered else " (state-write failed — download may not show in UI)"
+            note = (
+                ""
+                if registered
+                else " (state-write failed — download may not show in UI)"
+            )
             where = host or "local"
-            default_note = " (defaulted to the cookbook's selected server — pass host= or local=true to override)" if _host_defaulted else ""
+            default_note = (
+                " (defaulted to the cookbook's selected server — pass host= or local=true to override)"
+                if _host_defaulted
+                else ""
+            )
             return {
                 "output": f"Download started: {repo_id} on {where} (session: {sid}){note}{default_note}",
                 "session_id": sid,
@@ -670,10 +826,14 @@ async def do_download_model(content: str, owner: Optional[str] = None) -> Dict:
         return {"error": str(e), "exit_code": 1}
 
 
-async def do_serve_model(content: str, owner: Optional[str] = None) -> Dict:
+async def do_serve_model(content: str, owner: str | None = None) -> dict:
     """Start serving a model via the cookbook API."""
-    from src.tool_implementations import _internal_headers, _INTERNAL_BASE  # shared, lives in facade
     import httpx
+    from src.tool_implementations import (  # shared, lives in facade
+        _INTERNAL_BASE,
+        _internal_headers,
+    )
+
     try:
         args = _parse_tool_args(content)
     except ValueError:
@@ -711,6 +871,7 @@ async def do_serve_model(content: str, owner: Optional[str] = None) -> Dict:
         # Match the FIRST shell-token: skip leading KEY=VAL env-var prefixes
         # (CUDA_VISIBLE_DEVICES=… VLLM_USE_FLASHINFER_SAMPLER=…) before the binary.
         import re as _re3
+
         tokens = cmd.split()
         idx = 0
         env_re = _re3.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
@@ -722,15 +883,23 @@ async def do_serve_model(content: str, owner: Optional[str] = None) -> Dict:
                 tokens[idx] = f"{venv_bin}/{head}"
                 cmd = " ".join(tokens)
                 payload["cmd"] = cmd
-    if env_cfg.get("env_prefix"): payload["env_prefix"] = env_cfg["env_prefix"]
-    if env_cfg.get("gpus"):       payload["gpus"]       = env_cfg["gpus"]
-    if env_cfg.get("hf_token"):   payload["hf_token"]   = env_cfg["hf_token"]
-    if env_cfg.get("platform"):   payload["platform"]   = env_cfg["platform"]
-    if env_cfg.get("ssh_port"):   payload["ssh_port"]   = env_cfg["ssh_port"]
+    if env_cfg.get("env_prefix"):
+        payload["env_prefix"] = env_cfg["env_prefix"]
+    if env_cfg.get("gpus"):
+        payload["gpus"] = env_cfg["gpus"]
+    if env_cfg.get("hf_token"):
+        payload["hf_token"] = env_cfg["hf_token"]
+    if env_cfg.get("platform"):
+        payload["platform"] = env_cfg["platform"]
+    if env_cfg.get("ssh_port"):
+        payload["ssh_port"] = env_cfg["ssh_port"]
     try:
         async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(f"{_INTERNAL_BASE}/api/model/serve",
-                                     json=payload, headers=_internal_headers())
+            resp = await client.post(
+                f"{_INTERNAL_BASE}/api/model/serve",
+                json=payload,
+                headers=_internal_headers(),
+            )
             data = resp.json()
         if data.get("ok"):
             sid = data.get("session_id", "?")
@@ -738,15 +907,23 @@ async def do_serve_model(content: str, owner: Optional[str] = None) -> Dict:
             if endpoint_id:
                 endpoint_added = True
             else:
-                endpoint_meta = await _ensure_served_endpoint(model=repo_id, cmd=cmd, host=host)
+                endpoint_meta = await _ensure_served_endpoint(
+                    model=repo_id, cmd=cmd, host=host
+                )
                 endpoint_added = bool(endpoint_meta.get("added"))
                 endpoint_id = endpoint_meta.get("endpoint_id", "") or endpoint_id
             registered = await _cookbook_register_task(
-                session_id=sid, model=repo_id,
-                host=host, cmd=cmd, task_type="serve",
-                endpoint_added=endpoint_added, endpoint_id=endpoint_id or "",
+                session_id=sid,
+                model=repo_id,
+                host=host,
+                cmd=cmd,
+                task_type="serve",
+                endpoint_added=endpoint_added,
+                endpoint_id=endpoint_id or "",
             )
-            note = "" if registered else " (state-write failed — task may not show in UI)"
+            note = (
+                "" if registered else " (state-write failed — task may not show in UI)"
+            )
             where = host or "local"
             log_path = f"/tmp/odysseus-tmux/{sid}.log"
             return {
@@ -764,7 +941,10 @@ async def do_serve_model(content: str, owner: Optional[str] = None) -> Dict:
                 "log_path": log_path,
                 "next_tools": [
                     {"name": "list_served_models", "arguments": {}},
-                    {"name": "tail_serve_output", "arguments": {"session_id": sid, "tail": 400}},
+                    {
+                        "name": "tail_serve_output",
+                        "arguments": {"session_id": sid, "tail": 400},
+                    },
                 ],
                 "exit_code": 0,
             }
@@ -775,31 +955,39 @@ async def do_serve_model(content: str, owner: Optional[str] = None) -> Dict:
         err_msg = data.get("error") or data.get("detail") or "Serve failed"
         hint = ""
         if isinstance(err_msg, str) and "cmd" in err_msg.lower():
-            hint = (" — the cmd must START with an allowlisted binary "
-                    "(vllm, python3, llama-server, ollama, sglang, mlx_lm, lmdeploy, node, npx). "
-                    "Do NOT prefix with `cd …`, `source …`, or chain with `&&`. "
-                    "env_prefix (e.g. `source ~/qwen35-env/bin/activate`) is added "
-                    "automatically from the host's saved venv settings.")
+            hint = (
+                " — the cmd must START with an allowlisted binary "
+                "(vllm, python3, llama-server, ollama, sglang, mlx_lm, lmdeploy, node, npx). "
+                "Do NOT prefix with `cd …`, `source …`, or chain with `&&`. "
+                "env_prefix (e.g. `source ~/qwen35-env/bin/activate`) is added "
+                "automatically from the host's saved venv settings."
+            )
         return {"error": f"{err_msg}{hint}", "exit_code": 1}
     except Exception as e:
         return {"error": str(e), "exit_code": 1}
 
 
-async def do_list_served_models(content: str, owner: Optional[str] = None) -> Dict:
+async def do_list_served_models(content: str, owner: str | None = None) -> dict:
     """List running model servers — merges cookbook-tracked tasks with
     a /proc scan for externally-launched LLM/diffusion processes
     (vLLM, sglang, llama.cpp, Ollama, ComfyUI, A1111, Fooocus, etc.)."""
-    from src.tool_implementations import _internal_headers, _INTERNAL_BASE  # shared, lives in facade
     import asyncio
+
     import httpx
+    from src.tool_implementations import (  # shared, lives in facade
+        _INTERNAL_BASE,
+        _internal_headers,
+    )
 
     # Cookbook-tracked tasks (best-effort; don't fail the whole call if
     # this is unreachable).
-    cookbook_tasks: List[Dict[str, Any]] = []
+    cookbook_tasks: list[dict[str, Any]] = []
     try:
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(f"{_INTERNAL_BASE}/api/cookbook/tasks/status",
-                                    headers=_internal_headers())
+            resp = await client.get(
+                f"{_INTERNAL_BASE}/api/cookbook/tasks/status",
+                headers=_internal_headers(),
+            )
             cookbook_tasks = (resp.json() or {}).get("tasks") or []
     except Exception as e:
         logger.debug(f"cookbook tasks/status fetch failed: {e}")
@@ -807,7 +995,7 @@ async def do_list_served_models(content: str, owner: Optional[str] = None) -> Di
     # Local process scan — runs in a worker thread so it doesn't block.
     external = await asyncio.to_thread(_scan_running_model_processes)
 
-    merged: List[Dict[str, Any]] = []
+    merged: list[dict[str, Any]] = []
     merged.extend(cookbook_tasks)
     # Dedupe: if a process's PID is already mentioned by a cookbook task
     # (cookbook may track the PID via session_id), skip it.
@@ -829,15 +1017,28 @@ async def do_list_served_models(content: str, owner: Optional[str] = None) -> Di
     # completed tasks are mostly historical noise — they shouldn't lead
     # the list when something is genuinely serving.
     _ORDER = {
-        "ready": 0, "running": 1, "loading": 1, "warming": 1,
-        "queued": 2, "starting": 2,
-        "error": 5, "crashed": 5, "failed": 5,
-        "stopped": 6, "killed": 6, "cancelled": 6, "canceled": 6,
-        "done": 7, "completed": 7, "finished": 7,
+        "ready": 0,
+        "running": 1,
+        "loading": 1,
+        "warming": 1,
+        "queued": 2,
+        "starting": 2,
+        "error": 5,
+        "crashed": 5,
+        "failed": 5,
+        "stopped": 6,
+        "killed": 6,
+        "cancelled": 6,
+        "canceled": 6,
+        "done": 7,
+        "completed": 7,
+        "finished": 7,
     }
-    def _rank(t: Dict[str, Any]) -> int:
+
+    def _rank(t: dict[str, Any]) -> int:
         phase = (t.get("phase") or t.get("status") or "unknown").lower()
         return _ORDER.get(phase, 3)
+
     merged.sort(key=_rank)
 
     cb_n = len(cookbook_tasks)
@@ -867,7 +1068,11 @@ async def do_list_served_models(content: str, owner: Optional[str] = None) -> Di
             for s in suggestions[:3]:
                 label = s.get("label") or "retry"
                 retry_cmd = _cookbook_apply_retry_suggestion(cmd, s)
-                if retry_cmd and retry_cmd != cmd and s.get("op") in {"append", "replace", "remove"}:
+                if (
+                    retry_cmd
+                    and retry_cmd != cmd
+                    and s.get("op") in {"append", "replace", "remove"}
+                ):
                     actionable.append(f"{label}: `{retry_cmd}`")
                 else:
                     actionable.append(label)
@@ -885,8 +1090,12 @@ async def do_list_served_models(content: str, owner: Optional[str] = None) -> Di
                 _tail_lines = tail.splitlines()
                 _shown = _tail_lines[-30:]
                 for _i, _ln in enumerate(_tail_lines):
-                    if "Traceback (most recent call last)" in _ln or "ERROR" in _ln or "Error:" in _ln:
-                        _shown = _tail_lines[_i:_i + 40]
+                    if (
+                        "Traceback (most recent call last)" in _ln
+                        or "ERROR" in _ln
+                        or "Error:" in _ln
+                    ):
+                        _shown = _tail_lines[_i : _i + 40]
                         break
                 lines.append("    recent log:")
                 for line in _shown:
@@ -896,8 +1105,9 @@ async def do_list_served_models(content: str, owner: Optional[str] = None) -> Di
     return {"output": "\n".join(lines), "tasks": merged, "exit_code": 0}
 
 
-async def _cookbook_kill_session(session_id: str, *, remote_host: str = "",
-                                 ssh_port: str = "", verb: str = "Stopped") -> Dict:
+async def _cookbook_kill_session(
+    session_id: str, *, remote_host: str = "", ssh_port: str = "", verb: str = "Stopped"
+) -> dict:
     """Kill a cookbook tmux session — remote-aware — AND mark the task
     stopped in cookbook_state.json. Shared by stop_served_model and
     cancel_download so both behave identically.
@@ -907,26 +1117,35 @@ async def _cookbook_kill_session(session_id: str, *, remote_host: str = "",
     that's the bug where "stop the download" appeared to work but the
     download kept running on the remote host.
     """
-    from src.tool_implementations import _internal_headers, _INTERNAL_BASE  # shared, lives in facade
-    import httpx
     import shlex
+
+    import httpx
+    from src.tool_implementations import (  # shared, lives in facade
+        _INTERNAL_BASE,
+        _internal_headers,
+    )
+
     headers = _internal_headers()
     remote = remote_host or ""
     sport = ssh_port or ""
 
     # Look up the task's host + confirm it exists in state.
-    state: Dict[str, Any] = {}
+    state: dict[str, Any] = {}
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(f"{_INTERNAL_BASE}/api/cookbook/state", headers=headers)
+            resp = await client.get(
+                f"{_INTERNAL_BASE}/api/cookbook/state", headers=headers
+            )
             state = resp.json() or {}
     except Exception as e:
         logger.debug(f"cookbook state lookup failed for {session_id}: {e}")
     if not isinstance(state, dict):
         state = {}
     matched = None
-    for t in (state.get("tasks") or []):
-        if isinstance(t, dict) and (t.get("sessionId") == session_id or t.get("id") == session_id):
+    for t in state.get("tasks") or []:
+        if isinstance(t, dict) and (
+            t.get("sessionId") == session_id or t.get("id") == session_id
+        ):
             matched = t
             if not remote:
                 remote = t.get("remoteHost") or ""
@@ -951,29 +1170,48 @@ async def _cookbook_kill_session(session_id: str, *, remote_host: str = "",
 
     try:
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(f"{_INTERNAL_BASE}/api/shell/exec",
-                                     json={"command": cmd}, headers=headers)
+            resp = await client.post(
+                f"{_INTERNAL_BASE}/api/shell/exec",
+                json={"command": cmd},
+                headers=headers,
+            )
         if resp.status_code >= 400:
-            return {"error": f"shell/exec returned HTTP {resp.status_code}: {resp.text[:200]}", "exit_code": 1}
+            return {
+                "error": f"shell/exec returned HTTP {resp.status_code}: {resp.text[:200]}",
+                "exit_code": 1,
+            }
         try:
             data = resp.json()
         except Exception:
             data = {}
         kill_failed = isinstance(data, dict) and data.get("exit_code") not in (None, 0)
-        kill_err = ((data.get("stderr") or data.get("error") or "").strip() if isinstance(data, dict) else "")
+        kill_err = (
+            (data.get("stderr") or data.get("error") or "").strip()
+            if isinstance(data, dict)
+            else ""
+        )
         # "no server running" / "can't find session" means it was already
         # gone — treat as success (the goal is "not running").
-        already_gone = any(s in kill_err.lower() for s in ("no server running", "can't find session", "session not found"))
+        already_gone = any(
+            s in kill_err.lower()
+            for s in ("no server running", "can't find session", "session not found")
+        )
         if kill_failed and not already_gone:
-            return {"error": f"Failed to {verb.lower()} {target_label}: {kill_err or 'kill-session returned non-zero'}", "exit_code": 1}
+            return {
+                "error": f"Failed to {verb.lower()} {target_label}: {kill_err or 'kill-session returned non-zero'}",
+                "exit_code": 1,
+            }
 
         # Update state: mark stopped (so the UI + list reflect reality).
         if matched is not None:
             try:
                 matched["status"] = "stopped"
                 async with httpx.AsyncClient(timeout=10) as client:
-                    await client.post(f"{_INTERNAL_BASE}/api/cookbook/state",
-                                      json=state, headers=headers)
+                    await client.post(
+                        f"{_INTERNAL_BASE}/api/cookbook/state",
+                        json=state,
+                        headers=headers,
+                    )
             except Exception as e:
                 logger.debug(f"failed to mark {session_id} stopped in state: {e}")
 
@@ -983,7 +1221,7 @@ async def _cookbook_kill_session(session_id: str, *, remote_host: str = "",
         return {"error": str(e), "exit_code": 1}
 
 
-async def do_stop_served_model(content: str, owner: Optional[str] = None) -> Dict:
+async def do_stop_served_model(content: str, owner: str | None = None) -> dict:
     """Stop a running model server by killing its tmux session (remote-aware)."""
     try:
         args = _parse_tool_args(content)
@@ -1000,7 +1238,7 @@ async def do_stop_served_model(content: str, owner: Optional[str] = None) -> Dic
     )
 
 
-async def do_tail_serve_output(content: str, owner: Optional[str] = None) -> Dict:
+async def do_tail_serve_output(content: str, owner: str | None = None) -> dict:
     """Capture the last N lines of a cookbook task's tmux pane — remote-aware.
 
     Used by the agent to debug a failed/stuck serve: list_served_models tells
@@ -1009,17 +1247,26 @@ async def do_tail_serve_output(content: str, owner: Optional[str] = None) -> Dic
     flashinfer version mismatch, OOM, missing kernels, etc.) and decide
     whether to relaunch via serve_model with new flags.
     """
-    from src.tool_implementations import _internal_headers, _INTERNAL_BASE  # shared, lives in facade
-    import httpx
     import shlex
+
+    import httpx
+    from src.tool_implementations import (  # shared, lives in facade
+        _INTERNAL_BASE,
+        _internal_headers,
+    )
+
     try:
         args = _parse_tool_args(content)
     except ValueError:
         return {"error": "Invalid JSON arguments", "exit_code": 1}
     session_id = (args.get("session_id") or "").strip()
     if not session_id:
-        return {"error": "session_id is required (from list_served_models)", "exit_code": 1}
+        return {
+            "error": "session_id is required (from list_served_models)",
+            "exit_code": 1,
+        }
     import re as _re
+
     if not _re.fullmatch(r"[a-zA-Z0-9_-]+", session_id):
         return {"error": "Invalid session_id format", "exit_code": 1}
     try:
@@ -1033,16 +1280,20 @@ async def do_tail_serve_output(content: str, owner: Optional[str] = None) -> Dic
     # Resolve host from cookbook state if caller didn't pass one — same
     # lookup _cookbook_kill_session uses.
     if not remote:
-        state: Dict[str, Any] = {}
+        state: dict[str, Any] = {}
         try:
             async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.get(f"{_INTERNAL_BASE}/api/cookbook/state", headers=headers)
+                resp = await client.get(
+                    f"{_INTERNAL_BASE}/api/cookbook/state", headers=headers
+                )
                 state = resp.json() or {}
         except Exception as e:
             logger.debug(f"cookbook state lookup failed for {session_id}: {e}")
         if isinstance(state, dict):
-            for t in (state.get("tasks") or []):
-                if isinstance(t, dict) and (t.get("sessionId") == session_id or t.get("id") == session_id):
+            for t in state.get("tasks") or []:
+                if isinstance(t, dict) and (
+                    t.get("sessionId") == session_id or t.get("id") == session_id
+                ):
                     remote = t.get("remoteHost") or ""
                     if not sport:
                         sport = t.get("sshPort") or ""
@@ -1062,7 +1313,9 @@ async def do_tail_serve_output(content: str, owner: Optional[str] = None) -> Dic
     # the pane when the log file doesn't exist (older sessions launched
     # before the tmux+tee wrapper was added).
     log_path = f"/tmp/odysseus-tmux/{session_id}.log"
-    pane_inner = f"tmux capture-pane -t {shlex.quote(session_id)} -p -S -{tail} 2>/dev/null"
+    pane_inner = (
+        f"tmux capture-pane -t {shlex.quote(session_id)} -p -S -{tail} 2>/dev/null"
+    )
     file_inner = f"tail -n {tail} {shlex.quote(log_path)} 2>/dev/null"
     inner = (
         f"if [ -s {shlex.quote(log_path)} ]; then {file_inner}; "
@@ -1080,24 +1333,46 @@ async def do_tail_serve_output(content: str, owner: Optional[str] = None) -> Dic
         host_label = "local"
     try:
         async with httpx.AsyncClient(timeout=20) as client:
-            resp = await client.post(f"{_INTERNAL_BASE}/api/shell/exec",
-                                     json={"command": cmd}, headers=headers)
+            resp = await client.post(
+                f"{_INTERNAL_BASE}/api/shell/exec",
+                json={"command": cmd},
+                headers=headers,
+            )
         if resp.status_code >= 400:
-            return {"error": f"shell/exec returned HTTP {resp.status_code}: {resp.text[:200]}", "exit_code": 1}
+            return {
+                "error": f"shell/exec returned HTTP {resp.status_code}: {resp.text[:200]}",
+                "exit_code": 1,
+            }
         data = resp.json() if resp.content else {}
         output_text = (data.get("stdout") or "").strip()
         stderr_text = (data.get("stderr") or "").strip()
         rc = data.get("exit_code")
         if rc not in (None, 0) and not output_text:
-            already_gone = any(s in (stderr_text or "").lower() for s in ("no server running", "can't find session", "session not found"))
+            already_gone = any(
+                s in (stderr_text or "").lower()
+                for s in (
+                    "no server running",
+                    "can't find session",
+                    "session not found",
+                )
+            )
             if already_gone:
-                return {"output": f"Tmux session {session_id} on {host_label} is gone (task already exited).", "exit_code": 0, "session_id": session_id, "host": host_label}
-            return {"error": f"capture-pane failed on {host_label}: {stderr_text or f'exit {rc}'}", "exit_code": 1}
+                return {
+                    "output": f"Tmux session {session_id} on {host_label} is gone (task already exited).",
+                    "exit_code": 0,
+                    "session_id": session_id,
+                    "host": host_label,
+                }
+            return {
+                "error": f"capture-pane failed on {host_label}: {stderr_text or f'exit {rc}'}",
+                "exit_code": 1,
+            }
         # Dedupe download-progress noise. A 100-shard HF download produces
         # tens of thousands of `model-NN-of-MM.safetensors: 91%|...` lines
         # that all look the same to the agent and drown the actual error.
         # Keep only one sample per (file, decile-percent) bucket.
         import re as _re2
+
         lines = output_text.splitlines()
         dedup_lines = []
         seen_progress = set()
@@ -1135,16 +1410,26 @@ async def do_tail_serve_output(content: str, owner: Optional[str] = None) -> Dic
         return {"error": str(e), "exit_code": 1}
 
 
-async def do_list_downloads(content: str, owner: Optional[str] = None) -> Dict:
+async def do_list_downloads(content: str, owner: str | None = None) -> dict:
     """List in-flight model downloads (filters /api/cookbook/tasks/status to type=download)."""
-    from src.tool_implementations import _internal_headers, _INTERNAL_BASE  # shared, lives in facade
     import httpx
+    from src.tool_implementations import (  # shared, lives in facade
+        _INTERNAL_BASE,
+        _internal_headers,
+    )
+
     try:
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(f"{_INTERNAL_BASE}/api/cookbook/tasks/status",
-                                    headers=_internal_headers())
+            resp = await client.get(
+                f"{_INTERNAL_BASE}/api/cookbook/tasks/status",
+                headers=_internal_headers(),
+            )
             data = resp.json()
-        tasks = [t for t in data.get("tasks", []) if (t.get("type") or "").lower() == "download"]
+        tasks = [
+            t
+            for t in data.get("tasks", [])
+            if (t.get("type") or "").lower() == "download"
+        ]
         if not tasks:
             return {"output": "No downloads in progress.", "exit_code": 0}
         lines = [f"{len(tasks)} download(s) in progress:"]
@@ -1153,13 +1438,15 @@ async def do_list_downloads(content: str, owner: Optional[str] = None) -> Dict:
             model = t.get("model", "?")
             pct = t.get("progress_percent") or t.get("percent")
             pct_str = f" {pct}%" if pct is not None else ""
-            lines.append(f"- {model}: {phase}{pct_str} ({t.get('remote', 'local')}, session: {t.get('session_id', '?')})")
+            lines.append(
+                f"- {model}: {phase}{pct_str} ({t.get('remote', 'local')}, session: {t.get('session_id', '?')})"
+            )
         return {"output": "\n".join(lines), "downloads": tasks, "exit_code": 0}
     except Exception as e:
         return {"error": str(e), "exit_code": 1}
 
 
-async def do_cancel_download(content: str, owner: Optional[str] = None) -> Dict:
+async def do_cancel_download(content: str, owner: str | None = None) -> dict:
     """Cancel a model download by killing its tmux session (remote-aware)."""
     try:
         args = _parse_tool_args(content)
@@ -1176,31 +1463,44 @@ async def do_cancel_download(content: str, owner: Optional[str] = None) -> Dict:
     )
 
 
-async def do_search_hf_models(content: str, owner: Optional[str] = None) -> Dict:
+async def do_search_hf_models(content: str, owner: str | None = None) -> dict:
     """Search HuggingFace via the cookbook /api/cookbook/hf-latest endpoint."""
-    from src.tool_implementations import _internal_headers, _INTERNAL_BASE  # shared, lives in facade
     import httpx
+    from src.tool_implementations import (  # shared, lives in facade
+        _INTERNAL_BASE,
+        _internal_headers,
+    )
+
     try:
         args = _parse_tool_args(content)
     except ValueError:
         return {"error": "Invalid JSON arguments", "exit_code": 1}
     query = args.get("query", "") or args.get("search", "")
     limit = args.get("limit", 10)
-    params: Dict[str, str] = {}
+    params: dict[str, str] = {}
     if query:
         params["search"] = query
     if limit:
         params["limit"] = str(limit)
     try:
         async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(f"{_INTERNAL_BASE}/api/cookbook/hf-latest",
-                                    params=params, headers=_internal_headers())
+            resp = await client.get(
+                f"{_INTERNAL_BASE}/api/cookbook/hf-latest",
+                params=params,
+                headers=_internal_headers(),
+            )
             data = resp.json()
         models = data.get("models") if isinstance(data, dict) else data
         if not models:
             return {"output": f"No models found for query: {query!r}", "exit_code": 0}
-        lines = [f"Found {len(models)} model(s) for {query!r}:" if query else f"{len(models)} model(s):"]
-        for m in models[:limit if isinstance(limit, int) else 10]:
+        lines = [
+            (
+                f"Found {len(models)} model(s) for {query!r}:"
+                if query
+                else f"{len(models)} model(s):"
+            )
+        ]
+        for m in models[: limit if isinstance(limit, int) else 10]:
             if isinstance(m, dict):
                 name = m.get("repo_id") or m.get("modelId") or m.get("id") or "?"
                 dl = m.get("downloads")
@@ -1219,7 +1519,7 @@ async def do_search_hf_models(content: str, owner: Optional[str] = None) -> Dict
         return {"error": str(e), "exit_code": 1}
 
 
-async def do_adopt_served_model(content: str, owner: Optional[str] = None) -> Dict:
+async def do_adopt_served_model(content: str, owner: str | None = None) -> dict:
     """Register an externally-launched model server (bash + tmux + ssh, or
     anything else) into the Cookbook so it appears in list_served_models,
     can be stopped via stop_served_model, and is added to the user's
@@ -1234,9 +1534,14 @@ async def do_adopt_served_model(content: str, owner: Optional[str] = None) -> Di
       name:          optional display name (defaults to model basename)
       add_endpoint:  bool (default true) — also register as a chat endpoint
     """
-    from src.tool_implementations import _internal_headers, _INTERNAL_BASE  # shared, lives in facade
-    import httpx
     import shlex
+
+    import httpx
+    from src.tool_implementations import (  # shared, lives in facade
+        _INTERNAL_BASE,
+        _internal_headers,
+    )
+
     try:
         args = _parse_tool_args(content)
     except ValueError:
@@ -1246,7 +1551,9 @@ async def do_adopt_served_model(content: str, owner: Optional[str] = None) -> Di
     sess = (args.get("tmux_session") or args.get("session_id") or "").strip()
     model = (args.get("model") or args.get("repo_id") or "").strip()
     port = args.get("port") or 8000
-    display_name = (args.get("name") or "").strip() or (model.split("/")[-1] if "/" in model else model)
+    display_name = (args.get("name") or "").strip() or (
+        model.split("/")[-1] if "/" in model else model
+    )
     add_endpoint = args.get("add_endpoint", True)
 
     if not sess or not model:
@@ -1266,12 +1573,22 @@ async def do_adopt_served_model(content: str, owner: Optional[str] = None) -> Di
         check = f"tmux has-session -t {shlex.quote(sess)} 2>&1"
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.post(f"{_INTERNAL_BASE}/api/shell/exec",
-                                  json={"command": check}, headers=headers)
-            data = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+            r = await client.post(
+                f"{_INTERNAL_BASE}/api/shell/exec",
+                json={"command": check},
+                headers=headers,
+            )
+            data = (
+                r.json()
+                if r.headers.get("content-type", "").startswith("application/json")
+                else {}
+            )
         if r.status_code >= 400 or (data.get("exit_code") not in (None, 0)):
             err = (data.get("stderr") or data.get("error") or r.text[:200]).strip()
-            return {"error": f"tmux session {sess!r} not found on {host or 'local'}: {err}", "exit_code": 1}
+            return {
+                "error": f"tmux session {sess!r} not found on {host or 'local'}: {err}",
+                "exit_code": 1,
+            }
     except Exception as e:
         return {"error": f"verify failed: {e}", "exit_code": 1}
 
@@ -1283,9 +1600,16 @@ async def do_adopt_served_model(content: str, owner: Optional[str] = None) -> Di
     server_up = False
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.post(f"{_INTERNAL_BASE}/api/shell/exec",
-                                  json={"command": health_cmd}, headers=headers)
-            body = (r.json() or {}).get("stdout", "") if r.headers.get("content-type", "").startswith("application/json") else ""
+            r = await client.post(
+                f"{_INTERNAL_BASE}/api/shell/exec",
+                json={"command": health_cmd},
+                headers=headers,
+            )
+            body = (
+                (r.json() or {}).get("stdout", "")
+                if r.headers.get("content-type", "").startswith("application/json")
+                else ""
+            )
             server_up = '"data"' in body or '"object"' in body
     except Exception:
         pass
@@ -1294,8 +1618,14 @@ async def do_adopt_served_model(content: str, owner: Optional[str] = None) -> Di
     # overwrite the whole file (that'd nuke presets).
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(f"{_INTERNAL_BASE}/api/cookbook/state", headers=headers)
-            state = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+            r = await client.get(
+                f"{_INTERNAL_BASE}/api/cookbook/state", headers=headers
+            )
+            state = (
+                r.json()
+                if r.headers.get("content-type", "").startswith("application/json")
+                else {}
+            )
     except Exception as e:
         return {"error": f"could not read cookbook state: {e}", "exit_code": 1}
     if not isinstance(state, dict):
@@ -1307,6 +1637,7 @@ async def do_adopt_served_model(content: str, owner: Optional[str] = None) -> Di
     else:
         adopted_already = False
         import time as _time
+
         new_task = {
             "id": sess,
             "sessionId": sess,
@@ -1318,7 +1649,11 @@ async def do_adopt_served_model(content: str, owner: Optional[str] = None) -> Di
                 "Reconnect polling will start streaming tmux output shortly."
             ),
             "ts": int(_time.time() * 1000),
-            "payload": {"repo_id": model, "remote_host": host or "", "_cmd": "(adopted — launched outside cookbook)"},
+            "payload": {
+                "repo_id": model,
+                "remote_host": host or "",
+                "_cmd": "(adopted — launched outside cookbook)",
+            },
             "remoteHost": host or "",
             "sshPort": "",
             "platform": "linux",
@@ -1330,8 +1665,9 @@ async def do_adopt_served_model(content: str, owner: Optional[str] = None) -> Di
         state["tasks"] = tasks
         try:
             async with httpx.AsyncClient(timeout=10) as client:
-                await client.post(f"{_INTERNAL_BASE}/api/cookbook/state",
-                                  json=state, headers=headers)
+                await client.post(
+                    f"{_INTERNAL_BASE}/api/cookbook/state", json=state, headers=headers
+                )
         except Exception as e:
             return {"error": f"could not save cookbook state: {e}", "exit_code": 1}
 
@@ -1342,19 +1678,28 @@ async def do_adopt_served_model(content: str, owner: Optional[str] = None) -> Di
         host_only = host.split("@", 1)[-1] if host else "localhost"
         endpoint_url = f"http://{host_only}:{int(port)}/v1"
         try:
-            from src.tool_implementations import do_manage_endpoints  # avoid forward ref issues
+            from src.tool_implementations import (
+                do_manage_endpoints,  # avoid forward ref issues
+            )
         except Exception:
             do_manage_endpoints = None
         if do_manage_endpoints is not None:
             try:
-                ep_result = await do_manage_endpoints(json.dumps({
-                    "action": "add",
-                    "name": display_name,
-                    "endpoint_url": endpoint_url,
-                    "is_local": False,
-                }), owner=owner)
+                ep_result = await do_manage_endpoints(
+                    json.dumps(
+                        {
+                            "action": "add",
+                            "name": display_name,
+                            "endpoint_url": endpoint_url,
+                            "is_local": False,
+                        }
+                    ),
+                    owner=owner,
+                )
                 if isinstance(ep_result, dict) and not ep_result.get("error"):
-                    endpoint_msg = f" Endpoint {endpoint_url} added as {display_name!r}."
+                    endpoint_msg = (
+                        f" Endpoint {endpoint_url} added as {display_name!r}."
+                    )
                 else:
                     endpoint_msg = f" Endpoint registration skipped: {(ep_result or {}).get('error', 'unknown')}"
             except Exception as e:
@@ -1363,8 +1708,16 @@ async def do_adopt_served_model(content: str, owner: Optional[str] = None) -> Di
     return {
         "output": (
             f"Adopted session {sess!r} ({model}) on {host or 'local'}:{port}. "
-            + ("Already tracked — skipped state write. " if adopted_already else "Added to cookbook state. ")
-            + ("Server responding. " if server_up else "Server not responding yet (still loading?). ")
+            + (
+                "Already tracked — skipped state write. "
+                if adopted_already
+                else "Added to cookbook state. "
+            )
+            + (
+                "Server responding. "
+                if server_up
+                else "Server not responding yet (still loading?). "
+            )
             + endpoint_msg
         ).strip(),
         "session_id": sess,
@@ -1375,7 +1728,7 @@ async def do_adopt_served_model(content: str, owner: Optional[str] = None) -> Di
     }
 
 
-async def do_list_cookbook_servers(content: str, owner: Optional[str] = None) -> Dict:
+async def do_list_cookbook_servers(content: str, owner: str | None = None) -> dict:
     """List the cookbook's configured servers and which one is the
     current default. Use this to decide where to download/serve a
     model, or to show the user options when the target host is
@@ -1384,32 +1737,56 @@ async def do_list_cookbook_servers(content: str, owner: Optional[str] = None) ->
     hosts = servers.get("hosts") or []
     default = servers.get("default_host") or ""
     if not hosts:
-        return {"output": "No cookbook servers configured. Downloads/serves default to localhost.", "servers": [], "default_host": "", "exit_code": 0}
+        return {
+            "output": "No cookbook servers configured. Downloads/serves default to localhost.",
+            "servers": [],
+            "default_host": "",
+            "exit_code": 0,
+        }
     # Resolve which server is the default by its friendly name too.
-    default_name = next((h.get("name") for h in hosts if h.get("host") == default and h.get("name")), default or "local")
+    default_name = next(
+        (h.get("name") for h in hosts if h.get("host") == default and h.get("name")),
+        default or "local",
+    )
     lines = [f"{len(hosts)} configured server(s) (default: {default_name}):"]
     for h in hosts:
         name = h.get("name") or "(unnamed)"
         host = h.get("host") or "local"
         mark = " ← default" if h.get("host") == default else ""
-        env_bit = f" [{h.get('env')}: {h.get('envPath')}]" if h.get("env") and h.get("env") != "none" else ""
+        env_bit = (
+            f" [{h.get('env')}: {h.get('envPath')}]"
+            if h.get("env") and h.get("env") != "none"
+            else ""
+        )
         plat = f" ({h.get('platform')})" if h.get("platform") else ""
         lines.append(f"- {name} → {host}{plat}{env_bit}{mark}")
-    lines.append("\nRefer to servers by their name (e.g. download_model with host=\"gpu-box\").")
-    return {"output": "\n".join(lines), "servers": hosts, "default_host": default, "exit_code": 0}
+    lines.append(
+        '\nRefer to servers by their name (e.g. download_model with host="gpu-box").'
+    )
+    return {
+        "output": "\n".join(lines),
+        "servers": hosts,
+        "default_host": default,
+        "exit_code": 0,
+    }
 
 
-async def do_list_serve_presets(content: str, owner: Optional[str] = None) -> Dict:
+async def do_list_serve_presets(content: str, owner: str | None = None) -> dict:
     """List saved serve presets from cookbook_state.json. Each preset
     is a launch template: name, model, host, port, cmd. Use this to
     discover what the user has previously configured so you can
     launch by preset instead of fabricating tmux commands."""
-    from src.tool_implementations import _internal_headers, _INTERNAL_BASE  # shared, lives in facade
     import httpx
+    from src.tool_implementations import (  # shared, lives in facade
+        _INTERNAL_BASE,
+        _internal_headers,
+    )
+
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(f"{_INTERNAL_BASE}/api/cookbook/state",
-                                    headers=_internal_headers())
+            resp = await client.get(
+                f"{_INTERNAL_BASE}/api/cookbook/state", headers=_internal_headers()
+            )
             state = resp.json() or {}
     except Exception as e:
         return {"error": f"Failed to fetch cookbook state: {e}", "exit_code": 1}
@@ -1440,25 +1817,33 @@ async def do_list_serve_presets(content: str, owner: Optional[str] = None) -> Di
     return {"output": "\n".join(lines), "presets": presets, "exit_code": 0}
 
 
-async def do_serve_preset(content: str, owner: Optional[str] = None) -> Dict:
+async def do_serve_preset(content: str, owner: str | None = None) -> dict:
     """Launch a saved serve preset by name. Resolves the preset's
     cmd + host + model from cookbook_state.json, then calls the
     standard model/serve endpoint. Saves the agent from having to
     reinvent tmux launch commands the user already saved."""
-    from src.tool_implementations import _internal_headers, _INTERNAL_BASE  # shared, lives in facade
     import httpx
+    from src.tool_implementations import (  # shared, lives in facade
+        _INTERNAL_BASE,
+        _internal_headers,
+    )
+
     try:
         args = _parse_tool_args(content)
     except ValueError:
         return {"error": "Invalid JSON arguments", "exit_code": 1}
     name = (args.get("name") or args.get("preset") or "").strip()
     if not name:
-        return {"error": "name (preset name) is required. Call list_serve_presets to see what's available.", "exit_code": 1}
+        return {
+            "error": "name (preset name) is required. Call list_serve_presets to see what's available.",
+            "exit_code": 1,
+        }
 
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(f"{_INTERNAL_BASE}/api/cookbook/state",
-                                    headers=_internal_headers())
+            resp = await client.get(
+                f"{_INTERNAL_BASE}/api/cookbook/state", headers=_internal_headers()
+            )
             state = resp.json() or {}
     except Exception as e:
         return {"error": f"Failed to fetch cookbook state: {e}", "exit_code": 1}
@@ -1477,33 +1862,48 @@ async def do_serve_preset(content: str, owner: Optional[str] = None) -> Dict:
                 chosen = p
                 break
     if chosen is None:
-        sample = ", ".join((p.get("name") or "?") for p in presets[:8] if isinstance(p, dict))
-        return {"error": f"No preset matching {name!r}. Available: {sample or '(none)'}", "exit_code": 1}
+        sample = ", ".join(
+            (p.get("name") or "?") for p in presets[:8] if isinstance(p, dict)
+        )
+        return {
+            "error": f"No preset matching {name!r}. Available: {sample or '(none)'}",
+            "exit_code": 1,
+        }
 
     repo_id = chosen.get("model") or chosen.get("modelId") or ""
     cmd = (chosen.get("cmd") or "").strip()
     host = chosen.get("host") or chosen.get("remoteHost") or ""
     if not repo_id or not cmd:
-        return {"error": f"Preset {chosen.get('name')!r} is missing model or cmd — can't launch.", "exit_code": 1}
+        return {
+            "error": f"Preset {chosen.get('name')!r} is missing model or cmd — can't launch.",
+            "exit_code": 1,
+        }
 
-    payload: Dict[str, Any] = {"repo_id": repo_id, "cmd": cmd}
+    payload: dict[str, Any] = {"repo_id": repo_id, "cmd": cmd}
     if host:
         payload["remote_host"] = host
     # Resolve per-host env settings the same way the UI does — pulls
     # env_prefix (source ~/vllm-env/bin/activate), gpus, hf_token,
     # etc. from cookbook_state.env so launches actually find vllm.
     env_cfg = await _cookbook_env_for_host(host)
-    if env_cfg.get("env_prefix"): payload["env_prefix"] = env_cfg["env_prefix"]
-    if env_cfg.get("gpus"):       payload["gpus"]       = env_cfg["gpus"]
-    if env_cfg.get("hf_token"):   payload["hf_token"]   = env_cfg["hf_token"]
-    if env_cfg.get("platform"):   payload["platform"]   = env_cfg["platform"]
+    if env_cfg.get("env_prefix"):
+        payload["env_prefix"] = env_cfg["env_prefix"]
+    if env_cfg.get("gpus"):
+        payload["gpus"] = env_cfg["gpus"]
+    if env_cfg.get("hf_token"):
+        payload["hf_token"] = env_cfg["hf_token"]
+    if env_cfg.get("platform"):
+        payload["platform"] = env_cfg["platform"]
     if env_cfg.get("ssh_port"):
         payload["ssh_port"] = env_cfg["ssh_port"]
 
     try:
         async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(f"{_INTERNAL_BASE}/api/model/serve",
-                                     json=payload, headers=_internal_headers())
+            resp = await client.post(
+                f"{_INTERNAL_BASE}/api/model/serve",
+                json=payload,
+                headers=_internal_headers(),
+            )
             data = resp.json()
         if data.get("ok"):
             sid = data.get("session_id", "?")
@@ -1511,30 +1911,48 @@ async def do_serve_preset(content: str, owner: Optional[str] = None) -> Dict:
             if endpoint_id:
                 endpoint_added = True
             else:
-                endpoint_meta = await _ensure_served_endpoint(model=repo_id, cmd=cmd, host=host)
+                endpoint_meta = await _ensure_served_endpoint(
+                    model=repo_id, cmd=cmd, host=host
+                )
                 endpoint_added = bool(endpoint_meta.get("added"))
                 endpoint_id = endpoint_meta.get("endpoint_id", "") or endpoint_id
             registered = await _cookbook_register_task(
-                session_id=sid, model=repo_id, host=host,
-                cmd=cmd, task_type="serve",
-                endpoint_added=endpoint_added, endpoint_id=endpoint_id or "",
+                session_id=sid,
+                model=repo_id,
+                host=host,
+                cmd=cmd,
+                task_type="serve",
+                endpoint_added=endpoint_added,
+                endpoint_id=endpoint_id or "",
             )
-            note = "" if registered else " (state-write failed — task may not show in UI)"
-            return {"output": f"Launched preset {chosen.get('name')!r}: {repo_id} on {host or 'local'} (session: {sid}){note}", "session_id": sid, "host": host, "endpoint_id": endpoint_id, "exit_code": 0}
+            note = (
+                "" if registered else " (state-write failed — task may not show in UI)"
+            )
+            return {
+                "output": f"Launched preset {chosen.get('name')!r}: {repo_id} on {host or 'local'} (session: {sid}){note}",
+                "session_id": sid,
+                "host": host,
+                "endpoint_id": endpoint_id,
+                "exit_code": 0,
+            }
         return {"error": data.get("error", "Serve failed"), "exit_code": 1}
     except Exception as e:
         return {"error": str(e), "exit_code": 1}
 
 
-async def do_list_cached_models(content: str, owner: Optional[str] = None) -> Dict:
+async def do_list_cached_models(content: str, owner: str | None = None) -> dict:
     """List models already cached locally and/or on remote hosts.
 
     With no `host` arg, scans EVERY configured Cookbook server (and local)
     and aggregates — so the agent sees the full inventory in one call
     instead of having to query each server individually.
     """
-    from src.tool_implementations import _internal_headers, _INTERNAL_BASE  # shared, lives in facade
     import httpx
+    from src.tool_implementations import (  # shared, lives in facade
+        _INTERNAL_BASE,
+        _internal_headers,
+    )
+
     try:
         args = _parse_tool_args(content) if content.strip() else {}
     except ValueError:
@@ -1542,10 +1960,15 @@ async def do_list_cached_models(content: str, owner: Optional[str] = None) -> Di
     raw_host = (args.get("host") or "").strip()
     headers = _internal_headers()
 
-    async def _scan_one(host_label: str, host_val: str, ssh_port: str = "",
-                        platform: str = "", model_dir: str = "") -> list:
+    async def _scan_one(
+        host_label: str,
+        host_val: str,
+        ssh_port: str = "",
+        platform: str = "",
+        model_dir: str = "",
+    ) -> list:
         """Hit /api/model/cached for one host; tag each returned model with its source."""
-        p: Dict[str, str] = {}
+        p: dict[str, str] = {}
         if host_val:
             p["host"] = host_val
         # Caller-provided override beats per-server config beats nothing.
@@ -1563,8 +1986,9 @@ async def do_list_cached_models(content: str, owner: Optional[str] = None) -> Di
             p["platform"] = args["platform"]
         try:
             async with httpx.AsyncClient(timeout=60) as client:
-                resp = await client.get(f"{_INTERNAL_BASE}/api/model/cached",
-                                        params=p, headers=headers)
+                resp = await client.get(
+                    f"{_INTERNAL_BASE}/api/model/cached", params=p, headers=headers
+                )
                 data = resp.json()
             ms = data.get("models", []) if isinstance(data, dict) else (data or [])
             for m in ms:
@@ -1583,14 +2007,20 @@ async def do_list_cached_models(content: str, owner: Optional[str] = None) -> Di
         servers: list = []
         try:
             async with httpx.AsyncClient(timeout=10) as client:
-                st = await client.get(f"{_INTERNAL_BASE}/api/cookbook/state", headers=headers)
-                st_data = st.json() if st.headers.get("content-type", "").startswith("application/json") else {}
+                st = await client.get(
+                    f"{_INTERNAL_BASE}/api/cookbook/state", headers=headers
+                )
+                st_data = (
+                    st.json()
+                    if st.headers.get("content-type", "").startswith("application/json")
+                    else {}
+                )
             servers = (st_data.get("env", {}) or {}).get("servers") or []
         except Exception as e:
             logger.debug(f"server list fetch failed: {e}")
             st_data = {}
 
-        def _dirs_for(server_record: Dict[str, Any]) -> str:
+        def _dirs_for(server_record: dict[str, Any]) -> str:
             """Comma-joined modelDirs from a saved server record (Settings).
 
             Filters out the HF cache (~/.cache/huggingface/hub) — the backend
@@ -1599,10 +2029,18 @@ async def do_list_cached_models(content: str, owner: Optional[str] = None) -> Di
             edge cases where the extra dir suppresses the deeper scan.
             We only need to forward the NON-default dirs (e.g. /mnt/HADES/models).
             """
-            mds = server_record.get("modelDirs") if isinstance(server_record, dict) else None
+            mds = (
+                server_record.get("modelDirs")
+                if isinstance(server_record, dict)
+                else None
+            )
             HF_DEFAULTS = {"~/.cache/huggingface/hub", "~/.cache/huggingface"}
             if isinstance(mds, list):
-                extras = [d for d in mds if isinstance(d, str) and d.strip() and d.strip() not in HF_DEFAULTS]
+                extras = [
+                    d
+                    for d in mds
+                    if isinstance(d, str) and d.strip() and d.strip() not in HF_DEFAULTS
+                ]
                 return ",".join(extras)
             if isinstance(mds, str) and mds.strip() not in HF_DEFAULTS:
                 return mds
@@ -1612,14 +2050,29 @@ async def do_list_cached_models(content: str, owner: Optional[str] = None) -> Di
             host = await _resolve_cookbook_host(raw_host)
             # Find this host's saved record so its modelDirs apply too.
             srv = next(
-                (s for s in servers if isinstance(s, dict)
-                 and (s.get("name") == raw_host or s.get("host") == host or s.get("host") == raw_host)),
+                (
+                    s
+                    for s in servers
+                    if isinstance(s, dict)
+                    and (
+                        s.get("name") == raw_host
+                        or s.get("host") == host
+                        or s.get("host") == raw_host
+                    )
+                ),
                 {},
             )
             models = await _scan_one(raw_host, host, model_dir=_dirs_for(srv))
         else:
             # Always include local. Local's saved record is the one with no host.
-            local_srv = next((s for s in servers if isinstance(s, dict) and not (s.get("host") or "").strip()), {})
+            local_srv = next(
+                (
+                    s
+                    for s in servers
+                    if isinstance(s, dict) and not (s.get("host") or "").strip()
+                ),
+                {},
+            )
             scans: list = [_scan_one("local", "", model_dir=_dirs_for(local_srv))]
             for s in servers:
                 if not isinstance(s, dict):
@@ -1628,13 +2081,15 @@ async def do_list_cached_models(content: str, owner: Optional[str] = None) -> Di
                 host_val = s.get("host") or ""
                 if not host_val:
                     continue
-                scans.append(_scan_one(
-                    name,
-                    host_val,
-                    ssh_port=str(s.get("port") or ""),
-                    platform=s.get("platform") or "",
-                    model_dir=_dirs_for(s),
-                ))
+                scans.append(
+                    _scan_one(
+                        name,
+                        host_val,
+                        ssh_port=str(s.get("port") or ""),
+                        platform=s.get("platform") or "",
+                        model_dir=_dirs_for(s),
+                    )
+                )
             results = await asyncio.gather(*scans, return_exceptions=False)
             # Dedupe by (host, repo_id) — same model could appear in both HF cache + Ollama list.
             seen = set()
@@ -1654,26 +2109,54 @@ async def do_list_cached_models(content: str, owner: Optional[str] = None) -> Di
             downloaded = []
             try:
                 async with httpx.AsyncClient(timeout=10) as client:
-                    st = await client.get(f"{_INTERNAL_BASE}/api/cookbook/state", headers=headers)
-                    state = st.json() if st.headers.get("content-type", "").startswith("application/json") else {}
-                for t in (state.get("tasks") or []):
+                    st = await client.get(
+                        f"{_INTERNAL_BASE}/api/cookbook/state", headers=headers
+                    )
+                    state = (
+                        st.json()
+                        if st.headers.get("content-type", "").startswith(
+                            "application/json"
+                        )
+                        else {}
+                    )
+                for t in state.get("tasks") or []:
                     if not isinstance(t, dict) or t.get("type") != "download":
                         continue
                     if (t.get("status") or "").lower() not in {"done", "completed"}:
                         continue
-                    task_host = t.get("remoteHost") or (t.get("payload") or {}).get("remote_host") or ""
+                    task_host = (
+                        t.get("remoteHost")
+                        or (t.get("payload") or {}).get("remote_host")
+                        or ""
+                    )
                     if raw_host and task_host != raw_host:
                         continue
-                    repo = t.get("modelId") or t.get("repoId") or (t.get("payload") or {}).get("repo_id") or t.get("name")
+                    repo = (
+                        t.get("modelId")
+                        or t.get("repoId")
+                        or (t.get("payload") or {}).get("repo_id")
+                        or t.get("name")
+                    )
                     if repo and repo not in downloaded:
                         downloaded.append(repo)
             except Exception:
                 downloaded = []
             host_str = f" on {raw_host}" if raw_host else ""
             if downloaded:
-                lines = [f"No cache paths were detected{host_str}, but Cookbook has completed download task(s):"]
-                lines.extend(f"- {repo} — downloaded via Cookbook task" for repo in downloaded)
-                return {"output": "\n".join(lines), "models": [{"repo_id": repo, "source": "cookbook_task"} for repo in downloaded], "exit_code": 0}
+                lines = [
+                    f"No cache paths were detected{host_str}, but Cookbook has completed download task(s):"
+                ]
+                lines.extend(
+                    f"- {repo} — downloaded via Cookbook task" for repo in downloaded
+                )
+                return {
+                    "output": "\n".join(lines),
+                    "models": [
+                        {"repo_id": repo, "source": "cookbook_task"}
+                        for repo in downloaded
+                    ],
+                    "exit_code": 0,
+                }
             return {"output": f"No cached models found{host_str}.", "exit_code": 0}
         # Multi-host scan: group by host so the agent sees inventory per server.
         # Single-host scan: flat list (matches old output shape).
@@ -1681,12 +2164,17 @@ async def do_list_cached_models(content: str, owner: Optional[str] = None) -> Di
             lines = [f"{len(models)} cached model(s) on {raw_host}:"]
             for m in models:
                 name = m.get("repo_id", "?")
-                sz = m.get("size") or (f"{m.get('size_bytes', 0) / (1024**3):.1f}GB" if m.get("size_bytes") else "")
+                sz = m.get("size") or (
+                    f"{m.get('size_bytes', 0) / (1024**3):.1f}GB"
+                    if m.get("size_bytes")
+                    else ""
+                )
                 inc = " (incomplete)" if m.get("has_incomplete") else ""
                 kind = " [diffusion]" if m.get("is_diffusion") else ""
                 lines.append(f"- {name}{kind} — {sz}{inc}")
         else:
             from collections import defaultdict as _dd
+
             by_host = _dd(list)
             for m in models:
                 by_host[m.get("host", "local")].append(m)
@@ -1695,7 +2183,11 @@ async def do_list_cached_models(content: str, owner: Optional[str] = None) -> Di
                 lines.append(f"\n[{host_name}]")
                 for m in by_host[host_name]:
                     name = m.get("repo_id", "?")
-                    sz = m.get("size") or (f"{m.get('size_bytes', 0) / (1024**3):.1f}GB" if m.get("size_bytes") else "")
+                    sz = m.get("size") or (
+                        f"{m.get('size_bytes', 0) / (1024**3):.1f}GB"
+                        if m.get("size_bytes")
+                        else ""
+                    )
                     inc = " (incomplete)" if m.get("has_incomplete") else ""
                     kind = " [diffusion]" if m.get("is_diffusion") else ""
                     backend = f" ({m.get('backend')})" if m.get("backend") else ""

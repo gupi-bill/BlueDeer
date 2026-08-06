@@ -1,9 +1,7 @@
 """Regression test for cpu_only backend fallback in hwfit speed estimation."""
 
 import pytest
-
 from services.hwfit.fit import _estimate_speed
-
 
 DENSE_MODEL = {
     "name": "Test-7B",

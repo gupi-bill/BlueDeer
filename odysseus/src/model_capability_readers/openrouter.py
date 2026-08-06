@@ -8,8 +8,8 @@ from typing import Any
 from src import model_capabilities as mc
 from src.model_capability_readers import generic_openai
 from src.model_capability_readers.base import (
-    ModelCapabilityRecord,
     VENDOR_OPENROUTER,
+    ModelCapabilityRecord,
     as_list,
     as_mapping,
     build_capability,
@@ -18,13 +18,12 @@ from src.model_capability_readers.base import (
     family_from_modalities,
     int_limit,
     merge_unique,
-    model_id_from,
     modalities_from_value,
+    model_id_from,
     openai_model_items,
     split_modality_arrow,
     stable_model_id_for,
 )
-
 
 vendor = VENDOR_OPENROUTER
 
@@ -49,7 +48,9 @@ def _capabilities_from_supported_parameters(values: Any) -> tuple[str, ...]:
     iterable = values if isinstance(values, list) else ()
     out: list[str] = []
     for value in iterable:
-        cap = _SUPPORTED_PARAMETER_CAPS.get(compact_str(value).lower().replace("-", "_"))
+        cap = _SUPPORTED_PARAMETER_CAPS.get(
+            compact_str(value).lower().replace("-", "_")
+        )
         if cap and cap not in out:
             out.append(cap)
     return tuple(out)
@@ -67,7 +68,9 @@ def _limits_from_model(raw: Mapping[str, Any]) -> dict[str, Any]:
         ("output_token_limit", "output_tokens"),
         ("max_completion_tokens", "output_tokens"),
     ):
-        value = int_limit(raw.get(key) or architecture.get(key) or top_provider.get(key))
+        value = int_limit(
+            raw.get(key) or architecture.get(key) or top_provider.get(key)
+        )
         if value:
             limits[canonical] = value
     for key, value in per_request_limits.items():
@@ -116,7 +119,9 @@ def _default_parameter_controls(raw: Mapping[str, Any]) -> tuple[str, ...]:
     return tuple(key for key, value in defaults.items() if value is not None)
 
 
-def _deterministic_controls_from_model(raw: Mapping[str, Any]) -> tuple[mc.DeterministicControl, ...]:
+def _deterministic_controls_from_model(
+    raw: Mapping[str, Any],
+) -> tuple[mc.DeterministicControl, ...]:
     return deterministic_controls_from_supported_parameters(
         merge_unique(
             as_list(raw.get("supported_parameters")),
@@ -149,7 +154,9 @@ def record_from_model(
         input_modalities = input_modalities or arrow_input
         output_modalities = output_modalities or arrow_output
 
-    capabilities = list(_capabilities_from_supported_parameters(raw.get("supported_parameters")))
+    capabilities = list(
+        _capabilities_from_supported_parameters(raw.get("supported_parameters"))
+    )
     capabilities.extend(
         _capabilities_from_modalities(
             input_modalities,
@@ -178,7 +185,9 @@ def record_from_model(
     return ModelCapabilityRecord(
         vendor=VENDOR_OPENROUTER,
         model_id=model_id,
-        stable_model_id=stable_model_id_for(VENDOR_OPENROUTER, model_id, endpoint_id=endpoint_id, base_url=base_url),
+        stable_model_id=stable_model_id_for(
+            VENDOR_OPENROUTER, model_id, endpoint_id=endpoint_id, base_url=base_url
+        ),
         display_name=compact_str(raw.get("name")) or model_id,
         capability=capability,
         deterministic_controls=_deterministic_controls_from_model(raw),

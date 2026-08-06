@@ -15,7 +15,6 @@ from typing import Any
 from src import model_capabilities as mc
 from src.model_capability_readers.base import as_list, compact_str, int_limit
 
-
 METHOD_GENERATE_CONTENT = "generateContent"
 METHOD_GENERATE_MESSAGE = "generateMessage"
 METHOD_GENERATE_TEXT = "generateText"
@@ -60,7 +59,11 @@ def google_model_id(raw: Mapping[str, Any]) -> str:
 
 
 def supported_methods(raw: Mapping[str, Any]) -> frozenset[str]:
-    return frozenset(compact_str(method) for method in as_list(raw.get("supportedGenerationMethods")) if method)
+    return frozenset(
+        compact_str(method)
+        for method in as_list(raw.get("supportedGenerationMethods"))
+        if method
+    )
 
 
 def limits_from_model(raw: Mapping[str, Any]) -> dict[str, Any]:
@@ -141,7 +144,9 @@ def capability_from_model(raw: Mapping[str, Any]) -> mc.ModelCapability:
     return capability
 
 
-def deterministic_controls_from_model(raw: Mapping[str, Any]) -> tuple[mc.DeterministicControl, ...]:
+def deterministic_controls_from_model(
+    raw: Mapping[str, Any],
+) -> tuple[mc.DeterministicControl, ...]:
     methods = supported_methods(raw)
     controls: list[str] = []
     if "temperature" in raw or "maxTemperature" in raw:

@@ -8,6 +8,7 @@
 
 token 持久化：data/share_tokens.json
 """
+
 from __future__ import annotations
 
 import json
@@ -19,7 +20,8 @@ from typing import Any
 
 _TOKENS_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "data", "share_tokens.json",
+    "data",
+    "share_tokens.json",
 )
 
 # token 有效期：24 小时
@@ -27,34 +29,68 @@ TOKEN_TTL = 24 * 3600
 
 # 参观者能访问的 API 路径白名单（只读）
 VISITOR_ALLOWED_PATHS = {
-    "/visit", "/index", "/login",
-    "/api/status", "/api/story", "/api/report",
-    "/api/zones", "/api/eco", "/api/emotions",
-    "/api/relationships", "/api/relics", "/api/messages",
-    "/api/memory", "/api/recruit_status", "/api/diary",
-    "/api/autobiography", "/api/artifacts",
-    "/api/projects", "/api/standups", "/api/risks",
-    "/api/roles", "/api/role_definitions", "/api/role_history",
+    "/visit",
+    "/index",
+    "/login",
+    "/api/status",
+    "/api/story",
+    "/api/report",
+    "/api/zones",
+    "/api/eco",
+    "/api/emotions",
+    "/api/relationships",
+    "/api/relics",
+    "/api/messages",
+    "/api/memory",
+    "/api/recruit_status",
+    "/api/diary",
+    "/api/autobiography",
+    "/api/artifacts",
+    "/api/projects",
+    "/api/standups",
+    "/api/risks",
+    "/api/roles",
+    "/api/role_definitions",
+    "/api/role_history",
     "/events",  # SSE 事件流（只读）
     "/sprites/",  # 静态资源
 }
 
 # 参观者禁止访问的路径前缀
 VISITOR_FORBIDDEN_PREFIXES = (
-    "/api/inject", "/api/interact", "/api/recruit", "/api/narrate",
-    "/api/immersive_settings", "/api/fragment/collect", "/api/desktop_pet",
-    "/api/disease", "/api/persistent_memory", "/api/chat",
-    "/api/agent_command", "/api/pipeline", "/api/approvals",
-    "/api/agent_tools", "/api/suggestions", "/api/retrospects",
-    "/api/experiences", "/api/negotiations", "/api/projects/milestone",
-    "/api/projects/archive", "/api/standups/run", "/api/risks/scan",
-    "/api/roles/evaluate", "/api/external", "/api/theme",
-    "/snap", "/logout",  # 不能让参观者登出监工
+    "/api/inject",
+    "/api/interact",
+    "/api/recruit",
+    "/api/narrate",
+    "/api/immersive_settings",
+    "/api/fragment/collect",
+    "/api/desktop_pet",
+    "/api/disease",
+    "/api/persistent_memory",
+    "/api/chat",
+    "/api/agent_command",
+    "/api/pipeline",
+    "/api/approvals",
+    "/api/agent_tools",
+    "/api/suggestions",
+    "/api/retrospects",
+    "/api/experiences",
+    "/api/negotiations",
+    "/api/projects/milestone",
+    "/api/projects/archive",
+    "/api/standups/run",
+    "/api/risks/scan",
+    "/api/roles/evaluate",
+    "/api/external",
+    "/api/theme",
+    "/snap",
+    "/logout",  # 不能让参观者登出监工
 )
 
 
 class ShareToken:
     """一个参观 token。"""
+
     __slots__ = (
         "access_count",
         "created_ts",
@@ -92,12 +128,15 @@ class ShareToken:
             "last_access_ts": self.last_access_ts,
             "access_count": self.access_count,
             "is_valid": self.is_valid(),
-            "remaining_seconds": max(0, self.expires_ts - time.time()) if self.is_valid() else 0,
+            "remaining_seconds": (
+                max(0, self.expires_ts - time.time()) if self.is_valid() else 0
+            ),
         }
 
 
 class ShareManager:
     """参观模式 token 管理器（单例）。"""
+
     _instance: ShareManager | None = None
     _instance_lock = threading.Lock()
 

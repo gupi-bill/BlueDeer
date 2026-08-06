@@ -8,10 +8,9 @@ user opening Odysseus, Cookbook, email, documents, notes, or other panels.
 from __future__ import annotations
 
 import asyncio
-from contextlib import asynccontextmanager
 import os
 import time
-
+from contextlib import asynccontextmanager
 
 _ACTIVE_REQUESTS = 0
 _LAST_ACTIVITY = 0.0
@@ -21,7 +20,12 @@ _COND_LOOP: asyncio.AbstractEventLoop | None = None
 
 
 def _enabled() -> bool:
-    return os.getenv("BACKGROUND_TASK_FOREGROUND_GATE", "true").lower() not in {"0", "false", "no", "off"}
+    return os.getenv("BACKGROUND_TASK_FOREGROUND_GATE", "true").lower() not in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }
 
 
 def _quiet_seconds() -> float:
@@ -42,7 +46,9 @@ def _max_wait_seconds() -> float:
 def _browser_active_seconds() -> float:
     """How long a visible Odysseus browser heartbeat blocks background tasks."""
     try:
-        return max(0.0, float(os.getenv("BACKGROUND_TASK_BROWSER_ACTIVE_SECONDS", "45")))
+        return max(
+            0.0, float(os.getenv("BACKGROUND_TASK_BROWSER_ACTIVE_SECONDS", "45"))
+        )
     except Exception:
         return 45.0
 
@@ -101,7 +107,9 @@ def _has_recent_browser_activity(now: float | None = None) -> bool:
     ttl = _browser_active_seconds()
     if ttl <= 0 or _LAST_BROWSER_ACTIVITY <= 0:
         return False
-    return ((now if now is not None else time.monotonic()) - _LAST_BROWSER_ACTIVITY) < ttl
+    return (
+        (now if now is not None else time.monotonic()) - _LAST_BROWSER_ACTIVITY
+    ) < ttl
 
 
 def has_foreground_activity(now: float | None = None) -> bool:
@@ -132,6 +140,7 @@ def _has_active_chat_stream() -> bool:
     """
     try:
         from routes import chat_routes as _chat_routes
+
         active_streams = getattr(_chat_routes, "_active_streams", {}) or {}
         if active_streams:
             return True
@@ -139,6 +148,7 @@ def _has_active_chat_stream() -> bool:
         pass
     try:
         from src import agent_runs
+
         runs = getattr(agent_runs, "_RUNS", {}) or {}
         return any(getattr(run, "status", None) == "running" for run in runs.values())
     except Exception:
@@ -187,11 +197,20 @@ async def wait_for_interactive_quiet(label: str = "") -> bool:
             quiet_remaining = quiet - (now - _LAST_ACTIVITY)
             active_stream = _has_active_chat_stream()
             browser_active = _has_recent_browser_activity(now)
-            if _ACTIVE_REQUESTS <= 0 and quiet_remaining <= 0 and not active_stream and not browser_active:
+            if (
+                _ACTIVE_REQUESTS <= 0
+                and quiet_remaining <= 0
+                and not active_stream
+                and not browser_active
+            ):
                 return waited
 
             waited = True
-            timeout = 0.25 if (_ACTIVE_REQUESTS > 0 or active_stream or browser_active) else min(max(quiet_remaining, 0.05), 0.5)
+            timeout = (
+                0.25
+                if (_ACTIVE_REQUESTS > 0 or active_stream or browser_active)
+                else min(max(quiet_remaining, 0.05), 0.5)
+            )
             if deadline is not None:
                 remaining = deadline - now
                 if remaining <= 0:
@@ -199,5 +218,5 @@ async def wait_for_interactive_quiet(label: str = "") -> bool:
                 timeout = min(timeout, remaining)
             try:
                 await asyncio.wait_for(cond.wait(), timeout=timeout)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass

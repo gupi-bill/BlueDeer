@@ -6,15 +6,17 @@ Holds the edit_image (gallery) tool.
 ``_INTERNAL_BASE`` still lives in tool_implementations.py and is pulled back
 function-locally here.
 """
-from typing import Dict, Optional
 
 from src.tools._common import _parse_tool_args
 
 
-async def do_edit_image(content: str, owner: Optional[str] = None) -> Dict:
+async def do_edit_image(content: str, owner: str | None = None) -> dict:
     """Edit a gallery image (upscale, rembg, inpaint, harmonize)."""
     import httpx
-    from src.tool_implementations import _INTERNAL_BASE  # shared constant, still lives in the facade
+    from src.tool_implementations import (
+        _INTERNAL_BASE,  # shared constant, still lives in the facade
+    )
+
     try:
         args = _parse_tool_args(content)
     except ValueError:
@@ -30,7 +32,9 @@ async def do_edit_image(content: str, owner: Optional[str] = None) -> Dict:
         payload["scale"] = args["scale"]
     try:
         async with httpx.AsyncClient(timeout=120) as client:
-            resp = await client.post(f"{_INTERNAL_BASE}/api/gallery/{action}", json=payload)
+            resp = await client.post(
+                f"{_INTERNAL_BASE}/api/gallery/{action}", json=payload
+            )
             data = resp.json()
         new_id = data.get("id") or data.get("image_id")
         if data.get("success") or new_id:
@@ -42,6 +46,7 @@ async def do_edit_image(content: str, owner: Optional[str] = None) -> Dict:
                 result["image_id"] = new_id
                 try:
                     from src.database import GalleryImage, SessionLocal
+
                     db = SessionLocal()
                     try:
                         q = db.query(GalleryImage).filter(GalleryImage.id == new_id)
@@ -49,13 +54,17 @@ async def do_edit_image(content: str, owner: Optional[str] = None) -> Dict:
                             q = q.filter(GalleryImage.owner == owner)
                         img = q.first()
                         if img and img.filename:
-                            result.update({
-                                "image_url": f"/api/generated-image/{img.filename}",
-                                "image_prompt": img.prompt or args.get("prompt") or action,
-                                "image_model": img.model or "edit_image",
-                                "image_size": img.size or "",
-                                "image_quality": img.quality or "",
-                            })
+                            result.update(
+                                {
+                                    "image_url": f"/api/generated-image/{img.filename}",
+                                    "image_prompt": img.prompt
+                                    or args.get("prompt")
+                                    or action,
+                                    "image_model": img.model or "edit_image",
+                                    "image_size": img.size or "",
+                                    "image_quality": img.quality or "",
+                                }
+                            )
                     finally:
                         db.close()
                 except Exception:

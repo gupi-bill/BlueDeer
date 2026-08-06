@@ -12,6 +12,7 @@
 3. 通知标题格式：`[BlueDeer] 智能体名`，正文是消息内容。
 4. 点击通知无法直接打开浏览器（系统限制），但可以提示用户去管控台。
 """
+
 from __future__ import annotations
 
 import platform
@@ -140,7 +141,9 @@ def is_supported() -> bool:
         try:
             subprocess.run(
                 ["which", "notify-send"],
-                capture_output=True, timeout=2, check=True,
+                capture_output=True,
+                timeout=2,
+                check=True,
             )
             return True
         except Exception:

@@ -19,8 +19,7 @@ import json
 import logging
 import math
 import os
-import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any
 
@@ -52,7 +51,7 @@ _ROLE_BONUSES: dict[tuple[str, str], int] = {
 # ============== P4 扩容：等级解锁特权 ==============
 # 等级 → 特权列表
 _LEVEL_PERKS: dict[int, list[str]] = {
-    5:  ["沙盘皮肤·银", "低成本模型优先"],
+    5: ["沙盘皮肤·银", "低成本模型优先"],
     10: ["沙盘皮肤·金", "模型调度特权", "优先任务池"],
     15: ["沙盘皮肤·紫", "跨岗位协作权", "梦境深度推演"],
     20: ["核心骨干标识", "全模型调度权", "优先任务池", "梦境宗师特权"],
@@ -73,19 +72,26 @@ def get_level_perks(level: int) -> list[str]:
 
 # ============== 成就梯次 ==============
 
+
 class AchievementTier(Enum):
     """成就梯次。"""
-    BRONZE = "bronze"    # 铜：入门，约 10-50 次任务
-    SILVER = "silver"    # 银：进阶，约 50-200 次任务
-    GOLD = "gold"        # 金：长期，约 200-1000+ 次任务
+
+    BRONZE = "bronze"  # 铜：入门，约 10-50 次任务
+    SILVER = "silver"  # 银：进阶，约 50-200 次任务
+    GOLD = "gold"  # 金：长期，约 200-1000+ 次任务
 
 
 # ============== 成就定义（30 项） ==============
 # 每项: id / name / desc / tier / dimension / check(stats_dict) -> bool
 
+
 def _ach(
-    aid: str, name: str, desc: str, tier: AchievementTier,
-    dimension: str, threshold: str,
+    aid: str,
+    name: str,
+    desc: str,
+    tier: AchievementTier,
+    dimension: str,
+    threshold: str,
 ) -> dict[str, Any]:
     """构造成就定义。check 在运行时按 threshold 字段名动态生成。"""
     return {
@@ -100,42 +106,247 @@ def _ach(
 
 _ACHIEVEMENT_DEFS: list[dict[str, Any]] = [
     # ---- 铜级 10 项 ----
-    _ach("first_task",      "初出茅庐", "完成第 1 个任务",            AchievementTier.BRONZE, "通用", "total_tasks:1"),
-    _ach("code_100",        "百行代码", "累计生成代码 100+ 行",       AchievementTier.BRONZE, "代码", "code_lines:100"),
-    _ach("streak_5",        "五连成功", "连续 5 次任务成功",          AchievementTier.BRONZE, "通用", "streak:5"),
-    _ach("coins_100",       "小有积蓄", "金币累积 ≥ 100",             AchievementTier.BRONZE, "通用", "coins:100"),
-    _ach("dream_1",         "初入梦乡", "梦境固化记忆 ≥ 1 条",        AchievementTier.BRONZE, "梦境", "dream_memories:1"),
-    _ach("scan_10",         "安全新兵", "完成 10 次安全扫描",         AchievementTier.BRONZE, "安全", "scan_count:10"),
-    _ach("token_save_1k",   "节俭起步", "累计节省 1000 Token",        AchievementTier.BRONZE, "Token", "token_saved:1000"),
-    _ach("level_5",         "初级员工", "达到 5 级",                  AchievementTier.BRONZE, "通用", "level:5"),
-    _ach("favor_100",       "初获信任", "好感度达到 100",             AchievementTier.BRONZE, "通用", "favor:100"),
-    _ach("tasks_10",        "十项全能", "完成 10 个任务",             AchievementTier.BRONZE, "通用", "total_tasks:10"),
-
+    _ach(
+        "first_task",
+        "初出茅庐",
+        "完成第 1 个任务",
+        AchievementTier.BRONZE,
+        "通用",
+        "total_tasks:1",
+    ),
+    _ach(
+        "code_100",
+        "百行代码",
+        "累计生成代码 100+ 行",
+        AchievementTier.BRONZE,
+        "代码",
+        "code_lines:100",
+    ),
+    _ach(
+        "streak_5",
+        "五连成功",
+        "连续 5 次任务成功",
+        AchievementTier.BRONZE,
+        "通用",
+        "streak:5",
+    ),
+    _ach(
+        "coins_100",
+        "小有积蓄",
+        "金币累积 ≥ 100",
+        AchievementTier.BRONZE,
+        "通用",
+        "coins:100",
+    ),
+    _ach(
+        "dream_1",
+        "初入梦乡",
+        "梦境固化记忆 ≥ 1 条",
+        AchievementTier.BRONZE,
+        "梦境",
+        "dream_memories:1",
+    ),
+    _ach(
+        "scan_10",
+        "安全新兵",
+        "完成 10 次安全扫描",
+        AchievementTier.BRONZE,
+        "安全",
+        "scan_count:10",
+    ),
+    _ach(
+        "token_save_1k",
+        "节俭起步",
+        "累计节省 1000 Token",
+        AchievementTier.BRONZE,
+        "Token",
+        "token_saved:1000",
+    ),
+    _ach("level_5", "初级员工", "达到 5 级", AchievementTier.BRONZE, "通用", "level:5"),
+    _ach(
+        "favor_100",
+        "初获信任",
+        "好感度达到 100",
+        AchievementTier.BRONZE,
+        "通用",
+        "favor:100",
+    ),
+    _ach(
+        "tasks_10",
+        "十项全能",
+        "完成 10 个任务",
+        AchievementTier.BRONZE,
+        "通用",
+        "total_tasks:10",
+    ),
     # ---- 银级 12 项 ----
-    _ach("code_1k",         "千行代码", "累计生成代码 1000+ 行",      AchievementTier.SILVER, "代码", "code_lines:1000"),
-    _ach("streak_20",       "二十连捷", "连续 20 次成功",             AchievementTier.SILVER, "通用", "streak:20"),
-    _ach("coins_500",       "富甲一方", "金币累积 ≥ 500",             AchievementTier.SILVER, "通用", "coins:500"),
-    _ach("dream_10",        "梦境行者", "梦境固化记忆 ≥ 10 条",       AchievementTier.SILVER, "梦境", "dream_memories:10"),
-    _ach("dream_quality_5", "精炼记忆", "5 条高质量梦境记忆",         AchievementTier.SILVER, "梦境", "dream_quality_high:5"),
-    _ach("scan_50",         "安全卫士", "完成 50 次安全扫描",         AchievementTier.SILVER, "安全", "scan_count:50"),
-    _ach("block_10",        "拦截能手", "拦截 10 次高危调用",         AchievementTier.SILVER, "安全", "block_count:10"),
-    _ach("token_save_10k",  "量入为出", "累计节省 10000 Token",       AchievementTier.SILVER, "Token", "token_saved:10000"),
-    _ach("lowcost_30",      "精打细算", "低成本模型占比 ≥ 30%",       AchievementTier.SILVER, "Token", "lowcost_ratio:30"),
-    _ach("level_10",        "资深员工", "达到 10 级",                 AchievementTier.SILVER, "通用", "level:10"),
-    _ach("favor_500",       "深得人心", "好感度达到 500",             AchievementTier.SILVER, "通用", "favor:500"),
-    _ach("tasks_100",       "百战不殆", "完成 100 个任务",            AchievementTier.SILVER, "通用", "total_tasks:100"),
-
+    _ach(
+        "code_1k",
+        "千行代码",
+        "累计生成代码 1000+ 行",
+        AchievementTier.SILVER,
+        "代码",
+        "code_lines:1000",
+    ),
+    _ach(
+        "streak_20",
+        "二十连捷",
+        "连续 20 次成功",
+        AchievementTier.SILVER,
+        "通用",
+        "streak:20",
+    ),
+    _ach(
+        "coins_500",
+        "富甲一方",
+        "金币累积 ≥ 500",
+        AchievementTier.SILVER,
+        "通用",
+        "coins:500",
+    ),
+    _ach(
+        "dream_10",
+        "梦境行者",
+        "梦境固化记忆 ≥ 10 条",
+        AchievementTier.SILVER,
+        "梦境",
+        "dream_memories:10",
+    ),
+    _ach(
+        "dream_quality_5",
+        "精炼记忆",
+        "5 条高质量梦境记忆",
+        AchievementTier.SILVER,
+        "梦境",
+        "dream_quality_high:5",
+    ),
+    _ach(
+        "scan_50",
+        "安全卫士",
+        "完成 50 次安全扫描",
+        AchievementTier.SILVER,
+        "安全",
+        "scan_count:50",
+    ),
+    _ach(
+        "block_10",
+        "拦截能手",
+        "拦截 10 次高危调用",
+        AchievementTier.SILVER,
+        "安全",
+        "block_count:10",
+    ),
+    _ach(
+        "token_save_10k",
+        "量入为出",
+        "累计节省 10000 Token",
+        AchievementTier.SILVER,
+        "Token",
+        "token_saved:10000",
+    ),
+    _ach(
+        "lowcost_30",
+        "精打细算",
+        "低成本模型占比 ≥ 30%",
+        AchievementTier.SILVER,
+        "Token",
+        "lowcost_ratio:30",
+    ),
+    _ach(
+        "level_10", "资深员工", "达到 10 级", AchievementTier.SILVER, "通用", "level:10"
+    ),
+    _ach(
+        "favor_500",
+        "深得人心",
+        "好感度达到 500",
+        AchievementTier.SILVER,
+        "通用",
+        "favor:500",
+    ),
+    _ach(
+        "tasks_100",
+        "百战不殆",
+        "完成 100 个任务",
+        AchievementTier.SILVER,
+        "通用",
+        "total_tasks:100",
+    ),
     # ---- 金级 10 项 ----
-    _ach("code_10k",        "万行代码", "累计生成代码 10000+ 行",     AchievementTier.GOLD, "代码", "code_lines:10000"),
-    _ach("streak_50",       "五十连冠", "连续 50 次成功",             AchievementTier.GOLD, "通用", "streak:50"),
-    _ach("coins_2000",      "富可敌国", "金币累积 ≥ 2000",            AchievementTier.GOLD, "通用", "coins:2000"),
-    _ach("dream_50",        "梦境大师", "梦境固化记忆 ≥ 50 条",       AchievementTier.GOLD, "梦境", "dream_memories:50"),
-    _ach("dream_quality_20","记忆宗师", "20 条高质量梦境记忆",        AchievementTier.GOLD, "梦境", "dream_quality_high:20"),
-    _ach("scan_200",        "安全铁壁", "完成 200 次安全扫描",        AchievementTier.GOLD, "安全", "scan_count:200"),
-    _ach("block_100",       "铜墙铁壁", "拦截 100 次高危调用",        AchievementTier.GOLD, "安全", "block_count:100"),
-    _ach("token_save_100k", "节俭大师", "累计节省 100000 Token",      AchievementTier.GOLD, "Token", "token_saved:100000"),
-    _ach("level_20",        "核心骨干", "达到 20 级",                 AchievementTier.GOLD, "通用", "level:20"),
-    _ach("tasks_500",       "五百功成", "完成 500 个任务",            AchievementTier.GOLD, "通用", "total_tasks:500"),
+    _ach(
+        "code_10k",
+        "万行代码",
+        "累计生成代码 10000+ 行",
+        AchievementTier.GOLD,
+        "代码",
+        "code_lines:10000",
+    ),
+    _ach(
+        "streak_50",
+        "五十连冠",
+        "连续 50 次成功",
+        AchievementTier.GOLD,
+        "通用",
+        "streak:50",
+    ),
+    _ach(
+        "coins_2000",
+        "富可敌国",
+        "金币累积 ≥ 2000",
+        AchievementTier.GOLD,
+        "通用",
+        "coins:2000",
+    ),
+    _ach(
+        "dream_50",
+        "梦境大师",
+        "梦境固化记忆 ≥ 50 条",
+        AchievementTier.GOLD,
+        "梦境",
+        "dream_memories:50",
+    ),
+    _ach(
+        "dream_quality_20",
+        "记忆宗师",
+        "20 条高质量梦境记忆",
+        AchievementTier.GOLD,
+        "梦境",
+        "dream_quality_high:20",
+    ),
+    _ach(
+        "scan_200",
+        "安全铁壁",
+        "完成 200 次安全扫描",
+        AchievementTier.GOLD,
+        "安全",
+        "scan_count:200",
+    ),
+    _ach(
+        "block_100",
+        "铜墙铁壁",
+        "拦截 100 次高危调用",
+        AchievementTier.GOLD,
+        "安全",
+        "block_count:100",
+    ),
+    _ach(
+        "token_save_100k",
+        "节俭大师",
+        "累计节省 100000 Token",
+        AchievementTier.GOLD,
+        "Token",
+        "token_saved:100000",
+    ),
+    _ach(
+        "level_20", "核心骨干", "达到 20 级", AchievementTier.GOLD, "通用", "level:20"
+    ),
+    _ach(
+        "tasks_500",
+        "五百功成",
+        "完成 500 个任务",
+        AchievementTier.GOLD,
+        "通用",
+        "total_tasks:500",
+    ),
 ]
 
 
@@ -161,6 +372,7 @@ def _check_threshold(stats: dict[str, Any], threshold_spec: str) -> bool:
 
 
 # ============== 等级公式（指数曲线） ==============
+
 
 def compute_level(exp: int) -> int:
     """根据经验值计算等级。
@@ -193,23 +405,25 @@ def exp_to_next_level(exp: int) -> tuple[int, int]:
 
 # ============== 好感度递减增长 ==============
 
+
 def favor_gain(base: int, current_favor: int) -> int:
     """好感度递减增长。
 
     gain = base * (1 - favor / (favor + K))
     favor=0 时满额；favor 越高增量越小，但永不为 0。
     """
-    if current_favor < 0:
-        current_favor = 0
+    current_favor = max(current_favor, 0)
     factor = 1 - current_favor / (current_favor + _cfg.favor_decay_k)
     return max(1, int(base * factor))
 
 
 # ============== AgentProfile ==============
 
+
 @dataclass(slots=True)
 class AgentProfile:
     """员工游戏化档案。"""
+
     agent_id: str
     coins: int = 0
     exp: int = 0
@@ -217,21 +431,21 @@ class AgentProfile:
     total_tasks: int = 0
     success_count: int = 0
     failed_count: int = 0
-    streak: int = 0                  # 连续成功次数
-    consecutive_fails: int = 0       # 连续失败次数（用于递增惩罚）
-    code_lines: int = 0              # 累计生成代码行数
-    dream_memories: int = 0          # 梦境固化记忆数
-    dream_quality_high: int = 0      # 高质量梦境记忆数
-    scan_count: int = 0              # 安全扫描次数
-    block_count: int = 0             # 高危拦截次数
-    token_saved: int = 0             # 累计节省 Token
-    lowcost_ratio: float = 0.0       # 低成本模型调用占比（0-100）
+    streak: int = 0  # 连续成功次数
+    consecutive_fails: int = 0  # 连续失败次数（用于递增惩罚）
+    code_lines: int = 0  # 累计生成代码行数
+    dream_memories: int = 0  # 梦境固化记忆数
+    dream_quality_high: int = 0  # 高质量梦境记忆数
+    scan_count: int = 0  # 安全扫描次数
+    block_count: int = 0  # 高危拦截次数
+    token_saved: int = 0  # 累计节省 Token
+    lowcost_ratio: float = 0.0  # 低成本模型调用占比（0-100）
     achievements: list[str] = field(default_factory=list)
     # P4 扩容：岗位行为计数（用于差异化奖励）
-    code_fix_count: int = 0          # 代码修复次数
-    commit_count: int = 0            # 规范提交次数
-    test_pass_count: int = 0         # 测试通过次数
-    token_overspend_penalty: int = 0 # 累计超额扣减金币
+    code_fix_count: int = 0  # 代码修复次数
+    commit_count: int = 0  # 规范提交次数
+    test_pass_count: int = 0  # 测试通过次数
+    token_overspend_penalty: int = 0  # 累计超额扣减金币
 
     @property
     def level(self) -> int:
@@ -278,9 +492,11 @@ class AgentProfile:
 
 # ============== RewardSystem ==============
 
+
 @dataclass
 class RewardCurve:
     """可配置的奖励/经验值递进曲线。"""
+
     base_coins: int = 10
     base_exp: int = 20
     coins_multiplier: float = 1.0
@@ -304,10 +520,12 @@ def decay(value: float, rate: float = 0.9, interval: str = "daily") -> float:
     """
     multipliers = {"daily": 1, "weekly": 7, "monthly": 30}
     n = multipliers.get(interval, 1)
-    return value * (rate ** n)
+    return value * (rate**n)
 
 
-def leaderboard(profiles: list[AgentProfile], metric: str = "coins", top_k: int = 10) -> list[dict[str, Any]]:
+def leaderboard(
+    profiles: list[AgentProfile], metric: str = "coins", top_k: int = 10
+) -> list[dict[str, Any]]:
     """根据指标对档案做排名。
     Args:
         profiles: AgentProfile 列表。
@@ -318,11 +536,13 @@ def leaderboard(profiles: list[AgentProfile], metric: str = "coins", top_k: int 
     """
     valid_metrics = {"coins", "exp", "favor", "level", "total_tasks"}
     key = metric if metric in valid_metrics else "coins"
+
     def _val(p: AgentProfile) -> float:
         v = getattr(p, key, 0)
         if key == "level":
             v = p.level
         return float(v)
+
     sorted_profiles = sorted(profiles, key=_val, reverse=True)
     result = []
     for i, p in enumerate(sorted_profiles[:top_k]):
@@ -376,7 +596,12 @@ class RewardSystem:
 
             logger.info(
                 "奖惩结算: agent=%s, SUCCESS, coins=%d, exp=%d, favor=%d(+%d), streak=%d",
-                agent_id, profile.coins, profile.exp, profile.favor, gain, profile.streak,
+                agent_id,
+                profile.coins,
+                profile.exp,
+                profile.favor,
+                gain,
+                profile.streak,
             )
         else:
             profile.coins += _cfg.coins_failed
@@ -388,17 +613,25 @@ class RewardSystem:
 
             # 连续失败递增惩罚
             n = profile.consecutive_fails
-            extra_penalty = min(_cfg.consecutive_fail_cap, _cfg.consecutive_fail_penalty * n)
+            extra_penalty = min(
+                _cfg.consecutive_fail_cap, _cfg.consecutive_fail_penalty * n
+            )
             if extra_penalty > 0:
                 profile.coins -= extra_penalty
                 logger.warning(
                     "连续失败惩罚: agent=%s, 第 %d 次连续失败, 额外扣 %d 金币",
-                    agent_id, n, extra_penalty,
+                    agent_id,
+                    n,
+                    extra_penalty,
                 )
 
             logger.info(
                 "奖惩结算: agent=%s, FAILED, coins=%d, exp=%d, favor=%d, consecutive_fails=%d",
-                agent_id, profile.coins, profile.exp, profile.favor, profile.consecutive_fails,
+                agent_id,
+                profile.coins,
+                profile.exp,
+                profile.favor,
+                profile.consecutive_fails,
             )
 
         # 检查成就解锁
@@ -483,7 +716,9 @@ class RewardSystem:
             profile.test_pass_count += 1
         logger.info(
             "岗位奖励: agent=%s, action=%s, +%d 金币",
-            agent_id, action_type, bonus,
+            agent_id,
+            action_type,
+            bonus,
         )
         self._check_achievements(agent_id)
         return bonus
@@ -511,7 +746,10 @@ class RewardSystem:
         profile.token_overspend_penalty += penalty
         logger.warning(
             "Token 超额扣减: agent=%s, tokens=%d, 超 %d, 扣 %d 金币",
-            agent_id, tokens, over, penalty,
+            agent_id,
+            tokens,
+            over,
+            penalty,
         )
         return penalty
 
@@ -534,16 +772,21 @@ class RewardSystem:
                 continue
             if _check_threshold(stats, ach["threshold"]):
                 profile.achievements.append(ach["id"])
-                newly_unlocked.append({
-                    "id": ach["id"],
-                    "name": ach["name"],
-                    "desc": ach["desc"],
-                    "tier": ach["tier"],
-                    "dimension": ach["dimension"],
-                })
+                newly_unlocked.append(
+                    {
+                        "id": ach["id"],
+                        "name": ach["name"],
+                        "desc": ach["desc"],
+                        "tier": ach["tier"],
+                        "dimension": ach["dimension"],
+                    }
+                )
                 logger.info(
                     "成就解锁[%s]: agent=%s, %s (%s)",
-                    ach["tier"], agent_id, ach["name"], ach["desc"],
+                    ach["tier"],
+                    agent_id,
+                    ach["name"],
+                    ach["desc"],
                 )
 
         return newly_unlocked
@@ -580,13 +823,15 @@ class RewardSystem:
         result = []
         for ach in _ACHIEVEMENT_DEFS:
             if ach["id"] in profile.achievements:
-                result.append({
-                    "id": ach["id"],
-                    "name": ach["name"],
-                    "desc": ach["desc"],
-                    "tier": ach["tier"],
-                    "dimension": ach["dimension"],
-                })
+                result.append(
+                    {
+                        "id": ach["id"],
+                        "name": ach["name"],
+                        "desc": ach["desc"],
+                        "tier": ach["tier"],
+                        "dimension": ach["dimension"],
+                    }
+                )
         return result
 
     def get_all_achievements(self) -> list[dict[str, str]]:
@@ -627,10 +872,7 @@ class RewardSystem:
     def save(self, path: str) -> None:
         """持久化到 JSON。"""
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-        data = {
-            agent_id: asdict(p)
-            for agent_id, p in self._profiles.items()
-        }
+        data = {agent_id: asdict(p) for agent_id, p in self._profiles.items()}
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
 

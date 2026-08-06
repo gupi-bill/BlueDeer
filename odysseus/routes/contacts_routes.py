@@ -8,6 +8,6 @@ monkeypatches all operate on the same object the application actually uses.
 
 import sys as _sys
 
-from routes.contacts import contacts_routes as _canonical  # noqa: F401
+from routes.contacts import contacts_routes as _canonical
 
 _sys.modules[__name__] = _canonical

@@ -14,12 +14,12 @@ Usage:
 
 Auth: set HF_TOKEN env var (or huggingface-cli login) to access gated repos.
 """
+
 import argparse
 import json
 import os
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 
 try:
@@ -30,7 +30,13 @@ except ImportError:
     sys.exit(1)
 
 
-CATALOG_PATH = Path(__file__).resolve().parent.parent / "services" / "hwfit" / "data" / "hf_models.json"
+CATALOG_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "services"
+    / "hwfit"
+    / "data"
+    / "hf_models.json"
+)
 
 
 def fetch_release_date(api: HfApi, repo_id: str) -> str | None:
@@ -52,11 +58,26 @@ def fetch_release_date(api: HfApi, repo_id: str) -> str | None:
 
 
 def main():
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--refresh", action="store_true", help="Overwrite existing release_date too (default: only fill missing).")
-    p.add_argument("--limit", type=int, default=0, help="Stop after N API calls (0 = no limit).")
-    p.add_argument("--dry-run", action="store_true", help="Don't write back; just report.")
-    p.add_argument("--sleep", type=float, default=0.05, help="Seconds to sleep between requests (default 0.05).")
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p.add_argument(
+        "--refresh",
+        action="store_true",
+        help="Overwrite existing release_date too (default: only fill missing).",
+    )
+    p.add_argument(
+        "--limit", type=int, default=0, help="Stop after N API calls (0 = no limit)."
+    )
+    p.add_argument(
+        "--dry-run", action="store_true", help="Don't write back; just report."
+    )
+    p.add_argument(
+        "--sleep",
+        type=float,
+        default=0.05,
+        help="Seconds to sleep between requests (default 0.05).",
+    )
     args = p.parse_args()
 
     if not CATALOG_PATH.exists():
@@ -81,7 +102,9 @@ def main():
 
     print(f"Catalog: {CATALOG_PATH}")
     print(f"Total entries: {len(catalog)}")
-    print(f"Targets ({'refresh all' if args.refresh else 'missing only'}{'' if not args.limit else f', capped at {args.limit}'}): {len(candidates)}")
+    print(
+        f"Targets ({'refresh all' if args.refresh else 'missing only'}{'' if not args.limit else f', capped at {args.limit}'}): {len(candidates)}"
+    )
     if not candidates:
         print("Nothing to do.")
         return
@@ -110,7 +133,9 @@ def main():
 
     elapsed = time.time() - started
     print()
-    print(f"Done in {elapsed:.1f}s — {updated} updated, {skipped} skipped (HF unavailable / gated / missing date).")
+    print(
+        f"Done in {elapsed:.1f}s — {updated} updated, {skipped} skipped (HF unavailable / gated / missing date)."
+    )
 
     if args.dry_run:
         print("Dry run — no write.")

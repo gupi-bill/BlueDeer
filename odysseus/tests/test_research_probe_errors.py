@@ -4,9 +4,9 @@ Deep Research probes the selected model before starting a long run. When the
 upstream returned a concrete model/API error, the probe used to collapse it into
 "Cannot reach model", hiding the real issue from the UI.
 """
+
 import pytest
 from fastapi import HTTPException
-
 from src.research_handler import ResearchHandler, _format_probe_failure
 
 

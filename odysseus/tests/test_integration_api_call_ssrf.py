@@ -9,10 +9,10 @@ link-local/metadata is always rejected; RFC-1918/loopback only when
 INTEGRATION_API_BLOCK_PRIVATE_IPS=true (LAN integrations are the primary
 use case, so private stays allowed by default).
 """
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from src import integrations
 
 
@@ -44,8 +44,9 @@ async def _call(base_url, path="/items"):
     client.request = AsyncMock(return_value=resp)
 
     with (
-        patch.object(integrations, "_find_integration",
-                     return_value=_integration(base_url)),
+        patch.object(
+            integrations, "_find_integration", return_value=_integration(base_url)
+        ),
         patch("httpx.AsyncClient", return_value=client),
     ):
         result = await integrations.execute_api_call("test_integ", "GET", path)
@@ -65,8 +66,9 @@ async def test_metadata_ip_base_url_is_rejected_without_requesting():
 async def test_hostname_resolving_to_metadata_ip_is_rejected(monkeypatch):
     """DNS-based variant: an innocuous-looking hostname that resolves into
     the link-local range must be caught by the resolver check."""
-    monkeypatch.setattr("src.url_safety._default_resolver",
-                        lambda host: ["169.254.169.254"])
+    monkeypatch.setattr(
+        "src.url_safety._default_resolver", lambda host: ["169.254.169.254"]
+    )
     result, client = await _call("http://internal.attacker.example")
 
     assert result["exit_code"] == 1

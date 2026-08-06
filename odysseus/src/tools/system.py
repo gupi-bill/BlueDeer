@@ -6,11 +6,10 @@ The admin manage_* tools (endpoints, mcp, webhooks, tokens, settings) live in
 ``src.agent_tools.admin_tools`` after the upstream registry migration (#3629);
 ``src.tool_implementations`` re-exports both sets for backward compatibility.
 """
+
 import json
 import logging
-import os
-import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.tools._common import _parse_tool_args
 
@@ -21,7 +20,8 @@ logger = logging.getLogger(__name__)
 # Skills management tool
 # ---------------------------------------------------------------------------
 
-async def do_manage_skills(content: str, owner: Optional[str] = None) -> Dict:
+
+async def do_manage_skills(content: str, owner: str | None = None) -> dict:
     """Handle manage_skills tool calls.
 
     SKILL.md-backed CRUD with progressive disclosure (Hermes-style). Actions:
@@ -47,9 +47,10 @@ async def do_manage_skills(content: str, owner: Optional[str] = None) -> Dict:
         return {"error": "Invalid JSON arguments", "exit_code": 1}
 
     action = (args.get("action") or "").lower()
-    from services.memory.skills import SkillsManager
     from services.memory.skill_format import Skill, slugify
+    from services.memory.skills import SkillsManager
     from src.constants import DATA_DIR
+
     sm = SkillsManager(DATA_DIR)
 
     # Accept legacy `skill_id` as an alias for `name`.
@@ -65,7 +66,9 @@ async def do_manage_skills(content: str, owner: Optional[str] = None) -> Dict:
         if published:
             lines.append("## Published")
             for s in sorted(published, key=lambda x: x["name"]):
-                lines.append(f"- **{s['name']}** ({s.get('category','general')}): {s.get('description','')}")
+                lines.append(
+                    f"- **{s['name']}** ({s.get('category','general')}): {s.get('description','')}"
+                )
         if drafts:
             lines.append("\n## Drafts")
             for s in sorted(drafts, key=lambda x: x["name"]):
@@ -88,7 +91,10 @@ async def do_manage_skills(content: str, owner: Optional[str] = None) -> Dict:
             return {"error": "path is required for view_ref", "exit_code": 1}
         text = sm.read_skill_reference(name, ref, owner=owner)
         if text is None:
-            return {"error": f"Reference {ref!r} not found under {name!r}", "exit_code": 1}
+            return {
+                "error": f"Reference {ref!r} not found under {name!r}",
+                "exit_code": 1,
+            }
         return {"results": text}
 
     if action == "add":
@@ -109,8 +115,11 @@ async def do_manage_skills(content: str, owner: Optional[str] = None) -> Dict:
         if not _status_arg:
             try:
                 from routes.prefs_routes import _load_for_user as _load_prefs
+
                 _prefs = _load_prefs(owner) or {}
-                _status_arg = "published" if _prefs.get("auto_approve_skills", True) else "draft"
+                _status_arg = (
+                    "published" if _prefs.get("auto_approve_skills", True) else "draft"
+                )
             except Exception:
                 _status_arg = "draft"
         entry = sm.add_skill(
@@ -121,8 +130,11 @@ async def do_manage_skills(content: str, owner: Optional[str] = None) -> Dict:
             platforms=args.get("platforms") or [],
             requires_toolsets=args.get("requires_toolsets") or [],
             fallback_for_toolsets=args.get("fallback_for_toolsets") or [],
-            when_to_use=(args.get("when_to_use") if args.get("when_to_use") is not None
-                         else args.get("problem", "")),
+            when_to_use=(
+                args.get("when_to_use")
+                if args.get("when_to_use") is not None
+                else args.get("problem", "")
+            ),
             procedure=proc,
             pitfalls=args.get("pitfalls") or [],
             verification=args.get("verification") or [],
@@ -138,12 +150,15 @@ async def do_manage_skills(content: str, owner: Optional[str] = None) -> Dict:
             steps=args.get("steps") or [],
         )
         if entry.get("_deduped"):
-            return {"results": (
-                f"A near-identical skill already exists: `{entry['name']}` — not creating "
-                f"a duplicate. View or edit it with action='view', name='{entry['name']}'."
-            )}
+            return {
+                "results": (
+                    f"A near-identical skill already exists: `{entry['name']}` — not creating "
+                    f"a duplicate. View or edit it with action='view', name='{entry['name']}'."
+                )
+            }
         try:
             from src.event_bus import fire_event
+
             fire_event("skill_added", owner)
         except Exception:
             logger.debug("skill_added event dispatch failed", exc_info=True)
@@ -153,18 +168,26 @@ async def do_manage_skills(content: str, owner: Optional[str] = None) -> Dict:
                 "\n\nThis skill is a DRAFT. Run through the procedure once to verify, "
                 f"then publish with action='publish', name='{entry['name']}'."
             )
-        return {"results": f"Created skill `{entry['name']}` — {entry.get('description','')}{verify_hint}"}
+        return {
+            "results": f"Created skill `{entry['name']}` — {entry.get('description','')}{verify_hint}"
+        }
 
     if action == "edit":
         if not name:
             return {"error": "name is required for edit", "exit_code": 1}
         new_content = args.get("content")
         if not isinstance(new_content, str) or not new_content.strip():
-            return {"error": "content (full SKILL.md) is required for edit", "exit_code": 1}
+            return {
+                "error": "content (full SKILL.md) is required for edit",
+                "exit_code": 1,
+            }
         try:
             sk_new = Skill.from_markdown(new_content)
         except Exception as e:
-            return {"error": f"Could not parse content as SKILL.md: {e}", "exit_code": 1}
+            return {
+                "error": f"Could not parse content as SKILL.md: {e}",
+                "exit_code": 1,
+            }
         sk_new.name = slugify(sk_new.name or name)
         existing = sm.load(owner=owner)
         match = next((s for s in existing if s.get("name") == name), None)
@@ -173,7 +196,11 @@ async def do_manage_skills(content: str, owner: Optional[str] = None) -> Dict:
         if not sk_new.owner:
             sk_new.owner = match.get("owner") or owner
         ok = sm.update_skill(name, _skill_dump(sk_new), owner=owner)
-        return {"results": f"Edited skill `{sk_new.name}`."} if ok else {"error": "Update failed", "exit_code": 1}
+        return (
+            {"results": f"Edited skill `{sk_new.name}`."}
+            if ok
+            else {"error": "Update failed", "exit_code": 1}
+        )
 
     if action == "patch":
         if not name:
@@ -181,7 +208,10 @@ async def do_manage_skills(content: str, owner: Optional[str] = None) -> Dict:
         old = args.get("old_string")
         new_str = args.get("new_string", "")
         if not isinstance(old, str) or not old:
-            return {"error": "old_string is required and must be non-empty", "exit_code": 1}
+            return {
+                "error": "old_string is required and must be non-empty",
+                "exit_code": 1,
+            }
         md = sm.read_skill_md(name, owner=owner)
         if md is None:
             return {"error": f"Skill {name!r} not found", "exit_code": 1}
@@ -189,15 +219,25 @@ async def do_manage_skills(content: str, owner: Optional[str] = None) -> Dict:
         if count == 0:
             return {"error": "old_string not found in SKILL.md", "exit_code": 1}
         if count > 1:
-            return {"error": f"old_string is ambiguous (appears {count} times). Make it more specific.", "exit_code": 1}
+            return {
+                "error": f"old_string is ambiguous (appears {count} times). Make it more specific.",
+                "exit_code": 1,
+            }
         new_md = md.replace(old, new_str, 1)
         try:
             sk_new = Skill.from_markdown(new_md)
         except Exception as e:
-            return {"error": f"Patched content is not valid SKILL.md: {e}", "exit_code": 1}
+            return {
+                "error": f"Patched content is not valid SKILL.md: {e}",
+                "exit_code": 1,
+            }
         sk_new.name = slugify(sk_new.name or name)
         ok = sm.update_skill(name, _skill_dump(sk_new), owner=owner)
-        return {"results": f"Patched skill `{sk_new.name}`."} if ok else {"error": "Patch update failed", "exit_code": 1}
+        return (
+            {"results": f"Patched skill `{sk_new.name}`."}
+            if ok
+            else {"error": "Patch update failed", "exit_code": 1}
+        )
 
     if action == "publish":
         if not name:
@@ -210,13 +250,19 @@ async def do_manage_skills(content: str, owner: Optional[str] = None) -> Dict:
         if args.get("confidence") is not None:
             updates["confidence"] = max(0.0, min(1.0, float(args["confidence"])))
         sm.update_skill(name, updates, owner=owner)
-        return {"results": f"✅ Published `{name}`. It now appears in the skills index for future turns."}
+        return {
+            "results": f"✅ Published `{name}`. It now appears in the skills index for future turns."
+        }
 
     if action == "delete":
         if not name:
             return {"error": "name is required for delete", "exit_code": 1}
         ok = sm.delete_skill(name, owner=owner)
-        return {"results": f"Deleted skill `{name}`."} if ok else {"error": f"Skill {name!r} not found", "exit_code": 1}
+        return (
+            {"results": f"Deleted skill `{name}`."}
+            if ok
+            else {"error": f"Skill {name!r} not found", "exit_code": 1}
+        )
 
     if action == "search":
         query = (args.get("query") or "").strip()
@@ -229,7 +275,9 @@ async def do_manage_skills(content: str, owner: Optional[str] = None) -> Dict:
         for sk in results:
             proc = sk.get("procedure") or sk.get("steps") or []
             steps_str = " → ".join(proc[:5])
-            lines.append(f"**{sk['name']}**: {sk.get('description','')}\n  When: {sk.get('when_to_use','')}\n  Steps: {steps_str}")
+            lines.append(
+                f"**{sk['name']}**: {sk.get('description','')}\n  When: {sk.get('when_to_use','')}\n  Steps: {steps_str}"
+            )
         return {"results": "\n\n".join(lines)}
 
     return {
@@ -241,7 +289,7 @@ async def do_manage_skills(content: str, owner: Optional[str] = None) -> Dict:
     }
 
 
-def _skill_dump(sk) -> Dict:
+def _skill_dump(sk) -> dict:
     """Translate a parsed Skill back into the kwargs `update_skill` expects."""
     return {
         "name": sk.name,
@@ -269,18 +317,24 @@ def _skill_dump(sk) -> Dict:
 # Task management tool
 # ---------------------------------------------------------------------------
 
-async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
+
+async def do_manage_tasks(content: str, owner: str | None = None) -> dict:
     """Handle manage_tasks tool calls: CRUD on scheduled tasks."""
     import uuid as _uuid
-    from core.database import SessionLocal, ScheduledTask
+
     from src.task_scheduler import compute_next_run
+
+    from core.database import ScheduledTask, SessionLocal
 
     try:
         args = _parse_tool_args(content)
     except ValueError:
         return {"error": "Invalid JSON arguments", "exit_code": 1}
 
-    if not args.get("action") and any(args.get(k) is not None for k in ("task", "description", "schedule", "time", "day_of_week")):
+    if not args.get("action") and any(
+        args.get(k) is not None
+        for k in ("task", "description", "schedule", "time", "day_of_week")
+    ):
         args["action"] = "create"
     if args.get("task") and not args.get("name"):
         args["name"] = args["task"]
@@ -294,13 +348,23 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
     if args.get("day_of_week") is not None and args.get("scheduled_day") is None:
         day = str(args.get("day_of_week")).strip().lower()
         days = {
-            "monday": 0, "mon": 0,
-            "tuesday": 1, "tue": 1, "tues": 1,
-            "wednesday": 2, "wed": 2,
-            "thursday": 3, "thu": 3, "thur": 3, "thurs": 3,
-            "friday": 4, "fri": 4,
-            "saturday": 5, "sat": 5,
-            "sunday": 6, "sun": 6,
+            "monday": 0,
+            "mon": 0,
+            "tuesday": 1,
+            "tue": 1,
+            "tues": 1,
+            "wednesday": 2,
+            "wed": 2,
+            "thursday": 3,
+            "thu": 3,
+            "thur": 3,
+            "thurs": 3,
+            "friday": 4,
+            "fri": 4,
+            "saturday": 5,
+            "sat": 5,
+            "sunday": 6,
+            "sun": 6,
         }
         if day in days:
             args["scheduled_day"] = days[day]
@@ -332,23 +396,33 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
             trigger_type = args.get("trigger_type", "schedule")
 
             if task_type in ("llm", "research") and not args.get("prompt"):
-                return {"error": "Prompt is required for llm/research tasks", "exit_code": 1}
+                return {
+                    "error": "Prompt is required for llm/research tasks",
+                    "exit_code": 1,
+                }
             if task_type == "action" and not args.get("action_name"):
-                return {"error": "action_name is required for action tasks", "exit_code": 1}
+                return {
+                    "error": "action_name is required for action tasks",
+                    "exit_code": 1,
+                }
 
             # Compute next_run for schedule triggers
             next_run = None
             if trigger_type == "schedule":
                 schedule = args.get("schedule", "daily")
                 next_run = compute_next_run(
-                    schedule, args.get("scheduled_time", "09:00"),
+                    schedule,
+                    args.get("scheduled_time", "09:00"),
                     args.get("scheduled_day"),
                 )
 
             task_id = str(_uuid.uuid4())
             # Guard each fallback with `or`: args.get("prompt", default) returns
             # None when the key is present but null, and None[:50] raises.
-            name = args.get("name") or (args.get("prompt") or args.get("action_name") or "Task")[:50]
+            name = (
+                args.get("name")
+                or (args.get("prompt") or args.get("action_name") or "Task")[:50]
+            )
 
             task = ScheduledTask(
                 id=task_id,
@@ -358,7 +432,11 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
                 task_type=task_type,
                 action=args.get("action_name"),
                 schedule=args.get("schedule") if trigger_type == "schedule" else None,
-                scheduled_time=args.get("scheduled_time", "09:00") if trigger_type == "schedule" else None,
+                scheduled_time=(
+                    args.get("scheduled_time", "09:00")
+                    if trigger_type == "schedule"
+                    else None
+                ),
                 scheduled_day=args.get("scheduled_day"),
                 trigger_type=trigger_type,
                 trigger_event=args.get("trigger_event"),
@@ -370,7 +448,11 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
             )
             db.add(task)
             db.commit()
-            return {"response": f"Created task '{name}' (id: {task_id})", "task_id": task_id, "exit_code": 0}
+            return {
+                "response": f"Created task '{name}' (id: {task_id})",
+                "task_id": task_id,
+                "exit_code": 0,
+            }
 
         elif action == "edit":
             task_id = args.get("task_id")
@@ -416,11 +498,16 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
 
             if schedule_changed and (task.trigger_type or "schedule") == "schedule":
                 task.next_run = compute_next_run(
-                    task.schedule, task.scheduled_time, task.scheduled_day,
+                    task.schedule,
+                    task.scheduled_time,
+                    task.scheduled_day,
                 )
 
             db.commit()
-            return {"response": f"Updated task '{task.name}': {', '.join(changed)}", "exit_code": 0}
+            return {
+                "response": f"Updated task '{task.name}': {', '.join(changed)}",
+                "exit_code": 0,
+            }
 
         elif action == "delete":
             task_id = args.get("task_id")
@@ -452,7 +539,9 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
                 task.status = "active"
                 if (task.trigger_type or "schedule") == "schedule":
                     task.next_run = compute_next_run(
-                        task.schedule, task.scheduled_time, task.scheduled_day,
+                        task.schedule,
+                        task.scheduled_time,
+                        task.scheduled_day,
                     )
             db.commit()
             return {"response": f"Task '{task.name}' {action}d", "exit_code": 0}
@@ -468,6 +557,7 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
                 return {"error": "Access denied", "exit_code": 1}
 
             from src.event_bus import get_task_scheduler
+
             scheduler = get_task_scheduler()
             if scheduler:
                 started = await scheduler.run_task_now(task_id)
@@ -491,9 +581,11 @@ async def do_manage_tasks(content: str, owner: Optional[str] = None) -> Dict:
 # API call tool
 # ---------------------------------------------------------------------------
 
-async def do_api_call(content: str) -> Dict:
+
+async def do_api_call(content: str) -> dict:
     """Execute an API call to a registered integration."""
     from src.integrations import execute_api_call, load_integrations
+
     try:
         args = json.loads(content)
     except json.JSONDecodeError:
@@ -512,11 +604,21 @@ async def do_api_call(content: str) -> Dict:
 
     integration_name = args.get("integration", "")
     integrations = load_integrations()
-    intg = next((i for i in integrations if i["id"] == integration_name
-                 or i["name"].lower() == integration_name.lower()), None)
+    intg = next(
+        (
+            i
+            for i in integrations
+            if i["id"] == integration_name
+            or i["name"].lower() == integration_name.lower()
+        ),
+        None,
+    )
     if not intg:
         available = ", ".join(i["name"] for i in integrations if i.get("enabled", True))
-        return {"error": f"No integration matching '{integration_name}'. Available: {available or 'none configured'}", "exit_code": 1}
+        return {
+            "error": f"No integration matching '{integration_name}'. Available: {available or 'none configured'}",
+            "exit_code": 1,
+        }
 
     return await execute_api_call(
         intg["id"],
@@ -533,12 +635,12 @@ async def do_api_call(content: str) -> Dict:
 # agent surface even when the agent is admin-context; accidental account or
 # command mistakes have permanent blast radius.
 _APP_API_BLOCKLIST_PREFIXES = (
-    "/api/auth",           # login/logout/password
-    "/api/users",          # user CRUD (bare /api/users list+create+delete must also block)
-    "/api/tokens",         # api token mgmt (bare /api/tokens list+create must also block)
-    "/api/admin",          # admin one-shots (wipe etc.)
-    "/api/shell",          # host shell execution must stay behind named command tooling
-    "/api/backup/restore", # destructive restore
+    "/api/auth",  # login/logout/password
+    "/api/users",  # user CRUD (bare /api/users list+create+delete must also block)
+    "/api/tokens",  # api token mgmt (bare /api/tokens list+create must also block)
+    "/api/admin",  # admin one-shots (wipe etc.)
+    "/api/shell",  # host shell execution must stay behind named command tooling
+    "/api/backup/restore",  # destructive restore
 )
 
 # (method, prefix) pairs to refuse specifically. Used for endpoints
@@ -547,43 +649,49 @@ _APP_API_BLOCKLIST_PREFIXES = (
 # {"tasks": []} to /api/cookbook/state, which overwrote the whole file.
 # Use dedicated tools or UI flows instead.
 _APP_API_BLOCKLIST_METHOD_PATH = (
-    ("GET",    "/api/email/accounts"),  # owner-filtered in tool context; use list_email_accounts MCP tool
-    ("POST",   "/api/cookbook/state"),   # whole-file overwrite — agent must use serve_preset/serve_model instead
+    (
+        "GET",
+        "/api/email/accounts",
+    ),  # owner-filtered in tool context; use list_email_accounts MCP tool
+    (
+        "POST",
+        "/api/cookbook/state",
+    ),  # whole-file overwrite — agent must use serve_preset/serve_model instead
     ("DELETE", "/api/cookbook/state"),
     # Host-control routes: package install, engine rebuild, and process
     # signalling should not be reachable through the generic API bridge.
-    ("POST",   "/api/cookbook/packages/install"),
-    ("POST",   "/api/cookbook/rebuild-engine"),
-    ("POST",   "/api/cookbook/kill-pid"),
+    ("POST", "/api/cookbook/packages/install"),
+    ("POST", "/api/cookbook/rebuild-engine"),
+    ("POST", "/api/cookbook/kill-pid"),
     # Use the named tools (download_model / serve_model) — they handle
     # host-name resolution, per-host env_prefix, AND register the task
     # in cookbook state so it shows in the UI + list_downloads. Hitting
     # the raw endpoint via app_api skips all of that → orphan task.
-    ("POST",   "/api/model/download"),
-    ("POST",   "/api/model/serve"),
+    ("POST", "/api/model/download"),
+    ("POST", "/api/model/serve"),
     # Use trigger_research — it returns a UI hint so the Deep Research
     # sidebar surfaces the session. Raw start works but the agent
     # fumbles the payload + the session doesn't reliably show up.
-    ("POST",   "/api/research/start"),
+    ("POST", "/api/research/start"),
     # Use web_search — the HTTP search route is UI-shaped and generic
     # app_api calls can return empty/poorly formatted results compared with the
     # named tool's source-aware output.
-    ("GET",    "/api/search"),
-    ("POST",   "/api/search"),
+    ("GET", "/api/search"),
+    ("POST", "/api/search"),
     # Use the named tools — they handle owner attribution, natural-
     # language due_date parsing, timezone, dedup, and tag/category
     # normalization. Hitting the raw endpoint via app_api saves a
     # note/event with the wrong fields, no reminder, or the wrong tz.
-    ("POST",   "/api/notes"),
-    ("PUT",    "/api/notes"),
+    ("POST", "/api/notes"),
+    ("PUT", "/api/notes"),
     ("DELETE", "/api/notes"),
-    ("POST",   "/api/calendar/events"),
-    ("PUT",    "/api/calendar/events"),
+    ("POST", "/api/calendar/events"),
+    ("PUT", "/api/calendar/events"),
     ("DELETE", "/api/calendar/events"),
 )
 
 
-async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
+async def do_app_api(content: str, owner: str | None = None) -> dict:
     """Generic loopback to allowed internal Odysseus API endpoints. Lets the
     agent reach the full UI-button surface (cookbook, email, notes,
     calendar, skills, sessions, gallery, research, etc.) without us
@@ -605,9 +713,9 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
     # tool_implementations.py (shared by many domain tools). Function-local
     # import avoids a top-level circular dependency until a later task
     # relocates them.
-    from src.tool_implementations import _internal_headers, _INTERNAL_BASE
-
     import httpx
+    from src.tool_implementations import _INTERNAL_BASE, _internal_headers
+
     try:
         args = _parse_tool_args(content) if content.strip() else {}
     except ValueError:
@@ -623,12 +731,13 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
         kw = (args.get("filter") or "").lower()
         try:
             async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.get(f"{base}/openapi.json",
-                                        headers=_internal_headers())
+                resp = await client.get(
+                    f"{base}/openapi.json", headers=_internal_headers()
+                )
                 data = resp.json()
         except Exception as e:
             return {"error": f"OpenAPI fetch failed: {e}", "exit_code": 1}
-        rows: List[Dict[str, Any]] = []
+        rows: list[dict[str, Any]] = []
         for path, methods in (data.get("paths") or {}).items():
             if not isinstance(methods, dict):
                 continue
@@ -637,17 +746,31 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
             for method, op in methods.items():
                 if method.lower() not in ("get", "post", "put", "patch", "delete"):
                     continue
-                if any(method.upper() == m and path.startswith(p) for m, p in _APP_API_BLOCKLIST_METHOD_PATH):
+                if any(
+                    method.upper() == m and path.startswith(p)
+                    for m, p in _APP_API_BLOCKLIST_METHOD_PATH
+                ):
                     continue
-                summary = (op or {}).get("summary") or (op or {}).get("description") or ""
+                summary = (
+                    (op or {}).get("summary") or (op or {}).get("description") or ""
+                )
                 if isinstance(summary, str):
                     summary = summary.strip().split("\n")[0][:140]
                 if kw and kw not in path.lower() and kw not in (summary or "").lower():
                     continue
-                rows.append({"method": method.upper(), "path": path, "summary": summary})
+                rows.append(
+                    {"method": method.upper(), "path": path, "summary": summary}
+                )
         rows.sort(key=lambda r: (r["path"], r["method"]))
         if not rows:
-            return {"output": f"No endpoints match filter {kw!r}." if kw else "No endpoints found.", "exit_code": 0}
+            return {
+                "output": (
+                    f"No endpoints match filter {kw!r}."
+                    if kw
+                    else "No endpoints found."
+                ),
+                "exit_code": 0,
+            }
         lines = [f"{len(rows)} endpoint(s)" + (f" matching {kw!r}" if kw else "") + ":"]
         for r in rows[:200]:
             line = f"  {r['method']:6s} {r['path']}"
@@ -665,33 +788,71 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
     if not path.startswith("/"):
         path = "/" + path
     if any(path.startswith(p) for p in _APP_API_BLOCKLIST_PREFIXES):
-        return {"error": f"Path blocked for safety: {path}. Sensitive endpoints are off-limits via app_api.", "exit_code": 1}
+        return {
+            "error": f"Path blocked for safety: {path}. Sensitive endpoints are off-limits via app_api.",
+            "exit_code": 1,
+        }
 
     method = (args.get("method") or "GET").upper()
     if method not in ("GET", "POST", "PUT", "PATCH", "DELETE"):
         return {"error": f"Unsupported method: {method}", "exit_code": 1}
-    if any(method == m and path.startswith(p) for m, p in _APP_API_BLOCKLIST_METHOD_PATH):
+    if any(
+        method == m and path.startswith(p) for m, p in _APP_API_BLOCKLIST_METHOD_PATH
+    ):
         if "/api/email/accounts" in path:
-            return {"error": "Don't use /api/email/accounts via app_api — it is owner-filtered in tool context and may return empty. Use the `list_email_accounts` email tool, then pass `account` to list_emails/read_email.", "exit_code": 1}
+            return {
+                "error": "Don't use /api/email/accounts via app_api — it is owner-filtered in tool context and may return empty. Use the `list_email_accounts` email tool, then pass `account` to list_emails/read_email.",
+                "exit_code": 1,
+            }
         if "/api/cookbook/packages/install" in path:
-            return {"error": "Don't POST /api/cookbook/packages/install via app_api — package installation is host code execution. Use the dedicated Cookbook dependency UI/flow instead.", "exit_code": 1}
+            return {
+                "error": "Don't POST /api/cookbook/packages/install via app_api — package installation is host code execution. Use the dedicated Cookbook dependency UI/flow instead.",
+                "exit_code": 1,
+            }
         if "/api/cookbook/rebuild-engine" in path:
-            return {"error": "Don't POST /api/cookbook/rebuild-engine via app_api — engine rebuild mutates local or remote host state. Use the dedicated Cookbook UI/flow instead.", "exit_code": 1}
+            return {
+                "error": "Don't POST /api/cookbook/rebuild-engine via app_api — engine rebuild mutates local or remote host state. Use the dedicated Cookbook UI/flow instead.",
+                "exit_code": 1,
+            }
         if "/api/cookbook/kill-pid" in path:
-            return {"error": "Don't POST /api/cookbook/kill-pid via app_api — process signalling is host control. Use the dedicated Cookbook stop/diagnostic flow instead.", "exit_code": 1}
+            return {
+                "error": "Don't POST /api/cookbook/kill-pid via app_api — process signalling is host control. Use the dedicated Cookbook stop/diagnostic flow instead.",
+                "exit_code": 1,
+            }
         if "/api/model/download" in path:
-            return {"error": "Don't POST /api/model/download directly — use the `download_model` tool (it resolves the server name, sets the venv env_prefix, and registers the task so it shows in the UI).", "exit_code": 1}
+            return {
+                "error": "Don't POST /api/model/download directly — use the `download_model` tool (it resolves the server name, sets the venv env_prefix, and registers the task so it shows in the UI).",
+                "exit_code": 1,
+            }
         if "/api/model/serve" in path:
-            return {"error": "Don't POST /api/model/serve directly — use the `serve_model` or `serve_preset` tool (handles host resolution, env_prefix, and cookbook tracking).", "exit_code": 1}
+            return {
+                "error": "Don't POST /api/model/serve directly — use the `serve_model` or `serve_preset` tool (handles host resolution, env_prefix, and cookbook tracking).",
+                "exit_code": 1,
+            }
         if "/api/research/start" in path:
-            return {"error": "Don't POST /api/research/start directly — use the `trigger_research` tool (it surfaces the session in the Deep Research sidebar).", "exit_code": 1}
+            return {
+                "error": "Don't POST /api/research/start directly — use the `trigger_research` tool (it surfaces the session in the Deep Research sidebar).",
+                "exit_code": 1,
+            }
         if "/api/search" in path:
-            return {"error": "Don't hit /api/search via app_api — use the `web_search` tool for online lookups, or `web_fetch` for a specific URL.", "exit_code": 1}
+            return {
+                "error": "Don't hit /api/search via app_api — use the `web_search` tool for online lookups, or `web_fetch` for a specific URL.",
+                "exit_code": 1,
+            }
         if "/api/notes" in path:
-            return {"error": "Don't hit /api/notes via app_api — use the `manage_notes` tool. It accepts natural-language due_date ('11pm today', 'tomorrow at 9am'), fires reminders from the due_date itself (no separate calendar event), and uses the caller's timezone. The raw endpoint requires ISO-UTC + a separate calendar event, both of which the agent tends to get wrong.", "exit_code": 1}
+            return {
+                "error": "Don't hit /api/notes via app_api — use the `manage_notes` tool. It accepts natural-language due_date ('11pm today', 'tomorrow at 9am'), fires reminders from the due_date itself (no separate calendar event), and uses the caller's timezone. The raw endpoint requires ISO-UTC + a separate calendar event, both of which the agent tends to get wrong.",
+                "exit_code": 1,
+            }
         if "/api/calendar/events" in path:
-            return {"error": "Don't hit /api/calendar/events via app_api — use the `manage_calendar` tool. It handles tz-aware natural-language datetimes and reminder_minutes correctly. If the user wants a note + reminder, prefer `manage_notes` with due_date — it bundles both.", "exit_code": 1}
-        return {"error": f"{method} {path} is blocked — it overwrites the whole cookbook state file. Use list_serve_presets / serve_preset / serve_model instead.", "exit_code": 1}
+            return {
+                "error": "Don't hit /api/calendar/events via app_api — use the `manage_calendar` tool. It handles tz-aware natural-language datetimes and reminder_minutes correctly. If the user wants a note + reminder, prefer `manage_notes` with due_date — it bundles both.",
+                "exit_code": 1,
+            }
+        return {
+            "error": f"{method} {path} is blocked — it overwrites the whole cookbook state file. Use list_serve_presets / serve_preset / serve_model instead.",
+            "exit_code": 1,
+        }
 
     body = args.get("body")
     query = args.get("query") or None
@@ -703,8 +864,13 @@ async def do_app_api(content: str, owner: Optional[str] = None) -> Dict:
     try:
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.request(
-                method, f"{base}{path}",
-                json=body if body is not None and method in ("POST", "PUT", "PATCH") else None,
+                method,
+                f"{base}{path}",
+                json=(
+                    body
+                    if body is not None and method in ("POST", "PUT", "PATCH")
+                    else None
+                ),
                 params=query,
                 headers=headers,
             )

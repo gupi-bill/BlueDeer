@@ -19,6 +19,7 @@ logger = logging.getLogger("bluedeer.log_viewer")
 @dataclass(slots=True)
 class LogEntry:
     """单条日志条目。"""
+
     line_number: int
     raw: str
     timestamp: str = ""
@@ -63,7 +64,9 @@ class LogViewer:
     def _parse_entry(self, entry: LogEntry) -> None:
         raw = entry.raw
         # 解析标准格式: "2026-07-14 12:00:00 | INFO | {...}"
-        m = re.match(r"^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+\|\s+(\w+)\s+\|\s+(.*)", raw)
+        m = re.match(
+            r"^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+\|\s+(\w+)\s+\|\s+(.*)", raw
+        )
         if m:
             entry.timestamp = m.group(1)
             entry.level = m.group(2)
@@ -108,15 +111,21 @@ class LogViewer:
         if level:
             filtered = [e for e in filtered if e.level.upper() == level.upper()]
         if component:
-            filtered = [e for e in filtered
-                        if e.parsed.get("component", "").lower() == component.lower()]
+            filtered = [
+                e
+                for e in filtered
+                if e.parsed.get("component", "").lower() == component.lower()
+            ]
         if action:
-            filtered = [e for e in filtered
-                        if e.parsed.get("action", "").lower() == action.lower()]
+            filtered = [
+                e
+                for e in filtered
+                if e.parsed.get("action", "").lower() == action.lower()
+            ]
         if keyword:
             filtered = [e for e in filtered if keyword.lower() in e.message.lower()]
 
-        page = filtered[offset:offset + limit]
+        page = filtered[offset : offset + limit]
         return {
             "total": len(self._entries),
             "filtered": len(filtered),
@@ -163,5 +172,7 @@ class LogViewer:
             "components": component_counts,
             "log_file": self._path,
             "exists": os.path.exists(self._path),
-            "size_bytes": os.path.getsize(self._path) if os.path.exists(self._path) else 0,
+            "size_bytes": (
+                os.path.getsize(self._path) if os.path.exists(self._path) else 0
+            ),
         }

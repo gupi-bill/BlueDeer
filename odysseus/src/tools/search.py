@@ -4,13 +4,15 @@ Extracted from tool_implementations.py as part of slice 1 (#4082/#4071).
 Holds the search_chats tool.
 ``src.tool_implementations`` re-exports these for backward compatibility.
 """
+
 import logging
-from typing import Dict
 
 logger = logging.getLogger(__name__)
 
 
-async def do_search_chats(query: str, limit: int = 20, owner: str | None = None) -> Dict:
+async def do_search_chats(
+    query: str, limit: int = 20, owner: str | None = None
+) -> dict:
     """Search past session transcripts for the calling user's sessions only.
 
     Without an owner filter this used to leak EVERY user's chat history
@@ -24,7 +26,7 @@ async def do_search_chats(query: str, limit: int = 20, owner: str | None = None)
 
         results = search_session_messages(query, limit=limit, owner=owner)
         if not results:
-            return {"results": f"No chats found matching \"{query}\"."}
+            return {"results": f'No chats found matching "{query}".'}
 
         # Group by session to avoid duplicate links
         seen_sessions = {}
@@ -32,7 +34,7 @@ async def do_search_chats(query: str, limit: int = 20, owner: str | None = None)
             if result.session_id not in seen_sessions:
                 seen_sessions[result.session_id] = result
 
-        lines = [f"Found {len(seen_sessions)} session(s) matching \"{query}\":\n"]
+        lines = [f'Found {len(seen_sessions)} session(s) matching "{query}":\n']
         for sid, result in seen_sessions.items():
             lines.append(f"- [**{result.session_name}**](#session-{sid})")
             lines.append(f"  Open: [Open chat](#session-{sid})")

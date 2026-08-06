@@ -1,9 +1,9 @@
 """Focused tests for tests/helpers/import_state.py."""
+
 import sys
 import types
 
 import pytest
-
 from tests.helpers.import_state import (
     clear_fake_database_modules,
     clear_fake_endpoint_resolver_modules,
@@ -395,7 +395,9 @@ def test_clear_fake_resolver_keeps_parent_attr_pointing_elsewhere():
     intact — only the same fake object is unlinked."""
     with preserve_import_state(*_RESOLVER_NAMES):
         fake_src = types.ModuleType("src")
-        cached_fake = types.ModuleType("src.endpoint_resolver")  # the stub in sys.modules
+        cached_fake = types.ModuleType(
+            "src.endpoint_resolver"
+        )  # the stub in sys.modules
         other = types.ModuleType("src.endpoint_resolver")  # parent attr points here
         fake_src.endpoint_resolver = other
         sys.modules["src"] = fake_src

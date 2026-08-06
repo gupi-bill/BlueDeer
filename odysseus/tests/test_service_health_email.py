@@ -1,5 +1,4 @@
 """Tests for email_health — probe logic, status classification, sanitization, and bounded timeout."""
-import pytest
 
 from src import service_health as sh
 
@@ -9,8 +8,12 @@ def _raise(*_a, **_k):
 
 
 def _acct(name, host="imap.example.com"):
-    return {"account_id": name, "account_name": name, "imap_host": host,
-            "imap_password": "hunter2"}
+    return {
+        "account_id": name,
+        "account_name": name,
+        "imap_host": host,
+        "imap_password": "hunter2",
+    }
 
 
 class _Conn:
@@ -55,6 +58,7 @@ def test_email_meta_never_leaks_password():
 def test_email_connect_exception_maps_to_category():
     def boom(account_id):
         raise RuntimeError("login failed for user bob with password hunter2")
+
     s = sh.email_health([_acct("a")], connect=boom)
     assert s["status"] == sh.DOWN
     assert s["meta"]["accounts"][0]["error"] == "error"
@@ -63,6 +67,7 @@ def test_email_connect_exception_maps_to_category():
 
 def test_email_bounded_marks_slow_as_timeout(monkeypatch):
     import time
+
     monkeypatch.setattr(sh, "_FANOUT_BUDGET", 1)
 
     def connect(account_id):

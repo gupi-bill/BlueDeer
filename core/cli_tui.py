@@ -15,7 +15,8 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from core.tui_renderer import TUIRenderer
 
@@ -23,15 +24,16 @@ logger = logging.getLogger("bluedeer.cli_tui")
 
 # sort_mode → 12 维榜单索引映射（由渲染器统一排序，避免双重排序冲突）
 _SORT_MODE_TO_LB_INDEX: dict[str, int] = {
-    "composite": 0,      # 综合
-    "coins": 1,          # 金币
-    "achievements": 5,   # 成就
+    "composite": 0,  # 综合
+    "coins": 1,  # 金币
+    "achievements": 5,  # 成就
 }
 
 # 尝试导入 termios（仅 Unix 可用）
 try:
     import termios
     import tty
+
     _HAS_TTY = True
 except ImportError:
     _HAS_TTY = False
@@ -50,10 +52,30 @@ class CLITUI:
 
     _THEMES: dict[str, dict[str, str]] = {
         "default": {"fg": "", "bg": "", "accent": "\x1b[36m", "border": "\x1b[37m"},
-        "dark": {"fg": "\x1b[37m", "bg": "\x1b[40m", "accent": "\x1b[33m", "border": "\x1b[90m"},
-        "light": {"fg": "\x1b[30m", "bg": "\x1b[47m", "accent": "\x1b[34m", "border": "\x1b[90m"},
-        "neon": {"fg": "\x1b[92m", "bg": "\x1b[40m", "accent": "\x1b[95m", "border": "\x1b[92m"},
-        "monokai": {"fg": "\x1b[37m", "bg": "\x1b[40m", "accent": "\x1b[33m", "border": "\x1b[31m"},
+        "dark": {
+            "fg": "\x1b[37m",
+            "bg": "\x1b[40m",
+            "accent": "\x1b[33m",
+            "border": "\x1b[90m",
+        },
+        "light": {
+            "fg": "\x1b[30m",
+            "bg": "\x1b[47m",
+            "accent": "\x1b[34m",
+            "border": "\x1b[90m",
+        },
+        "neon": {
+            "fg": "\x1b[92m",
+            "bg": "\x1b[40m",
+            "accent": "\x1b[95m",
+            "border": "\x1b[92m",
+        },
+        "monokai": {
+            "fg": "\x1b[37m",
+            "bg": "\x1b[40m",
+            "accent": "\x1b[33m",
+            "border": "\x1b[31m",
+        },
     }
 
     def __init__(self, renderer: TUIRenderer) -> None:
@@ -119,7 +141,7 @@ class CLITUI:
         if not _HAS_TTY or not sys.stdin.isatty():
             logger.info("无 tty 环境，降级为单帧渲染模式")
             state = state_provider()
-            print(self.render_single_frame(state))
+            logger.info("\n%s", self.render_single_frame(state))
             return
 
         self._running = True
@@ -180,7 +202,7 @@ class CLITUI:
         try:
             ch = sys.stdin.read(1)
             return ch.lower() if ch else ""
-        except (OSError, IOError):
+        except OSError:
             return ""
 
     def _handle_key(self, key: str) -> None:
@@ -212,6 +234,7 @@ class CLITUI:
 
 # ============== 状态栏辅助 ==============
 
+
 def make_default_state_provider(
     harness: Any,
     reward: Any,
@@ -237,23 +260,27 @@ def make_default_state_provider(
         agents_state = []
         for avatar in all_avatars():
             profile = reward.get_profile(avatar.agent_id)
-            agents_state.append({
-                "agent_id": avatar.agent_id,
-                "name": avatar.name,
-                "role": avatar.role,
-                "status": "idle",
-                "level": profile.level,
-                "coins": profile.coins,
-            })
+            agents_state.append(
+                {
+                    "agent_id": avatar.agent_id,
+                    "name": avatar.name,
+                    "role": avatar.role,
+                    "status": "idle",
+                    "level": profile.level,
+                    "coins": profile.coins,
+                }
+            )
 
         tasks_state = []
         for tid, info in board.get("tasks", {}).items():
-            tasks_state.append({
-                "task_id": tid,
-                "status": info["status"],
-                "tokens": info["tokens"],
-                "assignee": "squirrel",
-            })
+            tasks_state.append(
+                {
+                    "task_id": tid,
+                    "status": info["status"],
+                    "tokens": info["tokens"],
+                    "assignee": "squirrel",
+                }
+            )
 
         leaderboard = board.get("rewards", [])
 

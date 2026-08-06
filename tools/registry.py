@@ -13,13 +13,12 @@ import logging
 import os
 import sys
 import time
-from typing import Any, Awaitable, Callable, Protocol
+from typing import Any
 
-from core.capability import Capability, CapabilityEnforcer, CapabilityViolation, parse_capability
+from core.capability import CapabilityEnforcer, parse_capability
+from core.config import get_config
 from core.exceptions import ToolExecutionError, ToolNotFoundError, ToolValidationError
 from tools.base_tool import BaseTool, ToolCategory, category_level, needs_security_check
-
-from core.config import get_config
 
 logger = logging.getLogger("bluedeer.tools")
 
@@ -45,7 +44,9 @@ class ToolRegistry:
         capability_enforcer: CapabilityEnforcer | None = None,
     ) -> None:
         self._tools: dict[str, BaseTool] = {}
-        self._max_retries = max_retries if max_retries is not None else get_config().tool.max_retries
+        self._max_retries = (
+            max_retries if max_retries is not None else get_config().tool.max_retries
+        )
         # 高危工具前置安全校验 hook（P5 由戒备猬填充，P1 默认放行但记录日志）
         self._on_hazardous = on_hazardous or self._default_hazardous_check
         # 熔断状态：tool_name → 连续失败次数
@@ -59,7 +60,12 @@ class ToolRegistry:
         if tool.name in self._tools:
             logger.warning("工具 %s 已注册，将被覆盖", tool.name)
         self._tools[tool.name] = tool
-        logger.info("注册工具: %s (category=%s, level=%d)", tool.name, tool.category.value, category_level(tool.category))
+        logger.info(
+            "注册工具: %s (category=%s, level=%d)",
+            tool.name,
+            tool.category.value,
+            category_level(tool.category),
+        )
 
     def get(self, name: str) -> BaseTool:
         """获取已注册工具。"""
@@ -82,7 +88,9 @@ class ToolRegistry:
         """
         return [name for name, t in self._tools.items() if t.category == category]
 
-    def list_for_agent(self, agent_id: str, guard: "HasAgentPermissions") -> list[BaseTool]:
+    def list_for_agent(
+        self, agent_id: str, guard: HasAgentPermissions
+    ) -> list[BaseTool]:
         """P0 修复：返回 agent 有权调用的工具子集。
 
         融合项目15 openclaw/skills 分层技能权限：根据 SecurityGuard.agent_permissions
@@ -110,7 +118,9 @@ class ToolRegistry:
             stats[t.category] = stats.get(t.category, 0) + 1
         return stats
 
-    def discover(self, auto_scan: bool = True, scan_dirs: list[str] | None = None) -> list[str]:
+    def discover(
+        self, auto_scan: bool = True, scan_dirs: list[str] | None = None
+    ) -> list[str]:
         """扫描目录发现新工具并自动注册。
 
         Args:
@@ -140,7 +150,11 @@ class ToolRegistry:
                     spec.loader.exec_module(mod)
                     for attr in dir(mod):
                         obj = getattr(mod, attr)
-                        if isinstance(obj, type) and issubclass(obj, BaseTool) and obj is not BaseTool:
+                        if (
+                            isinstance(obj, type)
+                            and issubclass(obj, BaseTool)
+                            and obj is not BaseTool
+                        ):
                             inst = obj()
                             if inst.name not in self._tools:
                                 self.register(inst)
@@ -205,12 +219,16 @@ class ToolRegistry:
 
         # 熔断检查
         if self._circuit_breaker.get(name, 0) >= self._circuit_threshold:
-            logger.error("工具 %s 已熔断（连续失败 %d 次）", name, self._circuit_threshold)
+            logger.error(
+                "工具 %s 已熔断（连续失败 %d 次）", name, self._circuit_threshold
+            )
             raise ToolExecutionError(f"工具 '{name}' 已熔断")
 
         # 参数基础校验
         if not isinstance(params, dict):
-            raise ToolValidationError(f"参数必须是 dict，实际为 {type(params).__name__}")
+            raise ToolValidationError(
+                f"参数必须是 dict，实际为 {type(params).__name__}"
+            )
 
         # 能力沙箱校验
         if self._capability_enforcer is not None:
@@ -223,7 +241,11 @@ class ToolRegistry:
                         detail=f"需要 '{cap_name}' 能力才能调用工具 '{name}'",
                     )
                 except ValueError:
-                    logger.warning("工具 %s 的 required_capability='%s' 无法解析，跳过沙箱", name, cap_name)
+                    logger.warning(
+                        "工具 %s 的 required_capability='%s' 无法解析，跳过沙箱",
+                        name,
+                        cap_name,
+                    )
 
         # P1 扩容：NETWORK_REQUEST 及以上分级强制前置安全校验（原仅 HAZARDOUS）
         if needs_security_check(tool.category):
@@ -242,14 +264,18 @@ class ToolRegistry:
                 last_error = e
                 logger.warning(
                     "工具 %s 执行失败（第 %d/%d 次）: %s",
-                    name, attempt, self._max_retries, e,
+                    name,
+                    attempt,
+                    self._max_retries,
+                    e,
                 )
 
         # 重试耗尽
         self._circuit_breaker[name] = self._circuit_breaker.get(name, 0) + 1
         logger.error(
             "工具 %s 重试耗尽，熔断计数=%d",
-            name, self._circuit_breaker[name],
+            name,
+            self._circuit_breaker[name],
         )
         raise ToolExecutionError(
             f"工具 '{name}' 执行失败（重试 {self._max_retries} 次）: {last_error}"
@@ -269,5 +295,6 @@ class ToolRegistry:
         """
         logger.warning(
             "高危工具调用（P1 stub 放行）: tool=%s, params_keys=%s",
-            tool_name, list(params.keys()),
+            tool_name,
+            list(params.keys()),
         )

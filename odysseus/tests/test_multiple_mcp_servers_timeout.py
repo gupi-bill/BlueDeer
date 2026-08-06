@@ -65,7 +65,7 @@ async def test_connect_all_enabled_runs_concurrently(monkeypatch):
     ]
 
     # Patch the SessionLocal used by connect_all_enabled().
-    import src.mcp_manager as mcp_manager
+    from src import mcp_manager
 
     monkeypatch.setattr(
         mcp_manager,
@@ -94,9 +94,10 @@ async def test_connect_all_enabled_runs_concurrently(monkeypatch):
     # Concurrent should take about 1 second.
     assert 0.9 <= elapsed < 2.0
 
+
 @pytest.mark.asyncio
 async def test_connect_all_enabled_timeout_does_not_block_other_servers(monkeypatch):
-    import src.mcp_manager as mcp_manager
+    from src import mcp_manager
     from src.mcp_manager import McpManager
 
     manager = McpManager()

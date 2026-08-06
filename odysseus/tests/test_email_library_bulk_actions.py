@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 _REPO = Path(__file__).resolve().parents[1]
 _EMAIL_LIBRARY = _REPO / "static" / "js" / "emailLibrary.js"
 
@@ -57,7 +56,11 @@ def test_email_context_changes_clear_bulk_selection_state():
     fresh_src = _function_source("_resetEmailListForFreshLoad")
     add_pill_src = _function_source("_addSearchPill")
     remove_pill_src = _function_source("_removeSearchPillAt")
-    search_src = text[text.index("async function _doSearch()"):text.index("// Custom dropdown", text.index("async function _doSearch()"))]
+    search_src = text[
+        text.index("async function _doSearch()") : text.index(
+            "// Custom dropdown", text.index("async function _doSearch()")
+        )
+    ]
 
     assert "state._selectedUids.clear()" in reset_src
     assert "state._selectMode = false" in reset_src

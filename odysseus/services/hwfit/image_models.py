@@ -77,7 +77,15 @@ def _estimate_image_model(repo_id: str) -> dict[str, Any]:
     if param_match:
         params_b = max(0.01, float(param_match.group(1)))
     if any(k in text for k in ("mi-gan", "big-lama", "lama-")):
-        return {"params_b": 0.01, "bf16": 1.0, "fp8": 0.7, "q4": 0.5, "quality": 65, "speed": 98, "quant": "BF16"}
+        return {
+            "params_b": 0.01,
+            "bf16": 1.0,
+            "fp8": 0.7,
+            "q4": 0.5,
+            "quality": 65,
+            "speed": 98,
+            "quant": "BF16",
+        }
     quant = "BF16"
     if any(k in text for k in ("4bit", "q4", "nf4")):
         quant = "Q4"
@@ -88,7 +96,15 @@ def _estimate_image_model(repo_id: str) -> dict[str, Any]:
     q4 = max(0.5, round(params_b * 0.8 + 1.5, 1))
     speed = max(35, min(95, int(98 - params_b * 3)))
     quality = max(60, min(88, int(70 + min(params_b, 18) * 0.8)))
-    return {"params_b": params_b, "bf16": bf16, "fp8": fp8, "q4": q4, "quality": quality, "speed": speed, "quant": quant}
+    return {
+        "params_b": params_b,
+        "bf16": bf16,
+        "fp8": fp8,
+        "q4": q4,
+        "quality": quality,
+        "speed": speed,
+        "quant": quant,
+    }
 
 
 def _params_b_from_item(item: dict[str, Any]) -> float | None:
@@ -119,7 +135,9 @@ def _mlx_quantize_estimate(repo_id: str, est: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def _collection_item_to_model(item: dict[str, Any], collection_title: str = "", mlx_only: bool = False) -> dict[str, Any] | None:
+def _collection_item_to_model(
+    item: dict[str, Any], collection_title: str = "", mlx_only: bool = False
+) -> dict[str, Any] | None:
     repo_id = str(item.get("id") or "").strip()
     if "/" not in repo_id:
         return None
@@ -156,7 +174,8 @@ def _collection_item_to_model(item: dict[str, Any], collection_title: str = "", 
         "default_quant": est["quant"],
         "quant_repos": {},
         "capabilities": caps,
-        "description": " ".join(desc_bits).strip() or "Imported from HuggingFace collection.",
+        "description": " ".join(desc_bits).strip()
+        or "Imported from HuggingFace collection.",
         "quality": est["quality"],
         "speed": est["speed"],
         "released": "",
@@ -172,10 +191,14 @@ def _fetch_hf_image_collection_models() -> list[dict[str, Any]]:
     if now - float(_HF_COLLECTION_CACHE.get("ts") or 0) < _HF_COLLECTION_TTL:
         return list(_HF_COLLECTION_CACHE.get("models") or [])
     models: list[dict[str, Any]] = []
-    for slug, mlx_only in [(slug, False) for slug in HF_IMAGE_COLLECTIONS] + [(slug, True) for slug in HF_MLX_IMAGE_COLLECTIONS]:
+    for slug, mlx_only in [(slug, False) for slug in HF_IMAGE_COLLECTIONS] + [
+        (slug, True) for slug in HF_MLX_IMAGE_COLLECTIONS
+    ]:
         url = f"https://huggingface.co/api/collections/{slug}"
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Odysseus-Cookbook/1.0"})
+            req = urllib.request.Request(
+                url, headers={"User-Agent": "Odysseus-Cookbook/1.0"}
+            )
             with urllib.request.urlopen(req, timeout=2.5) as resp:
                 data = json.loads(resp.read().decode("utf-8", "replace"))
         except Exception:
@@ -196,12 +219,16 @@ def _hf_model_search(query: str, limit: int = 10) -> list[dict[str, Any]]:
     now = time.time()
     if now < _HF_SEARCH_DISABLED_UNTIL:
         return []
-    url = "https://huggingface.co/api/models?" + urllib.parse.urlencode({
-        "search": query,
-        "limit": str(limit),
-    })
+    url = "https://huggingface.co/api/models?" + urllib.parse.urlencode(
+        {
+            "search": query,
+            "limit": str(limit),
+        }
+    )
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "Odysseus-Cookbook/1.0"})
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "Odysseus-Cookbook/1.0"}
+        )
         with urllib.request.urlopen(req, timeout=2.5) as resp:
             data = json.loads(resp.read().decode("utf-8", "replace"))
         return data if isinstance(data, list) else []
@@ -212,19 +239,23 @@ def _hf_model_search(query: str, limit: int = 10) -> list[dict[str, Any]]:
 
 def _variant_score(candidate: dict[str, Any], base_repo: str, want: str) -> float:
     rid = str(candidate.get("id") or candidate.get("modelId") or "")
-    text = " ".join([
-        rid,
-        str(candidate.get("library_name") or ""),
-        str(candidate.get("pipeline_tag") or ""),
-        " ".join(str(t) for t in candidate.get("tags") or []),
-    ]).lower()
+    text = " ".join(
+        [
+            rid,
+            str(candidate.get("library_name") or ""),
+            str(candidate.get("pipeline_tag") or ""),
+            " ".join(str(t) for t in candidate.get("tags") or []),
+        ]
+    ).lower()
     base = base_repo.lower()
     base_short = base_repo.rsplit("/", 1)[-1].lower()
     if want == "gguf" and "gguf" not in text:
         return -1
     if want == "fp8" and not any(k in text for k in ("fp8", "nvfp4", "mxfp8", "mxfp4")):
         return -1
-    score = float(candidate.get("downloads") or 0) / 1000.0 + float(candidate.get("likes") or 0)
+    score = float(candidate.get("downloads") or 0) / 1000.0 + float(
+        candidate.get("likes") or 0
+    )
     if f"base_model:{base}" in text or f"base_model:quantized:{base}" in text:
         score += 10000
     elif base_short and base_short in rid.lower():
@@ -259,7 +290,9 @@ def _should_discover_variants(repo_id: str) -> bool:
     return False
 
 
-def _discover_quant_repos(repo_id: str, need_fp8: bool = True, need_gguf: bool = True) -> dict[str, str]:
+def _discover_quant_repos(
+    repo_id: str, need_fp8: bool = True, need_gguf: bool = True
+) -> dict[str, str]:
     key = str(repo_id or "").strip()
     if not key:
         return {}
@@ -348,7 +381,11 @@ def rank_image_models(system, search=None, sort="fit"):
         # Filter by search
         if isinstance(search, str) and search:
             s = search.lower()
-            if s not in model["name"].lower() and s not in model["id"].lower() and s not in model.get("description", "").lower():
+            if (
+                s not in model["name"].lower()
+                and s not in model["id"].lower()
+                and s not in model.get("description", "").lower()
+            ):
                 continue
 
         # Determine best quant that fits
@@ -359,7 +396,11 @@ def rank_image_models(system, search=None, sort="fit"):
 
         if budget_gb > 0:
             # Try BF16 first, then FP8, then Q4
-            for q, vram_key in [("BF16", "vram_bf16"), ("FP8", "vram_fp8"), ("Q4", "vram_q4")]:
+            for q, vram_key in [
+                ("BF16", "vram_bf16"),
+                ("FP8", "vram_fp8"),
+                ("Q4", "vram_q4"),
+            ]:
                 v = model.get(vram_key)
                 if v is not None and v <= budget_gb * 0.90:  # 10% headroom
                     quant = q
@@ -402,25 +443,27 @@ def rank_image_models(system, search=None, sort="fit"):
         elif fit == "no_fit":
             score -= 30
 
-        results.append({
-            "id": model["id"],
-            "name": model["name"],
-            "provider": model["provider"],
-            "params_b": model["params_b"],
-            "vram_needed": vram_needed,
-            "quant": quant,
-            "quant_repo": quant_repo,
-            "fits": fits,
-            "fit": fit,
-            "fit_label": fit_label,
-            "fit_budget": budget_kind,
-            "quality": model["quality"],
-            "speed": model["speed"],
-            "score": round(score, 1),
-            "capabilities": model["capabilities"],
-            "description": model["description"],
-            "released": model.get("released", ""),
-        })
+        results.append(
+            {
+                "id": model["id"],
+                "name": model["name"],
+                "provider": model["provider"],
+                "params_b": model["params_b"],
+                "vram_needed": vram_needed,
+                "quant": quant,
+                "quant_repo": quant_repo,
+                "fits": fits,
+                "fit": fit,
+                "fit_label": fit_label,
+                "fit_budget": budget_kind,
+                "quality": model["quality"],
+                "speed": model["speed"],
+                "score": round(score, 1),
+                "capabilities": model["capabilities"],
+                "description": model["description"],
+                "released": model.get("released", ""),
+            }
+        )
 
     # Sort
     if sort == "quality":

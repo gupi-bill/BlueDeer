@@ -12,7 +12,6 @@ import ast
 from pathlib import Path
 
 import pytest
-
 from src.action_intents import classify_tool_intent
 from src.tool_policy import (
     WEB_TOOL_NAMES,
@@ -49,9 +48,9 @@ def test_allow_bash_reads_from_body_as_fallback():
                     src_segment = ast.get_source_segment(source, node)
                     if src_segment and "body" in src_segment:
                         found_body_fallback = True
-    assert found_body_fallback, (
-        "allow_bash assignment in chat_stream must fall back to JSON body"
-    )
+    assert (
+        found_body_fallback
+    ), "allow_bash assignment in chat_stream must fall back to JSON body"
 
 
 def test_allow_web_search_reads_from_body_as_fallback():
@@ -74,9 +73,9 @@ def test_allow_web_search_reads_from_body_as_fallback():
                     src_segment = ast.get_source_segment(source, node)
                     if src_segment and "body" in src_segment:
                         found_body_fallback = True
-    assert found_body_fallback, (
-        "allow_web_search assignment in chat_stream must fall back to JSON body"
-    )
+    assert (
+        found_body_fallback
+    ), "allow_web_search assignment in chat_stream must fall back to JSON body"
 
 
 def test_browser_form_followups_include_approval_and_send_phrases():
@@ -90,40 +89,47 @@ def test_browser_form_followups_include_approval_and_send_phrases():
 
 def test_agent_loop_expands_browser_mcp_tools_from_connected_server():
     """Browser intent must not depend on stale hardcoded Playwright tool names."""
-    source = (Path(__file__).resolve().parent.parent / "src" / "agent_loop.py").read_text(encoding="utf-8")
+    source = (
+        Path(__file__).resolve().parent.parent / "src" / "agent_loop.py"
+    ).read_text(encoding="utf-8")
     assert "def _expand_browser_mcp_tools" in source
-    assert "server_id\") == \"builtin_browser\"" in source
-    assert "_relevant_tools = _expand_browser_mcp_tools(_relevant_tools, mcp_mgr)" in source
+    assert 'server_id") == "builtin_browser"' in source
+    assert (
+        "_relevant_tools = _expand_browser_mcp_tools(_relevant_tools, mcp_mgr)"
+        in source
+    )
 
 
 def test_disabled_tools_respects_missing_vs_explicit_toggles():
-    """Bash still defers to privileges, but web is an explicit per-turn opt-in.
-    """
+    """Bash still defers to privileges, but web is an explicit per-turn opt-in."""
     source = _CHAT_ROUTES.read_text(encoding="utf-8")
 
     # The fix changes:
     #   if str(allow_bash).lower() != "true":
     # to:
     #   if allow_bash is not None and str(allow_bash).lower() != "true":
-    assert "allow_bash is not None" in source, (
-        "disabled_tools check must guard against allow_bash being None"
-    )
-    assert "web_search_enabled_for_turn(allow_web_search, use_web)" in source, (
-        "web tools must be gated through the explicit per-turn web setting"
-    )
-    assert "disabled_tools.update(WEB_TOOL_NAMES)" in source, (
-        "disabled_tools must add web_search/web_fetch when web is not explicitly enabled"
-    )
-    assert "_forced_tools = set(WEB_TOOL_NAMES)" in source, (
-        "web tools should only be forced visible from the explicit web setting"
-    )
+    assert (
+        "allow_bash is not None" in source
+    ), "disabled_tools check must guard against allow_bash being None"
+    assert (
+        "web_search_enabled_for_turn(allow_web_search, use_web)" in source
+    ), "web tools must be gated through the explicit per-turn web setting"
+    assert (
+        "disabled_tools.update(WEB_TOOL_NAMES)" in source
+    ), "disabled_tools must add web_search/web_fetch when web is not explicitly enabled"
+    assert (
+        "_forced_tools = set(WEB_TOOL_NAMES)" in source
+    ), "web tools should only be forced visible from the explicit web setting"
 
 
 def test_workspace_auto_escalation_keeps_shell_tools():
     """Workspace/shell auto-routing must not use the light typed-tool clamp."""
     source = _CHAT_ROUTES.read_text(encoding="utf-8")
-    assert '_workspace_agent_intent = _tool_intent.category in {"shell", "workspace"}' in source
-    assert "allow_bash = \"true\"" in source
+    assert (
+        '_workspace_agent_intent = _tool_intent.category in {"shell", "workspace"}'
+        in source
+    )
+    assert 'allow_bash = "true"' in source
     assert "if auto_escalated and not _workspace_agent_intent:" in source
 
 
@@ -152,15 +158,28 @@ def _build_disabled_tools(
     if is_web_search_explicitly_denied(allow_web_search) or not search_enabled:
         disabled_tools.update(WEB_TOOL_NAMES)
     if explicit_web_intent:
-        disabled_tools.update({
-            "bash", "python",
-            "search_chats", "manage_skills", "manage_memory",
-            "read_file", "write_file", "edit_file",
-            "create_document", "edit_document", "update_document",
-            "send_email", "reply_to_email",
-            "manage_notes", "manage_calendar", "manage_tasks",
-            "api_call", "builtin_browser",
-        })
+        disabled_tools.update(
+            {
+                "bash",
+                "python",
+                "search_chats",
+                "manage_skills",
+                "manage_memory",
+                "read_file",
+                "write_file",
+                "edit_file",
+                "create_document",
+                "edit_document",
+                "update_document",
+                "send_email",
+                "reply_to_email",
+                "manage_notes",
+                "manage_calendar",
+                "manage_tasks",
+                "api_call",
+                "builtin_browser",
+            }
+        )
         if search_enabled:
             disabled_tools.difference_update(WEB_TOOL_NAMES)
         else:
@@ -305,7 +324,7 @@ def test_form_data_none_body_true_works():
     """
     # Simulate the fallback logic
     form_data_val = None  # not in form_data
-    body_val = "true"     # from JSON body
+    body_val = "true"  # from JSON body
     allow_bash = form_data_val or body_val
     assert str(allow_bash).lower() == "true"
 
@@ -316,7 +335,8 @@ def test_form_data_none_body_true_works():
 def test_explicit_false_disables_even_for_admin():
     """An admin who explicitly sends allow_bash=false should have bash disabled."""
     disabled = _build_disabled_tools(
-        allow_bash="false", can_use_bash=True,
+        allow_bash="false",
+        can_use_bash=True,
     )
     assert "bash" in disabled
 
@@ -330,15 +350,16 @@ def test_frontend_always_sends_explicit_allow_bash():
     """chat.js must always send allow_bash (both true and false), not only on toggle ON."""
     source = _CHAT_JS.read_text(encoding="utf-8")
     # Must not only append 'true' — must also handle the false case
-    assert "allow_bash', el('bash-toggle').checked ? 'true' : 'false'" in source or \
-           "allow_bash', 'false'" in source, (
-        "Frontend must send explicit allow_bash=false when toggle is off"
-    )
+    assert (
+        "allow_bash', el('bash-toggle').checked ? 'true' : 'false'" in source
+        or "allow_bash', 'false'" in source
+    ), "Frontend must send explicit allow_bash=false when toggle is off"
 
 
 def test_frontend_sends_explicit_allow_web_search_false_in_agent_mode():
     """chat.js must send allow_web_search=false when web toggle is off in agent mode."""
     source = _CHAT_JS.read_text(encoding="utf-8")
-    assert "fd.append('allow_web_search', el('web-toggle').checked ? 'true' : 'false')" in source, (
-        "Frontend must send explicit allow_web_search=false in agent mode when toggle is off"
-    )
+    assert (
+        "fd.append('allow_web_search', el('web-toggle').checked ? 'true' : 'false')"
+        in source
+    ), "Frontend must send explicit allow_web_search=false in agent mode when toggle is off"

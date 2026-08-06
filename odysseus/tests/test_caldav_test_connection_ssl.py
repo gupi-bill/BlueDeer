@@ -9,6 +9,7 @@ These tests exercise the *route handler* directly (via ASGI TestClient)
 and capture the verify= kwarg passed to httpx.AsyncClient, ensuring the
 route code — not a test-side duplicate — builds the SSL context correctly.
 """
+
 import os
 import ssl
 import sys
@@ -46,6 +47,7 @@ def client():
 
 def _make_fake_async_client(captured):
     """Return a fake httpx.AsyncClient class that captures constructor kwargs."""
+
     class FakeAsyncClient:
         def __init__(self, **kwargs):
             captured.update(kwargs)
@@ -101,6 +103,7 @@ def _post_test(client, captured, env=None):
 # Route-level tests
 # ---------------------------------------------------------------------------
 
+
 def test_route_passes_ssl_context_with_correct_flags(client):
     """The route must pass an ssl.SSLContext to httpx.AsyncClient(verify=...)
     with trust_env=False, follow_redirects=False, and VERIFY_X509_STRICT cleared."""
@@ -108,15 +111,15 @@ def test_route_passes_ssl_context_with_correct_flags(client):
     resp = _post_test(client, captured)
 
     assert resp.status_code == 200
-    assert isinstance(captured.get("verify"), ssl.SSLContext), (
-        f"verify= should be an ssl.SSLContext, got {type(captured.get('verify'))}"
-    )
+    assert isinstance(
+        captured.get("verify"), ssl.SSLContext
+    ), f"verify= should be an ssl.SSLContext, got {type(captured.get('verify'))}"
     assert captured.get("trust_env") is False
     assert captured.get("follow_redirects") is False
     ctx = captured["verify"]
-    assert not (ctx.verify_flags & ssl.VERIFY_X509_STRICT), (
-        "VERIFY_X509_STRICT must be cleared for self-signed CA compat"
-    )
+    assert not (
+        ctx.verify_flags & ssl.VERIFY_X509_STRICT
+    ), "VERIFY_X509_STRICT must be cleared for self-signed CA compat"
 
 
 def test_route_ssl_cert_file_takes_precedence(client, tmp_path):
@@ -167,15 +170,15 @@ def test_route_ssl_cert_file_takes_precedence(client, tmp_path):
     assert captured.get("verify") is ssl_context
     assert captured.get("trust_env") is False
     assert captured.get("follow_redirects") is False
-    assert not (
-        ssl_context.verify_flags & ssl.VERIFY_X509_STRICT
-    )
+    assert not (ssl_context.verify_flags & ssl.VERIFY_X509_STRICT)
 
 
 def test_route_missing_bundle_does_not_crash(client):
     """A nonexistent CA bundle path must not crash -- fall back to system CAs."""
     captured = {}
-    resp = _post_test(client, captured, env={"SSL_CERT_FILE": "/nonexistent/ca-bundle.pem"})
+    resp = _post_test(
+        client, captured, env={"SSL_CERT_FILE": "/nonexistent/ca-bundle.pem"}
+    )
 
     assert resp.status_code == 200
     ctx = captured["verify"]
@@ -186,7 +189,9 @@ def test_route_missing_bundle_does_not_crash(client):
 def test_route_empty_env_vars_use_system_defaults(client):
     """Empty SSL_CERT_FILE and REQUESTS_CA_BUNDLE should not crash."""
     captured = {}
-    resp = _post_test(client, captured, env={"SSL_CERT_FILE": "", "REQUESTS_CA_BUNDLE": ""})
+    resp = _post_test(
+        client, captured, env={"SSL_CERT_FILE": "", "REQUESTS_CA_BUNDLE": ""}
+    )
 
     assert resp.status_code == 200
     ctx = captured["verify"]

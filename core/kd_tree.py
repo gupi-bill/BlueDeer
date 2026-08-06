@@ -6,16 +6,19 @@ evolution（数据维度 - R198）：
 - 应用：空间索引、推荐系统 KNN、图像检索、异常检测
 - 与区间树互补：区间树 1D 区间重叠，KD-Tree k 维近邻
 """
+
 from __future__ import annotations
+
 import heapq
 import itertools
 import math
 import threading
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 
 class _Node:
-    __slots__ = ("point", "value", "axis", "left", "right", "deleted")
+    __slots__ = ("axis", "deleted", "left", "point", "right", "value")
 
     def __init__(self, point, value, axis):
         self.point = point
@@ -55,7 +58,7 @@ class KDTree:
     def __len__(self) -> int:
         return self._size
 
-    def insert(self, point, value: Any = None) -> None:
+    def insert(self, point: Any, value: Any = None) -> None:
         if len(point) != self._k:
             raise ValueError(f"点维度应为 {self._k}")
         with self._lock:
@@ -118,10 +121,10 @@ class KDTree:
         if diff * diff < best[1]:
             self._nearest(far, point, best)
 
-    def knn(self, point, k: int) -> list[tuple]:
+    def knn(self, point: Any, k: int) -> list[tuple]:
         return self.knn_search(point, k)
 
-    def knn_search(self, point, k: int) -> list[tuple]:
+    def knn_search(self, point: Any, k: int) -> list[tuple]:
         if k < 1:
             raise ValueError("k >= 1")
         with self._lock:
@@ -152,7 +155,7 @@ class KDTree:
 
     _counter = itertools.count()
 
-    def range_query(self, lo, hi) -> list[tuple]:
+    def range_query(self, lo: Any, hi) -> list[tuple]:
         with self._lock:
             result = []
             self._range(self._root, lo, hi, result)
@@ -184,10 +187,12 @@ class KDTree:
 
     def status(self) -> dict:
         with self._lock:
-            def depth(n):
+
+            def depth(n) -> Any:
                 if n is None:
                     return 0
                 return 1 + max(depth(n.left), depth(n.right))
+
             return {
                 "size": self._size,
                 "dimensions": self._k,

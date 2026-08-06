@@ -8,9 +8,7 @@ like session creation, message sends, etc.
 import asyncio
 import json
 import logging
-import os
 from datetime import datetime
-from typing import Optional
 
 from src.constants import AUTH_FILE
 
@@ -30,7 +28,7 @@ def get_task_scheduler():
     return _task_scheduler
 
 
-def fire_event(event_name: str, owner: Optional[str] = None):
+def fire_event(event_name: str, owner: str | None = None):
     """Fire an event — increments counters and triggers tasks that hit threshold.
 
     Safe to call from both sync and async contexts.
@@ -43,7 +41,7 @@ def fire_event(event_name: str, owner: Optional[str] = None):
         asyncio.run(_handle_event(event_name, owner))
 
 
-def _resolve_event_owner(owner: Optional[str]) -> Optional[str]:
+def _resolve_event_owner(owner: str | None) -> str | None:
     """Resolve ownerless app events to the primary configured user.
 
     Some event sources run from localhost/internal code paths where request
@@ -58,7 +56,7 @@ def _resolve_event_owner(owner: Optional[str]) -> Optional[str]:
     try:
         auth_path = AUTH_FILE
         with open(auth_path, "r", encoding="utf-8") as f:
-            users = (json.load(f).get("users") or {})
+            users = json.load(f).get("users") or {}
         for username, data in users.items():
             if data.get("is_admin") is True:
                 return username
@@ -69,9 +67,9 @@ def _resolve_event_owner(owner: Optional[str]) -> Optional[str]:
     return None
 
 
-async def _handle_event(event_name: str, owner: Optional[str] = None):
+async def _handle_event(event_name: str, owner: str | None = None):
     """Process an event: increment counters, fire tasks that hit their threshold."""
-    from core.database import SessionLocal, ScheduledTask
+    from core.database import ScheduledTask, SessionLocal
 
     resolved_owner = _resolve_event_owner(owner)
     db = SessionLocal()
@@ -84,7 +82,7 @@ async def _handle_event(event_name: str, owner: Optional[str] = None):
         if resolved_owner:
             filters.append(ScheduledTask.owner == resolved_owner)
         else:
-            filters.append(ScheduledTask.owner == None)  # noqa: E711
+            filters.append(ScheduledTask.owner == None)
 
         tasks = db.query(ScheduledTask).filter(*filters).all()
         if not tasks:
@@ -105,13 +103,19 @@ async def _handle_event(event_name: str, owner: Optional[str] = None):
                 db.commit()
                 # Fire the task
                 if _task_scheduler:
-                    logger.info(f"Event '{event_name}' triggered task '{task.name}' (every {threshold})")
+                    logger.info(
+                        f"Event '{event_name}' triggered task '{task.name}' (every {threshold})"
+                    )
                     await _task_scheduler.run_task_now(task.id)
                 else:
-                    logger.warning(f"Event triggered task '{task.name}' but no scheduler available")
+                    logger.warning(
+                        f"Event triggered task '{task.name}' but no scheduler available"
+                    )
             else:
                 db.commit()
-                logger.debug(f"Event '{event_name}': task '{task.name}' counter {task.trigger_counter}/{threshold}")
+                logger.debug(
+                    f"Event '{event_name}': task '{task.name}' counter {task.trigger_counter}/{threshold}"
+                )
 
     except Exception:
         logger.exception(f"Error handling event '{event_name}'")

@@ -26,7 +26,6 @@ from types import SimpleNamespace
 
 from tests.helpers.calendar_routes import import_calendar_routes
 
-
 _MOCK_CAL = SimpleNamespace(name="Personal", color="#5b8abf")
 
 

@@ -1,7 +1,6 @@
 """Tests for Cookbook hardware probe context and container visibility warnings."""
 
 import pytest
-
 from services.hwfit import hardware
 
 

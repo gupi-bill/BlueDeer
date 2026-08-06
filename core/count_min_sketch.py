@@ -8,7 +8,9 @@ evolution（数据维度 - R199）：
 - 永不低估（只可能高估），适合 top-k、热门统计
 - 与 HyperLogLog 互补：HLL 估算基数（去重数），CMS 估算频率
 """
+
 from __future__ import annotations
+
 import hashlib
 import math
 import threading
@@ -59,10 +61,10 @@ class CountMinSketch:
 
     def _get(self, table: bytearray, idx: int) -> int:
         """读取计数器（8 字节大端）。"""
-        return int.from_bytes(table[idx * 8:idx * 8 + 8], "big")
+        return int.from_bytes(table[idx * 8 : idx * 8 + 8], "big")
 
     def _set(self, table: bytearray, idx: int, val: int) -> None:
-        table[idx * 8:idx * 8 + 8] = val.to_bytes(8, "big")
+        table[idx * 8 : idx * 8 + 8] = val.to_bytes(8, "big")
 
     def _prune_candidates(self) -> None:
         """裁剪候选集，保留 top width 个（控制内存）。"""
@@ -71,7 +73,7 @@ class CountMinSketch:
         threshold = sorted(self._candidates.values(), reverse=True)[self._width - 1]
         self._candidates = {k: v for k, v in self._candidates.items() if v >= threshold}
 
-    def add(self, item, count: int = 1) -> None:
+    def add(self, item: Any, count: int = 1) -> None:
         """增加计数。"""
         if count < 0:
             raise ValueError("count 不能为负")
@@ -82,7 +84,9 @@ class CountMinSketch:
                 self._set(self._tables[i], pos, cur + count)
             self._total += count
             # 更新候选集（用于 top-k / heavy_hitters）
-            est = min(self._get(self._tables[i], pos) for i, pos in enumerate(positions))
+            est = min(
+                self._get(self._tables[i], pos) for i, pos in enumerate(positions)
+            )
             self._candidates[item] = est
             if len(self._candidates) > self._width * 3:
                 self._prune_candidates()
@@ -91,12 +95,14 @@ class CountMinSketch:
         """估算频率（返回各行最小值）。"""
         positions = self._hashes(item)
         with self._lock:
-            return min(self._get(self._tables[i], pos) for i, pos in enumerate(positions))
+            return min(
+                self._get(self._tables[i], pos) for i, pos in enumerate(positions)
+            )
 
     def __getitem__(self, item) -> int:
         return self.estimate(item)
 
-    def merge(self, other: "CountMinSketch") -> None:
+    def merge(self, other: CountMinSketch) -> None:
         """合并另一个 sketch（同维度）。"""
         if self._width != other._width or self._depth != other._depth:
             raise ValueError("维度不匹配")
@@ -124,7 +130,11 @@ class CountMinSketch:
     def heavy_hitters(self, threshold: int) -> list[tuple[Any, int]]:
         """返回估算频率 >= threshold 的（项, 估算频率）。"""
         with self._lock:
-            return [(item, est) for item, est in self._candidates.items() if est >= threshold]
+            return [
+                (item, est)
+                for item, est in self._candidates.items()
+                if est >= threshold
+            ]
 
     def estimated_error(self) -> float:
         """理论误差上界：epsilon = e * w（w=width, e=euler）。

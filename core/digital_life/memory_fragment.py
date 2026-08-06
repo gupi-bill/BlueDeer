@@ -14,6 +14,7 @@
 4. 碎片文本可由 LLM 生成（可选），降级为预置模板。
 5. 资料库联动：遗物碎片缓慢飘向 raven zone（资料库）。
 """
+
 from __future__ import annotations
 
 import math
@@ -26,14 +27,14 @@ import time
 # ====================================================================
 # type: emotion_peak / friendship / milestone / death_relic / supervisor_chat
 FRAGMENT_COLORS: dict[str, str] = {
-    "emotion_peak_joy":    "rgba(255,196,87,0.9)",   # 金色
+    "emotion_peak_joy": "rgba(255,196,87,0.9)",  # 金色
     "emotion_peak_sadness": "rgba(130,170,230,0.9)",  # 淡蓝
     "emotion_peak_anxiety": "rgba(180,180,200,0.9)",  # 灰蓝
-    "friendship":          "rgba(255,150,180,0.9)",   # 粉色（友情/爱情）
-    "milestone":           "rgba(140,210,150,0.9)",   # 绿色（成就）
-    "death_relic":         "rgba(255,255,255,0.95)",  # 白色带彩虹边
-    "supervisor_chat":     "rgba(200,150,220,0.9)",   # 紫色
-    "social_dialogue":     "rgba(255,200,150,0.85)",  # 橙色（自发社交）
+    "friendship": "rgba(255,150,180,0.9)",  # 粉色（友情/爱情）
+    "milestone": "rgba(140,210,150,0.9)",  # 绿色（成就）
+    "death_relic": "rgba(255,255,255,0.95)",  # 白色带彩虹边
+    "supervisor_chat": "rgba(200,150,220,0.9)",  # 紫色
+    "social_dialogue": "rgba(255,200,150,0.85)",  # 橙色（自发社交）
 }
 
 # 默认存活时间（秒）
@@ -119,11 +120,20 @@ class MemoryFragment:
         "zone_id",
     )
 
-    def __init__(self, frag_id: int, frag_type: str, x: float, y: float,
-                 zone_id: str, color: str, text: str,
-                 agent_name: str, agent_species: str,
-                 is_relic: bool = False,
-                 related_agent_name: str = ""):
+    def __init__(
+        self,
+        frag_id: int,
+        frag_type: str,
+        x: float,
+        y: float,
+        zone_id: str,
+        color: str,
+        text: str,
+        agent_name: str,
+        agent_species: str,
+        is_relic: bool = False,
+        related_agent_name: str = "",
+    ):
         self.id = frag_id
         self.type = frag_type
         self.x = x
@@ -166,12 +176,10 @@ class MemoryFragment:
         }
 
 
-
-
-
 # ====================================================================
 # MemoryFragmentSystem 单例
 # ====================================================================
+
 
 class MemoryFragmentSystem:
     """记忆碎片系统（单例）。"""
@@ -214,12 +222,19 @@ class MemoryFragmentSystem:
 
     # ---------------- 生成碎片 ----------------
 
-    def spawn(self, frag_type: str, x: float, y: float, zone_id: str,
-              agent_name: str, agent_species: str,
-              text: str | None = None,
-              detail: str = "",
-              related_agent_name: str = "",
-              is_relic: bool = False) -> int | None:
+    def spawn(
+        self,
+        frag_type: str,
+        x: float,
+        y: float,
+        zone_id: str,
+        agent_name: str,
+        agent_species: str,
+        text: str | None = None,
+        detail: str = "",
+        related_agent_name: str = "",
+        is_relic: bool = False,
+    ) -> int | None:
         """生成一个记忆碎片。
 
         Args:
@@ -249,10 +264,16 @@ class MemoryFragmentSystem:
                     return None  # 全是遗物，无法腾位
 
             # 单区域上限 5 个
-            zone_count = sum(1 for f in self._fragments if f.zone_id == zone_id and not f.is_relic)
+            zone_count = sum(
+                1 for f in self._fragments if f.zone_id == zone_id and not f.is_relic
+            )
             if zone_count >= MAX_PER_ZONE and not is_relic:
                 # 移除该区域最旧的非遗物
-                zone_frags = [f for f in self._fragments if f.zone_id == zone_id and not f.is_relic]
+                zone_frags = [
+                    f
+                    for f in self._fragments
+                    if f.zone_id == zone_id and not f.is_relic
+                ]
                 if zone_frags:
                     zone_frags.sort(key=lambda f: f.time)
                     self._fragments.remove(zone_frags[0])
@@ -264,9 +285,13 @@ class MemoryFragmentSystem:
             frag = MemoryFragment(
                 frag_id=self._next_id,
                 frag_type=frag_type,
-                x=x, y=y, zone_id=zone_id,
-                color=color, text=text,
-                agent_name=agent_name, agent_species=agent_species,
+                x=x,
+                y=y,
+                zone_id=zone_id,
+                color=color,
+                text=text,
+                agent_name=agent_name,
+                agent_species=agent_species,
                 is_relic=is_relic,
                 related_agent_name=related_agent_name,
             )
@@ -323,18 +348,22 @@ class MemoryFragmentSystem:
                 return
             # 找到 environment 中的相关智能体
             from core.digital_life.environment import Environment
+
             env = Environment()
             # 找到该 agent_name 对应的存活智能体
             target = None
             for lf in env.population:
-                if (getattr(lf, "_alive", False)
-                        and getattr(lf, "_name_obj", "") == frag.agent_name):
+                if (
+                    getattr(lf, "_alive", False)
+                    and getattr(lf, "_name_obj", "") == frag.agent_name
+                ):
                     target = lf
                     break
             if target is None:
                 return
             # 调用 illness_system 的 memory heartbreak
             from core.digital_life.illness_system import get_illness_system
+
             get_illness_system().trigger_memory_heartbreak(target)
         except Exception:
             pass
@@ -392,16 +421,31 @@ def get_fragments() -> MemoryFragmentSystem:
     return _singleton
 
 
-def spawn_fragment(frag_type: str, x: float, y: float, zone_id: str,
-                   agent_name: str, agent_species: str,
-                   text: str | None = None, detail: str = "",
-                   related_agent_name: str = "",
-                   is_relic: bool = False) -> int | None:
+def spawn_fragment(
+    frag_type: str,
+    x: float,
+    y: float,
+    zone_id: str,
+    agent_name: str,
+    agent_species: str,
+    text: str | None = None,
+    detail: str = "",
+    related_agent_name: str = "",
+    is_relic: bool = False,
+) -> int | None:
     """便捷接口：生成碎片。"""
     try:
         return get_fragments().spawn(
-            frag_type, x, y, zone_id, agent_name, agent_species,
-            text, detail, related_agent_name, is_relic,
+            frag_type,
+            x,
+            y,
+            zone_id,
+            agent_name,
+            agent_species,
+            text,
+            detail,
+            related_agent_name,
+            is_relic,
         )
     except Exception:
         return None

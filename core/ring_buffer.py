@@ -8,10 +8,13 @@ evolution（数据维度 - R191）：
 - 多消费者场景加锁 + Condition，支持阻塞读
 - 典型用途：日志缓冲、生产消费队列、流控
 """
+
 from __future__ import annotations
+
 import mmap
 import threading
-from typing import Any, Iterator, List
+from collections.abc import Iterator
+from typing import Any
 
 
 class RingBuffer:
@@ -95,7 +98,9 @@ class RingBuffer:
             self._not_empty.notify()
             return True
 
-    def write_batch(self, items: List[Any], block: bool = True, timeout: float | None = None) -> int:
+    def write_batch(
+        self, items: list[Any], block: bool = True, timeout: float | None = None
+    ) -> int:
         """批量写入。返回成功写入数。"""
         if not items:
             return 0
@@ -156,7 +161,9 @@ class RingBuffer:
     def get_nowait(self) -> Any:
         return self.get(block=False)
 
-    def read_batch(self, count: int, block: bool = True, timeout: float | None = None) -> List[Any]:
+    def read_batch(
+        self, count: int, block: bool = True, timeout: float | None = None
+    ) -> list[Any]:
         """批量读取最多 count 个元素。"""
         if count < 1:
             return []
@@ -186,6 +193,7 @@ class RingBuffer:
 
     def _wait_not_empty(self, timeout: float | None) -> bool:
         import time
+
         if timeout is None:
             while self._size == 0 and not self._closed:
                 self._not_empty.wait()
@@ -229,6 +237,7 @@ class RingBuffer:
     def mmap(self, path: str) -> None:
         """将缓冲区映射到内存映射文件。支持持久化。"""
         import os
+
         if self._size > 0:
             raise RuntimeError("mmap 只能用于空缓冲区")
         file_size = self._capacity * 8
@@ -250,6 +259,7 @@ class RingBuffer:
         if not hasattr(self, "_mmap_path") or not self._mmap_path:
             return
         import os
+
         if not os.path.exists(self._mmap_path):
             return
         with open(self._mmap_path, "r+b") as f:

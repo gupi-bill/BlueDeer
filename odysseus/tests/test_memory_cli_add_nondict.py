@@ -5,6 +5,7 @@ list in its dedup check: `any(e.get("id") == ... for e in all_entries)`
 crashed with AttributeError on a corrupt/hand-edited memory.json row that
 is not a dict. The isinstance check short-circuits before `.get`.
 """
+
 import importlib.machinery
 import importlib.util
 import sys

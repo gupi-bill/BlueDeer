@@ -14,22 +14,23 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any
 
 logger = logging.getLogger("bluedeer.glow.color")
 
 
 # ============== 色彩深度等级 ==============
 
+
 class ColorDepth(Enum):
     """终端色彩深度等级（降级目标）。"""
-    TRUE_COLOR = "truecolor"   # 24bit 真彩
-    COLOR_256 = "256"          # 256 色
-    COLOR_16 = "16"            # 16 基础色
-    GRAYSCALE = "grayscale"    # 灰度
-    ASCII = "ascii"            # 纯 ASCII（无色）
+
+    TRUE_COLOR = "truecolor"  # 24bit 真彩
+    COLOR_256 = "256"  # 256 色
+    COLOR_16 = "16"  # 16 基础色
+    GRAYSCALE = "grayscale"  # 灰度
+    ASCII = "ascii"  # 纯 ASCII（无色）
 
 
 # 自动检测终端色彩深度
@@ -50,9 +51,11 @@ def detect_color_depth() -> ColorDepth:
 
 # ============== RGB 颜色 ==============
 
+
 @dataclass
 class RGB:
     """RGB 颜色（0-255）。"""
+
     r: int = 0
     g: int = 0
     b: int = 0
@@ -87,7 +90,7 @@ class RGB:
             return 4 if self.b < 128 else 12  # 蓝/亮蓝
         return 3  # 黄
 
-    def adjust_brightness(self, factor: float) -> "RGB":
+    def adjust_brightness(self, factor: float) -> RGB:
         """调整亮度（factor 0-1，1.0 原样）。"""
         return RGB(
             r=max(0, min(255, int(self.r * factor))),
@@ -98,39 +101,64 @@ class RGB:
 
 # ============== CRT 硬件预设 ==============
 
+
 class CRTPreset(Enum):
     """6 套 CRT 复古硬件预设。"""
-    NES = "nes"                    # 任天堂红白机
-    GAMEBOY = "gameboy"            # GameBoy 4色绿
-    INDUSTRIAL = "industrial"      # 工控终端琥珀
-    OFFICE_90S = "office_90s"      # 90年代办公 CGA
-    ARCADE = "arcade"              # 街机 CRT
-    HANDHELD = "handheld"          # 掌机
+
+    NES = "nes"  # 任天堂红白机
+    GAMEBOY = "gameboy"  # GameBoy 4色绿
+    INDUSTRIAL = "industrial"  # 工控终端琥珀
+    OFFICE_90S = "office_90s"  # 90年代办公 CGA
+    ARCADE = "arcade"  # 街机 CRT
+    HANDHELD = "handheld"  # 掌机
 
 
 # 各预设的色板限制（4-8 色）
 _CRT_PALETTES: dict[CRTPreset, list[RGB]] = {
     CRTPreset.NES: [
-        RGB(0, 0, 0), RGB(124, 124, 124), RGB(248, 56, 0),
-        RGB(228, 92, 16), RGB(136, 20, 176), RGB(52, 104, 86),
+        RGB(0, 0, 0),
+        RGB(124, 124, 124),
+        RGB(248, 56, 0),
+        RGB(228, 92, 16),
+        RGB(136, 20, 176),
+        RGB(52, 104, 86),
     ],
     CRTPreset.GAMEBOY: [
-        RGB(15, 56, 15), RGB(48, 98, 48),
-        RGB(139, 172, 15), RGB(155, 188, 15),
+        RGB(15, 56, 15),
+        RGB(48, 98, 48),
+        RGB(139, 172, 15),
+        RGB(155, 188, 15),
     ],
     CRTPreset.INDUSTRIAL: [
-        RGB(0, 0, 0), RGB(255, 176, 0), RGB(200, 130, 0), RGB(100, 60, 0),
+        RGB(0, 0, 0),
+        RGB(255, 176, 0),
+        RGB(200, 130, 0),
+        RGB(100, 60, 0),
     ],
     CRTPreset.OFFICE_90S: [
-        RGB(0, 0, 0), RGB(0, 0, 170), RGB(0, 170, 0), RGB(0, 170, 170),
-        RGB(170, 0, 0), RGB(170, 0, 170), RGB(170, 85, 0), RGB(170, 170, 170),
+        RGB(0, 0, 0),
+        RGB(0, 0, 170),
+        RGB(0, 170, 0),
+        RGB(0, 170, 170),
+        RGB(170, 0, 0),
+        RGB(170, 0, 170),
+        RGB(170, 85, 0),
+        RGB(170, 170, 170),
     ],
     CRTPreset.ARCADE: [
-        RGB(20, 20, 40), RGB(255, 80, 80), RGB(80, 255, 80),
-        RGB(80, 80, 255), RGB(255, 255, 80), RGB(255, 80, 255), RGB(80, 255, 255),
+        RGB(20, 20, 40),
+        RGB(255, 80, 80),
+        RGB(80, 255, 80),
+        RGB(80, 80, 255),
+        RGB(255, 255, 80),
+        RGB(255, 80, 255),
+        RGB(80, 255, 255),
     ],
     CRTPreset.HANDHELD: [
-        RGB(30, 30, 40), RGB(120, 180, 240), RGB(240, 200, 120), RGB(255, 255, 255),
+        RGB(30, 30, 40),
+        RGB(120, 180, 240),
+        RGB(240, 200, 120),
+        RGB(255, 255, 255),
     ],
 }
 
@@ -150,6 +178,7 @@ def nearest_in_palette(color: RGB, preset: CRTPreset) -> RGB:
 
 # ============== 时间自适应亮度 ==============
 
+
 def auto_brightness_factor(hour: int | None = None) -> float:
     """根据本地时段返回亮度因子。
 
@@ -158,6 +187,7 @@ def auto_brightness_factor(hour: int | None = None) -> float:
     - 22-06 深夜：0.7
     """
     import time as _time
+
     if hour is None:
         hour = _time.localtime().tm_hour
     if 6 <= hour < 18:
@@ -169,6 +199,7 @@ def auto_brightness_factor(hour: int | None = None) -> float:
 
 # ============== 8px 网格对齐 ==============
 
+
 def snap_to_grid(x: int, y: int, grid: int = 8) -> tuple[int, int]:
     """坐标吸附到 8px 网格。"""
     return ((x // grid) * grid, (y // grid) * grid)
@@ -176,15 +207,18 @@ def snap_to_grid(x: int, y: int, grid: int = 8) -> tuple[int, int]:
 
 # ============== Z 轴分层 ==============
 
+
 class GlowLayer(Enum):
     """Z 轴 4 层分层合成。"""
-    BACKGROUND = 0    # 背景弱光
-    MIDGROUND = 1     # 中层标准光晕
-    FOREGROUND = 2    # 顶层告警强脉冲
-    OVERLAY = 3       # 覆盖层（弹窗/拖拽）
+
+    BACKGROUND = 0  # 背景弱光
+    MIDGROUND = 1  # 中层标准光晕
+    FOREGROUND = 2  # 顶层告警强脉冲
+    OVERLAY = 3  # 覆盖层（弹窗/拖拽）
 
 
 # ============== 降级渲染器 ==============
+
 
 class ColorDowngradeRenderer:
     """色板降级渲染器。
@@ -229,15 +263,29 @@ class ColorDowngradeRenderer:
             return color
         if self._depth == ColorDepth.COLOR_256:
             idx = color.to_256()
-            return RGB((idx - 16) // 36 * 51, ((idx - 16) % 36) // 6 * 51, (idx - 16) % 6 * 51)
+            return RGB(
+                (idx - 16) // 36 * 51, ((idx - 16) % 36) // 6 * 51, (idx - 16) % 6 * 51
+            )
         if self._depth == ColorDepth.COLOR_16:
             idx = color.to_16()
             # 16 色粗略还原
             _16_map = [
-                RGB(0, 0, 0), RGB(128, 0, 0), RGB(0, 128, 0), RGB(128, 128, 0),
-                RGB(0, 0, 128), RGB(128, 0, 128), RGB(0, 128, 128), RGB(192, 192, 192),
-                RGB(128, 128, 128), RGB(255, 0, 0), RGB(0, 255, 0), RGB(255, 255, 0),
-                RGB(0, 0, 255), RGB(255, 0, 255), RGB(0, 255, 255), RGB(255, 255, 255),
+                RGB(0, 0, 0),
+                RGB(128, 0, 0),
+                RGB(0, 128, 0),
+                RGB(128, 128, 0),
+                RGB(0, 0, 128),
+                RGB(128, 0, 128),
+                RGB(0, 128, 128),
+                RGB(192, 192, 192),
+                RGB(128, 128, 128),
+                RGB(255, 0, 0),
+                RGB(0, 255, 0),
+                RGB(255, 255, 0),
+                RGB(0, 0, 255),
+                RGB(255, 0, 255),
+                RGB(0, 255, 255),
+                RGB(255, 255, 255),
             ]
             return _16_map[idx]
         if self._depth == ColorDepth.GRAYSCALE:
@@ -339,7 +387,6 @@ class PaletteManager:
         renderer.set_crt_preset(CRTPreset(name))
         return True
 
-
     def render_pulse(
         self,
         text: str,
@@ -351,5 +398,7 @@ class PaletteManager:
         for i in range(frames):
             factor = 0.5 + 0.5 * (i / max(1, frames - 1))
             adjusted = color.adjust_brightness(factor)
-            result.append(self.render_glow(text, adjusted, GlowLayer.FOREGROUND, blink=(i == 0)))
+            result.append(
+                self.render_glow(text, adjusted, GlowLayer.FOREGROUND, blink=(i == 0))
+            )
         return result

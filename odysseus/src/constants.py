@@ -1,5 +1,6 @@
 # src/constants.py
 """Application-wide constants and configuration values."""
+
 import os
 
 from src.runtime_paths import get_app_root, get_default_data_dir
@@ -55,28 +56,32 @@ GALLERY_UPLOADS_DIR = os.path.join(DATA_DIR, "gallery_uploads")
 MEMORY_VECTORS_DIR = os.path.join(DATA_DIR, "memory_vectors")
 
 # Paths with an intentional dedicated env override, defaulting under DATA_DIR.
-MAIL_ATTACHMENTS_DIR = os.getenv("ODYSSEUS_MAIL_ATTACHMENTS_DIR", os.path.join(DATA_DIR, "mail-attachments"))
+MAIL_ATTACHMENTS_DIR = os.getenv(
+    "ODYSSEUS_MAIL_ATTACHMENTS_DIR", os.path.join(DATA_DIR, "mail-attachments")
+)
 # `or` (not os.getenv's default arg) so a PRESENT-but-EMPTY value falls back to
 # the default. docker-compose.yml injects `FASTEMBED_CACHE_PATH=${FASTEMBED_CACHE_PATH:-}`,
 # which sets the var to "" when the host hasn't defined it. os.getenv(name, default)
 # only returns the default when the var is ABSENT, so the empty string would win →
 # os.makedirs("") raises [Errno 2] No such file or directory: '' → FastEmbed fails to
 # init and all vector features (RAG, semantic memory, tool index) silently degrade.
-FASTEMBED_CACHE_DIR = os.getenv("FASTEMBED_CACHE_PATH") or os.path.join(DATA_DIR, "fastembed_cache")
+FASTEMBED_CACHE_DIR = os.getenv("FASTEMBED_CACHE_PATH") or os.path.join(
+    DATA_DIR, "fastembed_cache"
+)
 
 # Agent tool output limits (single source of truth — imported by tool_execution.py,
 # tool_implementations.py, agent_tools.py, and any other module that needs them)
-MAX_OUTPUT_CHARS = 10_000       # cap for bash/python/web_search/web_fetch output
-MAX_READ_CHARS = 20_000         # cap for read_file / document preview
-MAX_DIFF_LINES = 400            # cap for edit_file unified-diff display
+MAX_OUTPUT_CHARS = 10_000  # cap for bash/python/web_search/web_fetch output
+MAX_READ_CHARS = 20_000  # cap for read_file / document preview
+MAX_DIFF_LINES = 400  # cap for edit_file unified-diff display
 
 # web_fetch response-size policy (#3812). MAX_OUTPUT_CHARS above only trims
 # what the agent SEES; these caps bound what the server downloads, parses,
 # and writes to the content cache. The soft cap is the default download
 # budget; the agent can raise it per call (full/max_bytes) but never past
 # the hard cap, so a model can't decide to pull a multi-GB file.
-WEB_FETCH_SOFT_MAX_BYTES = 2_000_000    # default download budget (2 MB)
-WEB_FETCH_HARD_MAX_BYTES = 20_000_000   # absolute ceiling, even with override (20 MB)
+WEB_FETCH_SOFT_MAX_BYTES = 2_000_000  # default download budget (2 MB)
+WEB_FETCH_HARD_MAX_BYTES = 20_000_000  # absolute ceiling, even with override (20 MB)
 
 # API Configuration
 MAX_CONTEXT_MESSAGES = 90

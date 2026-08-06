@@ -9,6 +9,7 @@
 
 文件存储路径：data/memory/{agent_id}_artifacts.json
 """
+
 from __future__ import annotations
 
 import datetime
@@ -25,12 +26,13 @@ from typing import Any
 
 ARTIFACT_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "data", "memory",
+    "data",
+    "memory",
 )
 
-MAX_ARTIFACTS_PER_AGENT = 30      # 工位附近最多保留 30 件产物
-MAX_WALL_ITEMS = 50               # 成果展示墙最多 50 件
-PRODUCE_INTERVAL = 1800           # 每 30 分钟尝试生成一件新产物
+MAX_ARTIFACTS_PER_AGENT = 30  # 工位附近最多保留 30 件产物
+MAX_WALL_ITEMS = 50  # 成果展示墙最多 50 件
+PRODUCE_INTERVAL = 1800  # 每 30 分钟尝试生成一件新产物
 
 
 # ----------------------------------------------------------------------
@@ -178,6 +180,7 @@ SPECIES_ARTIFACT_TYPES: dict[str, dict] = {
 # 单件产物
 # ----------------------------------------------------------------------
 
+
 class Artifact:
     __slots__ = (
         "agent_id",
@@ -199,9 +202,20 @@ class Artifact:
         "ts",
     )
 
-    def __init__(self, aid: int, agent_id: str, agent_name: str, species: str,
-                 kind: str, label: str, color: str, icon: str,
-                 content: str, display_x: float = 0, display_y: float = 0):
+    def __init__(
+        self,
+        aid: int,
+        agent_id: str,
+        agent_name: str,
+        species: str,
+        kind: str,
+        label: str,
+        color: str,
+        icon: str,
+        content: str,
+        display_x: float = 0,
+        display_y: float = 0,
+    ):
         self.id = aid
         self.agent_id = agent_id
         self.agent_name = agent_name
@@ -215,10 +229,10 @@ class Artifact:
         self.time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.likes = 0
         self.liked_by_supervisor = False
-        self.is_featured = False    # 是否入选成果展示墙
+        self.is_featured = False  # 是否入选成果展示墙
         self.display_x = display_x
         self.display_y = display_y
-        self.archived = False       # 是否已归档到资料库
+        self.archived = False  # 是否已归档到资料库
 
     def to_dict(self) -> dict:
         return {
@@ -246,6 +260,7 @@ class Artifact:
 # 单个智能体的产物集
 # ----------------------------------------------------------------------
 
+
 class AgentArtifacts:
     __slots__ = (
         "_dirty",
@@ -263,8 +278,8 @@ class AgentArtifacts:
         self.agent_id = agent_id
         self.agent_name = agent_name
         self.species = species
-        self.active: list[Artifact] = []      # 工位附近可见的
-        self.archived: list[Artifact] = []    # 已归档到资料库
+        self.active: list[Artifact] = []  # 工位附近可见的
+        self.archived: list[Artifact] = []  # 已归档到资料库
         self._lock = threading.RLock()
         self._dirty = False
         self.last_produce_ts: float = 0.0
@@ -334,8 +349,9 @@ class AgentArtifacts:
             except Exception:
                 pass
 
-    def produce(self, content: str | None = None,
-                 display_x: float = 0, display_y: float = 0) -> Artifact | None:
+    def produce(
+        self, content: str | None = None, display_x: float = 0, display_y: float = 0
+    ) -> Artifact | None:
         """生成一件新产物。"""
         spec = SPECIES_ARTIFACT_TYPES.get(self.species)
         if spec is None:
@@ -398,7 +414,7 @@ class AgentArtifacts:
                 "species": self.species,
                 "active_count": len(self.active),
                 "archived_count": len(self.archived),
-                "active": [a.to_dict() for a in self.active[-10:]],   # 最近 10 件
+                "active": [a.to_dict() for a in self.active[-10:]],  # 最近 10 件
                 "featured": [a.to_dict() for a in self.get_featured()],
             }
             if include_archived:
@@ -409,6 +425,7 @@ class AgentArtifacts:
 # ----------------------------------------------------------------------
 # 全局管理器
 # ----------------------------------------------------------------------
+
 
 class WorkArtifactsManager:
     _instance: WorkArtifactsManager | None = None
@@ -426,8 +443,9 @@ class WorkArtifactsManager:
                     cls._instance = cls()
         return cls._instance
 
-    def get_or_create(self, agent_id: str, agent_name: str = "",
-                       species: str = "") -> AgentArtifacts:
+    def get_or_create(
+        self, agent_id: str, agent_name: str = "", species: str = ""
+    ) -> AgentArtifacts:
         with self._lock:
             if agent_id not in self._store:
                 arts = AgentArtifacts(agent_id, agent_name, species)
@@ -452,8 +470,9 @@ class WorkArtifactsManager:
 
     # ---------------- 生产触发 ----------------
 
-    def maybe_produce(self, agent: Any, router: Any = None,
-                       force: bool = False) -> Artifact | None:
+    def maybe_produce(
+        self, agent: Any, router: Any = None, force: bool = False
+    ) -> Artifact | None:
         """检查并触发产物生成。force=True 时绕过时间和状态检查。"""
         if agent is None or not getattr(agent, "_alive", False):
             return None
@@ -465,13 +484,17 @@ class WorkArtifactsManager:
             ca = getattr(agent, "current_action", None)
             ca_val = ca.value if hasattr(ca, "value") else ca
             cb = getattr(agent, "current_behavior", None)
-            if str(ca_val).lower() != "work" and \
-               str(cb).lower() not in ("work", "develop", "test", "design"):
+            if str(ca_val).lower() != "work" and str(cb).lower() not in (
+                "work",
+                "develop",
+                "test",
+                "design",
+            ):
                 return None
         agent_id = agent.get_agent_id()
-        arts = self.get_or_create(agent_id,
-                                    agent_name=getattr(agent, "_name_obj", ""),
-                                    species=species)
+        arts = self.get_or_create(
+            agent_id, agent_name=getattr(agent, "_name_obj", ""), species=species
+        )
         if not force:
             now = time.time()
             if now - arts.last_produce_ts < PRODUCE_INTERVAL:
@@ -494,8 +517,9 @@ class WorkArtifactsManager:
         # 这里只生成产物，点赞逻辑在 like() 中
         return art
 
-    def like_artifact(self, agent_id: str, art_id: int,
-                       by_supervisor: bool = True) -> tuple[bool, str, Any]:
+    def like_artifact(
+        self, agent_id: str, art_id: int, by_supervisor: bool = True
+    ) -> tuple[bool, str, Any]:
         """点赞。返回 (成功, 智能体名, agent实例)。"""
         arts = self._store.get(agent_id)
         if arts is None:
@@ -521,14 +545,17 @@ class WorkArtifactsManager:
         with self._lock:
             return [a.to_dict(include_archived=False) for a in self._store.values()]
 
-    def get_agent_artifacts(self, agent_id: str, include_archived: bool = False) -> dict | None:
+    def get_agent_artifacts(
+        self, agent_id: str, include_archived: bool = False
+    ) -> dict | None:
         a = self._store.get(agent_id)
         if a is None:
             return None
         return a.to_dict(include_archived=include_archived)
 
-    def tick(self, dt: float = 1.0, population: list = None,
-              router: Any = None) -> list[dict]:
+    def tick(
+        self, dt: float = 1.0, population: list = None, router: Any = None
+    ) -> list[dict]:
         """每秒调用：尝试生成产物。返回生成事件列表。"""
         events: list[dict] = []
         if population:
@@ -536,15 +563,17 @@ class WorkArtifactsManager:
                 try:
                     art = self.maybe_produce(lf, router=router)
                     if art:
-                        events.append({
-                            "type": "artifact_produced",
-                            "agent_name": art.agent_name,
-                            "species": art.species,
-                            "kind": art.kind,
-                            "label": art.label,
-                            "preview": art.content[:60],
-                            "ts": art.ts,
-                        })
+                        events.append(
+                            {
+                                "type": "artifact_produced",
+                                "agent_name": art.agent_name,
+                                "species": art.species,
+                                "kind": art.kind,
+                                "label": art.label,
+                                "preview": art.content[:60],
+                                "ts": art.ts,
+                            }
+                        )
                 except Exception:
                     pass
         # 定期落盘
@@ -557,15 +586,19 @@ class WorkArtifactsManager:
 # 辅助
 # ----------------------------------------------------------------------
 
+
 def _generate_via_llm(router: Any, prompt: str, timeout: float = 4.0) -> str | None:
     import asyncio
+
     if router is None:
         return None
     try:
         loop = asyncio.new_event_loop()
         try:
             if hasattr(router, "complete_with_failover"):
-                coro = router.complete_with_failover("voice", prompt, agent_id="artifact")
+                coro = router.complete_with_failover(
+                    "voice", prompt, agent_id="artifact"
+                )
                 resp = loop.run_until_complete(asyncio.wait_for(coro, timeout=timeout))
             elif hasattr(router, "complete"):
                 coro = router.complete(prompt)
@@ -573,7 +606,7 @@ def _generate_via_llm(router: Any, prompt: str, timeout: float = 4.0) -> str | N
             else:
                 return None
             text = getattr(resp, "content", None) or str(resp)
-            text = text.strip().strip('"\'“”‘’').replace("\n", " ").strip()
+            text = text.strip().strip("\"'“”‘’").replace("\n", " ").strip()
             if 10 <= len(text) <= 200:
                 return text
             return None
@@ -587,12 +620,14 @@ def _generate_via_llm(router: Any, prompt: str, timeout: float = 4.0) -> str | N
 # 模块级便捷函数
 # ----------------------------------------------------------------------
 
+
 def get_artifacts_manager() -> WorkArtifactsManager:
     return WorkArtifactsManager.get_instance()
 
 
-def tick_artifacts(dt: float = 1.0, population: list = None,
-                    router: Any = None) -> list[dict]:
+def tick_artifacts(
+    dt: float = 1.0, population: list = None, router: Any = None
+) -> list[dict]:
     return get_artifacts_manager().tick(dt, population=population, router=router)
 
 
@@ -604,17 +639,21 @@ def snapshot_artifacts() -> dict:
         "total_active": sum(a.get("active_count", 0) for a in agents),
         "total_archived": sum(a.get("archived_count", 0) for a in agents),
         "total_featured": sum(len(a.get("featured", [])) for a in agents),
-        "wall": mgr.get_wall_items()[:20],   # 前 20 件
+        "wall": mgr.get_wall_items()[:20],  # 前 20 件
         "agents": agents,
     }
 
 
 def get_agent_artifacts(agent_id: str, include_archived: bool = False) -> dict | None:
-    return get_artifacts_manager().get_agent_artifacts(agent_id, include_archived=include_archived)
+    return get_artifacts_manager().get_agent_artifacts(
+        agent_id, include_archived=include_archived
+    )
 
 
 def like_artifact(agent_id: str, art_id: int) -> tuple[bool, str]:
-    ok, name, _ = get_artifacts_manager().like_artifact(agent_id, art_id, by_supervisor=True)
+    ok, name, _ = get_artifacts_manager().like_artifact(
+        agent_id, art_id, by_supervisor=True
+    )
     return ok, name
 
 

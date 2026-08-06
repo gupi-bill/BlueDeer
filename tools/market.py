@@ -10,8 +10,7 @@ import json
 import logging
 import os
 import sys
-from dataclasses import dataclass, field, asdict
-from typing import Any
+from dataclasses import asdict, dataclass, field
 
 from tools.base_tool import BaseTool
 from tools.registry import ToolRegistry
@@ -26,13 +25,14 @@ _MANIFEST_FILE = os.path.join(_MARKET_DIR, "manifest.json")
 @dataclass
 class ToolPackage:
     """工具包元数据。"""
+
     name: str
     version: str
     description: str = ""
     author: str = ""
     source_url: str = ""
     entry_point: str = ""  # 类名
-    file_path: str = ""    # 本地安装路径
+    file_path: str = ""  # 本地安装路径
     category: str = "read"
     tags: list[str] = field(default_factory=list)
 
@@ -55,14 +55,19 @@ class ToolMarket:
 
     # ============== 查询 ==============
 
-    def search(self, query: str = "", tags: list[str] | None = None) -> list[ToolPackage]:
+    def search(
+        self, query: str = "", tags: list[str] | None = None
+    ) -> list[ToolPackage]:
         """搜索已安装的工具包。"""
         results = list(self._packages.values()) if not query else []
         if query:
             q = query.lower()
             results = [
-                p for p in self._packages.values()
-                if q in p.name.lower() or q in p.description.lower() or q in " ".join(p.tags).lower()
+                p
+                for p in self._packages.values()
+                if q in p.name.lower()
+                or q in p.description.lower()
+                or q in " ".join(p.tags).lower()
             ]
         if tags:
             tag_set = set(t.lower() for t in tags)
@@ -109,7 +114,6 @@ class ToolMarket:
             ImportError: 工具类验证失败。
         """
         import urllib.request
-        import tempfile
 
         logger.info("正在从 %s 安装工具...", url)
 
@@ -158,7 +162,9 @@ class ToolMarket:
         logger.info("工具 %s v%s 安装成功", name, pkg.version)
         return pkg
 
-    def install_local(self, file_path: str, tool_name: str | None = None) -> ToolPackage:
+    def install_local(
+        self, file_path: str, tool_name: str | None = None
+    ) -> ToolPackage:
         """从本地 Python 文件安装工具。
 
         Args:
@@ -178,6 +184,7 @@ class ToolMarket:
         os.makedirs(_MARKET_DIR, exist_ok=True)
         dst = os.path.join(_MARKET_DIR, f"{name}.py")
         import shutil
+
         shutil.copy2(file_path, dst)
 
         try:
@@ -227,6 +234,7 @@ class ToolMarket:
             return basename
         # 从类名推断（找 BaseTool 子类）
         import re
+
         match = re.search(r"class\s+(\w+)\s*\(.*BaseTool", content)
         if match:
             cls_name = match.group(1)
@@ -246,7 +254,11 @@ class ToolMarket:
         tool_cls = None
         for attr_name in dir(module):
             obj = getattr(module, attr_name)
-            if isinstance(obj, type) and issubclass(obj, BaseTool) and obj is not BaseTool:
+            if (
+                isinstance(obj, type)
+                and issubclass(obj, BaseTool)
+                and obj is not BaseTool
+            ):
                 tool_cls = obj
                 break
 
@@ -270,8 +282,7 @@ class ToolMarket:
             with open(_MANIFEST_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
             self._packages = {
-                name: ToolPackage(**pkg_data)
-                for name, pkg_data in data.items()
+                name: ToolPackage(**pkg_data) for name, pkg_data in data.items()
             }
         except Exception as e:
             logger.warning("加载工具 manifest 失败: %s", e)
@@ -280,9 +291,6 @@ class ToolMarket:
     def _save_manifest(self) -> None:
         """保存 manifest 到磁盘。"""
         os.makedirs(_MARKET_DIR, exist_ok=True)
-        data = {
-            name: asdict(pkg)
-            for name, pkg in self._packages.items()
-        }
+        data = {name: asdict(pkg) for name, pkg in self._packages.items()}
         with open(_MANIFEST_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)

@@ -13,6 +13,6 @@ by path.
 
 import sys as _sys
 
-from routes.compare import compare_routes as _canonical  # noqa: F401
+from routes.compare import compare_routes as _canonical
 
 _sys.modules[__name__] = _canonical

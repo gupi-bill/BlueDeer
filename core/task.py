@@ -5,12 +5,11 @@
 
 from __future__ import annotations
 
+import time
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any
-import time
-
 
 # ============================================================
 # 全局常量
@@ -33,9 +32,12 @@ class TaskStatus(Enum):
 
     流转：PENDING -> RUNNING -> COMPLETED | FAILED | CANCELLED
     """
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
+    #: SUCCESS 是 COMPLETED 的别名（大量调用方用 SUCCESS 判断成功）
+    SUCCESS = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
 
@@ -43,6 +45,7 @@ class TaskStatus(Enum):
 @dataclass(slots=True)
 class TokenUsage:
     """单次调用的 Token 消耗记录。"""
+
     tokens_in: int = 0
     tokens_out: int = 0
 
@@ -54,6 +57,7 @@ class TokenUsage:
 @dataclass(slots=True)
 class Message:
     """消息基类，所有通过事件总线传递的消息均继承此类。"""
+
     trace_id: str = field(default_factory=_generate_id)
     timestamp: float = field(default_factory=time.time)
 
@@ -74,6 +78,7 @@ class Task(Message):
         started_at: 开始执行时间戳（None 表示未开始）。
         completed_at: 完成时间戳（None 表示未完成）。
     """
+
     id: str = field(default_factory=_generate_id)
     type: str = "general"
     payload: dict[str, Any] = field(default_factory=dict)
@@ -119,6 +124,7 @@ class TaskResult(Message):
         error: 失败时的错误信息。
         token_usage: 本次任务消耗的 Token 统计。
     """
+
     task_id: str = ""
     status: TaskStatus = TaskStatus.COMPLETED
     output: Any = None

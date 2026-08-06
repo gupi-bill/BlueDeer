@@ -9,7 +9,9 @@ import uuid
 from typing import Any
 
 _LOG_FORMAT = "%(asctime)s | %(levelname)s | %(message)s"
-_trace_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("trace_id", default="")
+_trace_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "trace_id", default=""
+)
 
 
 def new_trace_id() -> str:
@@ -29,7 +31,13 @@ def set_trace_id(tid: str | None = None) -> str:
 class Tracer:
     _instance: Tracer | None = None
 
-    def __init__(self, log_dir: str = "logs", level: int = logging.INFO, debugger: Any = None, sample_rate: float = 1.0) -> None:
+    def __init__(
+        self,
+        log_dir: str = "logs",
+        level: int = logging.INFO,
+        debugger: Any = None,
+        sample_rate: float = 1.0,
+    ) -> None:
         self._logger = logging.getLogger("bluedeer.tracer")
         self._logger.setLevel(level)
         self._logger.propagate = False
@@ -61,7 +69,12 @@ class Tracer:
     def span(self, trace_id: str, component: str, action: str, **fields: Any) -> None:
         if not self._should_sample():
             return
-        record = {"trace_id": trace_id, "component": component, "action": action, **fields}
+        record = {
+            "trace_id": trace_id,
+            "component": component,
+            "action": action,
+            **fields,
+        }
         self._logger.info(json.dumps(record, ensure_ascii=False, default=str))
         if self._debugger is not None:
             self._debugger.record_span(trace_id, component, action, **fields)
@@ -69,14 +82,28 @@ class Tracer:
     def span_ctx(self, component: str, action: str, **fields: Any) -> None:
         self.span(get_trace_id() or new_trace_id(), component, action, **fields)
 
-    def error(self, trace_id: str, component: str, action: str, error: str, **fields: Any) -> None:
-        record = {"trace_id": trace_id, "component": component, "action": action, "error": error, **fields}
+    def error(
+        self, trace_id: str, component: str, action: str, error: str, **fields: Any
+    ) -> None:
+        record = {
+            "trace_id": trace_id,
+            "component": component,
+            "action": action,
+            "error": error,
+            **fields,
+        }
         self._logger.error(json.dumps(record, ensure_ascii=False, default=str))
         if self._debugger is not None:
-            self._debugger.record_span(trace_id, component, action, error=error, **fields)
+            self._debugger.record_span(
+                trace_id, component, action, error=error, **fields
+            )
 
     def error_ctx(self, component: str, action: str, error: str, **fields: Any) -> None:
         self.error(get_trace_id() or new_trace_id(), component, action, error, **fields)
 
     def stats(self) -> dict:
-        return {"total": self._count, "sampled": self._sampled, "sample_rate": self._sample_rate}
+        return {
+            "total": self._count,
+            "sampled": self._sampled,
+            "sample_rate": self._sample_rate,
+        }

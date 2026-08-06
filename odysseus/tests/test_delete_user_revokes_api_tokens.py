@@ -12,7 +12,6 @@ import types
 from pathlib import Path
 
 import pytest
-
 from tests.helpers.import_state import clear_module
 
 
@@ -75,7 +74,9 @@ def manager(tmp_path, monkeypatch):
     auth_mod = _auth_module()
     monkeypatch.setattr(auth_mod, "_hash_password", lambda password: f"hash:{password}")
     monkeypatch.setattr(
-        auth_mod, "_verify_password", lambda password, hashed: hashed == f"hash:{password}"
+        auth_mod,
+        "_verify_password",
+        lambda password, hashed: hashed == f"hash:{password}",
     )
     mgr = auth_mod.AuthManager(str(tmp_path / "auth.json"))
     assert mgr.create_user("admin", "secret-admin-pw", is_admin=True)

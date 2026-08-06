@@ -3,14 +3,13 @@
 import asyncio
 import logging
 import uuid
-from typing import Dict, Any, List
+from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request, Depends
-from pydantic import BaseModel, Field
-
-from src.request_models import PresetUpdateRequest
 from core.middleware import require_admin
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
 from src.auth_helpers import effective_user
+from src.request_models import PresetUpdateRequest
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +26,13 @@ def setup_preset_routes(preset_manager) -> APIRouter:
     router = APIRouter(tags=["presets"])
 
     @router.get("/api/presets")
-    async def get_presets() -> Dict[str, Any]:
+    async def get_presets() -> dict[str, Any]:
         return preset_manager.presets
 
     @router.post("/api/presets/custom")
-    async def update_custom_preset(preset_update: PresetUpdateRequest, _admin: None = Depends(require_admin)) -> Dict[str, Any]:
+    async def update_custom_preset(
+        preset_update: PresetUpdateRequest, _admin: None = Depends(require_admin)
+    ) -> dict[str, Any]:
         try:
             success = preset_manager.update_custom(
                 preset_update.temperature,
@@ -50,11 +51,13 @@ def setup_preset_routes(preset_manager) -> APIRouter:
             raise HTTPException(500, "Failed to update custom preset")
 
     @router.get("/api/presets/templates")
-    async def get_user_templates() -> List[Dict]:
+    async def get_user_templates() -> list[dict]:
         return preset_manager.get_user_templates()
 
     @router.post("/api/presets/templates")
-    async def save_user_template(req: UserTemplateRequest, _admin: None = Depends(require_admin)) -> Dict[str, Any]:
+    async def save_user_template(
+        req: UserTemplateRequest, _admin: None = Depends(require_admin)
+    ) -> dict[str, Any]:
         template = req.model_dump()
         if not template["id"]:
             template["id"] = f"user-{uuid.uuid4().hex[:8]}"
@@ -64,14 +67,16 @@ def setup_preset_routes(preset_manager) -> APIRouter:
         return {"success": False, "message": "Failed to save template"}
 
     @router.delete("/api/presets/templates/{template_id}")
-    async def delete_user_template(template_id: str, _admin: None = Depends(require_admin)) -> Dict[str, Any]:
+    async def delete_user_template(
+        template_id: str, _admin: None = Depends(require_admin)
+    ) -> dict[str, Any]:
         success = preset_manager.delete_user_template(template_id)
         if success:
             return {"success": True}
         return {"success": False, "message": "Failed to delete template"}
 
     @router.post("/api/presets/expand")
-    async def expand_character_prompt(request: Request) -> Dict[str, Any]:
+    async def expand_character_prompt(request: Request) -> dict[str, Any]:
         """Use AI to expand a rough character description into a full system prompt."""
         from src.ai_interaction import _resolve_model
         from src.llm_core import llm_call_async
@@ -90,21 +95,28 @@ def setup_preset_routes(preset_manager) -> APIRouter:
             user_input += f"Notes: {draft}\n"
 
         messages = [
-            {"role": "system", "content": (
-                "You are an expert at writing character system prompts for AI assistants. "
-                "The user will give you a character name and/or rough notes. "
-                "Write a concise, effective system prompt (3-6 sentences) that captures the character's personality, "
-                "speaking style, knowledge areas, and behavioral guidelines. "
-                "Output ONLY the system prompt text — no quotes, no preamble, no explanation."
-            )},
+            {
+                "role": "system",
+                "content": (
+                    "You are an expert at writing character system prompts for AI assistants. "
+                    "The user will give you a character name and/or rough notes. "
+                    "Write a concise, effective system prompt (3-6 sentences) that captures the character's personality, "
+                    "speaking style, knowledge areas, and behavioral guidelines. "
+                    "Output ONLY the system prompt text — no quotes, no preamble, no explanation."
+                ),
+            },
             {"role": "user", "content": user_input},
         ]
 
         try:
             model_spec = data.get("model") or ""
             user = effective_user(request)
-            url, model, headers = await asyncio.to_thread(_resolve_model, model_spec, owner=user)
-            result = await llm_call_async(url, model, messages, temperature=0.8, max_tokens=500, headers=headers)
+            url, model, headers = await asyncio.to_thread(
+                _resolve_model, model_spec, owner=user
+            )
+            result = await llm_call_async(
+                url, model, messages, temperature=0.8, max_tokens=500, headers=headers
+            )
             return {"success": True, "prompt": result.strip()}
         except Exception as e:
             logger.error(f"Expand prompt failed: {e}")
@@ -117,7 +129,9 @@ def setup_preset_routes(preset_manager) -> APIRouter:
         return {"groups": preset_manager.get_group_presets()}
 
     @router.post("/api/presets/groups")
-    async def save_group_presets(request: Request, _admin: None = Depends(require_admin)):
+    async def save_group_presets(
+        request: Request, _admin: None = Depends(require_admin)
+    ):
         """Save group chat presets."""
         data = await request.json()
         preset_manager.save_group_presets(data.get("groups", []))

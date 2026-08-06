@@ -13,6 +13,6 @@ by path.
 
 import sys as _sys
 
-from routes.memory import memory_routes as _canonical  # noqa: F401
+from routes.memory import memory_routes as _canonical
 
 _sys.modules[__name__] = _canonical

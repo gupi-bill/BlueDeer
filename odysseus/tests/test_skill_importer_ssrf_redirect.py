@@ -10,8 +10,8 @@ These tests are hermetic: every host is an IP literal, so ``check_outbound_url``
 resolves them locally (``getaddrinfo`` on a numeric address does no DNS) and no
 network access is required. The HTTP layer is faked so no real request is made.
 """
-import pytest
 
+import pytest
 from services.memory import skill_importer
 from services.memory.skill_importer import (
     SkillImportError,
@@ -77,7 +77,10 @@ def _install_fake_client(monkeypatch, *, redirect_from, redirect_to):
 
 # --- Guard unit: block_private=True refuses internal, allows public ----------
 
-@pytest.mark.parametrize("url", [LOOPBACK, METADATA, "http://10.0.0.5/", "http://[::1]/"])
+
+@pytest.mark.parametrize(
+    "url", [LOOPBACK, METADATA, "http://10.0.0.5/", "http://[::1]/"]
+)
 def test_check_fetch_url_blocks_internal(url):
     with pytest.raises(SkillImportError):
         _check_fetch_url(url)
@@ -90,6 +93,7 @@ def test_check_fetch_url_allows_public(url):
 
 
 # --- Redirect revalidation: the core regression ------------------------------
+
 
 @pytest.mark.parametrize("internal", [LOOPBACK, METADATA])
 def test_get_checked_blocks_redirect_to_internal(monkeypatch, internal):
@@ -115,6 +119,7 @@ def test_skills_sh_entry_blocks_redirect_to_metadata(monkeypatch):
 
 
 # --- Positive: a legitimate public->public redirect is still followed --------
+
 
 def test_get_checked_follows_public_redirect(monkeypatch):
     _install_fake_client(monkeypatch, redirect_from=PUBLIC_A, redirect_to=PUBLIC_B)

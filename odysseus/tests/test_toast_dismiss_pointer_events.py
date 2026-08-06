@@ -12,6 +12,7 @@ close-button handler includes the reset.  They cover:
   • error toast                  – showError
   • action toast                 – showToast with action opts
 """
+
 import re
 from pathlib import Path
 
@@ -26,6 +27,7 @@ def _read_ui():
 # ---------------------------------------------------------------------------
 # Helpers – extract the close-button event-handler bodies from each function.
 # ---------------------------------------------------------------------------
+
 
 def _extract_function(src: str, func_name: str) -> str:
     """Return the full body of *func_name* (exported or not)."""
@@ -81,6 +83,7 @@ def _extract_close_handler(func_body: str) -> str:
 # Tests
 # ---------------------------------------------------------------------------
 
+
 def test_showToast_close_handler_resets_pointer_events():
     """showToast's × handler must clear pointer-events so an action-toast
     that set them to 'auto' doesn't leave the overlay blocking clicks."""
@@ -129,9 +132,9 @@ def test_showToast_timer_resets_pointer_events():
             if depth == 0:
                 timer_body = body[brace : i + 1]
                 break
-    assert "pointerEvents" in timer_body, (
-        "showToast auto-hide timer no longer resets pointerEvents"
-    )
+    assert (
+        "pointerEvents" in timer_body
+    ), "showToast auto-hide timer no longer resets pointerEvents"
 
 
 def test_action_toast_sets_pointer_events_auto():
@@ -139,9 +142,9 @@ def test_action_toast_sets_pointer_events_auto():
     to 'auto' so the button is clickable."""
     src = _read_ui()
     body = _extract_function(src, "showToast")
-    assert "pointerEvents = 'auto'" in body or 'pointerEvents = "auto"' in body, (
-        "showToast no longer sets pointer-events:auto for action toasts"
-    )
+    assert (
+        "pointerEvents = 'auto'" in body or 'pointerEvents = "auto"' in body
+    ), "showToast no longer sets pointer-events:auto for action toasts"
 
 
 def test_plain_toast_clears_pointer_events():
@@ -150,6 +153,6 @@ def test_plain_toast_clears_pointer_events():
     src = _read_ui()
     body = _extract_function(src, "showToast")
     # The else-branch of the action check should reset pointerEvents
-    assert "pointerEvents = ''" in body or 'pointerEvents = ""' in body, (
-        "showToast does not clear pointer-events for non-action toasts"
-    )
+    assert (
+        "pointerEvents = ''" in body or 'pointerEvents = ""' in body
+    ), "showToast does not clear pointer-events for non-action toasts"

@@ -129,7 +129,9 @@ class HedgehogAgent(BaseAgent, RagCapable):
                 "scan_report": scan_report,
                 "model_advice": model_response.content,
                 "model_used": model_client.model_name,
-                "target": task.payload.get("code") or task.payload.get("path") or task.payload.get("text", ""),
+                "target": task.payload.get("code")
+                or task.payload.get("path")
+                or task.payload.get("text", ""),
             }
             self._self_check(task, output)
 
@@ -233,6 +235,7 @@ class HedgehogAgent(BaseAgent, RagCapable):
 
 
 # ============== P5 扩容：安全角色拆分子岗位 ==============
+
 
 class StaticScanHedgehogAgent(HedgehogAgent):
     """静态扫描子岗位（P5 扩容）。
@@ -359,16 +362,19 @@ class RuntimeAuditHedgehogAgent(HedgehogAgent):
             scan_report_dict = result.output.get("scan_report")
             if scan_report_dict:
                 # 从 dict 重建轻量 SecurityReport 用于月报聚合
-                from core.security import SecurityReport, Threat, RiskLevel
+                from core.security import RiskLevel, SecurityReport, Threat
+
                 threats: list[Threat] = []
                 for t in scan_report_dict.get("threats", []):
                     try:
-                        threats.append(Threat(
-                            threat_type=t.get("threat_type", ""),
-                            risk=RiskLevel(t.get("risk", "safe")),
-                            matched=t.get("matched", ""),
-                            location=t.get("location", ""),
-                        ))
+                        threats.append(
+                            Threat(
+                                threat_type=t.get("threat_type", ""),
+                                risk=RiskLevel(t.get("risk", "safe")),
+                                matched=t.get("matched", ""),
+                                location=t.get("location", ""),
+                            )
+                        )
                     except (ValueError, KeyError):
                         continue
                 report = SecurityReport(
@@ -446,7 +452,8 @@ class KeyManagementHedgehogAgent(HedgehogAgent):
         # P5 扩容：密钥管理岗位额外统计 secret_leak 命中数
         scan_report = output.get("scan_report", {})
         secret_threats = [
-            t for t in scan_report.get("threats", [])
+            t
+            for t in scan_report.get("threats", [])
             if t.get("threat_type", "").startswith("secret_leak")
             or t.get("threat_type", "").startswith("hardcoded:password")
             or t.get("threat_type", "").startswith("undisinfected_log")

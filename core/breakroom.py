@@ -22,16 +22,18 @@ logger = logging.getLogger("bluedeer.breakroom")
 
 class MessageType(Enum):
     """茶水间消息类型。"""
-    CHAT = "chat"                # 闲聊
-    EXPERIENCE = "experience"    # 经验分享
+
+    CHAT = "chat"  # 闲聊
+    EXPERIENCE = "experience"  # 经验分享
     ACHIEVEMENT = "achievement"  # 成就解锁
-    MILESTONE = "milestone"      # 里程碑
-    SYSTEM = "system"            # 系统公告
+    MILESTONE = "milestone"  # 里程碑
+    SYSTEM = "system"  # 系统公告
 
 
 @dataclass
 class BreakRoomMessage:
     """茶水间消息。"""
+
     msg_id: str
     msg_type: MessageType
     content: str
@@ -44,6 +46,7 @@ class BreakRoomMessage:
 @dataclass
 class ScheduledActivity:
     """预定的活动。"""
+
     activity_id: str
     name: str
     time: float
@@ -117,7 +120,9 @@ class BreakRoom:
 
     # ---- 查询 ----
 
-    def recent(self, count: int = 10, msg_type: MessageType | None = None) -> list[BreakRoomMessage]:
+    def recent(
+        self, count: int = 10, msg_type: MessageType | None = None
+    ) -> list[BreakRoomMessage]:
         """获取最近的消息。"""
         filtered = self._messages
         if msg_type:
@@ -155,7 +160,10 @@ class BreakRoom:
         """预定一个活动。"""
         activity_id = f"act_{int(time * 1000)}_{len(self._activities)}"
         self._activities[activity_id] = ScheduledActivity(
-            activity_id=activity_id, name=name, time=time, duration=duration,
+            activity_id=activity_id,
+            name=name,
+            time=time,
+            duration=duration,
         )
         return activity_id
 
@@ -163,8 +171,7 @@ class BreakRoom:
         """获取当前已开始且未结束的活动。"""
         now = __import__("time").time()
         return [
-            a for a in self._activities.values()
-            if a.time <= now <= a.time + a.duration
+            a for a in self._activities.values() if a.time <= now <= a.time + a.duration
         ]
 
     def join_activity(self, activity_id: str, character: str) -> bool:

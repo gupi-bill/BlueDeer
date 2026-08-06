@@ -18,9 +18,11 @@ def node_available():
         pytest.skip("node binary not on PATH")
 
 
-def _run_markdown_case(markdown: str, render_expr: str = "mod.mdToHtml(input)", with_katex: bool = False):
-    script = textwrap.dedent(
-        r"""
+def _run_markdown_case(
+    markdown: str, render_expr: str = "mod.mdToHtml(input)", with_katex: bool = False
+):
+    script = (
+        textwrap.dedent(r"""
         import fs from 'node:fs';
 
         globalThis.window = { location: { origin: 'http://localhost' }, katex: null };
@@ -88,9 +90,9 @@ def _run_markdown_case(markdown: str, render_expr: str = "mod.mdToHtml(input)", 
         const mod = await import(moduleUrl);
         const input = JSON.parse(process.argv[1]);
         console.log(JSON.stringify({ html: __RENDER_EXPR__ }));
-        """
-    ).replace("__RENDER_EXPR__", render_expr).replace(
-        "__WITH_KATEX__", "true" if with_katex else "false"
+        """)
+        .replace("__RENDER_EXPR__", render_expr)
+        .replace("__WITH_KATEX__", "true" if with_katex else "false")
     )
     result = subprocess.run(
         ["node", "--input-type=module", "-e", script, json.dumps(markdown)],
@@ -100,7 +102,9 @@ def _run_markdown_case(markdown: str, render_expr: str = "mod.mdToHtml(input)", 
         text=True,
     )
     if result.returncode != 0:
-        raise AssertionError(f"node failed:\nSTDERR:\n{result.stderr}\nSTDOUT:\n{result.stdout}")
+        raise AssertionError(
+            f"node failed:\nSTDERR:\n{result.stderr}\nSTDOUT:\n{result.stdout}"
+        )
     return json.loads(result.stdout.splitlines()[-1])["html"]
 
 

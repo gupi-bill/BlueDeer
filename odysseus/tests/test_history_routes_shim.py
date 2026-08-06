@@ -38,6 +38,6 @@ def test_monkeypatch_via_legacy_alias_reaches_canonical(monkeypatch):
 
     sentinel = object()
     monkeypatch.setattr(legacy, "setup_history_routes", sentinel)
-    assert canonical.setup_history_routes is sentinel, (
-        "monkeypatch via legacy alias did not reach the canonical module"
-    )
+    assert (
+        canonical.setup_history_routes is sentinel
+    ), "monkeypatch via legacy alias did not reach the canonical module"

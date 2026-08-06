@@ -32,6 +32,7 @@ class TestType(Enum):
     - ART_SPEC：美术素材规范校验（精灵尺寸/色板/命名）
     - COMMIT_LINT：仓库提交规范校验（commit message 格式）
     """
+
     UNIT = "unit"
     INTEGRATION = "integration"
     SECURITY = "security"
@@ -52,14 +53,15 @@ _TEST_TYPE_ARGS: dict[TestType, list[str]] = {
 @dataclass
 class TestFailure:
     """单个测试失败记录。"""
+
     # 抑制 pytest 收集警告（类名以 Test 开头）
     __test__ = False
 
-    test_id: str = ""          # 完整 ID：tests/test_x.py::test_name
-    file: str = ""             # 测试文件
-    test_name: str = ""        # 测试函数名
-    error_type: str = ""       # 错误类型（AssertionError / SyntaxError 等）
-    error_message: str = ""    # 错误消息
+    test_id: str = ""  # 完整 ID：tests/test_x.py::test_name
+    file: str = ""  # 测试文件
+    test_name: str = ""  # 测试函数名
+    error_type: str = ""  # 错误类型（AssertionError / SyntaxError 等）
+    error_message: str = ""  # 错误消息
 
     def to_dict(self) -> dict[str, str]:
         return {
@@ -74,14 +76,15 @@ class TestFailure:
 @dataclass
 class TestRunResult:
     """测试运行结果。"""
+
     # 抑制 pytest 收集警告
     __test__ = False
 
     passed: bool = False
-    total: int = 0             # 总测试数
+    total: int = 0  # 总测试数
     passed_count: int = 0
     failed_count: int = 0
-    error_count: int = 0       # 收集错误数
+    error_count: int = 0  # 收集错误数
     failures: list[TestFailure] = field(default_factory=list)
     duration_ms: int = 0
     stdout: str = ""
@@ -118,6 +121,7 @@ _ERROR_TYPE_NORMALIZE: dict[str, str] = {
 @dataclass
 class TestResult:
     """单个测试的执行结果（与 TestRunResult 互补）。"""
+
     __test__ = False
     test_id: str = ""
     passed: bool = False
@@ -164,7 +168,9 @@ class TestRunner:
             TestRunResult。
         """
         cmd = [
-            "python", "-m", "pytest",
+            "python",
+            "-m",
+            "pytest",
             test_path,
             "--tb=short",
             "-q",
@@ -241,13 +247,15 @@ class TestRunner:
                 # 归一化 error_type（assert → AssertionError）
                 error_type = _ERROR_TYPE_NORMALIZE.get(error_type, error_type)
                 test_name = test_name or "(collection)"
-                failures.append(TestFailure(
-                    test_id=f"{test_path_full}::{test_name}",
-                    file=test_path_full,
-                    test_name=test_name,
-                    error_type=error_type,
-                    error_message=(error_msg or "").strip(),
-                ))
+                failures.append(
+                    TestFailure(
+                        test_id=f"{test_path_full}::{test_name}",
+                        file=test_path_full,
+                        test_name=test_name,
+                        error_type=error_type,
+                        error_message=(error_msg or "").strip(),
+                    )
+                )
 
         # 解析统计行：例如 "5 passed in 0.12s" 或 "3 passed, 2 failed in 0.34s"
         passed_count, failed_count, error_count = self._parse_summary(stdout)
@@ -274,14 +282,24 @@ class TestRunner:
             TestResult 列表。
         """
         from concurrent.futures import ThreadPoolExecutor, as_completed
+
         results: list[TestResult] = []
+
         def _run_single(tp: str) -> TestResult:
             t0 = time.time()
             try:
                 r = self.run(tp)
-                return TestResult(test_id=tp, passed=r.passed, duration_ms=r.duration_ms)
+                return TestResult(
+                    test_id=tp, passed=r.passed, duration_ms=r.duration_ms
+                )
             except Exception as e:
-                return TestResult(test_id=tp, passed=False, duration_ms=(time.time()-t0)*1000, error=str(e))
+                return TestResult(
+                    test_id=tp,
+                    passed=False,
+                    duration_ms=(time.time() - t0) * 1000,
+                    error=str(e),
+                )
+
         with ThreadPoolExecutor(max_workers=workers) as pool:
             fut = {pool.submit(_run_single, t): t for t in tests}
             for f in as_completed(fut):
@@ -298,9 +316,19 @@ class TestRunner:
         """
         if fmt == "json":
             import json as _json
+
             return _json.dumps(
-                [{"test_id": r.test_id, "passed": r.passed, "duration_ms": r.duration_ms, "error": r.error}
-                 for r in self._results], ensure_ascii=False, indent=2,
+                [
+                    {
+                        "test_id": r.test_id,
+                        "passed": r.passed,
+                        "duration_ms": r.duration_ms,
+                        "error": r.error,
+                    }
+                    for r in self._results
+                ],
+                ensure_ascii=False,
+                indent=2,
             )
         elif fmt == "html":
             rows = "".join(

@@ -6,8 +6,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 # ============== ANSI 颜色工具 ==============
 
 # ANSI 转义：256 色前景/背景
@@ -34,6 +32,7 @@ class Color:
     企业仪表盘风格：低饱和、护眼、不刺眼，保持公司严肃感。
     原高饱和色保留兼容，新代码优先用低饱和色。
     """
+
     # 原高饱和色（保留兼容）
     BLACK = 0
     WHITE = 255
@@ -54,20 +53,21 @@ class Color:
     TEAL = 37
 
     # P0 UI 高级化：低饱和企业级色板（严肃仪表盘风格）
-    STEEL_BLUE = 67     # 钢蓝（标题/信息）替代高饱和 CYAN
-    SAGE = 108          # 灰绿（成功/正常）替代高饱和 LIME
-    AMBER = 179         # 琥珀（标题/警告）替代高饱和 YELLOW
-    FOREST = 28         # 深森绿（边框/背景装饰）替代高饱和 GREEN
-    SOFT_RED = 167      # 柔红（错误/告警）替代高饱和 RED
-    SLATE = 243         # 石板灰（次要文本）替代高饱和 GRAY
-    INDIGO = 60         # 靛蓝（扩展面板边框）替代高饱和 DARK_BLUE
-    ROSE = 95           # 暗玫瑰（柔和强调）替代高饱和 PINK
-    BRONZE = 137        # 青铜（铜阶成就）
-    SILVER = 250        # 银（银阶成就/正文）
-    GOLD = 221          # 金（金阶成就/标题高亮）
+    STEEL_BLUE = 67  # 钢蓝（标题/信息）替代高饱和 CYAN
+    SAGE = 108  # 灰绿（成功/正常）替代高饱和 LIME
+    AMBER = 179  # 琥珀（标题/警告）替代高饱和 YELLOW
+    FOREST = 28  # 深森绿（边框/背景装饰）替代高饱和 GREEN
+    SOFT_RED = 167  # 柔红（错误/告警）替代高饱和 RED
+    SLATE = 243  # 石板灰（次要文本）替代高饱和 GRAY
+    INDIGO = 60  # 靛蓝（扩展面板边框）替代高饱和 DARK_BLUE
+    ROSE = 95  # 暗玫瑰（柔和强调）替代高饱和 PINK
+    BRONZE = 137  # 青铜（铜阶成就）
+    SILVER = 250  # 银（银阶成就/正文）
+    GOLD = 221  # 金（金阶成就/标题高亮）
 
 
 # ============== PixelCanvas ==============
+
 
 class PixelCanvas:
     """像素画布：二维字符网格 + 颜色。
@@ -112,7 +112,14 @@ class PixelCanvas:
         grid = self._layers.get(name)
         return [[c for c in row] for row in grid] if grid else None
 
-    def set_pixel(self, x: int, y: int, char: str, color: int = Color.WHITE, layer: str | None = None) -> None:
+    def set_pixel(
+        self,
+        x: int,
+        y: int,
+        char: str,
+        color: int = Color.WHITE,
+        layer: str | None = None,
+    ) -> None:
         """画像素到指定图层（默认 base）。"""
         l = layer or self._default_layer
         grid = self._layers.get(l)
@@ -143,7 +150,14 @@ class PixelCanvas:
     def _in_bounds(self, x: int, y: int) -> bool:
         return 0 <= x < self._w and 0 <= y < self._h
 
-    def set_pixel(self, x: int, y: int, char: str, color: int = Color.WHITE, layer: str | None = None) -> None:
+    def set_pixel(
+        self,
+        x: int,
+        y: int,
+        char: str,
+        color: int = Color.WHITE,
+        layer: str | None = None,
+    ) -> None:
         """画单个像素。越界忽略。layer 指定图层。"""
         l = layer or self._default_layer
         grid = self._layers.get(l)
@@ -194,7 +208,7 @@ class PixelCanvas:
             for xx in range(x, x2 + 1):
                 if not fill:
                     # 仅边框
-                    is_border = (xx == x or xx == x2 or yy == y or yy == y2)
+                    is_border = xx == x or xx == x2 or yy == y or yy == y2
                     if not is_border:
                         continue
                 self.set_pixel(xx, yy, char, color)

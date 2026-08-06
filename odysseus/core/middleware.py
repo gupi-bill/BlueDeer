@@ -8,7 +8,6 @@ from fastapi import HTTPException, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
-
 # Per-process token that lets the in-app tool layer hit admin-gated
 # routes via HTTP loopback (the agent's tool calls don't carry the
 # admin user's session cookie). Set once at import; tools read the
@@ -70,20 +69,26 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Tool render endpoints
         is_tool_render = path.startswith("/api/tools/") and path.endswith("/render")
         # Document library PDF preview endpoint
-        is_document_pdf_preview = path.startswith("/api/document/") and path.endswith("/render-pdf")
+        is_document_pdf_preview = path.startswith("/api/document/") and path.endswith(
+            "/render-pdf"
+        )
         # Visual report pages are self-contained HTML — need inline scripts + external images
         is_report = path.startswith("/api/research/report/")
 
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
-        response.headers["Permissions-Policy"] = "camera=(), microphone=(self), geolocation=()"
+        response.headers["Permissions-Policy"] = (
+            "camera=(), microphone=(self), geolocation=()"
+        )
 
         is_https = (
             request.url.scheme == "https"
             or request.headers.get("X-Forwarded-Proto") == "https"
         )
         if is_https:
-            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
 
         if is_report:
             response.headers["Content-Security-Policy"] = (
@@ -101,8 +106,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         elif is_document_pdf_preview:
             response.headers["X-Frame-Options"] = "SAMEORIGIN"
             response.headers["Content-Security-Policy"] = (
-                "default-src 'none'; "
-                "frame-ancestors 'self'"
+                "default-src 'none'; " "frame-ancestors 'self'"
             )
         else:
             response.headers["X-Frame-Options"] = "DENY"

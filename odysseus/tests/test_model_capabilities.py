@@ -60,7 +60,11 @@ def test_provider_record_normalizes_aliases_and_boolean_capability_maps():
     )
 
     assert capability.family == mc.FAMILY_CHAT
-    assert capability.modalities.input == (mc.MODALITY_TEXT, mc.MODALITY_IMAGE, mc.MODALITY_FILE)
+    assert capability.modalities.input == (
+        mc.MODALITY_TEXT,
+        mc.MODALITY_IMAGE,
+        mc.MODALITY_FILE,
+    )
     assert capability.modalities.output == (mc.MODALITY_TEXT,)
     assert capability.capabilities == (mc.CAP_TOOL_CALL, mc.CAP_VISION)
     assert capability.limits == (("max_context_tokens", 32768),)
@@ -80,7 +84,10 @@ def test_provider_record_normalizes_aliases_and_boolean_capability_maps():
 
 
 def test_unknown_or_malformed_capability_record_stays_unknown():
-    assert mc.ModelCapability.from_dict(None).to_dict() == mc.unknown_capability().to_dict()
+    assert (
+        mc.ModelCapability.from_dict(None).to_dict()
+        == mc.unknown_capability().to_dict()
+    )
 
     capability = mc.ModelCapability.build(
         family="not-real",
@@ -112,10 +119,18 @@ def test_display_surface_queries_cover_core_model_categories():
         )
     ) == {"image_editing"}
 
-    assert surfaces(mc.ModelCapability.build(family=mc.FAMILY_EMBEDDING)) == {"embeddings"}
-    assert surfaces(mc.ModelCapability.build(family=mc.FAMILY_RERANK)) == {"rerank_scoring"}
-    assert surfaces(mc.ModelCapability.build(family=mc.FAMILY_MODERATION)) == {"moderation_classification"}
-    assert surfaces(mc.ModelCapability.build(family=mc.FAMILY_CLASSIFICATION)) == {"moderation_classification"}
+    assert surfaces(mc.ModelCapability.build(family=mc.FAMILY_EMBEDDING)) == {
+        "embeddings"
+    }
+    assert surfaces(mc.ModelCapability.build(family=mc.FAMILY_RERANK)) == {
+        "rerank_scoring"
+    }
+    assert surfaces(mc.ModelCapability.build(family=mc.FAMILY_MODERATION)) == {
+        "moderation_classification"
+    }
+    assert surfaces(mc.ModelCapability.build(family=mc.FAMILY_CLASSIFICATION)) == {
+        "moderation_classification"
+    }
 
 
 def test_audio_surface_matches_audio_input_or_output_when_capability_is_known():

@@ -6,7 +6,6 @@ import logging
 from typing import Any
 
 from core.git_ops import GitOps
-from core.test_runner import TestRunner
 from tools.registry import ToolRegistry
 
 logger = logging.getLogger("bluedeer.beaver.skills")
@@ -40,7 +39,12 @@ class BuildSkill:
         if add_all:
             ok, files = self._git.add_all()
             if not ok:
-                return {"success": False, "sha": "", "files": [], "message": "git add 失败"}
+                return {
+                    "success": False,
+                    "sha": "",
+                    "files": [],
+                    "message": "git add 失败",
+                }
         else:
             files = []
 

@@ -41,13 +41,15 @@ def test_persistable_message_content_replaces_inline_media_with_attachment_ref()
 
 
 def test_search_index_text_strips_legacy_serialized_data_url_blocks():
-    legacy = json.dumps([
-        {"type": "text", "text": "Find this useful caption"},
-        {
-            "type": "image_url",
-            "image_url": {"url": "data:image/jpeg;base64," + ("B" * 4096)},
-        },
-    ])
+    legacy = json.dumps(
+        [
+            {"type": "text", "text": "Find this useful caption"},
+            {
+                "type": "image_url",
+                "image_url": {"url": "data:image/jpeg;base64," + ("B" * 4096)},
+            },
+        ]
+    )
 
     indexed = search_index_text(legacy)
 
@@ -55,14 +57,16 @@ def test_search_index_text_strips_legacy_serialized_data_url_blocks():
 
 
 def test_attachment_ref_normalizes_hash_aliases():
-    ref = attachment_ref({
-        "id": "file-id",
-        "original_name": "report.pdf",
-        "mime": "application/pdf",
-        "size": 99,
-        "hash": "abc",
-        "uploaded_at": "2026-07-09T12:00:00",
-    })
+    ref = attachment_ref(
+        {
+            "id": "file-id",
+            "original_name": "report.pdf",
+            "mime": "application/pdf",
+            "size": 99,
+            "hash": "abc",
+            "uploaded_at": "2026-07-09T12:00:00",
+        }
+    )
 
     assert ref == {
         "type": "attachment_ref",

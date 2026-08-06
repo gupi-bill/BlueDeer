@@ -16,13 +16,13 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
+from collections.abc import Callable
 from enum import IntEnum
-from typing import Callable
+from typing import Any
 
-from core.token_bucket import TokenBucketLimiter
-from core.sliding_window import SlidingWindowLimiter
 from core.semaphore_pool import SemaphorePool
+from core.sliding_window import SlidingWindowLimiter
+from core.token_bucket import TokenBucketLimiter
 
 logger = logging.getLogger("bluedeer.composite")
 
@@ -66,15 +66,18 @@ class CompositeLimiter:
             raise ValueError("至少要配置一种限流")
         self._semaphore = (
             SemaphorePool(default_capacity=max_concurrent)
-            if self._use_semaphore else None
+            if self._use_semaphore
+            else None
         )
         self._token = (
             TokenBucketLimiter(capacity=token_capacity, rate=token_rate)
-            if self._use_token else None
+            if self._use_token
+            else None
         )
         self._window = (
             SlidingWindowLimiter(window=window, max_requests=window_max)
-            if self._use_window else None
+            if self._use_window
+            else None
         )
         self._lock = threading.RLock()
         self._accepted = 0
@@ -111,7 +114,9 @@ class CompositeLimiter:
         elif limiter:
             limiter.release(key)
 
-    def try_acquire(self, key: str = "default", priority: Priority = Priority.NORMAL) -> bool:
+    def try_acquire(
+        self, key: str = "default", priority: Priority = Priority.NORMAL
+    ) -> bool:
         with self._lock:
             if self._use_semaphore:
                 if not self._limit_for(self._semaphore, self._pq_sem, priority, key):
@@ -132,13 +137,17 @@ class CompositeLimiter:
             self._accepted += 1
             return True
 
-    def release(self, key: str = "default", priority: Priority = Priority.NORMAL) -> None:
+    def release(
+        self, key: str = "default", priority: Priority = Priority.NORMAL
+    ) -> None:
         if self._use_semaphore:
             self._release_for(self._semaphore, self._pq_sem, priority, key)
         with self._lock:
             self._released += 1
 
-    def acquire_ctx(self, key: str = "default", priority: Priority = Priority.NORMAL):
+    def acquire_ctx(
+        self, key: str = "default", priority: Priority = Priority.NORMAL
+    ) -> Any:
         class _Ctx:
             def __init__(self, lim, k, p):
                 self._lim = lim
@@ -157,7 +166,14 @@ class CompositeLimiter:
 
         return _Ctx(self, key, priority)
 
-    def call(self, func: Callable, *args, key: str = "default", priority: Priority = Priority.NORMAL, **kwargs):
+    def call(
+        self,
+        func: Callable,
+        *args: Any,
+        key: str = "default",
+        priority: Priority = Priority.NORMAL,
+        **kwargs,
+    ) -> Any:
         if not self.try_acquire(key, priority=priority):
             raise RateLimitError(f"被限流：{key} (pri={priority.name})")
         try:
@@ -165,21 +181,27 @@ class CompositeLimiter:
         finally:
             self.release(key, priority=priority)
 
-    def available_tokens(self, key: str = "default", priority: Priority | None = None) -> float:
+    def available_tokens(
+        self, key: str = "default", priority: Priority | None = None
+    ) -> float:
         if priority and priority in self._pq_token:
             return self._pq_token[priority].available(key)
         if self._use_token:
             return self._token.available(key)
         return float("inf")
 
-    def window_current(self, key: str = "default", priority: Priority | None = None) -> float:
+    def window_current(
+        self, key: str = "default", priority: Priority | None = None
+    ) -> float:
         if priority and priority in self._pq_window:
             return self._pq_window[priority].current(key)
         if self._use_window:
             return self._window.current(key)
         return 0.0
 
-    def available_concurrent(self, key: str = "default", priority: Priority | None = None) -> int:
+    def available_concurrent(
+        self, key: str = "default", priority: Priority | None = None
+    ) -> int:
         if priority and priority in self._pq_sem:
             return self._pq_sem[priority].available(key)
         if self._use_semaphore:

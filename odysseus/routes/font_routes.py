@@ -1,6 +1,8 @@
 """Custom font discovery — lists user-supplied font files in static/fonts/custom/."""
+
 import os
 import re
+
 from fastapi import APIRouter
 
 CUSTOM_FONTS_DIR = os.path.join("static", "fonts", "custom")
@@ -13,7 +15,7 @@ def _split_family_token(token):
     for suffix in FAMILY_SUFFIX_WORDS:
         if token.endswith(suffix) and len(token) > len(suffix):
             return f"{token[:-len(suffix)]} {suffix}"
-    return re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', token)
+    return re.sub(r"(?<=[a-z])(?=[A-Z])", " ", token)
 
 
 def _derive_family(filename):
@@ -21,11 +23,13 @@ def _derive_family(filename):
     name = os.path.splitext(filename)[0]
     # Strip common weight/style suffixes
     name = re.sub(
-        r'[-_ ]?(Thin|ExtraLight|UltraLight|Light|Regular|Medium|SemiBold|DemiBold|Bold|ExtraBold|UltraBold|Black|Heavy|Italic|Oblique|Variable|VF)$',
-        '', name, flags=re.IGNORECASE
+        r"[-_ ]?(Thin|ExtraLight|UltraLight|Light|Regular|Medium|SemiBold|DemiBold|Bold|ExtraBold|UltraBold|Black|Heavy|Italic|Oblique|Variable|VF)$",
+        "",
+        name,
+        flags=re.IGNORECASE,
     )
     # Replace dashes/underscores with spaces
-    name = re.sub(r'[-_]+', ' ', name).strip()
+    name = re.sub(r"[-_]+", " ", name).strip()
     name = " ".join(_split_family_token(part) for part in name.split())
     return name or filename
 
@@ -45,11 +49,13 @@ def setup_font_routes():
             family = _derive_family(f)
             if family not in families:
                 families[family] = []
-            families[family].append({
-                "file": f,
-                "url": f"/static/fonts/custom/{f}",
-                "format": ext.lstrip('.'),
-            })
+            families[family].append(
+                {
+                    "file": f,
+                    "url": f"/static/fonts/custom/{f}",
+                    "format": ext.lstrip("."),
+                }
+            )
         return {"fonts": families}
 
     return router

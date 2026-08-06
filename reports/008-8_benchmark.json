@@ -1,0 +1,58 @@
+[
+  {
+    "name": "autogpt (agentic_loop)",
+    "iterations": 20,
+    "min_ms": 0.033,
+    "avg_ms": 0.069,
+    "max_ms": 0.28,
+    "ops_per_sec": 14573.01
+  },
+  {
+    "name": "babyagi (babyagi_loop)",
+    "iterations": 20,
+    "min_ms": 0.021,
+    "avg_ms": 0.031,
+    "max_ms": 0.112,
+    "ops_per_sec": 32092.43
+  },
+  {
+    "name": "agentgpt (agentgpt_style)",
+    "iterations": 20,
+    "min_ms": 0.025,
+    "avg_ms": 0.04,
+    "max_ms": 0.107,
+    "ops_per_sec": 25000.0
+  },
+  {
+    "name": "opendevin (opendevin_style)",
+    "iterations": 20,
+    "min_ms": 0.025,
+    "avg_ms": 0.033,
+    "max_ms": 0.082,
+    "ops_per_sec": 30216.04
+  },
+  {
+    "name": "crewai (crewai_style)",
+    "iterations": 20,
+    "min_ms": 0.001,
+    "avg_ms": 0.002,
+    "max_ms": 0.008,
+    "ops_per_sec": 653594.77
+  },
+  {
+    "name": "langgraph (langgraph_style)",
+    "iterations": 20,
+    "min_ms": 0.005,
+    "avg_ms": 0.012,
+    "max_ms": 0.113,
+    "ops_per_sec": 80031.99
+  },
+  {
+    "name": "integration (FrameworkAgent dispatch)",
+    "iterations": 20,
+    "min_ms": 0.018,
+    "avg_ms": 0.026,
+    "max_ms": 0.089,
+    "ops_per_sec": 38483.74
+  }
+]

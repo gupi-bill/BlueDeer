@@ -6,17 +6,16 @@ index (``rag_vector.index_personal_documents``) and the keyword index
 drift — the drift is what left the keyword path sweeping in `.obsidian/`,
 `.git/`, and `node_modules/` after the vector path was fixed.
 """
-from typing import List, Set
 
 # Well-known non-hidden junk directories to skip. Matched case-insensitively so
 # a `Node_Modules` on a case-insensitive filesystem (macOS default) is still
 # pruned. Hidden directories (dot-prefixed) are pruned separately. Kept
 # deliberately small: over-pruning would silently drop a user's real content
 # (e.g. a notes directory legitimately named "build").
-EXCLUDED_DIR_NAMES: Set[str] = {'node_modules', '__pycache__', 'venv'}
+EXCLUDED_DIR_NAMES: set[str] = {"node_modules", "__pycache__", "venv"}
 
 
-def prune_index_dirs(dirs: List[str]) -> None:
+def prune_index_dirs(dirs: list[str]) -> None:
     """In-place ``os.walk`` (topdown) directory prune: drop hidden and known
     junk directories so the walk never descends into them.
 
@@ -25,11 +24,10 @@ def prune_index_dirs(dirs: List[str]) -> None:
     indexing at a hidden directory gets its contents, minus nested junk.
     """
     dirs[:] = [
-        d for d in dirs
-        if not d.startswith('.') and d.lower() not in EXCLUDED_DIR_NAMES
+        d for d in dirs if not d.startswith(".") and d.lower() not in EXCLUDED_DIR_NAMES
     ]
 
 
 def is_indexable_file(name: str) -> bool:
     """A file is indexable only if it is not hidden (dot-prefixed)."""
-    return not name.startswith('.')
+    return not name.startswith(".")

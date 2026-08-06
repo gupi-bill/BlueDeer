@@ -29,28 +29,34 @@ logger = logging.getLogger("bluedeer.sparrow.agent")
 
 # ============== 双形态枚举 ==============
 
+
 class SparrowMode(Enum):
     """灵音雀运行形态。"""
-    UI_EMBEDDED = "ui_embedded"   # 形态1：界面内嵌
-    BACKGROUND = "background"     # 形态2：后台值守
-    DUAL = "dual"                 # 双形态同时启用
+
+    UI_EMBEDDED = "ui_embedded"  # 形态1：界面内嵌
+    BACKGROUND = "background"  # 形态2：后台值守
+    DUAL = "dual"  # 双形态同时启用
 
 
 # ============== 输出渠道 ==============
 
+
 class OutputChannel(Enum):
     """灵音雀信息输出渠道（后台形态用）。"""
-    VOICE = "voice"           # 语音播报
-    LOG_FILE = "log_file"     # 文本日志输出
+
+    VOICE = "voice"  # 语音播报
+    LOG_FILE = "log_file"  # 文本日志输出
     NOTIFICATION = "notification"  # 本地通知弹窗
-    TERMINAL = "terminal"     # 终端实时打印
+    TERMINAL = "terminal"  # 终端实时打印
 
 
 # ============== UI 内嵌精灵 ==============
 
+
 @dataclass
 class SparrowSprite:
     """P6 像素沙盘内嵌精灵状态。"""
+
     # 64×64 飞鸟像素帧（3 帧微动效）
     frames: list[str] = field(default_factory=lambda: ["🐦", "🕊", "🦅"])
     # 当前帧索引
@@ -91,6 +97,7 @@ class SparrowSprite:
 
 
 # ============== 灵音雀 Agent ==============
+
 
 class VoiceSparrowAgent(BaseAgent, RagCapable):
     """灵音雀：全局状态播报员。
@@ -138,13 +145,18 @@ class VoiceSparrowAgent(BaseAgent, RagCapable):
         )
         self.bind_rag(rag)
         self._status_center = status_center or StatusCenter(
-            event_bus=event_bus, router=router,
-            tool_registry=tool_registry, context=context,
+            event_bus=event_bus,
+            router=router,
+            tool_registry=tool_registry,
+            context=context,
         )
         self._mode = mode
-        self._channels = output_channels or [OutputChannel.LOG_FILE, OutputChannel.TERMINAL]
+        self._channels = output_channels or [
+            OutputChannel.LOG_FILE,
+            OutputChannel.TERMINAL,
+        ]
         self._silent = silent_mode  # 静默模式：仅异常推送
-        self._enabled = True        # 启停开关
+        self._enabled = True  # 启停开关
         self._sprite = SparrowSprite()  # UI 内嵌精灵
         self._recent_broadcasts: list[str] = []  # 最近播报记录
 
@@ -217,8 +229,11 @@ class VoiceSparrowAgent(BaseAgent, RagCapable):
         if isinstance(data, list):
             return {
                 "items": [
-                    {k: getattr(item, k) for k in item.__dataclass_fields__}
-                    if hasattr(item, "__dataclass_fields__") else item
+                    (
+                        {k: getattr(item, k) for k in item.__dataclass_fields__}
+                        if hasattr(item, "__dataclass_fields__")
+                        else item
+                    )
                     for item in data
                 ]
             }
@@ -302,7 +317,11 @@ class VoiceSparrowAgent(BaseAgent, RagCapable):
         if not self._enabled:
             return
         if hasattr(message, "status"):
-            status = message.status.value if hasattr(message.status, "value") else str(message.status)
+            status = (
+                message.status.value
+                if hasattr(message.status, "value")
+                else str(message.status)
+            )
             task_id = getattr(message, "task_id", "unknown")
             if status == "failed":
                 self.broadcast(f"任务 {task_id} 失败", force=True)
@@ -423,9 +442,7 @@ class VoiceSparrowAgent(BaseAgent, RagCapable):
         if hasattr(data, "__dataclass_fields__"):
             return {k: getattr(data, k) for k in data.__dataclass_fields__}
         if isinstance(data, list):
-            return [
-                self._snapshot_to_dict(item) for item in data
-            ]
+            return [self._snapshot_to_dict(item) for item in data]
         return data
 
     def _format_brief(self, snapshot: SystemSnapshot) -> str:
@@ -495,11 +512,13 @@ class VoiceSparrowAgent(BaseAgent, RagCapable):
 
 # ============== 消息队列 ==============
 
+
 @dataclass
 class QueuedMessage:
     """排队待播报的消息。"""
+
     content: str
-    priority: int = 0       # 0=normal, 1=high, 2=urgent
+    priority: int = 0  # 0=normal, 1=high, 2=urgent
     timestamp: float = 0.0
     channel: OutputChannel = OutputChannel.TERMINAL
 
@@ -543,6 +562,7 @@ class MessageQueue:
 
 # ============== 状态追踪 ==============
 
+
 @dataclass
 class AgentStatusRecord:
     agent_id: str
@@ -564,16 +584,22 @@ class StatusTracker:
         if agent_id in self._agents:
             record = self._agents[agent_id]
             if record.status != status:
-                self._history.append({
-                    "agent_id": agent_id, "from": record.status,
-                    "to": status, "at": now,
-                })
+                self._history.append(
+                    {
+                        "agent_id": agent_id,
+                        "from": record.status,
+                        "to": status,
+                        "at": now,
+                    }
+                )
             record.status = status
             record.last_seen = now
             record.task_count += 1
         else:
             self._agents[agent_id] = AgentStatusRecord(
-                agent_id=agent_id, status=status, last_seen=now,
+                agent_id=agent_id,
+                status=status,
+                last_seen=now,
             )
 
     def get(self, agent_id: str) -> AgentStatusRecord | None:

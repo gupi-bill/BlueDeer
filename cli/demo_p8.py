@@ -12,8 +12,8 @@ from __future__ import annotations
 import asyncio
 import os
 import shutil
-import tempfile
 import subprocess
+import tempfile
 
 from core.cli_tui import CLITUI, make_default_state_provider
 from core.context import ContextManager
@@ -22,13 +22,13 @@ from core.git_ops import GitHubClient, GitOps
 from core.task import Task, TaskStatus
 from core.token_auditor import TokenAuditor
 from core.tracer import Tracer
+from core.tui_renderer import TUIRenderer
 from models.router import Router
 from modules.beaver.agent import BeaverAgent
 from modules.beaver.skills import generate_commit_message
 from tools.builtin.echo_tool import EchoTool
 from tools.builtin.test_run_tool import TestRunTool
 from tools.registry import ToolRegistry
-from core.tui_renderer import TUIRenderer
 
 
 async def run_demo() -> None:
@@ -47,8 +47,14 @@ async def run_demo() -> None:
     print("\n[1] 准备临时 git 仓库...")
     repo = tempfile.mkdtemp(prefix="bluedeer_p8_repo_")
     subprocess.run(["git", "init", "-q"], cwd=repo, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "beaver@blueder.com"], cwd=repo, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "BeaverAgent"], cwd=repo, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "beaver@blueder.com"],
+        cwd=repo,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "BeaverAgent"], cwd=repo, capture_output=True
+    )
     with open(os.path.join(repo, "README.md"), "w") as f:
         f.write("# BlueDeer\n")
     subprocess.run(["git", "add", "."], cwd=repo, capture_output=True)
@@ -68,10 +74,12 @@ async def run_demo() -> None:
     git_ops = GitOps(repo_path=repo)
     github_client = GitHubClient()
 
-    print(f"  GitOps        ✓ (subprocess 调 git)")
-    print(f"  GitHubClient  ✓ (token={'有' if github_client.has_token else '无(模拟模式)'})")
-    print(f"  BeaverAgent   ✓ (构建部署员工)")
-    print(f"  CLITUI        ✓ (交互式看板)")
+    print("  GitOps        ✓ (subprocess 调 git)")
+    print(
+        f"  GitHubClient  ✓ (token={'有' if github_client.has_token else '无(模拟模式)'})"
+    )
+    print("  BeaverAgent   ✓ (构建部署员工)")
+    print("  CLITUI        ✓ (交互式看板)")
 
     beaver = BeaverAgent(
         event_bus=bus,
@@ -106,7 +114,9 @@ async def run_demo() -> None:
 
     print(f"  任务状态: {result.status.value}")
     test_result = result.output["test_result"]
-    print(f"  测试: passed={test_result['passed']}  count={test_result['passed_count']}")
+    print(
+        f"  测试: passed={test_result['passed']}  count={test_result['passed_count']}"
+    )
 
     commit_result = result.output["commit_result"]
     print(f"  提交: success={commit_result['success']}  sha={commit_result['sha']}")
@@ -124,7 +134,7 @@ async def run_demo() -> None:
     )
     print(f"  创建 PR: success={ok}")
     if resp.get("mock"):
-        print(f"  模式: 模拟（无 GITHUB_TOKEN）")
+        print("  模式: 模拟（无 GITHUB_TOKEN）")
         print(f"  模拟 URL: {resp.get('url')}")
     else:
         print(f"  PR URL: {resp.get('html_url', 'N/A')}")
@@ -145,15 +155,21 @@ async def run_demo() -> None:
     print("\n[6] CLITUI 交互式看板（CI 降级单帧）...")
     # 用 RewardSystem 模拟数据
     from core.reward import RewardSystem
+
     reward = RewardSystem()
     # 模拟一些员工数据
-    from core.task import TaskResult, TaskStatus, TokenUsage
+    from core.task import TaskResult, TokenUsage
+
     for i in range(3):
         reward.settle(
             TaskResult(
-                trace_id="t", task_id=f"task_{i}",
+                trace_id="t",
+                task_id=f"task_{i}",
                 status=TaskStatus.SUCCESS,
-                output={"generated_code": "x = 1\n", "model_used": "Doubao-Seed-2.1-Turbo"},
+                output={
+                    "generated_code": "x = 1\n",
+                    "model_used": "Doubao-Seed-2.1-Turbo",
+                },
                 token_usage=TokenUsage(tokens_in=100, tokens_out=50),
             ),
             "squirrel",
@@ -164,7 +180,9 @@ async def run_demo() -> None:
     class MockHarness:
         def aggregate(self):
             return {
-                "total": 3, "success": 3, "failed": 0,
+                "total": 3,
+                "success": 3,
+                "failed": 0,
                 "total_tokens": 450,
                 "tasks": {
                     "t1": {"status": "success", "tokens": 150, "error": None},
@@ -191,7 +209,8 @@ async def run_demo() -> None:
 
     # ============== 7. 部署脚本 ==============
     print("\n[7] 部署脚本：版本快照生成...")
-    from scripts.deploy import create_snapshot, count_code_lines
+    from scripts.deploy import create_snapshot
+
     summary = create_snapshot(snapshot_dir="snapshot")
     print(f"  版本: {summary['version_info']['version']}")
     print(f"  Git SHA: {summary['version_info']['git_sha'] or '(临时仓库)'}")
@@ -206,11 +225,11 @@ async def run_demo() -> None:
     print("\n" + "=" * 60)
     print("P8 GitHub自动化 + CLI TUI + 部署 验证:")
     print(f"  GitOps: 本地 commit ✓ (sha={commit_result['sha'][:8]})")
-    print(f"  GitHubClient: PR 模拟模式 ✓")
-    print(f"  BeaverAgent: 测试→提交 闭环 ✓")
-    print(f"  CLITUI: 单帧渲染 + 排序切换 ✓")
-    print(f"  部署脚本: 版本快照 ✓")
-    print(f"  全量回归: 280 测试通过 ✓")
+    print("  GitHubClient: PR 模拟模式 ✓")
+    print("  BeaverAgent: 测试→提交 闭环 ✓")
+    print("  CLITUI: 单帧渲染 + 排序切换 ✓")
+    print("  部署脚本: 版本快照 ✓")
+    print("  全量回归: 280 测试通过 ✓")
     print("\n✓ P8 链路验证通过！BlueDeer 8 阶段全部完成！")
     print("=" * 60)
 

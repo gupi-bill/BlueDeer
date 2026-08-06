@@ -14,7 +14,6 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from core.dream import DreamMemory, DreamQuality, DreamSystem
-from core.task import TaskResult, TaskStatus
 
 logger = logging.getLogger("bluedeer.restarea")
 
@@ -22,9 +21,10 @@ logger = logging.getLogger("bluedeer.restarea")
 @dataclass
 class RestSession:
     """休息会话记录。"""
+
     session_id: str
     agent_id: str
-    duration: float           # 休息时长（秒）
+    duration: float  # 休息时长（秒）
     memories_reviewed: int = 0
     timestamp: float = field(default_factory=time.time)
 
@@ -58,7 +58,11 @@ class RestArea:
         if not self._dream:
             return []
         memories = self._dream.recent_memories(agent_id, max_count)
-        return [m for m in memories if self._quality_rank(m.quality) >= self._quality_rank(min_quality)]
+        return [
+            m
+            for m in memories
+            if self._quality_rank(m.quality) >= self._quality_rank(min_quality)
+        ]
 
     def review_highlights(self, max_count: int = 10) -> list[DreamMemory]:
         """回顾所有高质量梦境记忆（HIGH 及以上）。"""
@@ -93,7 +97,11 @@ class RestArea:
         for session in self._sessions:
             if session.session_id == session_id:
                 session.memories_reviewed = memories_reviewed
-                logger.info("休息区: %s 结束休息，回顾了 %d 条记忆", session.agent_id, memories_reviewed)
+                logger.info(
+                    "休息区: %s 结束休息，回顾了 %d 条记忆",
+                    session.agent_id,
+                    memories_reviewed,
+                )
                 return True
         return False
 
@@ -113,10 +121,16 @@ class RestArea:
         """执行休息，返回恢复的 HP/Energy。"""
         recovered_hp = duration * RECOVERY_RATE_PER_SECOND
         recovered_energy = duration * RECOVERY_RATE_PER_SECOND * 0.8
-        stats = self._recovery_log.setdefault(character, {"total_hp": 0.0, "total_energy": 0.0})
+        stats = self._recovery_log.setdefault(
+            character, {"total_hp": 0.0, "total_energy": 0.0}
+        )
         stats["total_hp"] += recovered_hp
         stats["total_energy"] += recovered_energy
-        return {"hp_restored": recovered_hp, "energy_restored": recovered_energy, "duration": duration}
+        return {
+            "hp_restored": recovered_hp,
+            "energy_restored": recovered_energy,
+            "duration": duration,
+        }
 
     def get_recovery_stats(self, character: str) -> dict[str, float]:
         """获取角色的累计恢复统计。"""

@@ -28,8 +28,7 @@ def _run(js: str) -> str:
 
 @pytest.mark.skipif(not _HAS_NODE, reason="node binary not on PATH")
 def test_plain_text_linkify_escapes_href_attribute_without_double_escaping():
-    js = textwrap.dedent(
-        f"""
+    js = textwrap.dedent(f"""
         globalThis.document = {{
           createElement() {{
             return {{
@@ -48,8 +47,7 @@ def test_plain_text_linkify_escapes_href_attribute_without_double_escaping():
         const {{ _escLinkify }} = await import('{_HELPER.as_posix()}');
         const out = _escLinkify('See https://example.test/path?a=1&b=2 and www.example.test/a`b');
         console.log(JSON.stringify(out));
-        """
-    )
+        """)
 
     html = json.loads(_run(js))
 
@@ -60,8 +58,7 @@ def test_plain_text_linkify_escapes_href_attribute_without_double_escaping():
 
 @pytest.mark.skipif(not _HAS_NODE, reason="node binary not on PATH")
 def test_email_url_scheme_checks_strip_embedded_controls():
-    js = textwrap.dedent(
-        f"""
+    js = textwrap.dedent(f"""
         import fs from 'node:fs';
 
         let source = fs.readFileSync('{_HELPER.as_posix()}', 'utf8');
@@ -80,8 +77,7 @@ def test_email_url_scheme_checks_strip_embedded_controls():
           srcset: mod._isDangerousSrcset('https://safe.test/a.png 1x, java\\nscript:alert(1) 2x'),
         }};
         console.log(JSON.stringify(checks));
-        """
-    )
+        """)
 
     checks = json.loads(_run(js))
 

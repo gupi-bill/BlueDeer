@@ -3,6 +3,7 @@
 特殊行为：prank_probe 恶作剧探针，偶尔骚扰其他个体。
 commit 28：行为池——假装迷路 / 偷看测试结果 / 雪地打滚
 """
+
 from __future__ import annotations
 
 import random
@@ -41,8 +42,8 @@ class Fox(DigitalLifeForm):
                 "life_stages": ["JUVENILE", "ADULT", "MIDDLE"],
                 "probability": 0.015,
             },
-            "duration_sec": 30,        # 30 秒
-            "cooldown_sec": 600,       # 10 分钟一次
+            "duration_sec": 30,  # 30 秒
+            "cooldown_sec": 600,  # 10 分钟一次
             "animation": "walk",
             "particles": "smirk",
         },
@@ -55,8 +56,8 @@ class Fox(DigitalLifeForm):
                 "life_stages": ["ADULT", "MIDDLE"],
                 "probability": 0.012,
             },
-            "duration_sec": 60,        # 1 分钟
-            "cooldown_sec": 1200,      # 20 分钟一次
+            "duration_sec": 60,  # 1 分钟
+            "cooldown_sec": 1200,  # 20 分钟一次
             "animation": "work",
             "particles": "spy_glasses",
         },
@@ -70,18 +71,30 @@ class Fox(DigitalLifeForm):
                 "life_stages": ["JUVENILE", "ADULT", "MIDDLE"],
                 "probability": 0.03,
             },
-            "duration_sec": 120,       # 2 分钟
-            "cooldown_sec": 1800,      # 30 分钟一次
+            "duration_sec": 120,  # 2 分钟
+            "cooldown_sec": 1800,  # 30 分钟一次
             "animation": "react",
             "particles": "snow_puff",
         },
     ]
 
-    def __init__(self, name="狡黠狐狸", gender="male", environment=None,
-                 birth_time=None, genome_override=None):
+    def __init__(
+        self,
+        name="狡黠狐狸",
+        gender="male",
+        environment=None,
+        birth_time=None,
+        genome_override=None,
+    ):
         genome = self._build_genome(genome_override)
-        super().__init__(name=name, species="fox", gender=gender,
-                         genome=genome, environment=environment, birth_time=birth_time)
+        super().__init__(
+            name=name,
+            species="fox",
+            gender=gender,
+            genome=genome,
+            environment=environment,
+            birth_time=birth_time,
+        )
 
     def prank_probe(self, target) -> None:
         """恶作剧探针：骚扰目标个体。"""
@@ -99,8 +112,11 @@ class Fox(DigitalLifeForm):
         super()._socialize()
         if self._environment and random.random() < 0.3:
             with self._environment._lock:
-                others = [lf for lf in self._environment.population
-                          if lf is not self and getattr(lf, "_alive", False)]
+                others = [
+                    lf
+                    for lf in self._environment.population
+                    if lf is not self and getattr(lf, "_alive", False)
+                ]
             if others:
                 self.prank_probe(random.choice(others))
 
@@ -114,15 +130,23 @@ class Fox(DigitalLifeForm):
         bname = cfg["name"]
         if bname == "fake_lost" and self._environment is not None:
             # 选一位同 zone 同事当"迷路对象"
-            others = [lf for lf in self._environment.population
-                      if lf is not self and getattr(lf, "_alive", False)
-                      and getattr(lf, "current_zone_id", "") == self.current_zone_id]
+            others = [
+                lf
+                for lf in self._environment.population
+                if lf is not self
+                and getattr(lf, "_alive", False)
+                and getattr(lf, "current_zone_id", "") == self.current_zone_id
+            ]
             self._fake_lost_target = random.choice(others) if others else None
         elif bname == "peek_test" and self._environment is not None:
             # 找测试相关同事（其他 fox 或 hedgehog）
-            others = [lf for lf in self._environment.population
-                      if lf is not self and getattr(lf, "_alive", False)
-                      and getattr(lf, "species", "") in ("fox", "hedgehog")]
+            others = [
+                lf
+                for lf in self._environment.population
+                if lf is not self
+                and getattr(lf, "_alive", False)
+                and getattr(lf, "species", "") in ("fox", "hedgehog")
+            ]
             self._peek_target = random.choice(others) if others else None
             self._peek_discovered = False  # 是否被发现
 
@@ -171,6 +195,7 @@ class Fox(DigitalLifeForm):
         return Fox(
             name=f"{self._name_obj}的幼崽",
             gender=random.choice(["male", "female"]),
-            environment=environment, birth_time=birth_time,
+            environment=environment,
+            birth_time=birth_time,
             genome_override=genome,
         )

@@ -19,10 +19,9 @@ on a GET would be unsafe (Lax cookies ride top-level GET navigations), so GET
 
 import html
 
+from core.middleware import require_admin
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
-
-from core.middleware import require_admin
 from src.auth_helpers import get_current_user
 
 from companion import pairing as _pairing
@@ -87,11 +86,14 @@ def setup_companion_routes() -> APIRouter:
         """Cheap, auth-validated health check. A 200 with ok=true confirms the
         host/port and credential are valid; middleware returns 401 otherwise."""
         from core.constants import APP_VERSION
+
         return {
             "ok": True,
             "name": "odysseus",
             "version": APP_VERSION,
-            "auth": "token" if getattr(request.state, "api_token", False) else "session",
+            "auth": (
+                "token" if getattr(request.state, "api_token", False) else "session"
+            ),
         }
 
     @router.get("/info")
@@ -99,6 +101,7 @@ def setup_companion_routes() -> APIRouter:
         """Server identity + coarse capability flags. `owner` is the caller's own
         identity (the token's owner for bearer callers)."""
         from core.constants import APP_VERSION
+
         return {
             "name": "odysseus",
             "version": APP_VERSION,
@@ -119,28 +122,38 @@ def setup_companion_routes() -> APIRouter:
         require_models_scope(request)
         import json as _json
 
-        from core.database import SessionLocal, ModelEndpoint
         from src.endpoint_resolver import build_chat_url
+
+        from core.database import ModelEndpoint, SessionLocal
 
         owner = token_owner(request)
         out = []
         db = SessionLocal()
         try:
             q = db.query(ModelEndpoint).filter(
-                ModelEndpoint.is_enabled == True,  # noqa: E712
-                (ModelEndpoint.model_type == "llm") | (ModelEndpoint.model_type == None),  # noqa: E711
+                ModelEndpoint.is_enabled == True,
+                (ModelEndpoint.model_type == "llm")
+                | (ModelEndpoint.model_type == None),
             )
             if owner:
-                q = q.filter((ModelEndpoint.owner == owner) | (ModelEndpoint.owner == None))  # noqa: E711
+                q = q.filter(
+                    (ModelEndpoint.owner == owner) | (ModelEndpoint.owner == None)
+                )
             for ep in q.all():
                 if not owner_can_see(ep.owner, owner):
                     continue
                 try:
-                    model_ids = _json.loads(ep.cached_models) if ep.cached_models else []
+                    model_ids = (
+                        _json.loads(ep.cached_models) if ep.cached_models else []
+                    )
                 except (ValueError, TypeError):
                     model_ids = []
                 try:
-                    hidden = set(_json.loads(ep.hidden_models)) if ep.hidden_models else set()
+                    hidden = (
+                        set(_json.loads(ep.hidden_models))
+                        if ep.hidden_models
+                        else set()
+                    )
                 except (ValueError, TypeError):
                     hidden = set()
                 model_ids = [m for m in model_ids if m not in hidden]
@@ -148,13 +161,15 @@ def setup_companion_routes() -> APIRouter:
                     chat_url = build_chat_url(ep.base_url)
                 except Exception:
                     chat_url = ep.base_url
-                out.append({
-                    "endpoint_id": ep.id,
-                    "name": ep.name,
-                    "endpoint_url": chat_url,
-                    "models": model_ids,
-                    "supports_tools": ep.supports_tools,
-                })
+                out.append(
+                    {
+                        "endpoint_id": ep.id,
+                        "name": ep.name,
+                        "endpoint_url": chat_url,
+                        "models": model_ids,
+                        "supports_tools": ep.supports_tools,
+                    }
+                )
         finally:
             db.close()
         return {"endpoints": out}
@@ -217,12 +232,14 @@ def setup_companion_routes() -> APIRouter:
             }
 
         import json as _json
+
         payload_json = _json.dumps(payload, separators=(",", ":"))
         # Only ever emit a known PNG data-URI into the src; every other value is
         # html.escaped.
         qr_block = (
             f'<img src="{html.escape(qr)}" alt="Pairing QR" width="260" height="260">'
-            if qr_ok else "<p><em>QR rendering unavailable -- enter the details manually.</em></p>"
+            if qr_ok
+            else "<p><em>QR rendering unavailable -- enter the details manually.</em></p>"
         )
         page = f"""<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

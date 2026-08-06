@@ -12,6 +12,7 @@
 4. send 函数接口：send(message_dict) → bool
 5. 异步发送（子线程），避免 HTTP 卡住调用方。
 """
+
 from __future__ import annotations
 
 import base64
@@ -26,6 +27,7 @@ import urllib.request
 # ====================================================================
 # HTTP POST 工具
 # ====================================================================
+
 
 def _http_post_json(url: str, payload: dict, timeout: float = 5.0) -> dict:
     """POST JSON 到 url，返回响应 dict。失败抛异常。"""
@@ -47,6 +49,7 @@ def _http_post_json(url: str, payload: dict, timeout: float = 5.0) -> dict:
 # ====================================================================
 # 企业微信 Webhook
 # ====================================================================
+
 
 def _wechat_send(url: str, message: dict) -> bool:
     """企业微信群机器人发消息。
@@ -78,6 +81,7 @@ def _wechat_send(url: str, message: dict) -> bool:
 # ====================================================================
 # 钉钉 Webhook（支持加签）
 # ====================================================================
+
 
 def _dingtalk_sign(secret: str, timestamp: int) -> str:
     """钉钉加签：HmacSHA256(timestamp + "\n" + secret, secret) → base64。"""
@@ -127,6 +131,7 @@ def _dingtalk_send(url: str, secret: str, message: dict) -> bool:
 # 飞书 Webhook
 # ====================================================================
 
+
 def _feishu_send(url: str, message: dict) -> bool:
     """飞书群机器人发消息。"""
     sender = message.get("sender", "智能体")
@@ -155,6 +160,7 @@ def _feishu_send(url: str, message: dict) -> bool:
 # 工厂：根据渠道名返回 send 函数
 # ====================================================================
 
+
 def make_sender(channel_key: str, config: dict):
     """工厂函数：根据 channel_key 返回对应的 send 函数。
 
@@ -170,19 +176,25 @@ def make_sender(channel_key: str, config: dict):
         return None
 
     if channel_key == "wechat_webhook":
+
         def _send(msg):
             return _async_call(_wechat_send, url, msg)
+
         return _send
 
     if channel_key == "dingtalk_webhook":
         secret = config.get("secret", "")
+
         def _send(msg):
             return _async_call(_dingtalk_send, url, secret, msg)
+
         return _send
 
     if channel_key == "feishu_webhook":
+
         def _send(msg):
             return _async_call(_feishu_send, url, msg)
+
         return _send
 
     return None
@@ -190,11 +202,13 @@ def make_sender(channel_key: str, config: dict):
 
 def _async_call(fn, *args) -> bool:
     """异步调用 HTTP，避免阻塞主线程。"""
+
     def _worker():
         try:
             fn(*args)
         except Exception:
             pass
+
     t = threading.Thread(target=_worker, daemon=True)
     t.start()
     return True

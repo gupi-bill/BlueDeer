@@ -21,12 +21,13 @@ context. Skill is only saved if the teacher's response itself passes
 the same regex eval — no point persisting a procedure the teacher
 itself wasn't confident about.
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
@@ -35,15 +36,26 @@ logger = logging.getLogger(__name__)
 # Hosts considered SOTA / paid APIs — if the student's endpoint URL
 # hits one of these, the loop is OFF (the user is already paying for
 # a top-tier model; no need to escalate).
-_SOTA_HOSTS = frozenset({
-    "api.openai.com", "api.anthropic.com",
-    "api.deepseek.com", "deepseek.com",
-    "api.mistral.ai", "api.cohere.com",
-    "api.together.xyz", "api.fireworks.ai",
-    "api.perplexity.ai", "api.x.ai",
-    "generativelanguage.googleapis.com", "api.groq.com",
-    "openrouter.ai", "ollama.com", "api.venice.ai", "api.kimi.com",
-})
+_SOTA_HOSTS = frozenset(
+    {
+        "api.openai.com",
+        "api.anthropic.com",
+        "api.deepseek.com",
+        "deepseek.com",
+        "api.mistral.ai",
+        "api.cohere.com",
+        "api.together.xyz",
+        "api.fireworks.ai",
+        "api.perplexity.ai",
+        "api.x.ai",
+        "generativelanguage.googleapis.com",
+        "api.groq.com",
+        "openrouter.ai",
+        "ollama.com",
+        "api.venice.ai",
+        "api.kimi.com",
+    }
+)
 
 
 def is_self_hosted(endpoint_url: str) -> bool:
@@ -89,9 +101,9 @@ _REPLY_GIVE_UP_PATTERNS = [
 
 
 def evaluate_turn_regex(
-    tool_results: List[Dict[str, Any]],
+    tool_results: list[dict[str, Any]],
     agent_reply: str,
-) -> Tuple[str, Optional[str]]:
+) -> tuple[str, str | None]:
     """Cheap regex check on a finished turn.
 
     Returns ("failure", reason) on a detected problem, ("ok", None)
@@ -109,14 +121,20 @@ def evaluate_turn_regex(
             for pat in _TOOL_ERROR_PATTERNS:
                 if pat.search(text):
                     snippet = text[:120].strip()
-                    return ("failure", f"tool result matched error pattern {pat.pattern!r}: {snippet!r}")
+                    return (
+                        "failure",
+                        f"tool result matched error pattern {pat.pattern!r}: {snippet!r}",
+                    )
 
     # Agent verbally gave up?
     if isinstance(agent_reply, str) and agent_reply:
         for pat in _REPLY_GIVE_UP_PATTERNS:
             m = pat.search(agent_reply)
             if m:
-                return ("failure", f"agent reply matched give-up pattern {pat.pattern!r}")
+                return (
+                    "failure",
+                    f"agent reply matched give-up pattern {pat.pattern!r}",
+                )
 
     return ("ok", None)
 
@@ -229,19 +247,24 @@ portable across users / hosts.
 """
 
 
-async def _call_teacher(teacher_model_spec: str, prompt: str,
-                        owner: Optional[str] = None) -> Optional[str]:
+async def _call_teacher(
+    teacher_model_spec: str, prompt: str, owner: str | None = None
+) -> str | None:
     """Call the configured teacher endpoint with the escalation prompt."""
+    from src.ai_interaction import _TEACHER_SYSTEM_PROMPT, _resolve_model
     from src.llm_core import llm_call_async
-    from src.ai_interaction import _resolve_model, _TEACHER_SYSTEM_PROMPT
+
     try:
-        url, model, headers = await asyncio.to_thread(_resolve_model, teacher_model_spec, owner=owner)
+        url, model, headers = await asyncio.to_thread(
+            _resolve_model, teacher_model_spec, owner=owner
+        )
     except Exception as e:
         logger.warning(f"teacher endpoint not resolvable ({teacher_model_spec!r}): {e}")
         return None
     try:
         return await llm_call_async(
-            url, model,
+            url,
+            model,
             [
                 {"role": "system", "content": _TEACHER_SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
@@ -321,7 +344,7 @@ procedure can fix), output the single token NO_SKILL and nothing else.
 """
 
 
-def _extract_skill_json(teacher_response: str) -> Optional[Dict[str, Any]]:
+def _extract_skill_json(teacher_response: str) -> dict[str, Any] | None:
     """Find the first ```json {...}``` block and parse it.
 
     Returns None if no block found or JSON is malformed — both
@@ -331,6 +354,7 @@ def _extract_skill_json(teacher_response: str) -> Optional[Dict[str, Any]]:
     if not isinstance(teacher_response, str) or not teacher_response:
         return None
     import json
+
     m = re.search(r"```(?:json)?\s*\n(\{[\s\S]*?\})\s*\n```", teacher_response)
     if not m:
         return None
@@ -343,7 +367,7 @@ def _extract_skill_json(teacher_response: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _format_trace(tool_results: List[Dict[str, Any]], agent_reply: str) -> str:
+def _format_trace(tool_results: list[dict[str, Any]], agent_reply: str) -> str:
     """Render the turn's tool calls + final reply for the teacher prompt."""
     lines = []
     for i, r in enumerate(tool_results or []):
@@ -388,20 +412,18 @@ EVALUATION:"""
 
 async def evaluate_turn_llm(
     user_request: str,
-    tool_results: List[Dict[str, Any]],
+    tool_results: list[dict[str, Any]],
     agent_reply: str,
     student_endpoint_url: str,
-    owner: Optional[str] = None,
-) -> Tuple[str, Optional[str]]:
+    owner: str | None = None,
+) -> tuple[str, str | None]:
     """Use a fast LLM (resolved via utility endpoint) to evaluate a turn."""
     from src.endpoint_resolver import resolve_endpoint
     from src.llm_core import llm_call_async
 
     # Resolve utility model (falls back to default model, then student_endpoint_url)
     url, model, headers = resolve_endpoint(
-        "utility",
-        fallback_url=student_endpoint_url,
-        owner=owner
+        "utility", fallback_url=student_endpoint_url, owner=owner
     )
     if not url or not model:
         return ("ok", None)
@@ -415,7 +437,8 @@ async def evaluate_turn_llm(
 
     try:
         response = await llm_call_async(
-            url, model,
+            url,
+            model,
             [{"role": "user", "content": prompt}],
             headers=headers,
             timeout=20,
@@ -423,27 +446,30 @@ async def evaluate_turn_llm(
         if response:
             cleaned_response = response.strip().strip("'\"").lower()
             if cleaned_response == "failure":
-                return ("failure", f"LLM evaluation flagged failure: {response.strip()}")
+                return (
+                    "failure",
+                    f"LLM evaluation flagged failure: {response.strip()}",
+                )
     except Exception as e:
         logger.warning(f"Tier 2 LLM self-eval failed: {e}")
 
     return ("ok", None)
 
 
-
 async def escalate_and_learn(
     user_request: str,
-    tool_results: List[Dict[str, Any]],
+    tool_results: list[dict[str, Any]],
     agent_reply: str,
     failure_reason: str,
-    owner: Optional[str] = None,
-) -> Optional[str]:
+    owner: str | None = None,
+) -> str | None:
     """Call the teacher, evaluate ITS attempt, save a skill on success.
 
     Returns the saved skill name (or None if the teacher couldn't
     write one). Logs but doesn't raise — escalation is best-effort.
     """
     from src.settings import get_setting
+
     teacher_spec = (get_setting("teacher_model", "") or "").strip()
     if not teacher_spec:
         return None
@@ -479,7 +505,9 @@ async def escalate_and_learn(
     skill["action"] = "add"
 
     import json
+
     from src.tool_implementations import do_manage_skills
+
     try:
         result = await do_manage_skills(json.dumps(skill), owner=owner)
         if isinstance(result, dict) and not result.get("error"):
@@ -496,10 +524,10 @@ def maybe_escalate(
     student_endpoint_url: str,
     mode: str,
     user_request: str,
-    tool_results: List[Dict[str, Any]],
+    tool_results: list[dict[str, Any]],
     agent_reply: str,
-    owner: Optional[str] = None,
-) -> Optional[asyncio.Task]:
+    owner: str | None = None,
+) -> asyncio.Task | None:
     """Fire-and-forget entrypoint called by the agent loop end-of-turn.
 
     Returns the created asyncio.Task (so tests can await it) or None
@@ -515,6 +543,7 @@ def maybe_escalate(
     # deepseek-v4-flash with a SOTA teacher; the toggle is the control.)
     try:
         from src.settings import get_setting
+
         if not get_setting("teacher_enabled", False):
             return None
         if not (get_setting("teacher_model", "") or "").strip():
@@ -527,7 +556,9 @@ def maybe_escalate(
     if status == "failure":
         # Fire async — don't block the user's chat.
         return asyncio.create_task(
-            escalate_and_learn(user_request, tool_results, agent_reply, reason or "", owner),
+            escalate_and_learn(
+                user_request, tool_results, agent_reply, reason or "", owner
+            ),
             name="teacher_escalation",
         )
 
@@ -545,7 +576,9 @@ def maybe_escalate(
             owner=owner,
         )
         if llm_status == "failure":
-            await escalate_and_learn(user_request, tool_results, agent_reply, llm_reason or "", owner)
+            await escalate_and_learn(
+                user_request, tool_results, agent_reply, llm_reason or "", owner
+            )
 
     return asyncio.create_task(
         evaluate_and_maybe_escalate(),
@@ -555,13 +588,14 @@ def maybe_escalate(
 
 # ── Inline teacher takeover (visible in chat stream) ───────────────
 
+
 async def run_teacher_inline(
     *,
     student_endpoint_url: str,
-    student_messages: List[Dict[str, Any]],
-    student_tool_events: List[Dict[str, Any]],
+    student_messages: list[dict[str, Any]],
+    student_tool_events: list[dict[str, Any]],
     student_reply: str,
-    owner: Optional[str] = None,
+    owner: str | None = None,
 ):
     """Async generator. Yields SSE event strings.
 
@@ -573,6 +607,7 @@ async def run_teacher_inline(
     toggle on, teacher_model configured, Tier 1 regex flags failure.
     """
     import json
+
     from src.settings import get_setting
 
     # Gates
@@ -595,8 +630,11 @@ async def run_teacher_inline(
             user_request = c
         elif isinstance(c, list):
             user_request = next(
-                (p.get("text", "") for p in c
-                 if isinstance(p, dict) and p.get("type") == "text"),
+                (
+                    p.get("text", "")
+                    for p in c
+                    if isinstance(p, dict) and p.get("type") == "text"
+                ),
                 "",
             )
         break
@@ -619,24 +657,35 @@ async def run_teacher_inline(
     # Resolve teacher endpoint
     try:
         from src.ai_interaction import _resolve_model
-        teacher_url, teacher_model, teacher_headers = await asyncio.to_thread(_resolve_model, teacher_spec, owner=owner)
+
+        teacher_url, teacher_model, teacher_headers = await asyncio.to_thread(
+            _resolve_model, teacher_spec, owner=owner
+        )
     except Exception as e:
         logger.warning(f"teacher endpoint not resolvable ({teacher_spec!r}): {e}")
         yield (
-            'data: ' + json.dumps({
-                "type": "escalation_failed",
-                "reason": f"teacher endpoint not resolvable: {e}",
-            }) + '\n\n'
+            "data: "
+            + json.dumps(
+                {
+                    "type": "escalation_failed",
+                    "reason": f"teacher endpoint not resolvable: {e}",
+                }
+            )
+            + "\n\n"
         )
         return
 
     # Announce takeover so the frontend can render a banner
     yield (
-        'data: ' + json.dumps({
-            "type": "teacher_takeover",
-            "teacher_model": teacher_spec,
-            "student_failure": reason,
-        }) + '\n\n'
+        "data: "
+        + json.dumps(
+            {
+                "type": "teacher_takeover",
+                "teacher_model": teacher_spec,
+                "student_failure": reason,
+            }
+        )
+        + "\n\n"
     )
 
     # Build teacher messages. Strip the student's leading system
@@ -658,8 +707,9 @@ async def run_teacher_inline(
     # The _is_teacher_run flag prevents infinite recursion (the teacher
     # run will skip its own escalation hook).
     from src.agent_loop import stream_agent_loop
-    captured_tool_events: List[Dict[str, Any]] = []
-    captured_text_parts: List[str] = []
+
+    captured_tool_events: list[dict[str, Any]] = []
+    captured_text_parts: list[str] = []
 
     async for evt_str in stream_agent_loop(
         endpoint_url=teacher_url,
@@ -682,17 +732,19 @@ async def run_teacher_inline(
                 payload["teacher"] = True
                 typ = payload.get("type")
                 if typ == "tool_output":
-                    captured_tool_events.append({
-                        "tool": payload.get("tool"),
-                        "command": payload.get("command"),
-                        "output": payload.get("output"),
-                        "exit_code": payload.get("exit_code"),
-                    })
+                    captured_tool_events.append(
+                        {
+                            "tool": payload.get("tool"),
+                            "command": payload.get("command"),
+                            "output": payload.get("output"),
+                            "exit_code": payload.get("exit_code"),
+                        }
+                    )
                 if "delta" in payload and isinstance(payload["delta"], str):
                     if payload.get("thinking"):
                         continue
                     captured_text_parts.append(payload["delta"])
-                yield 'data: ' + json.dumps(payload) + '\n\n'
+                yield "data: " + json.dumps(payload) + "\n\n"
                 continue
         yield evt_str
 
@@ -701,10 +753,14 @@ async def run_teacher_inline(
     if t_status == "failure":
         logger.info(f"teacher also failed: {t_reason}")
         yield (
-            'data: ' + json.dumps({
-                "type": "escalation_failed",
-                "reason": t_reason,
-            }) + '\n\n'
+            "data: "
+            + json.dumps(
+                {
+                    "type": "escalation_failed",
+                    "reason": t_reason,
+                }
+            )
+            + "\n\n"
         )
         return
 
@@ -716,22 +772,34 @@ async def run_teacher_inline(
         trace=_format_trace(captured_tool_events, teacher_text),
     )
     skill_response = await _call_teacher(teacher_spec, prompt, owner=owner)
-    if skill_response and "NO_SKILL" in skill_response and not _extract_skill_json(skill_response):
+    if (
+        skill_response
+        and "NO_SKILL" in skill_response
+        and not _extract_skill_json(skill_response)
+    ):
         logger.info("teacher declined to write a skill (NO_SKILL)")
         yield (
-            'data: ' + json.dumps({
-                "type": "skill_save_failed",
-                "reason": "teacher said NO_SKILL (problem not reproducible)",
-            }) + '\n\n'
+            "data: "
+            + json.dumps(
+                {
+                    "type": "skill_save_failed",
+                    "reason": "teacher said NO_SKILL (problem not reproducible)",
+                }
+            )
+            + "\n\n"
         )
         return
     skill = _extract_skill_json(skill_response) if skill_response else None
     if not skill:
         yield (
-            'data: ' + json.dumps({
-                "type": "skill_save_failed",
-                "reason": "teacher did not emit valid skill JSON",
-            }) + '\n\n'
+            "data: "
+            + json.dumps(
+                {
+                    "type": "skill_save_failed",
+                    "reason": "teacher did not emit valid skill JSON",
+                }
+            )
+            + "\n\n"
         )
         return
 
@@ -740,30 +808,44 @@ async def run_teacher_inline(
     skill.setdefault("teacher_model", teacher_spec)
 
     import json as _json
+
     from src.tool_implementations import do_manage_skills
+
     try:
         result = await do_manage_skills(_json.dumps(skill), owner=owner)
         if isinstance(result, dict) and not result.get("error"):
             logger.info(f"teacher succeeded; saved skill: {skill.get('name')}")
             yield (
-                'data: ' + json.dumps({
-                    "type": "skill_saved",
-                    "name": skill.get("name"),
-                    "category": skill.get("category", "general"),
-                }) + '\n\n'
+                "data: "
+                + json.dumps(
+                    {
+                        "type": "skill_saved",
+                        "name": skill.get("name"),
+                        "category": skill.get("category", "general"),
+                    }
+                )
+                + "\n\n"
             )
         else:
             yield (
-                'data: ' + json.dumps({
-                    "type": "skill_save_failed",
-                    "reason": str(result),
-                }) + '\n\n'
+                "data: "
+                + json.dumps(
+                    {
+                        "type": "skill_save_failed",
+                        "reason": str(result),
+                    }
+                )
+                + "\n\n"
             )
     except Exception as e:
         logger.warning(f"skill save raised: {e}")
         yield (
-            'data: ' + json.dumps({
-                "type": "skill_save_failed",
-                "reason": str(e),
-            }) + '\n\n'
+            "data: "
+            + json.dumps(
+                {
+                    "type": "skill_save_failed",
+                    "reason": str(e),
+                }
+            )
+            + "\n\n"
         )

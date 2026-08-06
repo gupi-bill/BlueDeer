@@ -11,7 +11,6 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import time
 import urllib.request
@@ -46,6 +45,7 @@ class PluginRepoResult:
 
 
 from functools import lru_cache
+
 
 class PluginRepo:
     def __init__(self, plugin_dir: str = _PLUGIN_DIR) -> None:
@@ -82,7 +82,9 @@ class PluginRepo:
         return installed
 
     def _parse_gh_url(self, url: str) -> tuple[str, str, str] | None:
-        m = re.match(r"https?://github\.com/([^/]+)/([^/]+?)(?:\.git)?(?:/tree/([^/]+))?$", url)
+        m = re.match(
+            r"https?://github\.com/([^/]+)/([^/]+?)(?:\.git)?(?:/tree/([^/]+))?$", url
+        )
         if m:
             return m.group(1), m.group(2), m.group(3) or "main"
         m2 = re.match(r"git@github\.com:([^/]+)/([^/]+?)(?:\.git)?$", url)
@@ -91,7 +93,9 @@ class PluginRepo:
         return None
 
     def _parse_gitlab_url(self, url: str) -> tuple[str, str, str] | None:
-        m = re.match(r"https?://gitlab\.com/([^/]+)/([^/]+?)(?:\.git)?(?:/-/tree/([^/]+))?$", url)
+        m = re.match(
+            r"https?://gitlab\.com/([^/]+)/([^/]+?)(?:\.git)?(?:/-/tree/([^/]+))?$", url
+        )
         if m:
             return m.group(1), m.group(2), m.group(3) or "main"
         return None
@@ -110,21 +114,31 @@ class PluginRepo:
             url = f"{_GITHUB_API}/search/repositories?q={urllib.parse.quote(query)}+in:name,description&sort=stars&per_page={max_results}"
 
         try:
-            req = urllib.request.Request(url, headers={"Accept": "application/vnd.github.v3+json", "User-Agent": "BlueDeer/1.0"})
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "Accept": "application/vnd.github.v3+json",
+                    "User-Agent": "BlueDeer/1.0",
+                },
+            )
             with urllib.request.urlopen(req, timeout=15) as resp:
                 data = json.loads(resp.read().decode())
                 for item in data.get("items", []):
                     full_name = item.get("full_name", "")
                     pm = PluginRepo._parse_manifest_from_gh(item)
-                    plugins.append(RemotePluginInfo(
-                        name=pm["name"] or item["name"],
-                        version=pm.get("version", "0.1.0"),
-                        description=pm.get("description") or item.get("description", ""),
-                        author=item.get("owner", {}).get("login", ""),
-                        source_url=item.get("clone_url", ""),
-                        source_type="github",
-                        installed=full_name.replace("/", ".") in installed or item["name"] in installed,
-                    ))
+                    plugins.append(
+                        RemotePluginInfo(
+                            name=pm["name"] or item["name"],
+                            version=pm.get("version", "0.1.0"),
+                            description=pm.get("description")
+                            or item.get("description", ""),
+                            author=item.get("owner", {}).get("login", ""),
+                            source_url=item.get("clone_url", ""),
+                            source_type="github",
+                            installed=full_name.replace("/", ".") in installed
+                            or item["name"] in installed,
+                        )
+                    )
         except Exception as e:
             return PluginRepoResult(error=f"GitHub 搜索失败: {e}")
 
@@ -132,7 +146,11 @@ class PluginRepo:
 
     @staticmethod
     def _parse_manifest_from_gh(item: dict) -> dict:
-        topic_names = [t.get("name", "") for t in item.get("topics", [])] if item.get("topics") else []
+        topic_names = (
+            [t.get("name", "") for t in item.get("topics", [])]
+            if item.get("topics")
+            else []
+        )
         desc = item.get("description", "")
         name = ""
         for t in topic_names:
@@ -164,7 +182,9 @@ class PluginRepo:
 
             owner, repo, ref = parsed
             clone_url = f"https://github.com/{owner}/{repo}.git"
-            plugin_name = target_name or repo.lower().replace("-", "_").replace(".", "_")
+            plugin_name = target_name or repo.lower().replace("-", "_").replace(
+                ".", "_"
+            )
 
             target_dir = Path(self._plugin_dir) / plugin_name
             if target_dir.exists():
@@ -174,7 +194,9 @@ class PluginRepo:
             with tempfile.TemporaryDirectory() as tmpdir:
                 result = subprocess.run(
                     ["git", "clone", "--depth", "1", "-b", ref, clone_url, str(tmpdir)],
-                    capture_output=True, text=True, timeout=120,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
                 )
                 if result.returncode != 0:
                     return False, f"Git clone 失败: {result.stderr.strip()[:300]}"
@@ -183,7 +205,11 @@ class PluginRepo:
                 init_py = src_plugin_dir / "__init__.py"
                 if not init_py.exists():
                     py_files = list(src_plugin_dir.glob("*.py"))
-                    py_dirs = [d for d in src_plugin_dir.iterdir() if d.is_dir() and (d / "__init__.py").exists()]
+                    py_dirs = [
+                        d
+                        for d in src_plugin_dir.iterdir()
+                        if d.is_dir() and (d / "__init__.py").exists()
+                    ]
                     if py_dirs:
                         src_plugin_dir = py_dirs[0]
                     elif py_files:
@@ -214,7 +240,9 @@ class PluginRepo:
                 return False, f"插件 {plugin_name} 已存在"
 
             os.makedirs(self._plugin_dir, exist_ok=True)
-            zip_path = os.path.join(tempfile.gettempdir(), f"bd_plugin_{int(time.time())}.zip")
+            zip_path = os.path.join(
+                tempfile.gettempdir(), f"bd_plugin_{int(time.time())}.zip"
+            )
             try:
                 urllib.request.urlretrieve(zip_url, zip_path)
                 with zipfile.ZipFile(zip_path, "r") as zf:
@@ -275,6 +303,7 @@ class PluginRepo:
             raise ValueError(f"插件 {plugin_name} 存在循环依赖")
         visited: set[str] = set()
         order: list[str] = []
+
         def dfs(name: str) -> None:
             if name in visited:
                 return
@@ -282,6 +311,7 @@ class PluginRepo:
             for dep in self._PLUGIN_DEPS.get(name, []):
                 dfs(dep)
             order.append(name)
+
         dfs(plugin_name)
         return order
 

@@ -7,15 +7,15 @@ if needed.
 
 Includes a task registry so research survives page refreshes and can be cancelled.
 """
+
 import asyncio
 import json
 import logging
 import time
 from pathlib import Path
-from typing import Optional, Dict
 
-from src.research_utils import is_low_quality
 from src.constants import DEEP_RESEARCH_DIR
+from src.research_utils import is_low_quality
 
 logger = logging.getLogger(__name__)
 
@@ -27,14 +27,15 @@ class ResearchHandler:
 
     def __init__(self):
         self._legacy_engine = None
-        self._active_tasks: Dict[str, dict] = {}
+        self._active_tasks: dict[str, dict] = {}
         self._initialize_legacy_engine()
         RESEARCH_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     def _initialize_legacy_engine(self):
         """Initialize the legacy research engine as a fallback."""
         try:
-            from research_engine import ResearchOrchestrator, Config
+            from research_engine import Config, ResearchOrchestrator
+
             config = Config(max_searches=12, max_content_per_page=15000)
             self._legacy_engine = ResearchOrchestrator(config)
             logger.info("Legacy ResearchOrchestrator initialized (fallback)")
@@ -82,7 +83,9 @@ class ResearchHandler:
         async def _run():
             try:
                 result = await self.call_research_service(
-                    query, llm_endpoint, llm_model,
+                    query,
+                    llm_endpoint,
+                    llm_model,
                     max_time=max_time,
                     progress_callback=on_progress,
                     _task_entry=entry,
@@ -103,7 +106,7 @@ class ResearchHandler:
         entry["task"] = task
         return {"session_id": session_id, "status": "running", "query": query}
 
-    def get_status(self, session_id: str) -> Optional[dict]:
+    def get_status(self, session_id: str) -> dict | None:
         """Get current research status for a session."""
         if session_id in self._active_tasks:
             entry = self._active_tasks[session_id]
@@ -144,7 +147,7 @@ class ResearchHandler:
         entry["status"] = "cancelled"
         return True
 
-    def get_result(self, session_id: str) -> Optional[str]:
+    def get_result(self, session_id: str) -> str | None:
         """Get the completed research result."""
         if session_id in self._active_tasks:
             entry = self._active_tasks[session_id]
@@ -160,7 +163,7 @@ class ResearchHandler:
                 pass
         return None
 
-    def get_sources(self, session_id: str) -> Optional[list]:
+    def get_sources(self, session_id: str) -> list | None:
         """Get deduplicated source list from research findings."""
         # Check in-memory first
         if session_id in self._active_tasks:
@@ -284,7 +287,10 @@ class ResearchHandler:
                 logger.info(f"  {key}: {value}")
 
             return self._format_research_report(
-                query, report, stats, elapsed,
+                query,
+                report,
+                stats,
+                elapsed,
                 findings=researcher.findings,
                 evolving_report=researcher.evolving_report,
                 analyzed_urls=getattr(researcher, "analyzed_urls", None),
@@ -292,17 +298,24 @@ class ResearchHandler:
 
         except Exception as e:
             logger.error(f"DeepResearcher failed: {e}", exc_info=True)
-            return await self._fallback_research(query, llm_endpoint, llm_model, max_time, str(e))
+            return await self._fallback_research(
+                query, llm_endpoint, llm_model, max_time, str(e)
+            )
 
     async def _fallback_research(
-        self, query: str, llm_endpoint: str, llm_model: str,
-        max_time: int, primary_error: str,
+        self,
+        query: str,
+        llm_endpoint: str,
+        llm_model: str,
+        max_time: int,
+        primary_error: str,
     ) -> str:
         """Fall back to legacy engine, then to basic web search."""
         # Try legacy orchestrator
         if self._legacy_engine:
             try:
                 import asyncio
+
                 logger.info("Falling back to legacy ResearchOrchestrator...")
                 loop = asyncio.get_event_loop()
                 result = await loop.run_in_executor(
@@ -326,16 +339,21 @@ class ResearchHandler:
             return {
                 "Findings": len(self._legacy_engine.findings),
                 "Sources": len(self._legacy_engine.source_reports),
-                "Searches": tracker.counters['searches_executed'],
-                "URLs": tracker.counters['urls_processed'],
+                "Searches": tracker.counters["searches_executed"],
+                "URLs": tracker.counters["urls_processed"],
             }
         except Exception:
             return {}
 
     def _format_research_report(
-        self, query: str, full_report: str, stats: dict, elapsed: float,
-        findings: Optional[list] = None, evolving_report: Optional[str] = None,
-        analyzed_urls: Optional[list] = None,
+        self,
+        query: str,
+        full_report: str,
+        stats: dict,
+        elapsed: float,
+        findings: list | None = None,
+        evolving_report: str | None = None,
+        analyzed_urls: list | None = None,
     ) -> str:
         """Format research report with sources list and expandable raw findings."""
         summary_lines = [
@@ -369,11 +387,15 @@ class ResearchHandler:
                 title = item.get("title", "") or url
                 if url and url not in analyzed_seen:
                     analyzed_seen.add(url)
-                    analyzed_lines.append(f"{len(analyzed_lines) + 1}. [{title}]({url})")
+                    analyzed_lines.append(
+                        f"{len(analyzed_lines) + 1}. [{title}]({url})"
+                    )
             if source_lines:
                 sources_section = "\n### Sources\n\n" + "\n".join(source_lines) + "\n"
             if analyzed_lines:
-                analyzed_urls_section = "\n### Analyzed URLs\n\n" + "\n".join(analyzed_lines) + "\n"
+                analyzed_urls_section = (
+                    "\n### Analyzed URLs\n\n" + "\n".join(analyzed_lines) + "\n"
+                )
 
         # Build raw findings section (individual extractions per source)
         raw_findings_section = ""
@@ -384,16 +406,18 @@ class ResearchHandler:
                 title = f.get("title", "") or "Untitled"
                 summary = f.get("summary", "")
                 evidence = f.get("evidence", "")
-                content = summary if summary else (evidence[:2000] if evidence else "(no content)")
+                content = (
+                    summary
+                    if summary
+                    else (evidence[:2000] if evidence else "(no content)")
+                )
                 parts.append(f"**{i}. [{title}]({url})**\n\n{content}")
             raw_findings_section = "\n\n".join(parts)
 
         # Build expandable collected info section
         collected_section = ""
         if evolving_report or raw_findings_section:
-            collected_section = "\n<details>\n<summary><strong>Raw collected findings ({} sources)</strong></summary>\n\n".format(
-                len(findings) if findings else 0
-            )
+            collected_section = f"\n<details>\n<summary><strong>Raw collected findings ({len(findings) if findings else 0} sources)</strong></summary>\n\n"
             if raw_findings_section:
                 collected_section += raw_findings_section + "\n"
             collected_section += "\n</details>\n"
@@ -473,7 +497,7 @@ Try the web search toggle for simpler queries, or fix the research engine for co
             return f"""## Complete Research Failure
 
 **Primary Error:** {error}
-**Fallback Error:** {str(e2)}
+**Fallback Error:** {e2!s}
 
 **Please check:**
 1. Search provider configuration in Settings -> Search Settings

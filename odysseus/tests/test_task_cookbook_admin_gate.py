@@ -1,7 +1,7 @@
 """Task CRUD must not let non-admins schedule Cookbook serve actions."""
 
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -10,17 +10,16 @@ from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
-
 from tests.helpers.import_state import clear_fake_database_modules
 
 clear_fake_database_modules()
 
+from routes import task_routes
+from src.task_scheduler import TaskScheduler
+
 import core.auth as core_auth
 import core.database as cdb
-import routes.task_routes as task_routes
-from core.database import ScheduledTask
-from core.database import TaskRun
-from src.task_scheduler import TaskScheduler
+from core.database import ScheduledTask, TaskRun
 
 _REAL_DATABASE_ATTRS = {
     "Base": cdb.Base,
@@ -94,7 +93,9 @@ def _req(user):
 def _endpoint(method, path):
     router = task_routes.setup_task_routes(MagicMock())
     for route in router.routes:
-        if getattr(route, "path", None) == path and method in getattr(route, "methods", set()):
+        if getattr(route, "path", None) == path and method in getattr(
+            route, "methods", set()
+        ):
             return route.endpoint
     raise RuntimeError(f"{method} {path} not found")
 
@@ -257,7 +258,7 @@ async def test_webhook_rejects_stale_non_admin_cookbook_serve_task(
 async def test_scheduler_pauses_stale_non_admin_cookbook_serve_task(
     task_db, configured_auth
 ):
-    due = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
+    due = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1)
     _seed_action_task(
         task_db,
         "alice-task",

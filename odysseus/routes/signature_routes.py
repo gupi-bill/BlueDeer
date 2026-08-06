@@ -10,18 +10,20 @@ import base64
 import logging
 import re
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
+from src.auth_helpers import get_current_user
 
 from core.database import SessionLocal, Signature
-from src.auth_helpers import get_current_user
 
 logger = logging.getLogger(__name__)
 
 
-_DATA_URL_RE = re.compile(r"^data:image/png;base64,(?P<data>.+)$", re.IGNORECASE | re.DOTALL)
+_DATA_URL_RE = re.compile(
+    r"^data:image/png;base64,(?P<data>.+)$", re.IGNORECASE | re.DOTALL
+)
 _ANY_IMAGE_DATA_URL_RE = re.compile(r"^data:image/[^;]+;base64,", re.IGNORECASE)
 _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 _MAX_SIGNATURE_BYTES = 2 * 1024 * 1024
@@ -53,7 +55,7 @@ def _normalize_signature_png(raw: str) -> str:
     return base64.b64encode(payload).decode("ascii")
 
 
-def _signature_dimension(value: Optional[int]) -> Optional[int]:
+def _signature_dimension(value: int | None) -> int | None:
     if value is None:
         return None
     if not isinstance(value, int) or value < 1 or value > _MAX_SIGNATURE_DIMENSION:
@@ -62,14 +64,14 @@ def _signature_dimension(value: Optional[int]) -> Optional[int]:
 
 
 class SignatureCreate(BaseModel):
-    name: Optional[str] = None
+    name: str | None = None
     data: str  # base64 PNG, with or without `data:image/png;base64,` prefix
-    width: Optional[int] = None
-    height: Optional[int] = None
-    svg: Optional[str] = None
+    width: int | None = None
+    height: int | None = None
+    svg: str | None = None
 
 
-def _to_dict(s: Signature) -> Dict[str, Any]:
+def _to_dict(s: Signature) -> dict[str, Any]:
     return {
         "id": s.id,
         "name": s.name,
@@ -84,7 +86,7 @@ def setup_signature_routes() -> APIRouter:
     router = APIRouter(tags=["signatures"])
 
     @router.get("/api/signatures")
-    async def list_signatures(request: Request) -> Dict[str, Any]:
+    async def list_signatures(request: Request) -> dict[str, Any]:
         user = get_current_user(request)
         db = SessionLocal()
         try:
@@ -99,7 +101,9 @@ def setup_signature_routes() -> APIRouter:
             db.close()
 
     @router.post("/api/signatures")
-    async def create_signature(request: Request, req: SignatureCreate) -> Dict[str, Any]:
+    async def create_signature(
+        request: Request, req: SignatureCreate
+    ) -> dict[str, Any]:
         user = get_current_user(request)
         b64 = _normalize_signature_png(req.data)
         width = _signature_dimension(req.width)
@@ -128,7 +132,7 @@ def setup_signature_routes() -> APIRouter:
             db.close()
 
     @router.delete("/api/signatures/{sig_id}")
-    async def delete_signature(sig_id: str, request: Request) -> Dict[str, Any]:
+    async def delete_signature(sig_id: str, request: Request) -> dict[str, Any]:
         user = get_current_user(request)
         db = SessionLocal()
         try:

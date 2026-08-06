@@ -9,9 +9,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
-import time
-from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -154,7 +151,9 @@ class AgentMonitor:
                     s = stats[aid]
                     s["total_runs"] += 1
 
-                    is_error = record.get("level") == "ERROR" or bool(record.get("error"))
+                    is_error = record.get("level") == "ERROR" or bool(
+                        record.get("error")
+                    )
                     duration = record.get("duration_ms", 0) or 0
 
                     if is_error:
@@ -162,30 +161,33 @@ class AgentMonitor:
                         err_text = record.get("error") or record.get("message", "")
                         s["last_error"] = err_text
                         if len(s["errors"]) < max_errors:
-                            s["errors"].append({
-                                "ts": ts,
-                                "span": span,
-                                "error": err_text[:200],
-                                "trace_id": record.get("trace_id", ""),
-                            })
+                            s["errors"].append(
+                                {
+                                    "ts": ts,
+                                    "span": span,
+                                    "error": err_text[:200],
+                                    "trace_id": record.get("trace_id", ""),
+                                }
+                            )
                     else:
                         s["success_count"] += 1
 
                     if duration > 0:
                         s["durations"].append(duration)
 
-                    if ts > s["last_run_at"]:
-                        s["last_run_at"] = ts
+                    s["last_run_at"] = max(s["last_run_at"], ts)
 
                     if len(s["recent_runs"]) < max_recent:
-                        s["recent_runs"].append({
-                            "ts": ts,
-                            "span": span,
-                            "trace_id": record.get("trace_id", ""),
-                            "duration_ms": duration,
-                            "error": record.get("error", ""),
-                            "level": record.get("level", "INFO"),
-                        })
+                        s["recent_runs"].append(
+                            {
+                                "ts": ts,
+                                "span": span,
+                                "trace_id": record.get("trace_id", ""),
+                                "duration_ms": duration,
+                                "error": record.get("error", ""),
+                                "level": record.get("level", "INFO"),
+                            }
+                        )
         except (OSError, json.JSONDecodeError) as e:
             logger.warning("读取 trace 日志失败: %s", e)
 
@@ -239,12 +241,14 @@ class AgentMonitor:
         alerts = []
         for a in agents:
             for err in a.errors:
-                alerts.append({
-                    "agent_id": a.agent_id,
-                    "ts": err.get("ts", 0),
-                    "error": err.get("error", ""),
-                    "trace_id": err.get("trace_id", ""),
-                })
+                alerts.append(
+                    {
+                        "agent_id": a.agent_id,
+                        "ts": err.get("ts", 0),
+                        "error": err.get("error", ""),
+                        "trace_id": err.get("trace_id", ""),
+                    }
+                )
         alerts.sort(key=lambda x: x["ts"], reverse=True)
         return alerts
 
@@ -263,12 +267,14 @@ class AgentMonitor:
             elif metric == "total_runs":
                 val = a.total_runs
             if val is not None and val > max_val:
-                violations.append({
-                    "agent_id": a.agent_id,
-                    "metric": metric,
-                    "value": val,
-                    "threshold": max_val,
-                })
+                violations.append(
+                    {
+                        "agent_id": a.agent_id,
+                        "metric": metric,
+                        "value": val,
+                        "threshold": max_val,
+                    }
+                )
         return violations
 
     def summary(self) -> AgentsHealthSummary:
@@ -282,7 +288,9 @@ class AgentMonitor:
             total_agents=len(agents),
             total_runs=total_runs,
             total_failures=total_failures,
-            global_success_rate=round(
-                (total_runs - total_failures) / total_runs * 100, 1
-            ) if total_runs else 100.0,
+            global_success_rate=(
+                round((total_runs - total_failures) / total_runs * 100, 1)
+                if total_runs
+                else 100.0
+            ),
         )

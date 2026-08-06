@@ -6,21 +6,68 @@
     logger = get_logger("my_module")
     logger.info("hello")
 """
+
 from __future__ import annotations
 
 import gzip
+import json
 import logging
 import os
 import shutil
 import sys
 import threading
-import time
+from datetime import datetime
 from logging.handlers import RotatingFileHandler
-from typing import Literal
-
 
 DEFAULT_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
 DEFAULT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+JSON_RESERVED = {
+    "name",
+    "msg",
+    "args",
+    "levelname",
+    "levelno",
+    "pathname",
+    "filename",
+    "module",
+    "exc_info",
+    "exc_text",
+    "stack_info",
+    "lineno",
+    "funcName",
+    "created",
+    "msecs",
+    "relativeCreated",
+    "thread",
+    "threadName",
+    "processName",
+    "process",
+    "message",
+    "asctime",
+    "taskName",
+}
+
+
+class JsonFormatter(logging.Formatter):
+    """结构化 JSON 日志格式器：每条记录输出一行 JSON，支持 extra 字段。"""
+
+    def format(self, record: logging.LogRecord) -> str:
+        record.message = record.getMessage()
+        entry: dict = {
+            "ts": datetime.fromtimestamp(record.created).isoformat(
+                timespec="milliseconds"
+            ),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.message,
+        }
+        for key, value in record.__dict__.items():
+            if key not in JSON_RESERVED and not key.startswith("_"):
+                entry[key] = value
+        if record.exc_info:
+            entry["exception"] = self.formatException(record.exc_info)
+        return json.dumps(entry, ensure_ascii=False, default=str)
 
 
 class _CompressedRotatingHandler(RotatingFileHandler):
@@ -51,7 +98,9 @@ class _AsyncLogWriter:
         self._lock = threading.Lock()
         self._flush_event = threading.Event()
         self._stop = False
-        self._thread = threading.Thread(target=self._run, daemon=True, name="log-writer")
+        self._thread = threading.Thread(
+            target=self._run, daemon=True, name="log-writer"
+        )
         self._thread.start()
 
     def emit(self, record: logging.LogRecord) -> None:
@@ -95,6 +144,7 @@ def init_logging(
     max_bytes: int = 10 * 1024 * 1024,
     backup_count: int = 5,
     async_write: bool = True,
+    json_format: bool = False,
 ) -> None:
     level = level.upper().strip()
     numeric_level = getattr(logging, level, logging.INFO)
@@ -119,6 +169,10 @@ def init_logging(
             fh.emit = aw.emit
             fh._async_writer = aw
         handlers.append(fh)
+
+    fmt_obj = JsonFormatter() if json_format else logging.Formatter(fmt, datefmt)
+    for h in handlers:
+        h.setFormatter(fmt_obj)
 
     logging.basicConfig(
         level=numeric_level,

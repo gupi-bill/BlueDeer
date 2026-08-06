@@ -4,6 +4,7 @@
 This script intentionally does not import the Odysseus application package.
 It only reads local JSON input or invokes read-only `gh` list/API commands.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -13,17 +14,24 @@ import re
 import subprocess
 import sys
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterable
-
 
 AREA_RULES = [
     (
         "Auth / users / API tokens",
         ("auth", "token", "api_key", "api-key", "apikey", "login", "totp"),
-        ("auth", "bearer token", "api token", "api key", "login", "privilege", "permission"),
+        (
+            "auth",
+            "bearer token",
+            "api token",
+            "api key",
+            "login",
+            "privilege",
+            "permission",
+        ),
     ),
     (
         "Memory / RAG / vector store",
@@ -41,14 +49,26 @@ AREA_RULES = [
         ("agent", "tool", "function_call", "mcp", "shell"),
         ("agent", "tool", "function", "mcp"),
     ),
-    ("Cookbook / runners", ("cookbook", "runner", "preset"), ("cookbook", "runner", "preset")),
-    ("Email / CalDAV", ("mail", "email", "imap", "caldav", "calendar"), ("email", "mail", "caldav", "calendar")),
+    (
+        "Cookbook / runners",
+        ("cookbook", "runner", "preset"),
+        ("cookbook", "runner", "preset"),
+    ),
+    (
+        "Email / CalDAV",
+        ("mail", "email", "imap", "caldav", "calendar"),
+        ("email", "mail", "caldav", "calendar"),
+    ),
     (
         "Documents / uploads",
         ("document", "upload", "attachment", "processor", "markitdown"),
         ("document", "upload", "attachment"),
     ),
-    ("Gallery / visual report", ("gallery", "image", "vision", "preview"), ("gallery", "visual", "image")),
+    (
+        "Gallery / visual report",
+        ("gallery", "image", "vision", "preview"),
+        ("gallery", "visual", "image"),
+    ),
     (
         "CI / repo process",
         (".github", "docker", "compose", "workflow", "ci", "pytest"),
@@ -124,7 +144,9 @@ class ProgressReporter:
             self.stream.write(f"{message}\n")
             self.stream.flush()
 
-    def update(self, done: int, total: int, files_count: int, missing_count: int, number: int) -> None:
+    def update(
+        self, done: int, total: int, files_count: int, missing_count: int, number: int
+    ) -> None:
         if not self.enabled:
             return
         percent = int(done * 100 / total) if total else 100
@@ -156,19 +178,38 @@ def load_json_file(path: Path):
         with path.open("r", encoding="utf-8") as handle:
             return json.load(handle)
     except json.JSONDecodeError as exc:
-        raise ValueError(f"invalid JSON in {path}: {exc.msg} at line {exc.lineno}, column {exc.colno}") from exc
+        raise ValueError(
+            f"invalid JSON in {path}: {exc.msg} at line {exc.lineno}, column {exc.colno}"
+        ) from exc
     except OSError as exc:
         raise ValueError(f"could not read {path}: {exc}") from exc
 
 
-def fetch_live_prs(repo: str, fetch_files: bool = True, progress: ProgressReporter | None = None, limit: int = 1000):
+def fetch_live_prs(
+    repo: str,
+    fetch_files: bool = True,
+    progress: ProgressReporter | None = None,
+    limit: int = 1000,
+):
     progress = progress or ProgressReporter(False)
     fields = (
         "number,title,author,files,mergeStateStatus,reviewDecision,updatedAt,url"
         if fetch_files
         else "number,title,author,mergeStateStatus,reviewDecision,updatedAt,url"
     )
-    cmd = ["gh", "pr", "list", "--repo", repo, "--state", "open", "--limit", str(limit), "--json", fields]
+    cmd = [
+        "gh",
+        "pr",
+        "list",
+        "--repo",
+        repo,
+        "--state",
+        "open",
+        "--limit",
+        str(limit),
+        "--json",
+        fields,
+    ]
     progress.phase("Fetching open PR list...")
     try:
         payload = _run_gh_json(cmd)
@@ -192,7 +233,9 @@ def _limit_payload(payload, limit: int):
     return payload
 
 
-def _fill_missing_live_files(repo: str, payload, progress: ProgressReporter | None = None):
+def _fill_missing_live_files(
+    repo: str, payload, progress: ProgressReporter | None = None
+):
     progress = progress or ProgressReporter(False)
     raw_prs = payload.get("items", []) if isinstance(payload, dict) else payload
     if not isinstance(raw_prs, list):
@@ -232,7 +275,9 @@ def _fill_missing_live_files(repo: str, payload, progress: ProgressReporter | No
             missing_count += 1
         progress.update(done, len(targets), files_count, missing_count, number)
 
-    progress.summary(f"Fetched changed files for {fetched_count}/{len(targets)} PRs; {missing_count} missing metadata.")
+    progress.summary(
+        f"Fetched changed files for {fetched_count}/{len(targets)} PRs; {missing_count} missing metadata."
+    )
 
     if isinstance(payload, dict):
         if warnings:
@@ -250,9 +295,13 @@ def _fetch_live_pr_files(repo: str, number: int) -> list[str]:
 
 
 def _run_gh_json(cmd: list[str]):
-    result = subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    result = subprocess.run(
+        cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
+    )
     if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or f"{cmd[0]} exited with {result.returncode}")
+        raise RuntimeError(
+            result.stderr.strip() or f"{cmd[0]} exited with {result.returncode}"
+        )
     try:
         return json.loads(result.stdout or "[]")
     except json.JSONDecodeError as exc:
@@ -264,7 +313,9 @@ def normalize_prs(payload) -> list[PullRequest]:
     if raw_prs is None:
         raw_prs = []
     if not isinstance(raw_prs, list):
-        raise ValueError("expected input JSON to be a list of pull requests or an object with an items list")
+        raise ValueError(
+            "expected input JSON to be a list of pull requests or an object with an items list"
+        )
     return [normalize_pr(item) for item in raw_prs if isinstance(item, dict)]
 
 
@@ -287,8 +338,15 @@ def normalize_pr(item: dict) -> PullRequest:
         author=_extract_author(item),
         url=str(item.get("url") or item.get("html_url") or ""),
         files=files,
-        merge_state=str(item.get("mergeStateStatus") or item.get("merge_state_status") or item.get("mergeable_state") or "unknown"),
-        review_decision=str(item.get("reviewDecision") or item.get("review_decision") or "unknown"),
+        merge_state=str(
+            item.get("mergeStateStatus")
+            or item.get("merge_state_status")
+            or item.get("mergeable_state")
+            or "unknown"
+        ),
+        review_decision=str(
+            item.get("reviewDecision") or item.get("review_decision") or "unknown"
+        ),
         updated_at=str(item.get("updatedAt") or item.get("updated_at") or ""),
         areas=areas,
     )
@@ -329,7 +387,9 @@ def classify_areas(files: Iterable[str], title: str = "") -> set[str]:
     areas = set()
     for area, path_keywords, title_keywords in AREA_RULES:
         if area == "Docs / tooling / tests":
-            if is_docs_tooling_only(file_list) or title_strongly_indicates_docs_tooling(title_text):
+            if is_docs_tooling_only(file_list) or title_strongly_indicates_docs_tooling(
+                title_text
+            ):
                 areas.add(area)
             continue
         if any(keyword.lower() in file_text for keyword in path_keywords):
@@ -369,9 +429,27 @@ def title_strongly_indicates_docs_tooling(title: str) -> bool:
         "script only",
         "scripts only",
     )
-    return any(phrase in title for phrase in phrases) or bool(
-        words_set & {"docs", "documentation", "readme", "tests", "tooling", "scripts"}
-    ) and not bool(words_set & {"api", "auth", "route", "runtime", "server", "ui", "memory", "model", "email"})
+    return (
+        any(phrase in title for phrase in phrases)
+        or bool(
+            words_set
+            & {"docs", "documentation", "readme", "tests", "tooling", "scripts"}
+        )
+        and not bool(
+            words_set
+            & {
+                "api",
+                "auth",
+                "route",
+                "runtime",
+                "server",
+                "ui",
+                "memory",
+                "model",
+                "email",
+            }
+        )
+    )
 
 
 def title_has_keyword(title: str, keyword: str) -> bool:
@@ -386,7 +464,9 @@ def hot_files(prs: list[PullRequest]) -> list[tuple[str, list[int]]]:
     for pr in prs:
         for path in pr.files:
             owners[path].append(pr.number)
-    rows = [(path, sorted(numbers)) for path, numbers in owners.items() if len(numbers) > 1]
+    rows = [
+        (path, sorted(numbers)) for path, numbers in owners.items() if len(numbers) > 1
+    ]
     return sorted(rows, key=lambda row: (-len(row[1]), row[0]))
 
 
@@ -418,11 +498,17 @@ def overlap_clusters(prs: list[PullRequest]) -> list[list[PullRequest]]:
             cluster_numbers.add(current)
             stack.extend(edges[current] - cluster_numbers)
         seen.update(cluster_numbers)
-        clusters.append([by_number[n] for n in sorted(cluster_numbers) if n in by_number])
-    return sorted(clusters, key=lambda cluster: (-len(cluster), [pr.number for pr in cluster]))
+        clusters.append(
+            [by_number[n] for n in sorted(cluster_numbers) if n in by_number]
+        )
+    return sorted(
+        clusters, key=lambda cluster: (-len(cluster), [pr.number for pr in cluster])
+    )
 
 
-def score_prs(prs: list[PullRequest], now: datetime | None = None) -> list[ScoredPullRequest]:
+def score_prs(
+    prs: list[PullRequest], now: datetime | None = None
+) -> list[ScoredPullRequest]:
     now = now or reference_time(prs)
     file_counts = Counter(path for pr in prs for path in pr.files)
     scored = [score_pr(pr, file_counts, now) for pr in prs]
@@ -441,17 +527,34 @@ def score_pr(pr: PullRequest, file_counts: Counter, now: datetime) -> ScoredPull
     if direct_auth_token_signal(pr):
         score += 45
         reasons.append("direct auth/token lifecycle signal")
-    elif any(word in text for word in ("security", "secret", "privilege", "permission")):
+    elif any(
+        word in text for word in ("security", "secret", "privilege", "permission")
+    ):
         score += 22
         reasons.append("security keyword")
 
-    if any(word in text for word in ("leak", "leaks", "exposure", "cross-user", "cross user", "privacy")):
+    if any(
+        word in text
+        for word in ("leak", "leaks", "exposure", "cross-user", "cross user", "privacy")
+    ):
         score += 18
         reasons.append("data exposure keyword")
-    if any(word in text for word in ("data-loss", "persistence", "migration", "database", "sqlite", "postgres")):
+    if any(
+        word in text
+        for word in (
+            "data-loss",
+            "persistence",
+            "migration",
+            "database",
+            "sqlite",
+            "postgres",
+        )
+    ):
         score += 20
         reasons.append("persistence/migration keyword")
-    if any(word in text for word in ("memory", "vector", "rag", "embedding", "retrieval")):
+    if any(
+        word in text for word in ("memory", "vector", "rag", "embedding", "retrieval")
+    ):
         score += 15
         reasons.append("memory/RAG keyword")
 
@@ -492,7 +595,9 @@ def score_pr(pr: PullRequest, file_counts: Counter, now: datetime) -> ScoredPull
         score += 4
         reasons.append("updated in last 30 days")
 
-    return ScoredPullRequest(pr=pr, score=score, reasons=tuple(reasons or ["low overlap / low signal"]))
+    return ScoredPullRequest(
+        pr=pr, score=score, reasons=tuple(reasons or ["low overlap / low signal"])
+    )
 
 
 def direct_auth_token_signal(pr: PullRequest) -> bool:
@@ -500,13 +605,32 @@ def direct_auth_token_signal(pr: PullRequest) -> bool:
     title = pr.title.lower()
     path_hit = any(
         keyword in file_text
-        for keyword in ("auth", "token", "api_key", "api-key", "apikey", "key_manager", "security")
+        for keyword in (
+            "auth",
+            "token",
+            "api_key",
+            "api-key",
+            "apikey",
+            "key_manager",
+            "security",
+        )
     )
     title_hit = any(
         phrase in title
-        for phrase in ("bearer token", "api token", "api key", "auth", "login", "privilege", "permission")
+        for phrase in (
+            "bearer token",
+            "api token",
+            "api key",
+            "auth",
+            "login",
+            "privilege",
+            "permission",
+        )
     )
-    lifecycle_hit = any(word in title for word in ("deleted", "revoked", "expired", "disabled", "removed"))
+    lifecycle_hit = any(
+        word in title
+        for word in ("deleted", "revoked", "expired", "disabled", "removed")
+    )
     return path_hit and (title_hit or lifecycle_hit)
 
 
@@ -518,10 +642,14 @@ def days_since(value: str, now: datetime) -> int | None:
 
 
 def reference_time(prs: list[PullRequest]) -> datetime:
-    parsed = [value for value in (parse_datetime(pr.updated_at) for pr in prs) if value is not None]
+    parsed = [
+        value
+        for value in (parse_datetime(pr.updated_at) for pr in prs)
+        if value is not None
+    ]
     if parsed:
         return max(parsed)
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def parse_datetime(value: str) -> datetime | None:
@@ -532,7 +660,7 @@ def parse_datetime(value: str) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
     return parsed
 
 
@@ -557,7 +685,9 @@ def _looks_similar(left: PullRequest, right: PullRequest) -> bool:
     return file_similarity >= 0.5 and len(shared_title) >= 2
 
 
-def _groups_from_matches(matches: dict[int, set[int]], by_number: dict[int, PullRequest]) -> list[list[PullRequest]]:
+def _groups_from_matches(
+    matches: dict[int, set[int]], by_number: dict[int, PullRequest]
+) -> list[list[PullRequest]]:
     seen = set()
     groups = []
     for number in sorted(matches):
@@ -584,7 +714,9 @@ def title_keywords(title: str) -> set[str]:
     return {word for word in words(title) if len(word) > 2 and word not in STOP_WORDS}
 
 
-def locked_areas(prs: list[PullRequest], scored: list[ScoredPullRequest]) -> list[dict[str, object]]:
+def locked_areas(
+    prs: list[PullRequest], scored: list[ScoredPullRequest]
+) -> list[dict[str, object]]:
     score_by_number = {item.pr.number: item.score for item in scored}
     rows = []
     for area in ALL_AREAS:
@@ -603,22 +735,38 @@ def locked_areas(prs: list[PullRequest], scored: list[ScoredPullRequest]) -> lis
             {
                 "area": "Other / unclassified" if area == "Other" else area,
                 "files": _summarize_files(area_files),
-                "prs": [pr.number for pr in sorted(area_prs, key=lambda item: item.number)],
+                "prs": [
+                    pr.number for pr in sorted(area_prs, key=lambda item: item.number)
+                ],
                 "why": why,
                 "priority": priority,
                 "is_other": area == "Other",
             }
         )
-    return sorted(rows, key=lambda row: (bool(row["is_other"]), _priority_rank(str(row["priority"])), -len(row["prs"]), str(row["area"])))
+    return sorted(
+        rows,
+        key=lambda row: (
+            bool(row["is_other"]),
+            _priority_rank(str(row["priority"])),
+            -len(row["prs"]),
+            str(row["area"]),
+        ),
+    )
 
 
 def _locked_area_priority(area: str, prs: list[PullRequest], max_score: int) -> str:
     if area == "Other" and all(not pr.files for pr in prs):
         return "watch"
-    return "critical" if len(prs) >= 4 or max_score >= 45 else "high" if len(prs) >= 2 or max_score >= 30 else "watch"
+    return (
+        "critical"
+        if len(prs) >= 4 or max_score >= 45
+        else "high" if len(prs) >= 2 or max_score >= 30 else "watch"
+    )
 
 
-def _locked_area_why(area: str, missing_files: int, total_prs: int, has_overlap: bool) -> str:
+def _locked_area_why(
+    area: str, missing_files: int, total_prs: int, has_overlap: bool
+) -> str:
     if area == "Other" and missing_files > total_prs / 2:
         return f"{total_prs} PRs, mostly missing changed-file metadata"
     return "shared file overlap" if has_overlap else "active open PRs in area"
@@ -641,11 +789,17 @@ def safer_areas(prs: list[PullRequest]) -> list[str]:
     for area in ALL_AREAS:
         count = area_counts.get(area, 0)
         if count == 0:
-            suggestions.append(f"{area}: no open PRs in this input matched the area mapping")
+            suggestions.append(
+                f"{area}: no open PRs in this input matched the area mapping"
+            )
         elif area == "Docs / tooling / tests" and count <= 2:
-            suggestions.append(f"{area}: low overlap; good candidate for docs, tests, or maintenance-only work")
+            suggestions.append(
+                f"{area}: low overlap; good candidate for docs, tests, or maintenance-only work"
+            )
     if not suggestions:
-        suggestions.append("No clearly quiet area found; prefer narrow docs, tests, or tooling work after checking current PRs.")
+        suggestions.append(
+            "No clearly quiet area found; prefer narrow docs, tests, or tooling work after checking current PRs."
+        )
     return suggestions[:6]
 
 
@@ -711,7 +865,9 @@ def build_structured_report(prs: list[PullRequest], top: int = 15) -> dict:
 
 
 def render_json(prs: list[PullRequest], top: int = 15) -> str:
-    return json.dumps(build_structured_report(prs, top), indent=2, sort_keys=True) + "\n"
+    return (
+        json.dumps(build_structured_report(prs, top), indent=2, sort_keys=True) + "\n"
+    )
 
 
 def render_markdown(prs: list[PullRequest], top: int = 15) -> str:
@@ -732,11 +888,18 @@ def render_markdown(prs: list[PullRequest], top: int = 15) -> str:
     lines.append(f"- Highest-risk areas: {_risk_summary(locked)}")
     lines.append(f"- Recommended first review target: {_target_summary(target)}")
     lines.extend(["", "## Locked code areas", ""])
-    lines.extend(_table(["area", "files/directories", "PRs", "why locked", "priority"], _locked_rows(locked)))
+    lines.extend(
+        _table(
+            ["area", "files/directories", "PRs", "why locked", "priority"],
+            _locked_rows(locked),
+        )
+    )
     lines.extend(["", "## Hot files", ""])
     lines.extend(_table(["file", "PR count", "PR numbers"], _hot_rows(hot, top)))
     lines.extend(["", "## Review / blocker priorities", ""])
-    lines.append("Heuristic score only; inspect these earlier, do not merge without validation.")
+    lines.append(
+        "Heuristic score only; inspect these earlier, do not merge without validation."
+    )
     lines.append("")
     lines.extend(_review_rows(scored, top))
     lines.extend(["", "## Duplicate candidates", ""])
@@ -747,7 +910,9 @@ def render_markdown(prs: list[PullRequest], top: int = 15) -> str:
     return "\n".join(lines)
 
 
-def render_terminal(prs: list[PullRequest], top: int = 15, use_color: bool = False) -> str:
+def render_terminal(
+    prs: list[PullRequest], top: int = 15, use_color: bool = False
+) -> str:
     top = max(top, 1)
     scored = score_prs(prs)
     hot = hot_files(prs)
@@ -762,7 +927,9 @@ def render_terminal(prs: list[PullRequest], top: int = 15, use_color: bool = Fal
     lines.append(f"Unique files touched: {unique_files}")
     lines.append(f"PRs missing changed-file metadata: {missing_files}")
     lines.append(f"Main overlap drivers: {_overlap_driver_summary(hot)}")
-    lines.append(f"Recommended first review target: {_target_summary(target, truncate=True)}")
+    lines.append(
+        f"Recommended first review target: {_target_summary(target, truncate=True)}"
+    )
     lines.extend(["", colorize("Locked areas", "bold_cyan", use_color)])
     if locked:
         for row in locked[:top]:
@@ -777,11 +944,21 @@ def render_terminal(prs: list[PullRequest], top: int = 15, use_color: bool = Fal
     lines.extend(["", colorize("Hot files", "bold_cyan", use_color)])
     lines.extend(_terminal_hot_rows(hot, top, use_color))
     lines.extend(["", colorize("Review / blocker priorities", "bold_cyan", use_color)])
-    lines.append(colorize("Heuristic score only; inspect these first, do not merge without validation.", "dim", use_color))
+    lines.append(
+        colorize(
+            "Heuristic score only; inspect these first, do not merge without validation.",
+            "dim",
+            use_color,
+        )
+    )
     if scored:
         for item in scored[:top]:
             pr = item.pr
-            state = colorize(pr.merge_state or "unknown", merge_state_color(pr.merge_state), use_color)
+            state = colorize(
+                pr.merge_state or "unknown",
+                merge_state_color(pr.merge_state),
+                use_color,
+            )
             reasons = "; ".join(item.reasons[:3])
             title = shorten_text(pr.title or "untitled")
             lines.append(f"- {item.score:>3}  #{pr.number:<5} {state:<18} {title}")
@@ -797,13 +974,17 @@ def render_terminal(prs: list[PullRequest], top: int = 15, use_color: bool = Fal
     return "\n".join(lines)
 
 
-def _terminal_hot_rows(hot: list[tuple[str, list[int]]], top: int, use_color: bool) -> list[str]:
+def _terminal_hot_rows(
+    hot: list[tuple[str, list[int]]], top: int, use_color: bool
+) -> list[str]:
     if not hot:
         return ["- none"]
     rows = []
     for path, numbers in hot[:top]:
         count_label = f"{len(numbers)} PRs"
-        rows.append(f"- {path:<28} {colorize(count_label, hot_count_color(len(numbers)), use_color)}  {_format_pr_numbers(numbers)}")
+        rows.append(
+            f"- {path:<28} {colorize(count_label, hot_count_color(len(numbers)), use_color)}  {_format_pr_numbers(numbers)}"
+        )
     return rows
 
 
@@ -826,7 +1007,9 @@ def colorize(text: object, style: str, use_color: bool) -> str:
 
 
 def priority_color(priority: str) -> str:
-    return {"critical": "bold_red", "high": "yellow", "watch": "cyan"}.get(priority.lower(), "blue")
+    return {"critical": "bold_red", "high": "yellow", "watch": "cyan"}.get(
+        priority.lower(), "blue"
+    )
 
 
 def hot_count_color(count: int) -> str:
@@ -851,7 +1034,11 @@ def should_use_color(args: argparse.Namespace) -> bool:
         return True
     if args.color == "never" or args.output:
         return False
-    if not sys.stdout.isatty() or "NO_COLOR" in os.environ or os.environ.get("TERM") == "dumb":
+    if (
+        not sys.stdout.isatty()
+        or "NO_COLOR" in os.environ
+        or os.environ.get("TERM") == "dumb"
+    ):
         return False
     if os.name == "nt":
         return enable_windows_vt_mode()
@@ -889,7 +1076,9 @@ def _cluster_summary(clusters: list[list[PullRequest]]) -> str:
         return "none detected"
     summary = []
     for cluster in clusters[:3]:
-        summary.append(f"{len(cluster)} PRs ({_format_pr_numbers(pr.number for pr in cluster)})")
+        summary.append(
+            f"{len(cluster)} PRs ({_format_pr_numbers(pr.number for pr in cluster)})"
+        )
     return "; ".join(summary)
 
 
@@ -932,7 +1121,10 @@ def _locked_rows(locked: list[dict[str, object]]) -> list[list[str]]:
 def _hot_rows(hot: list[tuple[str, list[int]]], top: int) -> list[list[str]]:
     if not hot:
         return [["none", "0", "none"]]
-    return [[path, str(len(numbers)), _format_pr_numbers(numbers)] for path, numbers in hot[:top]]
+    return [
+        [path, str(len(numbers)), _format_pr_numbers(numbers)]
+        for path, numbers in hot[:top]
+    ]
 
 
 def _review_rows(scored: list[ScoredPullRequest], top: int) -> list[str]:
@@ -943,7 +1135,9 @@ def _review_rows(scored: list[ScoredPullRequest], top: int) -> list[str]:
         pr = item.pr
         link = f"[#{pr.number}]({pr.url})" if pr.url else f"#{pr.number}"
         reasons = "; ".join(item.reasons)
-        lines.append(f"{index}. {link} score {item.score}: {pr.title or 'untitled'} ({reasons})")
+        lines.append(
+            f"{index}. {link} score {item.score}: {pr.title or 'untitled'} ({reasons})"
+        )
     return lines
 
 
@@ -1005,19 +1199,63 @@ def write_output(report: str, path: str | None) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Read-only audit of open PR file overlap and blocker risk.")
+    parser = argparse.ArgumentParser(
+        description="Read-only audit of open PR file overlap and blocker risk."
+    )
     source = parser.add_mutually_exclusive_group(required=True)
-    source.add_argument("--input", help="Path to JSON from gh pr list --json ... or REST-ish PR payloads")
-    source.add_argument("--repo", help="GitHub repository in owner/name form; uses read-only gh commands")
+    source.add_argument(
+        "--input",
+        help="Path to JSON from gh pr list --json ... or REST-ish PR payloads",
+    )
+    source.add_argument(
+        "--repo",
+        help="GitHub repository in owner/name form; uses read-only gh commands",
+    )
     parser.add_argument("--output", help="Write report to this path instead of stdout")
-    parser.add_argument("--limit", type=positive_int, default=1000, help="Live mode: max open PRs to fetch/analyze")
-    parser.add_argument("--top", type=positive_int, default=15, help="Rows to show in ranked sections")
-    parser.add_argument("--color", choices=["auto", "always", "never"], default="auto", help="Terminal color mode")
-    parser.add_argument("--no-color", action="store_const", const="never", dest="color", help="Alias for --color never")
-    parser.add_argument("--format", choices=["markdown", "terminal", "json"], default="markdown", help="Output format")
-    parser.add_argument("--no-fetch-files", action="store_true", help="Skip per-PR changed-file API calls in live mode")
-    parser.add_argument("--progress", choices=["auto", "always", "never"], default="auto", help="Live file-fetch progress mode")
-    parser.add_argument("--quiet", action="store_true", help="Suppress progress and non-fatal warning output")
+    parser.add_argument(
+        "--limit",
+        type=positive_int,
+        default=1000,
+        help="Live mode: max open PRs to fetch/analyze",
+    )
+    parser.add_argument(
+        "--top", type=positive_int, default=15, help="Rows to show in ranked sections"
+    )
+    parser.add_argument(
+        "--color",
+        choices=["auto", "always", "never"],
+        default="auto",
+        help="Terminal color mode",
+    )
+    parser.add_argument(
+        "--no-color",
+        action="store_const",
+        const="never",
+        dest="color",
+        help="Alias for --color never",
+    )
+    parser.add_argument(
+        "--format",
+        choices=["markdown", "terminal", "json"],
+        default="markdown",
+        help="Output format",
+    )
+    parser.add_argument(
+        "--no-fetch-files",
+        action="store_true",
+        help="Skip per-PR changed-file API calls in live mode",
+    )
+    parser.add_argument(
+        "--progress",
+        choices=["auto", "always", "never"],
+        default="auto",
+        help="Live file-fetch progress mode",
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress progress and non-fatal warning output",
+    )
     return parser
 
 
@@ -1029,13 +1267,20 @@ def main(argv: list[str] | None = None) -> int:
             payload = load_json_file(Path(args.input))
         else:
             progress = ProgressReporter(should_show_progress(args))
-            payload = fetch_live_prs(args.repo, fetch_files=not args.no_fetch_files, progress=progress, limit=args.limit)
+            payload = fetch_live_prs(
+                args.repo,
+                fetch_files=not args.no_fetch_files,
+                progress=progress,
+                limit=args.limit,
+            )
         prs = normalize_prs(payload)
         missing_files = missing_file_metadata_count(prs)
         if args.repo and not args.no_fetch_files and not args.quiet and missing_files:
             sys.stderr.write(f"{missing_metadata_warning(missing_files)}\n")
         if args.format == "terminal":
-            report = render_terminal(prs, top=args.top, use_color=should_use_color(args))
+            report = render_terminal(
+                prs, top=args.top, use_color=should_use_color(args)
+            )
         elif args.format == "json":
             report = render_json(prs, top=args.top)
         else:

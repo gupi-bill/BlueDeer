@@ -1,6 +1,14 @@
 import src.model_capabilities as mc
 import src.model_capability_readers as readers
-from src.model_capability_readers import generic_openai, google, llamacpp, lmstudio, ollama, openai, openrouter
+from src.model_capability_readers import (
+    generic_openai,
+    google,
+    llamacpp,
+    lmstudio,
+    ollama,
+    openai,
+    openrouter,
+)
 from src.model_capability_readers.base import (
     VENDOR_GENERIC_OPENAI,
     VENDOR_GOOGLE,
@@ -19,11 +27,20 @@ def surfaces(record):
 
 
 def test_detect_vendor_uses_endpoint_kind_then_host_and_common_local_ports():
-    assert detect_vendor("https://example.test/v1", endpoint_kind="ollama") == VENDOR_OLLAMA
-    assert detect_vendor("http://127.0.0.1:8080", endpoint_kind="llama_cpp") == VENDOR_LLAMACPP
+    assert (
+        detect_vendor("https://example.test/v1", endpoint_kind="ollama")
+        == VENDOR_OLLAMA
+    )
+    assert (
+        detect_vendor("http://127.0.0.1:8080", endpoint_kind="llama_cpp")
+        == VENDOR_LLAMACPP
+    )
     assert detect_vendor("https://openrouter.ai/api/v1") == VENDOR_OPENROUTER
     assert detect_vendor("https://api.openai.com/v1") == VENDOR_OPENAI
-    assert detect_vendor("https://generativelanguage.googleapis.com/v1beta/openai") == VENDOR_GOOGLE
+    assert (
+        detect_vendor("https://generativelanguage.googleapis.com/v1beta/openai")
+        == VENDOR_GOOGLE
+    )
     assert detect_vendor("http://127.0.0.1:11434") == VENDOR_OLLAMA
     assert detect_vendor("http://127.0.0.1:1234") == VENDOR_LMSTUDIO
     assert detect_vendor("http://127.0.0.1:8080") == VENDOR_GENERIC_OPENAI
@@ -54,8 +71,13 @@ def test_generic_openai_reader_keeps_basic_model_payload_unknown():
 
 
 def test_stable_model_id_is_endpoint_scoped_for_local_or_configured_servers():
-    assert stable_model_id_for("ollama", "qwen:latest", endpoint_id="7") == "ollama|endpoint:7|qwen:latest"
-    assert stable_model_id_for("ollama", "qwen:latest", base_url="http://127.0.0.1:11434") != stable_model_id_for(
+    assert (
+        stable_model_id_for("ollama", "qwen:latest", endpoint_id="7")
+        == "ollama|endpoint:7|qwen:latest"
+    )
+    assert stable_model_id_for(
+        "ollama", "qwen:latest", base_url="http://127.0.0.1:11434"
+    ) != stable_model_id_for(
         "ollama",
         "qwen:latest",
         base_url="http://10.0.0.12:11434",
@@ -63,7 +85,9 @@ def test_stable_model_id_is_endpoint_scoped_for_local_or_configured_servers():
 
 
 def test_registry_uses_openai_reader_for_openai_vendor():
-    records = readers.records_from_payload({"data": [{"id": "shape-only-model"}]}, vendor=VENDOR_OPENAI)
+    records = readers.records_from_payload(
+        {"data": [{"id": "shape-only-model"}]}, vendor=VENDOR_OPENAI
+    )
 
     assert len(records) == 1
     assert records[0].vendor == VENDOR_OPENAI
@@ -136,19 +160,39 @@ def test_openrouter_reader_maps_rich_architecture_and_supported_parameters():
                 },
                 {
                     "id": "black-forest-labs/flux",
-                    "architecture": {"input_modalities": ["text"], "output_modalities": ["image"]},
+                    "architecture": {
+                        "input_modalities": ["text"],
+                        "output_modalities": ["image"],
+                    },
                 },
                 {
                     "id": "vendor/image-edit-shape",
-                    "architecture": {"input_modalities": ["text", "image", "file"], "output_modalities": ["text", "image"]},
-                    "supported_parameters": ["structured_outputs", "web_search_options"],
+                    "architecture": {
+                        "input_modalities": ["text", "image", "file"],
+                        "output_modalities": ["text", "image"],
+                    },
+                    "supported_parameters": [
+                        "structured_outputs",
+                        "web_search_options",
+                    ],
                 },
                 {
                     "id": "vendor/audio-shape",
-                    "architecture": {"input_modalities": ["text", "audio"], "output_modalities": ["text", "audio"]},
+                    "architecture": {
+                        "input_modalities": ["text", "audio"],
+                        "output_modalities": ["text", "audio"],
+                    },
                     "supported_voices": ["alloy"],
-                    "default_parameters": {"temperature": 0.7, "top_p": 0.9, "top_k": None},
-                    "per_request_limits": {"prompt_tokens": 12000, "completion_tokens": 4000, "requests": "2"},
+                    "default_parameters": {
+                        "temperature": 0.7,
+                        "top_p": 0.9,
+                        "top_k": None,
+                    },
+                    "per_request_limits": {
+                        "prompt_tokens": 12000,
+                        "completion_tokens": 4000,
+                        "requests": "2",
+                    },
                 },
                 {
                     "id": "vendor/embedder",
@@ -175,18 +219,26 @@ def test_openrouter_reader_maps_rich_architecture_and_supported_parameters():
         mc.CAP_REASONING,
         mc.CAP_VISION,
     )
-    assert [(assertion.capability, assertion.status) for assertion in vision.capability_assertions] == [
+    assert [
+        (assertion.capability, assertion.status)
+        for assertion in vision.capability_assertions
+    ] == [
         (mc.CAP_TOOL_CALL, mc.ASSERTION_CLAIMED),
         (mc.CAP_JSON_MODE, mc.ASSERTION_CLAIMED),
         (mc.CAP_REASONING, mc.ASSERTION_CLAIMED),
         (mc.CAP_VISION, mc.ASSERTION_CLAIMED),
     ]
-    assert [(control.control, control.status) for control in vision.deterministic_controls] == [
+    assert [
+        (control.control, control.status) for control in vision.deterministic_controls
+    ] == [
         (mc.CONTROL_TEMPERATURE, mc.ASSERTION_CLAIMED),
         (mc.CONTROL_TOP_P, mc.ASSERTION_CLAIMED),
         (mc.CONTROL_SEED, mc.ASSERTION_CLAIMED),
     ]
-    assert dict(vision.capability.limits) == {"context_tokens": 1048576, "output_tokens": 65536}
+    assert dict(vision.capability.limits) == {
+        "context_tokens": 1048576,
+        "output_tokens": 65536,
+    }
     assert surfaces(vision) == {"chat", "vision_chat"}
 
     assert records[1].capability.family == mc.FAMILY_IMAGE
@@ -195,8 +247,15 @@ def test_openrouter_reader_maps_rich_architecture_and_supported_parameters():
 
     image_edit = records[2]
     assert image_edit.capability.family == mc.FAMILY_IMAGE
-    assert image_edit.capability.modalities.input == (mc.MODALITY_TEXT, mc.MODALITY_IMAGE, mc.MODALITY_FILE)
-    assert image_edit.capability.modalities.output == (mc.MODALITY_TEXT, mc.MODALITY_IMAGE)
+    assert image_edit.capability.modalities.input == (
+        mc.MODALITY_TEXT,
+        mc.MODALITY_IMAGE,
+        mc.MODALITY_FILE,
+    )
+    assert image_edit.capability.modalities.output == (
+        mc.MODALITY_TEXT,
+        mc.MODALITY_IMAGE,
+    )
     assert image_edit.capability.capabilities == (
         mc.CAP_STRUCTURED_OUTPUT,
         mc.CAP_WEB_SEARCH,
@@ -209,7 +268,11 @@ def test_openrouter_reader_maps_rich_architecture_and_supported_parameters():
 
     audio = records[3]
     assert audio.capability.family == mc.FAMILY_AUDIO
-    assert audio.capability.capabilities == (mc.CAP_AUDIO_INPUT, mc.CAP_AUDIO_OUTPUT, mc.CAP_TTS)
+    assert audio.capability.capabilities == (
+        mc.CAP_AUDIO_INPUT,
+        mc.CAP_AUDIO_OUTPUT,
+        mc.CAP_TTS,
+    )
     assert dict(audio.capability.limits) == {
         "per_request_completion_tokens": 4000,
         "per_request_prompt_tokens": 12000,
@@ -289,7 +352,12 @@ def test_google_ai_studio_mapping_does_not_infer_media_from_model_names():
                 },
                 {
                     "name": "models/gemini-3.1-flash-tts-preview",
-                    "supportedGenerationMethods": ["generateContent", "countTokens", "createCachedContent", "batchGenerateContent"],
+                    "supportedGenerationMethods": [
+                        "generateContent",
+                        "countTokens",
+                        "createCachedContent",
+                        "batchGenerateContent",
+                    ],
                 },
                 {
                     "name": "models/lyria-3-pro-preview",
@@ -410,7 +478,10 @@ def test_lmstudio_reader_uses_native_v1_capabilities_when_present():
                     "capabilities": {
                         "vision": True,
                         "trained_for_tool_use": True,
-                        "reasoning": {"allowed_options": ["off", "on"], "default": "on"},
+                        "reasoning": {
+                            "allowed_options": ["off", "on"],
+                            "default": "on",
+                        },
                     },
                     "loaded_instances": [
                         {"config": {"context_length": 8192}},
@@ -434,8 +505,15 @@ def test_lmstudio_reader_uses_native_v1_capabilities_when_present():
     assert vision.display_name == "Gemma VL"
     assert vision.capability.family == mc.FAMILY_CHAT
     assert vision.capability.modalities.input == (mc.MODALITY_TEXT, mc.MODALITY_IMAGE)
-    assert vision.capability.capabilities == (mc.CAP_VISION, mc.CAP_TOOL_CALL, mc.CAP_REASONING)
-    assert dict(vision.capability.limits) == {"context_tokens": 4096, "max_context_tokens": 262144}
+    assert vision.capability.capabilities == (
+        mc.CAP_VISION,
+        mc.CAP_TOOL_CALL,
+        mc.CAP_REASONING,
+    )
+    assert dict(vision.capability.limits) == {
+        "context_tokens": 4096,
+        "max_context_tokens": 262144,
+    }
     assert surfaces(vision) == {"chat", "vision_chat"}
 
     assert records[1].capability.family == mc.FAMILY_EMBEDDING
@@ -471,7 +549,10 @@ def test_lmstudio_reader_uses_legacy_native_v0_shape_for_family_and_limits():
     assert chat.capability.family == mc.FAMILY_CHAT
     assert chat.capability.modalities.input == (mc.MODALITY_TEXT,)
     assert chat.capability.capabilities == ()
-    assert dict(chat.capability.limits) == {"context_tokens": 16384, "max_context_tokens": 32768}
+    assert dict(chat.capability.limits) == {
+        "context_tokens": 16384,
+        "max_context_tokens": 32768,
+    }
     assert surfaces(chat) == {"chat"}
 
     assert records[1].capability.family == mc.FAMILY_EMBEDDING
@@ -484,8 +565,16 @@ def test_lmstudio_openai_compatible_model_list_remains_identity_only():
         {
             "object": "list",
             "data": [
-                {"id": "local-gemma-3-270m-it-qat-q4_k_m", "object": "model", "owned_by": "organization_owner"},
-                {"id": "text-embedding-nomic-embed-text-v1.5", "object": "model", "owned_by": "organization_owner"},
+                {
+                    "id": "local-gemma-3-270m-it-qat-q4_k_m",
+                    "object": "model",
+                    "owned_by": "organization_owner",
+                },
+                {
+                    "id": "text-embedding-nomic-embed-text-v1.5",
+                    "object": "model",
+                    "owned_by": "organization_owner",
+                },
             ],
         }
     )
@@ -499,7 +588,12 @@ def test_lmstudio_openai_compatible_model_list_remains_identity_only():
 
 
 def test_lmstudio_unexpected_native_endpoint_error_yields_no_records():
-    assert lmstudio.records_from_payload({"error": "Unexpected endpoint or method. (GET /api/v1/models)"}) == ()
+    assert (
+        lmstudio.records_from_payload(
+            {"error": "Unexpected endpoint or method. (GET /api/v1/models)"}
+        )
+        == ()
+    )
 
 
 def test_llamacpp_reader_merges_models_props_and_slots_payloads():
@@ -588,14 +682,19 @@ def test_llamacpp_reader_merges_models_props_and_slots_payloads():
     }
     assert surfaces(record) == {"chat"}
 
-    assertion_status = {assertion.capability: assertion.status for assertion in record.capability_assertions}
+    assertion_status = {
+        assertion.capability: assertion.status
+        for assertion in record.capability_assertions
+    }
     assert assertion_status[mc.CAP_TOOL_CALL] == mc.ASSERTION_CLAIMED
     assert assertion_status[mc.CAP_STREAMING] == mc.ASSERTION_CLAIMED
     assert assertion_status[mc.CAP_VISION] == mc.ASSERTION_UNSUPPORTED
     assert assertion_status[mc.CAP_AUDIO_INPUT] == mc.ASSERTION_UNSUPPORTED
     assert mc.CAP_REASONING not in assertion_status
 
-    controls = {control.control: control.status for control in record.deterministic_controls}
+    controls = {
+        control.control: control.status for control in record.deterministic_controls
+    }
     assert controls == {
         mc.CONTROL_TEMPERATURE: mc.ASSERTION_CLAIMED,
         mc.CONTROL_TOP_P: mc.ASSERTION_CLAIMED,
@@ -630,7 +729,10 @@ def test_llamacpp_props_payload_reports_unsupported_modalities_without_model_lis
         {
             "model_alias": "local.gguf",
             "modalities": {"vision": False, "audio": False},
-            "chat_template_caps": {"supports_tools": False, "supports_preserve_reasoning": False},
+            "chat_template_caps": {
+                "supports_tools": False,
+                "supports_preserve_reasoning": False,
+            },
             "default_generation_settings": {"n_ctx": 4096, "params": {"stream": True}},
         }
     )

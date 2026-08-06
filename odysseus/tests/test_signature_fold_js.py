@@ -5,9 +5,10 @@ from pathlib import Path
 
 import pytest
 
-
 ROOT = Path(__file__).resolve().parents[1]
-pytestmark = pytest.mark.skipif(not shutil.which("node"), reason="node binary not on PATH")
+pytestmark = pytest.mark.skipif(
+    not shutil.which("node"), reason="node binary not on PATH"
+)
 
 
 def _node_eval(source: str):
@@ -22,8 +23,7 @@ def _node_eval(source: str):
 
 
 def test_extract_quote_meta_ignores_non_string_inputs():
-    values = _node_eval(
-        """
+    values = _node_eval("""
         globalThis.document = {
           createElement() {
             return {
@@ -37,15 +37,13 @@ def test_extract_quote_meta_ignores_non_string_inputs():
           nullValue: _extractQuoteMeta(null),
           objectValue: _extractQuoteMeta({bad: true})
         }));
-        """
-    )
+        """)
 
     assert values == {"nullValue": "", "objectValue": ""}
 
 
 def test_extract_quote_meta_keeps_outlook_headers():
-    values = _node_eval(
-        """
+    values = _node_eval("""
         globalThis.document = {
           createElement() {
             return {
@@ -57,7 +55,6 @@ def test_extract_quote_meta_keeps_outlook_headers():
         const { _extractQuoteMeta } = await import('./static/js/emailLibrary/signatureFold.js');
         const html = 'From: Alice <alice@example.com> Sent: Monday, May 4, 2026 To: Bob Subject: hi';
         console.log(JSON.stringify({ meta: _extractQuoteMeta(html) }));
-        """
-    )
+        """)
 
     assert values["meta"] == "Alice · Monday, May 4, 2026"

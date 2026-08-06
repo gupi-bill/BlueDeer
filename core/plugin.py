@@ -14,14 +14,16 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from tools.base_tool import BaseTool
     from modules.base_agent import BaseAgent
+
     from core.event_bus import EventBus
+    from tools.base_tool import BaseTool
 
 
 @dataclass
 class PluginMeta:
     """插件声明式元数据（精简版）。"""
+
     name: str
     version: str
     author: str = ""
@@ -31,6 +33,7 @@ class PluginMeta:
 @dataclass
 class PluginManifest:
     """插件声明式元数据（完整版）。"""
+
     name: str
     version: str
     description: str = ""
@@ -132,7 +135,9 @@ class PluginBase(ABC):
     def meta(self) -> PluginMeta:
         """精简元数据（从 manifest 派生）。"""
         m = self.manifest
-        return PluginMeta(name=m.name, version=m.version, author=m.author, description=m.description)
+        return PluginMeta(
+            name=m.name, version=m.version, author=m.author, description=m.description
+        )
 
     @property
     def config_schema(self) -> dict[str, Any] | None:

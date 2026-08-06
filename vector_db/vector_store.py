@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
 import math
-import os
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -13,6 +11,7 @@ from typing import Any
 @dataclass
 class VectorDocument:
     """向量文档条目。"""
+
     id: str
     text: str
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -22,6 +21,7 @@ class VectorDocument:
 @dataclass
 class SearchResult:
     """检索结果。"""
+
     id: str
     text: str
     metadata: dict[str, Any]
@@ -31,10 +31,11 @@ class SearchResult:
 @dataclass
 class IVFIndex:
     """IVF（倒排文件）索引配置与状态。"""
-    nlist: int = 10         # 聚类中心数（分区数）
-    nprobe: int = 2         # 检索时探査的分区数
+
+    nlist: int = 10  # 聚类中心数（分区数）
+    nprobe: int = 2  # 检索时探査的分区数
     centroids: list[dict[str, float]] | None = None  # 每个分区的质心向量
-    labels: dict[str, int] | None = None              # 文档 id → 分区 id
+    labels: dict[str, int] | None = None  # 文档 id → 分区 id
 
 
 class VectorStore:
@@ -91,7 +92,9 @@ class VectorStore:
         for token in unique_tokens:
             self._df[token] = self._df.get(token, 0) + delta
 
-    def insert(self, id: str, text: str, metadata: dict[str, Any] | None = None) -> None:
+    def insert(
+        self, id: str, text: str, metadata: dict[str, Any] | None = None
+    ) -> None:
         """插入文档。若 id 已存在则覆盖。"""
         # 若已存在，先移除旧的
         if id in self._documents:
@@ -153,17 +156,23 @@ class VectorStore:
             return []
 
         # 确定要扫描的文档列表（IVF 剪枝）
-        docs_to_scan = self._ivf_prune(query_vector) if self._ivf else list(self._documents.values())
+        docs_to_scan = (
+            self._ivf_prune(query_vector)
+            if self._ivf
+            else list(self._documents.values())
+        )
 
         results: list[SearchResult] = []
         for doc in docs_to_scan:
             score = self._cosine_similarity(query_vector, doc.tfidf_vector)
-            results.append(SearchResult(
-                id=doc.id,
-                text=doc.text,
-                metadata=doc.metadata,
-                score=score,
-            ))
+            results.append(
+                SearchResult(
+                    id=doc.id,
+                    text=doc.text,
+                    metadata=doc.metadata,
+                    score=score,
+                )
+            )
 
         results.sort(key=lambda r: r.score, reverse=True)
         return results[:top_k]
@@ -181,7 +190,7 @@ class VectorStore:
         scored_centroids.sort(key=lambda x: -x[0])
 
         # 取 nprobe 个最近分区
-        probe_cids = {cid for _, cid in scored_centroids[:self._ivf.nprobe]}
+        probe_cids = {cid for _, cid in scored_centroids[: self._ivf.nprobe]}
         result: list[VectorDocument] = []
         for doc_id, cid in self._ivf.labels.items():
             if cid in probe_cids and doc_id in self._documents:
@@ -238,7 +247,9 @@ class VectorStore:
                 n = len(cluster_docs)
                 centroids[cid] = {k: v / n for k, v in centroid.items()}
 
-        self._ivf = IVFIndex(nlist=nlist, nprobe=nprobe, centroids=centroids, labels=labels)
+        self._ivf = IVFIndex(
+            nlist=nlist, nprobe=nprobe, centroids=centroids, labels=labels
+        )
 
     def _cosine_similarity(
         self, vec_a: dict[str, float], vec_b: dict[str, float]

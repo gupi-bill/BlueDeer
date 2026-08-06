@@ -12,6 +12,7 @@
 - Storyteller 定期去 event_log 里"拉新"，把每条事件翻译成一句人话，
   存进自己的章节列表，再按需渲染成 markdown 或纯文本返回给前端。
 """
+
 from __future__ import annotations
 
 import datetime
@@ -57,10 +58,17 @@ _STORY_TEMPLATES = {
     ),
     "task_completed": lambda d: (
         f"交活：{d.get('worker', '?')}",
-        (f"{d.get('worker', '?')} 出色地完成了 {d.get('task_id', '?')}，"
-         f"赢得了奖励。") if d.get("success") else
-        (f"{d.get('worker', '?')} 在 {d.get('task_id', '?')} 上栽了跟头，"
-         f"未能完成。"),
+        (
+            (
+                f"{d.get('worker', '?')} 出色地完成了 {d.get('task_id', '?')}，"
+                f"赢得了奖励。"
+            )
+            if d.get("success")
+            else (
+                f"{d.get('worker', '?')} 在 {d.get('task_id', '?')} 上栽了跟头，"
+                f"未能完成。"
+            )
+        ),
         [d.get("worker", "?")],
     ),
     "task_expired": lambda d: (
@@ -141,8 +149,14 @@ class Storyteller:
         "_tasks",
     ]
 
-    def __init__(self, environment, naming=None, observer=None,
-                 evolution_tracker=None, external_tasks=None) -> None:
+    def __init__(
+        self,
+        environment,
+        naming=None,
+        observer=None,
+        evolution_tracker=None,
+        external_tasks=None,
+    ) -> None:
         """初始化 Storyteller。
 
         Args:
@@ -167,9 +181,14 @@ class Storyteller:
     # 章节生成
     # ------------------------------------------------------------------
 
-    def _make_chapter(self, category: str, title: str,
-                      content: str, actors: list | None = None,
-                      time_iso: str | None = None) -> dict:
+    def _make_chapter(
+        self,
+        category: str,
+        title: str,
+        content: str,
+        actors: list | None = None,
+        time_iso: str | None = None,
+    ) -> dict:
         """构造一个章节 dict。"""
         return {
             "time": time_iso or _now_iso(),
@@ -208,7 +227,7 @@ class Storyteller:
         current_count = len(events)
         if current_count <= self._last_event_count:
             return 0
-        new_events = events[self._last_event_count:]
+        new_events = events[self._last_event_count :]
         self._last_event_count = current_count
 
         new_chapters = 0
@@ -235,7 +254,8 @@ class Storyteller:
         # 拼接物种分布
         if by_species:
             species_line = "、".join(
-                f"{sp} {cnt}" for sp, cnt in sorted(by_species.items()))
+                f"{sp} {cnt}" for sp, cnt in sorted(by_species.items())
+            )
         else:
             species_line = "空无一物"
 
@@ -271,8 +291,7 @@ class Storyteller:
     def start_auto_storyteller(self, interval: float = 30.0) -> None:
         """启动后台故事线程，每 interval 秒拉一次新事件，每 60 次写一次日报。"""
         with self._lock:
-            if (self._auto_thread is not None
-                    and self._auto_thread.is_alive()):
+            if self._auto_thread is not None and self._auto_thread.is_alive():
                 return
             self._stop_event.clear()
             t = threading.Thread(
@@ -332,8 +351,7 @@ class Storyteller:
         Args:
             n: 只渲染最近 N 条，None=全部。
         """
-        chapters = (self.tell_recent(n) if n is not None
-                    else self.tell())
+        chapters = self.tell_recent(n) if n is not None else self.tell()
         if not chapters:
             return "# 森林故事\n\n*森林还很安静，没有任何故事发生。*\n"
         lines = ["# 森林故事", ""]
@@ -344,8 +362,7 @@ class Storyteller:
             lines.append(c["content"])
             if c["actors"]:
                 lines.append("")
-                lines.append(
-                    f"*相关角色：{', '.join(c['actors'])}*")
+                lines.append(f"*相关角色：{', '.join(c['actors'])}*")
             lines.append("")
         return "\n".join(lines)
 
@@ -377,7 +394,6 @@ class Storyteller:
             "by_category": by_cat,
             "last_event_count": self._last_event_count,
             "auto_storyteller_running": (
-                self._auto_thread is not None
-                and self._auto_thread.is_alive()
+                self._auto_thread is not None and self._auto_thread.is_alive()
             ),
         }

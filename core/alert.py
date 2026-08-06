@@ -10,8 +10,9 @@ import json
 import logging
 import os
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger("bluedeer.alert")
 
@@ -49,7 +50,9 @@ class AlertEngine:
         self._rules: dict[str, AlertRule] = {}
         self._history: dict[str, float] = {}  # rule_id -> last trigger ts
         self._suppress_until: dict[str, float] = {}  # rule_id -> suppress until ts
-        self._fire_count: dict[str, int] = {}  # rule_id -> consecutive fire count (for escalation)
+        self._fire_count: dict[str, int] = (
+            {}
+        )  # rule_id -> consecutive fire count (for escalation)
         self._alerts_file = alerts_file
         self._callbacks: list[Callable[[AlertEvent], None]] = []
         self._load_rules()
@@ -67,10 +70,15 @@ class AlertEngine:
     def list_rules(self) -> list[dict[str, Any]]:
         return [
             {
-                "id": r.id, "name": r.name, "metric": r.metric,
-                "operator": r.operator, "threshold": r.threshold,
-                "duration_sec": r.duration_sec, "cooldown_sec": r.cooldown_sec,
-                "enabled": r.enabled, "severity": r.severity,
+                "id": r.id,
+                "name": r.name,
+                "metric": r.metric,
+                "operator": r.operator,
+                "threshold": r.threshold,
+                "duration_sec": r.duration_sec,
+                "cooldown_sec": r.cooldown_sec,
+                "enabled": r.enabled,
+                "severity": r.severity,
             }
             for r in self._rules.values()
         ]
@@ -124,8 +132,12 @@ class AlertEngine:
                 rule = self._rules.get(rule_id)
                 if rule and rule.severity != "critical":
                     rule.severity = self._ESCALATION_MAP.get(rule.severity, "critical")
-                    logger.warning("告警规则 %s 连续触发 %d 次，自动升级为 %s",
-                                   rule_id, self._fire_count[rule_id], rule.severity)
+                    logger.warning(
+                        "告警规则 %s 连续触发 %d 次，自动升级为 %s",
+                        rule_id,
+                        self._fire_count[rule_id],
+                        rule.severity,
+                    )
         else:
             self._fire_count[rule_id] = 0
 
@@ -158,8 +170,10 @@ class AlertEngine:
                 value=value,
                 severity=rule.severity,
                 message=rule.message_template.format(
-                    name=rule.name, metric=metric,
-                    value=value, op=rule.operator,
+                    name=rule.name,
+                    metric=metric,
+                    value=value,
+                    op=rule.operator,
                     threshold=rule.threshold,
                 ),
             )
@@ -221,30 +235,36 @@ class AlertEngine:
     def _persist(self, event: AlertEvent) -> None:
         try:
             with open(self._alerts_file, "a", encoding="utf-8") as f:
-                f.write(json.dumps({
-                    "rule_id": event.rule_id,
-                    "rule_name": event.rule_name,
-                    "metric": event.metric,
-                    "value": event.value,
-                    "severity": event.severity,
-                    "message": event.message,
-                    "ts": event.ts,
-                    "acknowledged": event.acknowledged,
-                }, ensure_ascii=False) + "\n")
+                f.write(
+                    json.dumps(
+                        {
+                            "rule_id": event.rule_id,
+                            "rule_name": event.rule_name,
+                            "metric": event.metric,
+                            "value": event.value,
+                            "severity": event.severity,
+                            "message": event.message,
+                            "ts": event.ts,
+                            "acknowledged": event.acknowledged,
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
         except OSError as e:
             logger.warning("告警持久化失败: %s", e)
 
     def _rewrite(self, entries: list[dict]) -> None:
         try:
             with open(self._alerts_file, "w", encoding="utf-8") as f:
-                for e in entries:
-                    f.write(json.dumps(e, ensure_ascii=False) + "\n")
+                f.writelines(json.dumps(e, ensure_ascii=False) + "\n" for e in entries)
         except OSError:
             pass
 
     def _load_rules(self) -> None:
         try:
             from core.config import get_config
+
             cfg = get_config().alerts
             if not cfg.enabled:
                 return

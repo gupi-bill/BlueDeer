@@ -6,10 +6,13 @@
     assert uf.connected("a", "b")
     snap = uf.freeze()
 """
+
 from __future__ import annotations
+
 import copy
 import threading
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 
 class UnionFind:
