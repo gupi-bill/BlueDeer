@@ -12,7 +12,7 @@ class TestDreamSystem:
         results = [
             TaskResult(task_id="t1", status=TaskStatus.SUCCESS, output="ok"),
         ]
-        report, memories = system.dream(results)
+        report, _memories = system.dream(results)
         assert report.phase == "complete"
         assert report.memories_extracted >= 0
 

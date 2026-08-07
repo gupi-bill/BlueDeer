@@ -970,7 +970,6 @@ async def report_generate(
     )
     with open(path, "r", encoding="utf-8") as f:
         content = f.read()
-    ext = "md" if fmt == "markdown" else "html"
     preview = content[:2000]
     return f"""<div class="card">
   <div class="flex-between">

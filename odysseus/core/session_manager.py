@@ -87,7 +87,7 @@ class SessionManager:
         session = manager.get_session(session_id)
     """
 
-    def __init__(self, sessions_file: str = None):
+    def __init__(self, sessions_file: str | None = None):
         # sessions_file kept for backward compat, not used
         self.sessions: dict[str, Session] = {}
         self.upload_handler = None
@@ -548,7 +548,7 @@ class SessionManager:
         endpoint_url: str,
         model: str,
         rag: bool = False,
-        owner: str = None,
+        owner: str | None = None,
     ) -> Session:
         """Create a new session and save to database."""
         db = SessionLocal()
@@ -720,7 +720,7 @@ class SessionManager:
         name: str,
         endpoint_url: str,
         model: str,
-        owner: str = None,
+        owner: str | None = None,
         task: object = None,
     ) -> Session:
         """Create a task session if it doesn't exist, or return the existing one.

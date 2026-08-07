@@ -859,9 +859,7 @@ class CapabilityQuery:
             return False
         if self.capabilities_all and not set(self.capabilities_all).issubset(cap_set):
             return False
-        if self.capabilities_any and cap_set.isdisjoint(self.capabilities_any):
-            return False
-        return True
+        return not (self.capabilities_any and cap_set.isdisjoint(self.capabilities_any))
 
 
 DISPLAY_QUERIES = (

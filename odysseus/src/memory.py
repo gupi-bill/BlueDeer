@@ -39,7 +39,7 @@ class MemoryManager:
         self.ensure_file_exists()
 
     def extract_memory_from_chat(
-        self, chat_history: list[dict], session_id: str = None
+        self, chat_history: list[dict], session_id: str | None = None
     ) -> list[dict]:
         """
         Extract memory entries from chat history as a fallback when LLM fails.
@@ -130,7 +130,7 @@ class MemoryManager:
 
         return []
 
-    def load(self, owner: str = None) -> list[dict]:
+    def load(self, owner: str | None = None) -> list[dict]:
         """Load memory entries, optionally filtered by owner."""
         entries = self.load_all()
         if owner is None:
@@ -219,7 +219,7 @@ class MemoryManager:
         os.replace(tmp_file, self.memory_file)
 
     def add_entry(
-        self, text: str, source: str = "user", category: str = "fact", owner: str = None
+        self, text: str, source: str = "user", category: str = "fact", owner: str | None = None
     ) -> dict:
         """Add a new memory entry."""
         if not text.strip():
@@ -252,7 +252,7 @@ class MemoryManager:
         if changed:
             self.save(entries)
 
-    def find_duplicates(self, text: str, entries: list[dict] = None) -> list[dict]:
+    def find_duplicates(self, text: str, entries: list[dict] | None = None) -> list[dict]:
         """Find duplicate memory entries based on text content."""
         if entries is None:
             entries = self.load()

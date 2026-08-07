@@ -329,12 +329,10 @@ def _entry_from_modelinfo(mi, overrides):
             st = getattr(full, "safetensors", None)
             if st:
                 params_by_dtype = getattr(st, "parameters", None) or {}
-                if quant.endswith("4bit") or quant.endswith("Int4"):
+                if quant.endswith(("4bit", "Int4")):
                     pack_factor = 8
                 elif (
-                    quant.endswith("8bit")
-                    or quant.endswith("Int8")
-                    or quant in ("FP8", "NVFP4")
+                    quant.endswith(("8bit", "Int8")) or quant in ("FP8", "NVFP4")
                 ):
                     pack_factor = 4
                 else:

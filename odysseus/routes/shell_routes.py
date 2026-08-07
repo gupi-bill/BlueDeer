@@ -223,7 +223,7 @@ def _package_status_note(name: str, probe: dict) -> str:
     binaries = probe.get("binaries") if isinstance(probe.get("binaries"), dict) else {}
     modules = probe.get("modules") if isinstance(probe.get("modules"), dict) else {}
     dists = probe.get("dists") if isinstance(probe.get("dists"), dict) else {}
-    files = probe.get("files") if isinstance(probe.get("files"), dict) else {}
+    probe.get("files") if isinstance(probe.get("files"), dict) else {}
     module = modules.get(name) if isinstance(modules.get(name), dict) else {}
     locations = module.get("locations") or []
     if name == "vllm":
@@ -572,7 +572,7 @@ async def _create_shell(command: str, **kwargs):
         # and session management) must run directly — passing them through
         # bash -c mangles $env:VAR syntax and breaks the command.
         cmd_trim = command.strip()
-        if cmd_trim.startswith("powershell") or cmd_trim.startswith("cmd "):
+        if cmd_trim.startswith(("powershell", "cmd ")):
             return await asyncio.create_subprocess_shell(command, **kwargs)
         bash = find_bash()
         if bash:
@@ -1123,7 +1123,7 @@ def setup_shell_routes() -> APIRouter:
         ids = []
         for line in text.splitlines():
             line = line.strip()
-            if line.startswith("ID=") or line.startswith("ID_LIKE="):
+            if line.startswith(("ID=", "ID_LIKE=")):
                 ids += line.split("=", 1)[1].strip().strip('"').split()
         ids = [i.lower() for i in ids]
         if any(

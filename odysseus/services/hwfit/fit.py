@@ -475,26 +475,21 @@ def _quant_bits(q):
     Returns 0 when unknown (caller treats unknown as "don't filter")."""
     qu = (q or "").upper().replace("-", "").replace("_", "").replace(" ", "")
     # GGUF k-quants + float formats
-    if qu.startswith("Q8") or "FP8" in qu or "INT8" in qu or qu.startswith("W8"):
+    if qu.startswith(("Q8", "W8")) or "FP8" in qu or "INT8" in qu:
         return 8
     if (
-        qu.startswith("Q4")
-        or qu.startswith("IQ4")
-        or "FP4" in qu
-        or "NF4" in qu
-        or "INT4" in qu
-        or qu.startswith("W4")
+        qu.startswith(("Q4", "IQ4", "W4")) or "FP4" in qu or "NF4" in qu or "INT4" in qu
     ):
         return 4
-    if qu.startswith("Q2") or qu.startswith("IQ2"):
+    if qu.startswith(("Q2", "IQ2")):
         return 2
-    if qu.startswith("Q3") or qu.startswith("IQ3"):
+    if qu.startswith(("Q3", "IQ3")):
         return 3
     if qu.startswith("Q5"):
         return 5
     if qu.startswith("Q6"):
         return 6
-    if qu.startswith("F16") or qu.startswith("BF16") or qu.startswith("F32"):
+    if qu.startswith(("F16", "BF16", "F32")):
         return 16
     # Prequantized formats: pull the bit-width digit (AWQ4 / AWQ4BIT / GPTQ8 / 4BIT / INT8 ...)
     m = re.search(r"(?:AWQ|GPTQ|MLX|EXL2|BNB|INT|W)(\d{1,2})", qu) or re.search(

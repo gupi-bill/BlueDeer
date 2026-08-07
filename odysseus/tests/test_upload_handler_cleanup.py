@@ -105,7 +105,7 @@ def _manual_cleanup_endpoint(handler: UploadHandler, monkeypatch):
     }["manual_cleanup"]
 
 
-def _reference_database(monkeypatch, *, upload_id: str, gallery_hash: str = None):
+def _reference_database(monkeypatch, *, upload_id: str, gallery_hash: str | None = None):
     from routes import upload_routes
 
     SessionLocal, engine, tmpfile = make_temp_sqlite(Base.metadata)

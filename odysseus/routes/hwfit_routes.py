@@ -146,7 +146,7 @@ def _inspect_model_path(model_path: str, host: str = "", ssh_port: str = "") -> 
     path = (model_path or "").strip()
     if not path or path.startswith(("http://", "https://")):
         return {}
-    if not (path.startswith("/") or path.startswith("~")):
+    if not (path.startswith(("/", "~"))):
         return {}
 
     qpath = shlex.quote(path)
@@ -577,7 +577,7 @@ def setup_hwfit_routes():
             )
             system["gpu_vram_gb"] = single_vram
             system["gpu_count"] = 1 if single_vram > 0 else 0
-            system["gpu_only"] = True if single_vram > 0 else False
+            system["gpu_only"] = single_vram > 0
         results = rank_image_models(system, search=search or None, sort=sort)
         return {"system": system, "models": results}
 

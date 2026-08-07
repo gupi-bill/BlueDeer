@@ -14,6 +14,8 @@
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import logging
 from dataclasses import dataclass, field
@@ -79,5 +81,6 @@ class BrowserGoalAgent(BaseAgent):
                     for i, item in enumerate(data)
                 ]
         except Exception:
+            logger.exception("Exception in block")
             pass
         return [{"id": "t0", "description": content[:200], "type": "auto"}]

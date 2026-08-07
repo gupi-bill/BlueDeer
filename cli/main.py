@@ -19,6 +19,8 @@
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import argparse
 import os
@@ -342,6 +344,7 @@ def cmd_trace(args: argparse.Namespace) -> None:
             try:
                 parsed.append(json.loads(line.strip()))
             except json.JSONDecodeError:
+                logger.exception("Exception in block")
                 continue
         count = args.count or 20
         tail = parsed[-count:]
@@ -761,6 +764,7 @@ def main() -> None:
 
         argcomplete.autocomplete(parser)
     except ImportError:
+        logger.exception("Exception in block")
         pass
 
     web_p = sub.add_parser("web", help="启动 Web 仪表盘")

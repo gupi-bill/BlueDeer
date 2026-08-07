@@ -314,11 +314,7 @@ async def dispatch_reminder(
             _s = synthesis.strip()
             _low = _s.lower()
             if (
-                not _s
-                or _low.startswith("error:")
-                or _low.startswith("[error")
-                or "operation failed" in _low
-                or ("upstream" in _low and "failed" in _low)
+                not _s or _low.startswith(("error:", "[error")) or "operation failed" in _low or "upstream" in _low and "failed" in _low
             ) and synthesis != _SYNTH_FAILED_TAG:
                 logger.warning(
                     f"Reminder synthesis looked like an error, replacing: {_s[:120]!r}"

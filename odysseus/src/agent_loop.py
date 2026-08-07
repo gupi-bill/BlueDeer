@@ -895,7 +895,7 @@ def _compact_tool_line(name: str, section: str) -> str:
 
 
 def _assemble_prompt(
-    tool_names: set, disabled_tools: set = None, compact: bool = False
+    tool_names: set, disabled_tools: set | None = None, compact: bool = False
 ) -> str:
     """Build the system prompt with only the specified tools included."""
     disabled = disabled_tools or set()
@@ -907,9 +907,9 @@ def _assemble_prompt(
             if name in included:
                 tool_lines.append(f"- `{name}`")
         parts = [
-            "You are an AI assistant with native tool/function calling. "
+            ("You are an AI assistant with native tool/function calling. "
             "Only the tool schemas provided by the API are available for this turn. "
-            "Use native tool calls when action is needed; do not write tool syntax or tool instructions in chat.",
+            "Use native tool calls when action is needed; do not write tool syntax or tool instructions in chat."),
             "## Available tools\n" + ("\n".join(tool_lines) if tool_lines else "none"),
             _API_AGENT_RULES,
         ]
@@ -927,7 +927,7 @@ def _assemble_prompt(
         if name not in included:
             continue
         section = _section_text(name, _default_section)
-        if section.startswith("```") or section.startswith("-"):
+        if section.startswith(("```", "-")):
             if section.startswith("- "):
                 one_liners.append(section)
             else:
@@ -1043,7 +1043,7 @@ def _is_local_openai_compat_url(endpoint_url: str) -> bool:
         return False
     if host in {"localhost", "127.0.0.1", "0.0.0.0", "host.docker.internal"}:
         return True
-    if host.startswith("192.168.") or host.startswith("10."):
+    if host.startswith(("192.168.", "10.")):
         return True
     if host.startswith("172."):
         try:
@@ -1967,11 +1967,7 @@ def _looks_like_notes_turn(text: str) -> bool:
         q,
     ):
         return True
-    if re.search(r"\b(?:buy|pick ?up|pickup)\b", q) and not re.search(
-        r"\b(?:calendar|event|meeting|appointment|schedule)\b", q
-    ):
-        return True
-    return False
+    return bool(re.search(r"\b(?:buy|pick ?up|pickup)\b", q) and not re.search(r"\b(?:calendar|event|meeting|appointment|schedule)\b", q))
 
 
 def _looks_like_notes_calendar_followup(text: str) -> bool:
@@ -3066,12 +3062,12 @@ def _build_base_prompt(
             if skill_idx:
                 lines = [
                     "## Available skills",
-                    "Procedures the assistant should consult before doing domain work. "
+                    ("Procedures the assistant should consult before doing domain work. "
                     "Fetch the full procedure with `manage_skills` action=view name=<name> "
                     "when one looks relevant. Entries tagged `(draft)` were written by the "
                     "teacher-escalation loop after a prior failure — treat them as authoritative "
                     "guidance; if you follow one and it works, that's a good signal the procedure "
-                    "is correct.",
+                    "is correct."),
                 ]
                 by_cat: dict[str, list] = {}
                 for s in skill_idx:

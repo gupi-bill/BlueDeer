@@ -181,7 +181,7 @@ def setup_backup_routes(memory_manager, preset_manager, skills_manager) -> APIRo
         if "presets" in body and isinstance(body["presets"], dict):
             current = preset_manager.get_all()
             for key, value in body["presets"].items():
-                if isinstance(value, dict) or isinstance(value, list):
+                if isinstance(value, (dict, list)):
                     current[key] = value
             preset_manager.save(current)
             imported.append("presets")

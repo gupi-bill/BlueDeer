@@ -7,6 +7,8 @@
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import json
 import logging
@@ -126,6 +128,7 @@ def list_backups() -> list[dict[str, Any]]:
                     if "backup_manifest.json" in zf.namelist():
                         manifest = json.loads(zf.read("backup_manifest.json"))
             except Exception:
+                logger.exception("Exception in block")
                 pass
             backups.append(
                 {

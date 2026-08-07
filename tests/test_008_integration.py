@@ -201,7 +201,7 @@ async def test_non_framework_task_falls_back_to_base():
 @pytest.mark.asyncio
 async def test_harness_full_cycle_autogpt():
     bus = EventBus()
-    agent = _make_agent(bus, "full_a")
+    _make_agent(bus, "full_a")
     harness = _make_harness(bus)
 
     task = Task(
@@ -219,7 +219,7 @@ async def test_harness_full_cycle_autogpt():
 @pytest.mark.asyncio
 async def test_harness_full_cycle_crewai():
     bus = EventBus()
-    agent = _make_agent(bus, "full_crew")
+    _make_agent(bus, "full_crew")
     harness = _make_harness(bus)
 
     task = Task(

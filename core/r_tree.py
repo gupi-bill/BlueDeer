@@ -144,7 +144,7 @@ class RTree:
             return [leaf]
 
         p = max(1, int(math.sqrt(n / fanout * fanout)))
-        s = max(1, int(math.ceil(n / p / fanout)))
+        s = max(1, math.ceil(n / p / fanout))
         slices = []
         idx = sorted(range(n), key=lambda i: _rect_center(rects[i])[0])
         for sl in range(p):
@@ -175,7 +175,7 @@ class RTree:
             node.entries = [_Entry(c.mbr(), child=c) for c in children]
             return node
         p = max(1, int(math.sqrt(n / self._M * self._M)))
-        s = max(1, int(math.ceil(n / p / self._M)))
+        s = max(1, math.ceil(n / p / self._M))
         groups = []
         children.sort(key=lambda c: _rect_center(c.mbr())[0])
         for sl in range(p):

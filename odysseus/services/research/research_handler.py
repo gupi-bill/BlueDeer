@@ -57,7 +57,7 @@ class ResearchHandler:
         llm_endpoint: str,
         llm_model: str,
         max_time: int = 300,
-        llm_headers: dict = None,
+        llm_headers: dict | None = None,
     ) -> dict:
         """Start research as a background task. Returns task info dict."""
         # Cancel any existing research for this session
@@ -240,8 +240,8 @@ class ResearchHandler:
         llm_model: str,
         max_time: int = 300,
         progress_callback=None,
-        _task_entry: dict = None,
-        llm_headers: dict = None,
+        _task_entry: dict | None = None,
+        llm_headers: dict | None = None,
     ) -> str:
         """
         Run iterative deep research using the LLM-in-the-loop DeepResearcher.

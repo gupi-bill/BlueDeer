@@ -131,7 +131,7 @@ def test_native_model_real_native_tool_call_is_executed(monkeypatch):
     exec_calls = []
     _patch_common(monkeypatch, exec_calls)
     native_calls = [{"name": "bash", "arguments": json.dumps({"command": "echo hi"})}]
-    events = _run_loop(
+    _run_loop(
         monkeypatch,
         "gpt-4o",
         ["Sure, let me check that for you."],
@@ -156,7 +156,7 @@ def test_non_native_model_fenced_tool_call_still_executed(monkeypatch):
     # native-capable keyword/host checks, so _is_api_model resolves to False
     # and the model must rely on the textual fenced-block convention to
     # invoke tools at all.
-    events = _run_loop(
+    _run_loop(
         monkeypatch,
         "llama-2-7b-chat",
         ["```bash\necho hi\n```"],
@@ -189,7 +189,7 @@ def test_issue_3222_repro_guide_only_response_resolves_no_tool_actions(monkeypat
         "}\n"
         "```\n"
     )
-    events = _run_loop(monkeypatch, "grok-4", [repro])
+    _run_loop(monkeypatch, "grok-4", [repro])
     assert (
         exec_calls == []
     ), f"guide-only example fences must resolve to zero tool actions: {exec_calls}"

@@ -1088,7 +1088,7 @@ def _google_model_supports_chat(item: Any) -> bool:
 
 
 def _probe_google_models(
-    base_url: str, api_key: str = None, timeout: int = 5, page_size: int = 1000
+    base_url: str, api_key: str | None = None, timeout: int = 5, page_size: int = 1000
 ) -> list[str]:
     """Read Google's native paginated Models API.
 
@@ -1134,7 +1134,7 @@ def _probe_google_models(
     return models
 
 
-def _probe_endpoint(base_url: str, api_key: str = None, timeout: int = 5) -> list[str]:
+def _probe_endpoint(base_url: str, api_key: str | None = None, timeout: int = 5) -> list[str]:
     """Probe a base URL's /models endpoint and return list of model IDs.
     For Anthropic, queries their /v1/models API, falling back to hardcoded list."""
     from src.endpoint_resolver import resolve_url
@@ -1264,7 +1264,7 @@ def _probe_endpoint(base_url: str, api_key: str = None, timeout: int = 5) -> lis
 
 
 def _ping_endpoint(
-    base_url: str, api_key: str = None, timeout: float = 1.5
+    base_url: str, api_key: str | None = None, timeout: float = 1.5
 ) -> dict[str, Any]:
     """Reachability probe that does not require installed/listed models."""
     from src.endpoint_resolver import resolve_url
@@ -1369,7 +1369,7 @@ def _ping_endpoint(
     return {"reachable": False, "status_code": None, "error": last_error}
 
 
-def _model_endpoint_error_message(base_url: str, ping: dict[str, Any] = None) -> str:
+def _model_endpoint_error_message(base_url: str, ping: dict[str, Any] | None = None) -> str:
     """Return a provider-aware error message for failed endpoint probes.
 
     Surfaces the URL we actually probed and, when the endpoint looks like
@@ -1751,7 +1751,7 @@ def setup_model_routes(model_discovery):
                                 for key, data in groups.items()
                             ]
                             for fut in as_completed(futures):
-                                key, endpoint_ids, ids, err = fut.result()
+                                key, endpoint_ids, ids, _err = fut.result()
                                 st = _refresh_state.setdefault(key, {})
                                 if ids:
                                     for ep_id in endpoint_ids:
@@ -1814,7 +1814,7 @@ def setup_model_routes(model_discovery):
 
         for ep in endpoints:
             base = _normalize_base(ep.base_url)
-            provider = _safe_detect_provider(base)
+            _safe_detect_provider(base)
             ep_model_type = getattr(ep, "model_type", None) or "llm"
             # Build correct URL based on provider
             chat_url = build_chat_url(base)
@@ -3013,8 +3013,6 @@ def setup_model_routes(model_discovery):
                         False: False,
                         "true": True,
                         "false": False,
-                        1: True,
-                        0: False,
                     }.get(v)
                 if "is_enabled" in body:
                     v_ie = body["is_enabled"]

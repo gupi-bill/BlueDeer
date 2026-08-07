@@ -13,6 +13,7 @@ from the application - only the standard library - and changes no test behavior.
 
 from __future__ import annotations
 
+import itertools
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -156,7 +157,7 @@ def _in_helpers_dir(path: str | Path) -> bool:
     unrelated ancestor directory merely named ``helpers`` does not count.
     """
     parts = Path(path).parent.parts
-    adjacent_pairs = list(zip(parts, parts[1:]))
+    adjacent_pairs = list(itertools.pairwise(parts))
     return ("tests", "helpers") in adjacent_pairs
 
 

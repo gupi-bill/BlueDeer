@@ -56,17 +56,17 @@ class FakeCalendar:
 
 
 def _ev(**over):
-    base = dict(
-        uid="evt-1",
-        summary="Dentist",
-        description="bring x-rays",
-        location="Clinic",
-        dtstart=datetime(2026, 6, 10, 14, 0),
-        dtend=datetime(2026, 6, 10, 15, 0),
-        all_day=False,
-        is_utc=True,
-        rrule="",
-    )
+    base = {
+        "uid": "evt-1",
+        "summary": "Dentist",
+        "description": "bring x-rays",
+        "location": "Clinic",
+        "dtstart": datetime(2026, 6, 10, 14, 0),
+        "dtend": datetime(2026, 6, 10, 15, 0),
+        "all_day": False,
+        "is_utc": True,
+        "rrule": "",
+    }
     base.update(over)
     return base
 

@@ -129,7 +129,7 @@ class ResearchService:
         in_sources = False
         for line in report.splitlines():
             stripped = line.strip()
-            if stripped.startswith("###") or stripped.startswith("##"):
+            if stripped.startswith(("###", "##")):
                 in_sources = stripped.lower().lstrip("#").strip() == "sources"
                 continue
             if not in_sources:

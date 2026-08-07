@@ -577,7 +577,7 @@ def _normalize_openai_chat_url(url: str) -> str:
     base = (url or "").strip().rstrip("/")
     if not base:
         return base
-    if base.endswith("/chat/completions") or base.endswith("/completions"):
+    if base.endswith(("/chat/completions", "/completions")):
         return base
     if base.endswith("/models"):
         base = base[: -len("/models")].rstrip("/")
@@ -1132,7 +1132,6 @@ def _provider_label(url: str) -> str:
     try:
         _parsed_local = urlparse(url)
         host = (_parsed_local.hostname or "").lower()
-        port = _parsed_local.port
     except Exception:
         return "provider"
     if host in {"localhost", "127.0.0.1", "::1", "0.0.0.0"}:

@@ -440,7 +440,7 @@ def role_required(required_role: str) -> Any:
                     request = arg
                     break
             if not request:
-                for _, v in kwargs.items():
+                for v in kwargs.values():
                     if hasattr(v, "state") and hasattr(v.state, "user"):
                         request = v
                         break

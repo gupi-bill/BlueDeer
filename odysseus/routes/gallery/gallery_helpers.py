@@ -109,7 +109,7 @@ def _extract_exif(content: bytes) -> dict:
 # ---- Helpers ----
 
 
-def _image_to_dict(img: GalleryImage, session_name: str = None) -> dict[str, Any]:
+def _image_to_dict(img: GalleryImage, session_name: str | None = None) -> dict[str, Any]:
     return {
         "id": img.id,
         "filename": img.filename,

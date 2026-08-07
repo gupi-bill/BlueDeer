@@ -126,12 +126,12 @@ def test_memory_path_persists(tmp_path):
         def get_context(self, *a, **kw):
             return {}
 
-    deps = dict(
-        event_bus=DummyBus(),
-        router=DummyRouter(),
-        tool_registry=DummyTools(),
-        context=DummyContext(),
-    )
+    deps = {
+        "event_bus": DummyBus(),
+        "router": DummyRouter(),
+        "tool_registry": DummyTools(),
+        "context": DummyContext(),
+    }
 
     agent = BabyAGILoopAgent(agent_id="b2", role="general", memory_path=path, **deps)
     agent._remember(

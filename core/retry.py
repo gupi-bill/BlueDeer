@@ -150,7 +150,7 @@ def retry_with_backoff(
         except Exception as e:
             last_exc = e
             if attempt >= max_retries:
-                elapsed = time.time() - start
+                time.time() - start
                 raise RuntimeError(f"重试 {max_retries} 次后仍失败: {e}") from e
             delay = base_delay * (2**attempt)
             delay = min(delay, max_delay)

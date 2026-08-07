@@ -378,9 +378,9 @@ def render_form_as_markdown(
         "",
         f"# {title}",
         "",
-        "Edit values in place — change the text after each label, tick/untick "
+        ("Edit values in place — change the text after each label, tick/untick "
         "checkboxes, and pick one of the listed options for choice fields. "
-        "When done, click **Export PDF** to download the filled form.",
+        "When done, click **Export PDF** to download the filled form."),
         "",
     ]
     last_page: int | None = None

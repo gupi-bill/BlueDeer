@@ -113,11 +113,7 @@ def _sniff_doc_language(text: str) -> str:
     if hl.startswith("<?xml"):
         return "xml"
     if (
-        hl.startswith("<!doctype html")
-        or hl.startswith("<html")
-        or _re2.search(
-            r"<(div|body|head|p|span|table|button|h[1-6]|ul|ol|li|img)\b", hl
-        )
+        hl.startswith(("<!doctype html", "<html")) or _re2.search(r"<(div|body|head|p|span|table|button|h[1-6]|ul|ol|li|img)\b", hl)
     ):
         return "html"
     # JSON

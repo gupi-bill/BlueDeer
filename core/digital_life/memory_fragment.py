@@ -16,11 +16,15 @@
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import math
 import random
 import threading
 import time
+
+from typing_extensions import Self
 
 # ====================================================================
 # 碎片类型 → 颜色
@@ -187,7 +191,7 @@ class MemoryFragmentSystem:
     _instance: MemoryFragmentSystem | None = None
     _instance_lock = threading.Lock()
 
-    def __new__(cls, *args, **kwargs) -> MemoryFragmentSystem:
+    def __new__(cls, *args, **kwargs) -> Self:
         if cls._instance is None:
             with cls._instance_lock:
                 if cls._instance is None:
@@ -366,6 +370,7 @@ class MemoryFragmentSystem:
 
             get_illness_system().trigger_memory_heartbreak(target)
         except Exception:
+            logger.exception("Exception in block")
             pass
 
     def get_memoir(self) -> list[dict]:
@@ -455,6 +460,7 @@ def update_fragments(dt: float = 1.0) -> None:
     try:
         get_fragments().update(dt)
     except Exception:
+        logger.exception("Exception in block")
         pass
 
 

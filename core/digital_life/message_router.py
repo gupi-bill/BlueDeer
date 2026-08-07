@@ -23,6 +23,8 @@ import threading
 import time
 from typing import Any
 
+from typing_extensions import Self
+
 
 # ====================================================================
 # 优先级 → 路由 key 映射
@@ -90,7 +92,7 @@ class MessageRouter:
     _instance: MessageRouter | None = None
     _instance_lock = threading.Lock()
 
-    def __new__(cls, *args, **kwargs) -> MessageRouter:
+    def __new__(cls, *args, **kwargs) -> Self:
         if cls._instance is None:
             with cls._instance_lock:
                 if cls._instance is None:

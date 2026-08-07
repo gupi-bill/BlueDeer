@@ -11,6 +11,8 @@ evolution（数据维度 - R192）：
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import threading
 import time
@@ -190,6 +192,7 @@ class ObjectPool:
             try:
                 self._destroyer(p.obj)
             except Exception:
+                logger.exception("Exception in block")
                 pass
 
     def acquire_ctx(self, timeout: float | None = None) -> Any:

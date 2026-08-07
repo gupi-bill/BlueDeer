@@ -126,9 +126,8 @@ class HyperLogLog:
                 sum_inv += 2.0 ** (-r)
             E = self._alpha * m * m / sum_inv
             # 小基数修正：LinearCounting
-            if E <= 2.5 * m:
-                if zeros > 0:
-                    E = m * math.log(m / zeros)
+            if E <= 2.5 * m and zeros > 0:
+                E = m * math.log(m / zeros)
             # 中等基数 HLL++ 偏差校正
             if E <= 5 * m:
                 bias = 0.005 * math.log(max(1.0, E / m))

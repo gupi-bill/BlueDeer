@@ -19,7 +19,7 @@ _client = None
 _CONNECT_TIMEOUT = float(os.getenv("CHROMADB_CONNECT_TIMEOUT", "2.0"))
 
 
-def _port_open(host: str, port: int, timeout: float = None) -> bool:
+def _port_open(host: str, port: int, timeout: float | None = None) -> bool:
     """Return True if a TCP connection to host:port succeeds within timeout."""
     try:
         with socket.create_connection(

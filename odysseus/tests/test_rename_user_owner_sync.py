@@ -204,7 +204,7 @@ def test_rename_leaves_other_sessions_untouched(rename_endpoint):
 
 
 def test_rename_no_session_manager_does_not_crash(rename_endpoint):
-    endpoint, _am, tmp_path = rename_endpoint
+    endpoint, _am, _tmp_path = rename_endpoint
     # app.state without a session_manager must not raise.
     req = SimpleNamespace(
         cookies={"odysseus_session": "t"},

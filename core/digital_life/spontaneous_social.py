@@ -21,6 +21,8 @@ import random
 import threading
 import time
 
+from typing_extensions import Self
+
 # ====================================================================
 # 触发参数
 # ====================================================================
@@ -167,7 +169,7 @@ class SpontaneousSocialSystem:
     _instance: SpontaneousSocialSystem | None = None
     _instance_lock = threading.Lock()
 
-    def __new__(cls, *args, **kwargs) -> SpontaneousSocialSystem:
+    def __new__(cls, *args, **kwargs) -> Self:
         if cls._instance is None:
             with cls._instance_lock:
                 if cls._instance is None:

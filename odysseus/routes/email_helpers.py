@@ -533,9 +533,7 @@ def _ensure_owner_scoped_email_cache_table(
                         f"ALTER TABLE {table} ADD COLUMN {col} TEXT DEFAULT '[]'"
                     )
                 elif (
-                    col.startswith("has_")
-                    or col.endswith("_created")
-                    or col.endswith("_count")
+                    col.startswith("has_") or col.endswith(("_created", "_count"))
                 ):
                     conn.execute(
                         f"ALTER TABLE {table} ADD COLUMN {col} INTEGER DEFAULT 0"
@@ -1487,9 +1485,7 @@ def _detect_spam_folder(conn):
                 break
             low = name.lower()
             if (
-                low in ("junk", "spam", "junk mail", "junk e-mail")
-                or low.endswith("/junk")
-                or low.endswith("/spam")
+                low in ("junk", "spam", "junk mail", "junk e-mail") or low.endswith(("/junk", "/spam"))
             ):
                 fallback = fallback or name
         return preferred or fallback

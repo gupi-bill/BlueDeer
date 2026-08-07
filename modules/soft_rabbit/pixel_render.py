@@ -282,8 +282,8 @@ class HtmlCanvasBackend(RenderBackend):
         """渲染为 HTML + Canvas 脚本。"""
         cell = 8  # 每像素 8px
         cmds: list[str] = [
-            f'const c=document.getElementById("bd");c.width={self.width*cell};'
-            f'c.height={self.height*cell};const ctx=c.getContext("2d");'
+            (f'const c=document.getElementById("bd");c.width={self.width*cell};'
+            f'c.height={self.height*cell};const ctx=c.getContext("2d");')
         ]
         for y, row in enumerate(self._buffer):
             for x, (color, char) in enumerate(row):

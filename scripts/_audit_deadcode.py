@@ -1,5 +1,7 @@
 """006-24: dead code / unused imports audit (ast-based, no deps)."""
 
+import logging
+logger = logging.getLogger(__name__)
 import ast
 import os
 from collections import Counter

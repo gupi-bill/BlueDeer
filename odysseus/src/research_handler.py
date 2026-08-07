@@ -105,7 +105,7 @@ class ResearchHandler:
         latest_message: str,
         llm_endpoint: str,
         llm_model: str,
-        llm_headers: dict = None,
+        llm_headers: dict | None = None,
     ) -> str:
         """Synthesize the conversation into a single focused research query.
 
@@ -212,7 +212,7 @@ class ResearchHandler:
         query: str,
         llm_endpoint: str,
         llm_model: str,
-        llm_headers: dict = None,
+        llm_headers: dict | None = None,
     ) -> dict | None:
         """Generate a research plan for user review before starting research."""
         try:
@@ -291,17 +291,17 @@ class ResearchHandler:
         llm_endpoint: str,
         llm_model: str,
         max_time: int = 300,
-        hard_timeout: int = None,
-        llm_headers: dict = None,
-        on_complete: callable = None,
+        hard_timeout: int | None = None,
+        llm_headers: dict | None = None,
+        on_complete: callable | None = None,
         prior_report: str = "",
-        prior_findings: list = None,
-        prior_urls: set = None,
+        prior_findings: list | None = None,
+        prior_urls: set | None = None,
         max_rounds: int = 20,
-        search_provider: str = None,
-        category: str = None,
-        extraction_timeout: int = None,
-        extraction_concurrency: int = None,
+        search_provider: str | None = None,
+        category: str | None = None,
+        extraction_timeout: int | None = None,
+        extraction_concurrency: int | None = None,
         owner: str = "",
     ) -> dict:
         """Start research as a background task. Returns task info dict.
@@ -819,7 +819,7 @@ class ResearchHandler:
             return False
 
     @staticmethod
-    async def _probe_endpoint(endpoint: str, model: str, headers: dict = None):
+    async def _probe_endpoint(endpoint: str, model: str, headers: dict | None = None):
         """Quick probe to verify the LLM endpoint/model responds before research."""
         from src.llm_core import llm_call_async
 
@@ -849,16 +849,16 @@ class ResearchHandler:
         llm_model: str,
         max_time: int = 300,
         progress_callback=None,
-        _task_entry: dict = None,
-        llm_headers: dict = None,
+        _task_entry: dict | None = None,
+        llm_headers: dict | None = None,
         prior_report: str = "",
-        prior_findings: list = None,
-        prior_urls: set = None,
+        prior_findings: list | None = None,
+        prior_urls: set | None = None,
         max_rounds: int = 20,
-        search_provider: str = None,
-        category: str = None,
-        extraction_timeout: int = None,
-        extraction_concurrency: int = None,
+        search_provider: str | None = None,
+        category: str | None = None,
+        extraction_timeout: int | None = None,
+        extraction_concurrency: int | None = None,
     ) -> str:
         """
         Run iterative deep research using the LLM-in-the-loop DeepResearcher.

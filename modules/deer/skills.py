@@ -22,7 +22,6 @@ class TaskOrchestrateSkill:
         self._tools = tool_registry
 
     async def orchestrate(self, goal: str, subtasks: list[str]) -> dict:
-        payload: dict[str, Any] = {"goal": goal, "subtasks": subtasks}
         try:
             return await self._tools.call("echo", {"text": f"编排[{goal}]: {subtasks}"})
         except Exception as e:
@@ -37,7 +36,6 @@ class ConsensusVoteSkill:
         self._tools = tool_registry
 
     async def vote(self, topic: str, options: list[str]) -> dict:
-        payload: dict[str, Any] = {"topic": topic, "options": options}
         try:
             return await self._tools.call("echo", {"text": f"投票[{topic}]: {options}"})
         except Exception as e:
@@ -52,7 +50,6 @@ class EventBusPublishSkill:
         self._tools = tool_registry
 
     async def publish(self, event_type: str, data: dict) -> dict:
-        payload: dict[str, Any] = {"event_type": event_type, "data": data}
         try:
             return await self._tools.call(
                 "echo", {"text": f"广播[{event_type}]: {data}"}

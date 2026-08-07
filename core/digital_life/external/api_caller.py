@@ -9,6 +9,8 @@
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import json
 import os
@@ -268,6 +270,7 @@ class ApiCaller:
             try:
                 resp_body = e.read().decode("utf-8", errors="replace")
             except Exception:
+                logger.exception("Exception in block")
                 pass
             return ApiResult(
                 ok=False,

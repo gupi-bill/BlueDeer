@@ -94,7 +94,7 @@ class EvolutionTracker:
     # 事件记录
     # ------------------------------------------------------------------
 
-    def record_birth(self, life_form, parents: list = None) -> None:
+    def record_birth(self, life_form, parents: list | None = None) -> None:
         """记录出生事件。"""
         with self._lock:
             self._birth_count += 1
@@ -255,7 +255,7 @@ class EvolutionTracker:
             snaps = list(self._snapshots)[-last_n:]
         return [snap.species_stats.get(species, {}).get("count", 0) for snap in snaps]
 
-    def get_survival_metrics(self, species: str = None) -> dict:
+    def get_survival_metrics(self, species: str | None = None) -> dict:
         """生存指标。"""
         with self._lock:
             if species:

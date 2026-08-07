@@ -172,7 +172,7 @@ class TestDockerLoopbackScan:
         discovery = _MD(default_host="localhost")
 
         def fake_get(url, timeout=None):
-            if url.endswith("/v1/models") or url.endswith("/api/v1/models"):
+            if url.endswith(("/v1/models", "/api/v1/models")):
                 return _FakeResponse({"data": [{"id": "gemma-4-12b"}]})
             if url.endswith("/props"):
                 return _FakeResponse(

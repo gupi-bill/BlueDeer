@@ -651,9 +651,7 @@ def _looks_like_openai_tool_call_blob(value) -> bool:
     if not isinstance(value, dict):
         return False
     fn = value.get("function")
-    if isinstance(fn, dict) and isinstance(fn.get("name"), str):
-        return True
-    return False
+    return bool(isinstance(fn, dict) and isinstance(fn.get("name"), str))
 
 
 def _raw_openai_tool_call_to_block(value) -> ToolBlock | None:

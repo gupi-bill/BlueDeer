@@ -8,6 +8,8 @@ evolution（并发维度 - R179）：
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import asyncio
 import inspect
@@ -156,7 +158,7 @@ class TaskOrchestrator:
         """检查依赖是否有失败。"""
         return any(self._tasks[d].state in ("failed", "cancelled") for d in node.deps)
 
-    def run(self, timeout: float = None) -> dict[str, Any]:
+    def run(self, timeout: float | None = None) -> dict[str, Any]:
         """运行所有任务。返回 {name: result}。
 
         - 按拓扑并行执行无依赖的任务
@@ -176,11 +178,11 @@ class TaskOrchestrator:
         """执行节点函数（委托给 TaskExecutor）。"""
         return await self._executor.execute(node, dep_results)
 
-    async def run_async(self, timeout: float = None) -> dict[str, Any]:
+    async def run_async(self, timeout: float | None = None) -> dict[str, Any]:
         """协程友好的编排入口：await orch.run_async(timeout=...)。"""
         return await self._run_async(timeout)
 
-    async def _run_async(self, timeout: float = None) -> dict[str, Any]:
+    async def _run_async(self, timeout: float | None = None) -> dict[str, Any]:
         """asyncio 版本的编排执行（按拓扑并行 + 超时 + 失败传播）。"""
         with self._lock:
             self._validate()
@@ -258,6 +260,7 @@ class TaskOrchestrator:
                             return_when=asyncio.FIRST_COMPLETED,
                         )
                     except TimeoutError:
+                        logger.exception("Exception in block")
                         continue
                 else:
                     done, _ = await asyncio.wait(

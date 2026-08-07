@@ -1,9 +1,12 @@
 """006-29: Ollama retry jitter —— compute_backoff_delay 与 request_with_retry 测试。"""
 
+import logging
+logger = logging.getLogger(__name__)
 import asyncio
 from unittest import mock
 
 import pytest
+from typing_extensions import Self
 
 from core.config import AppConfig
 from core.retry import RetryManager, compute_backoff_delay
@@ -45,7 +48,7 @@ class _FakeResp:
     def read(self) -> bytes:
         return self._payload
 
-    def __enter__(self) -> "_FakeResp":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *exc: object) -> None:

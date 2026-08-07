@@ -446,9 +446,7 @@ def _is_quote_container(tag) -> bool:
     if (tag.get("id") if hasattr(tag, "get") else "") == "divRplyFwdMsg":
         return True
     typ = (tag.get("type") if hasattr(tag, "get") else "") or ""
-    if name == "div" and typ.lower() == "cite":
-        return True
-    return False
+    return bool(name == "div" and typ.lower() == "cite")
 
 
 def _parse_html(html: str) -> list[dict[str, Any]] | None:

@@ -13,7 +13,7 @@ def _between(src: str, start: str, end: str) -> str:
 
 
 def test_setup_guide_lists_account_sign_in_providers():
-    guide_block = _between(
+    _between(
         _SLASH,
         "function _showSetupEndpointChoices",
         "async function _hasConfiguredModels",

@@ -68,11 +68,10 @@ def _upload_ids_from_message_metadata(raw_metadata: object) -> set[str]:
         raise ValueError("chat message metadata must be a JSON object")
 
     attachments = metadata.get("attachments")
-    if attachments is not None:
-        if not isinstance(attachments, list) or any(
-            not isinstance(item, dict) for item in attachments
-        ):
-            raise ValueError("chat message attachments metadata is malformed")
+    if attachments is not None and (not isinstance(attachments, list) or any(
+        not isinstance(item, dict) for item in attachments
+    )):
+        raise ValueError("chat message attachments metadata is malformed")
 
     ids = {
         str(ref["attachment_id"])

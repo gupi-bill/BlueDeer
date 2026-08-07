@@ -16,7 +16,7 @@ import threading
 from collections.abc import Iterator
 
 # 8 位 popcount 查找表
-_POPCOUNT8 = [bin(i).count("1") for i in range(256)]
+_POPCOUNT8 = [(i).bit_count() for i in range(256)]
 
 
 class Bitmap:

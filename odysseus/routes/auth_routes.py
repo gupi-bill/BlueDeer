@@ -175,14 +175,14 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         token = await asyncio.to_thread(auth_manager.create_session_trusted, username)
         if not token:
             raise HTTPException(401, "Invalid credentials")
-        cookie_kwargs = dict(
-            key=SESSION_COOKIE,
-            value=token,
-            httponly=True,
-            samesite="lax",
-            secure=os.getenv("SECURE_COOKIES", "false").lower() == "true",
-            path="/",
-        )
+        cookie_kwargs = {
+            "key": SESSION_COOKIE,
+            "value": token,
+            "httponly": True,
+            "samesite": "lax",
+            "secure": os.getenv("SECURE_COOKIES", "false").lower() == "true",
+            "path": "/",
+        }
         if body.remember:
             cookie_kwargs["max_age"] = TOKEN_TTL
         response.set_cookie(**cookie_kwargs)

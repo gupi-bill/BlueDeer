@@ -5,6 +5,8 @@ commit 28：行为池——梳羽 / 摆弄闪亮物 / 讲古 / 高飞眺望
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import random
 import time
@@ -208,6 +210,7 @@ class Raven(DigitalLifeForm):
                                 importance="normal",
                             )
                     except Exception:
+                        logger.exception("Exception in block")
                         pass
         elif bname == "fly_high":
             # 高飞：能量消耗，但记忆 +1

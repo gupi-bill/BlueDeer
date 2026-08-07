@@ -126,9 +126,9 @@ class DreamReport:
             f"提取记忆: {self.memories_extracted}",
             f"优化记忆: {self.memories_optimized}",
             f"固化记忆: {self.memories_persisted}",
-            f"质量分布: 普通={self.quality_counts.get('normal', 0)} "
+            (f"质量分布: 普通={self.quality_counts.get('normal', 0)} "
             f"高质量={self.quality_counts.get('high', 0)} "
-            f"传奇={self.quality_counts.get('legendary', 0)}",
+            f"传奇={self.quality_counts.get('legendary', 0)}"),
             f"本轮节省 Token: {self.total_token_saved}",
         ]
         if self.nightmares:

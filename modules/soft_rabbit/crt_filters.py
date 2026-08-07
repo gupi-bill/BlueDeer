@@ -290,7 +290,7 @@ class RoundCornerFilter:
         if intensity <= 0 or len(lines) < 2:
             return list(lines)
         result = [list(line) for line in lines]
-        h = len(result)
+        len(result)
         # 左上 / 右上 / 左下 / 右下
         if result[0]:
             result[0][0] = self.CORNER_CHARS["tl"]

@@ -1,5 +1,7 @@
 """006-24: 清理未使用 import（基于审计报告 + AST 精确定位）。v2"""
 
+import logging
+logger = logging.getLogger(__name__)
 import ast
 import os
 import re
@@ -21,9 +23,8 @@ def is_type_checking_block(tree, lineno):
             isinstance(node, ast.If)
             and isinstance(node.test, ast.Name)
             and node.test.id == "TYPE_CHECKING"
-        ):
-            if node.lineno <= lineno <= (getattr(node, "end_lineno", lineno) or lineno):
-                return True
+        ) and node.lineno <= lineno <= (getattr(node, "end_lineno", lineno) or lineno):
+            return True
     return False
 
 

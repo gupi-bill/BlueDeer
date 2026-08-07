@@ -235,7 +235,7 @@ class EventUpdate(BaseModel):
 # ── Helpers ──
 
 
-def _ensure_default_calendar(db, owner: str = None) -> CalendarCal:
+def _ensure_default_calendar(db, owner: str | None = None) -> CalendarCal:
     """Create default calendar if none exist for this owner."""
     owner = owner or FALLBACK_OWNER
     cal = db.query(CalendarCal).filter(CalendarCal.owner == owner).first()
@@ -1373,7 +1373,7 @@ def setup_calendar_routes(upload_handler=None) -> APIRouter:
 
     @router.put("/calendars/{cal_id}")
     async def update_calendar(
-        request: Request, cal_id: str, name: str = None, color: str = None
+        request: Request, cal_id: str, name: str | None = None, color: str | None = None
     ):
         owner = _require_user(request)
         _reserve_calendar_uploads(request, color)
@@ -1773,7 +1773,7 @@ def setup_calendar_routes(upload_handler=None) -> APIRouter:
                 return s
             s = s.strip()
             # Strip "Z"
-            if s.endswith("Z") or s.endswith("z"):
+            if s.endswith(("Z", "z")):
                 s = s[:-1]
             # Strip "+HH:MM" / "-HH:MM" if it followed a T-time
             s = _re.sub(r"[+-]\d{2}:?\d{2}$", "", s)

@@ -101,7 +101,7 @@ def test_request_flags_vision():
             ],
         }
     ]
-    agent, vision = copilot.request_flags(msgs)
+    _agent, vision = copilot.request_flags(msgs)
     assert vision is True
 
 

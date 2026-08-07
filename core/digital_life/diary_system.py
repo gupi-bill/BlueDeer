@@ -552,7 +552,7 @@ class DiaryManager:
         return d.to_dict(include_text=True)
 
     def tick(
-        self, dt: float = 1.0, population: list = None, router: Any = None
+        self, dt: float = 1.0, population: list | None = None, router: Any = None
     ) -> list[dict]:
         """每秒调用：检查并生成每日日记。返回生成事件列表。"""
         events: list[dict] = []
@@ -663,7 +663,7 @@ def get_diary_manager() -> DiaryManager:
 
 
 def tick_diary(
-    dt: float = 1.0, population: list = None, router: Any = None
+    dt: float = 1.0, population: list | None = None, router: Any = None
 ) -> list[dict]:
     return get_diary_manager().tick(dt, population=population, router=router)
 

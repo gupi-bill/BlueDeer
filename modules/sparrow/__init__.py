@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 """灵音雀 VoiceSparrowAgent 模块：双形态全局状态播报员。
 
 模块组成：

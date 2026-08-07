@@ -115,7 +115,7 @@ def enhance_query(original_query: str) -> tuple[str, str | None]:
     return final_query, site
 
 
-def build_enhanced_query(query: str, time_filter: str = None) -> str:
+def build_enhanced_query(query: str, time_filter: str | None = None) -> str:
     """Build an enhanced search query with optional time filtering."""
     enhanced_query, _ = enhance_query(query)
 

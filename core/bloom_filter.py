@@ -41,9 +41,9 @@ class BloomFilter:
         self._capacity = capacity
         self._error_rate = error_rate
         self._m = max(
-            8, int(math.ceil(-capacity * math.log(error_rate) / (math.log(2) ** 2)))
+            8, math.ceil(-capacity * math.log(error_rate) / (math.log(2) ** 2))
         )
-        self._k = max(1, int(round((self._m / capacity) * math.log(2))))
+        self._k = max(1, round((self._m / capacity) * math.log(2)))
         self._bits = bytearray((self._m + 7) // 8)
         self._count = 0
         self._lock = threading.RLock()
@@ -132,7 +132,7 @@ class BloomFilter:
 
     def saturation(self) -> float:
         with self._lock:
-            set_bits = sum(bin(byte).count("1") for byte in self._bits)
+            set_bits = sum((byte).bit_count() for byte in self._bits)
         return set_bits / self._m
 
     def merge(self, other: BloomFilter) -> None:
@@ -169,9 +169,9 @@ class BloomFilter:
         bf._capacity = capacity
         bf._error_rate = error_rate
         bf._m = max(
-            8, int(math.ceil(-capacity * math.log(error_rate) / (math.log(2) ** 2)))
+            8, math.ceil(-capacity * math.log(error_rate) / (math.log(2) ** 2))
         )
-        bf._k = max(1, int(round((bf._m / capacity) * math.log(2))))
+        bf._k = max(1, round((bf._m / capacity) * math.log(2)))
         bits_len = (bf._m + 7) // 8
         bf._bits = bytearray(data[20 : 20 + bits_len])
         bf._count = count

@@ -181,7 +181,7 @@ def _build_new_entry(repo: str, recipe: dict, hf_info=None) -> dict | None:
     features = recipe.get("features") or {}
     variants = recipe.get("variants") or {}
 
-    org, name = repo.split("/", 1)
+    org, _name = repo.split("/", 1)
     raw_params = _parse_param_count(model.get("parameter_count"))
     active_raw = _parse_param_count(model.get("active_parameters"))
     ctx = model.get("context_length") or 0
@@ -191,7 +191,7 @@ def _build_new_entry(repo: str, recipe: dict, hf_info=None) -> dict | None:
     # FP8 elsewhere; BF16 baseline only.
     pick_quant = None
     pick_vram = None
-    for vk, vv in variants.items():
+    for vv in variants.values():
         if not isinstance(vv, dict):
             continue
         prec = (vv.get("precision") or "").lower()

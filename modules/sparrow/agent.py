@@ -449,8 +449,8 @@ class VoiceSparrowAgent(BaseAgent, RagCapable):
         """格式化轻量简报文本。"""
         lines = [
             f"【灵音雀巡检简报 @ {snapshot.collected_at:.0f}】",
-            f"任务进度: {snapshot.task_progress.completed_steps}/"
-            f"{snapshot.task_progress.total_steps}",
+            (f"任务进度: {snapshot.task_progress.completed_steps}/"
+            f"{snapshot.task_progress.total_steps}"),
             f"在岗员工: {len(snapshot.agents)} 名",
             f"高危拦截: {snapshot.system_runtime.hazardous_blocked_count} 次",
         ]

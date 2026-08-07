@@ -194,7 +194,7 @@ def test_stream_llm_surfaces_provider_resolved_model(monkeypatch):
             "model": "meta-llama/llama-3.3-70b-instruct:free",
         }
     ]
-    usage = [e["data"] for e in events if e.get("type") == "usage"][0]
+    usage = next(e["data"] for e in events if e.get("type") == "usage")
     assert usage["requested_model"] == "openrouter/auto"
     assert usage["model"] == "meta-llama/llama-3.3-70b-instruct:free"
 
@@ -203,19 +203,19 @@ def test_stream_llm_surfaces_provider_resolved_model(monkeypatch):
 
 
 def _metrics(**overrides):
-    kwargs = dict(
-        messages=[{"role": "user", "content": "hi"}],
-        full_response="hello world",
-        total_duration=10.0,  # wall-clock: 42/10 = 4.2 t/s (reads low)
-        time_to_first_token=0.5,
-        context_length=4096,
-        real_input_tokens=15,
-        real_output_tokens=42,
-        has_real_usage=True,
-        tool_events=[],
-        round_texts=[],
-        model="qwen-local",
-    )
+    kwargs = {
+        "messages": [{"role": "user", "content": "hi"}],
+        "full_response": "hello world",
+        "total_duration": 10.0,  # wall-clock: 42/10 = 4.2 t/s (reads low)
+        "time_to_first_token": 0.5,
+        "context_length": 4096,
+        "real_input_tokens": 15,
+        "real_output_tokens": 42,
+        "has_real_usage": True,
+        "tool_events": [],
+        "round_texts": [],
+        "model": "qwen-local",
+    }
     kwargs.update(overrides)
     return _compute_final_metrics(**kwargs)
 

@@ -17,6 +17,8 @@
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import threading
 import time
@@ -115,6 +117,7 @@ class Observer:
                     lf.genome["metabolic_rate"] = old_rate * factor
                     affected += 1
             except Exception:
+                logger.exception("Exception in block")
                 pass
 
         result = {
@@ -158,8 +161,6 @@ class Observer:
         # 备份原 birth_time 和 energy
         a_birth_orig = a.birth_time
         b_birth_orig = b.birth_time
-        a_energy_orig = a.energy
-        b_energy_orig = b.energy
 
         # 计算目标 birth_time：让 my_age = age_min * 1.5（确保进入繁殖区间）
         age_min = float(a.genome.get("reproduction_age_min_days", 365 * 4))

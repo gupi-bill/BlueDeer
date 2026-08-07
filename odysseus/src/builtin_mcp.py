@@ -148,16 +148,14 @@ def _browser_mcp_args(args: list[str]) -> list[str]:
         "0",
         "false",
         "no",
-    ):
-        if "--isolated" not in out and "--user-data-dir" not in out:
-            out.append("--isolated")
+    ) and "--isolated" not in out and "--user-data-dir" not in out:
+        out.append("--isolated")
     if os.environ.get("ODYSSEUS_BROWSER_NO_SANDBOX", "1").lower() not in (
         "0",
         "false",
         "no",
-    ):
-        if "--no-sandbox" not in out and "--sandbox" not in out:
-            out.append("--no-sandbox")
+    ) and "--no-sandbox" not in out and "--sandbox" not in out:
+        out.append("--no-sandbox")
     return out
 
 

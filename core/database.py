@@ -22,6 +22,8 @@ from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
 from typing import Any
 
+from typing_extensions import Self
+
 from core.exceptions import StorageConnectionError
 
 logger = logging.getLogger("bluedeer.database")
@@ -46,7 +48,7 @@ class Database:
     _instance: Database | None = None
     _lock = threading.Lock()
 
-    def __new__(cls, db_path: str = _DB_PATH, pool_size: int = _POOL_SIZE) -> Database:
+    def __new__(cls, db_path: str = _DB_PATH, pool_size: int = _POOL_SIZE) -> Self:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -87,7 +89,7 @@ class Database:
                 self._release(pc)
 
     def _acquire(self) -> _PooledConnection:
-        now = time.monotonic()
+        time.monotonic()
         for pc in self._pool:
             if not pc.in_use:
                 pc.in_use = True

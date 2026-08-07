@@ -1,6 +1,8 @@
 """BlueDeer RAG 检索增强层：分层知识库 + 跨岗位定向检索。"""
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import logging
 import re
@@ -382,6 +384,7 @@ class RAGSystem:
                 if now - float(ts) > ttl_seconds:
                     expired_ids.append(doc_id)
             except (TypeError, ValueError):
+                logger.exception("Exception in block")
                 continue
 
         for doc_id in expired_ids:
@@ -430,7 +433,7 @@ class RAGSystem:
 
     def persist_all(self) -> None:
         """持久化所有已加载的库。"""
-        for key, store in self._stores.items():
+        for key in self._stores:
             parts = key.split("/", 1)
             scope = parts[0]
             sub_id = parts[1] if len(parts) > 1 else ""

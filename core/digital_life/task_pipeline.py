@@ -63,23 +63,23 @@ class PipelineStep:
     """
 
     __slots__ = (
-        "step_id",
-        "order",
-        "agent_species",
         "agent_name_hint",
-        "task",
-        "tools",
-        "depends_on",
-        "status",
-        "result",
-        "error",
-        "started_ts",
-        "finished_ts",
-        "tool_calls",
+        "agent_species",
         "approval_id",
+        "depends_on",
+        "error",
+        "finished_ts",
+        "milestone_id",
+        "order",
         # commit 39：关联项目 + 里程碑
         "project_id",
-        "milestone_id",
+        "result",
+        "started_ts",
+        "status",
+        "step_id",
+        "task",
+        "tool_calls",
+        "tools",
     )
 
     def __init__(
@@ -138,21 +138,21 @@ class Pipeline:
     """一条流水线。"""
 
     __slots__ = (
-        "id",
-        "name",
-        "original_task",
-        "steps",
-        "status",
         "created_ts",
         "finished_ts",
-        "summary",
+        "id",
         "lock",
-        "on_update",
-        "retrospect",
+        "milestone_id",
+        "name",
         "negotiation_log",
+        "on_update",
+        "original_task",
         # commit 39：关联项目
         "project_id",
-        "milestone_id",
+        "retrospect",
+        "status",
+        "steps",
+        "summary",
     )
 
     def __init__(

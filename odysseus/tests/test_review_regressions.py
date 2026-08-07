@@ -948,7 +948,7 @@ async def test_bare_email_dispatch_rejects_non_object_json_args(monkeypatch):
     mcp = _FakeMcpManager()
     monkeypatch.setattr(tool_execution, "get_mcp_manager", lambda: mcp)
 
-    desc, result = await execute_tool_block(
+    _desc, result = await execute_tool_block(
         SimpleNamespace(tool_type="bulk_email", content='["10", "11"]'),
         owner="admin-user",
     )
@@ -971,7 +971,7 @@ async def test_bare_email_dispatch_rejects_invalid_json_body(monkeypatch):
     for bad_body in ('{account: "work"}', "account: work"):
         mcp = _FakeMcpManager()
         monkeypatch.setattr(tool_execution, "get_mcp_manager", lambda: mcp)
-        desc, result = await execute_tool_block(
+        _desc, result = await execute_tool_block(
             SimpleNamespace(tool_type="list_emails", content=bad_body),
             owner="admin-user",
         )
@@ -1109,7 +1109,7 @@ async def test_plan_mode_blocks_mutating_email_aliases_without_mcp_inventory(
     ]
 
     mcp.calls.clear()
-    desc, result = await execute_tool_block(
+    _desc, result = await execute_tool_block(
         SimpleNamespace(tool_type="scan_email_unsubscribes", content='{"limit": 1}'),
         owner="admin-user",
         disabled_tools=denied,
@@ -1134,7 +1134,7 @@ async def test_bare_email_dispatch_empty_content_calls_with_empty_args(monkeypat
     mcp = _FakeMcpManager()
     monkeypatch.setattr(tool_execution, "get_mcp_manager", lambda: mcp)
 
-    desc, result = await execute_tool_block(
+    _desc, result = await execute_tool_block(
         SimpleNamespace(tool_type="list_email_accounts", content=""),
         owner="admin-user",
     )

@@ -11,6 +11,8 @@
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import json
 import os
@@ -188,6 +190,7 @@ class ExperienceLibrary:
                         indent=2,
                     )
             except OSError:
+                logger.exception("Exception in block")
                 pass
 
     # ---------------- 写入 ----------------

@@ -297,7 +297,7 @@ class _CappedFetch:
 
 
 def _get_public_url(
-    url: str, headers: dict, timeout: int, max_redirects: int = 5, max_bytes: int = None
+    url: str, headers: dict, timeout: int, max_redirects: int = 5, max_bytes: int | None = None
 ) -> "_CappedFetch":
     """Capped streaming GET with SSRF-guarded, DNS-pinned manual redirects.
 
@@ -323,66 +323,65 @@ def _get_public_url(
             timeout=timeout,
             follow_redirects=False,
             transport=_PinnedTransport(ips[0]),
-        ) as client:
-            with client.stream("GET", current) as response:
-                if response.status_code in (301, 302, 303, 307, 308):
-                    location = response.headers.get("location")
-                    if not location:
-                        return _CappedFetch(
-                            response.status_code,
-                            response.headers,
-                            b"",
-                            False,
-                            None,
-                            response.encoding,
-                            str(response.url),
-                        )
-                    current = urljoin(str(response.url), location)
-                    continue
-
-                # A server can ignore the identity request and still return a
-                # compressed body; httpx.iter_bytes would then decode it, and a
-                # tiny gzip can balloon into one decoded chunk far past the cap.
-                # Refuse compressed Content-Encoding so the streamed cap stays
-                # a real memory bound.
-                enc = (response.headers.get("content-encoding") or "").strip().lower()
-                if enc and enc != "identity":
-                    raise httpx.RequestError(
-                        f"Refusing compressed response (Content-Encoding: {enc}) after "
-                        "requesting identity: cannot bound decoded body size",
-                        request=httpx.Request("GET", current),
+        ) as client, client.stream("GET", current) as response:
+            if response.status_code in (301, 302, 303, 307, 308):
+                location = response.headers.get("location")
+                if not location:
+                    return _CappedFetch(
+                        response.status_code,
+                        response.headers,
+                        b"",
+                        False,
+                        None,
+                        response.encoding,
+                        str(response.url),
                     )
+                current = urljoin(str(response.url), location)
+                continue
 
-                declared = None
-                raw_len = response.headers.get("content-length")
-                if raw_len and raw_len.isdigit():
-                    declared = int(raw_len)
-
-                if declared is not None and declared > WEB_FETCH_HARD_MAX_BYTES:
-                    raise BodyTooLargeError(current, declared)
-
-                chunks = []
-                read = 0
-                truncated = False
-                for chunk in response.iter_bytes():
-                    read += len(chunk)
-                    if read > cap:
-                        keep = cap - (read - len(chunk))
-                        if keep > 0:
-                            chunks.append(chunk[:keep])
-                        truncated = True
-                        break
-                    chunks.append(chunk)
-
-                return _CappedFetch(
-                    response.status_code,
-                    response.headers,
-                    b"".join(chunks),
-                    truncated,
-                    declared,
-                    response.encoding,
-                    str(response.url),
+            # A server can ignore the identity request and still return a
+            # compressed body; httpx.iter_bytes would then decode it, and a
+            # tiny gzip can balloon into one decoded chunk far past the cap.
+            # Refuse compressed Content-Encoding so the streamed cap stays
+            # a real memory bound.
+            enc = (response.headers.get("content-encoding") or "").strip().lower()
+            if enc and enc != "identity":
+                raise httpx.RequestError(
+                    f"Refusing compressed response (Content-Encoding: {enc}) after "
+                    "requesting identity: cannot bound decoded body size",
+                    request=httpx.Request("GET", current),
                 )
+
+            declared = None
+            raw_len = response.headers.get("content-length")
+            if raw_len and raw_len.isdigit():
+                declared = int(raw_len)
+
+            if declared is not None and declared > WEB_FETCH_HARD_MAX_BYTES:
+                raise BodyTooLargeError(current, declared)
+
+            chunks = []
+            read = 0
+            truncated = False
+            for chunk in response.iter_bytes():
+                read += len(chunk)
+                if read > cap:
+                    keep = cap - (read - len(chunk))
+                    if keep > 0:
+                        chunks.append(chunk[:keep])
+                    truncated = True
+                    break
+                chunks.append(chunk)
+
+            return _CappedFetch(
+                response.status_code,
+                response.headers,
+                b"".join(chunks),
+                truncated,
+                declared,
+                response.encoding,
+                str(response.url),
+            )
 
     raise httpx.RequestError(
         "Too many redirects", request=httpx.Request("GET", current)
@@ -498,9 +497,7 @@ def _detect_js_frameworks(soup: BeautifulSoup) -> bool:
             content = script.string.lower()
             if any(fr in content for fr in js_indicators):
                 return True
-    if soup.find(attrs={"data-reactroot": True}) or soup.find(attrs={"ng-app": True}):
-        return True
-    return False
+    return bool(soup.find(attrs={"data-reactroot": True}) or soup.find(attrs={"ng-app": True}))
 
 
 def _empty_result(url: str, error: str = "") -> dict:
@@ -525,7 +522,7 @@ def _empty_result(url: str, error: str = "") -> dict:
 # Main content fetcher
 # ----------------------------------------------------------------------
 def fetch_webpage_content(
-    url: str, timeout: int = 5, retry_attempt: int = 0, max_bytes: int = None
+    url: str, timeout: int = 5, retry_attempt: int = 0, max_bytes: int | None = None
 ) -> dict:
     """Fetch and extract meaningful content from a webpage with caching.
 

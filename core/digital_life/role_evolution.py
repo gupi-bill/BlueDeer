@@ -132,7 +132,7 @@ def _evaluate_social_coordinator(agent: Any, all_agents: list, stats: dict) -> b
         return False
     friend_tags = 0
     rel_tags = _safe_attr(agent, "relationship_tags", {}) or {}
-    for other_id, tags in rel_tags.items():
+    for tags in rel_tags.values():
         if "挚友" in (tags or []):
             friend_tags += 1
     return friend_tags >= 2

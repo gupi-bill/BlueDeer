@@ -78,7 +78,7 @@ def test_array_concatenates_multiple_text_blocks():
         {"type": "text", "text": "part 1 "},
         {"type": "text", "text": "part 2"},
     ]
-    text, thinking = _normalize_mistral_content(content)
+    text, _thinking = _normalize_mistral_content(content)
     assert text == "part 1 part 2"
 
 

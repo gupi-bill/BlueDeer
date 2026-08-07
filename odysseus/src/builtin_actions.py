@@ -389,8 +389,8 @@ async def action_consolidate_memory(owner: str, **kwargs) -> tuple[str, bool]:
                 reasons = ai_reasons[:3]
                 reason_text = f": {'; '.join(reasons)}" if reasons else ""
                 return (
-                    f"AI tidied {total_scanned} memories: "
-                    f"removed {total_removed}, cleaned {total_cleaned}{reason_text}",
+                    (f"AI tidied {total_scanned} memories: "
+                    f"removed {total_removed}, cleaned {total_cleaned}{reason_text}"),
                     True,
                 )
             preview = "; ".join(removed_examples)
@@ -660,9 +660,7 @@ def _result_has_work(result: str | None) -> bool:
     if "processed 0" in low or "no new" in low or "nothing to" in low:
         return False
     # "Tagged 0 / Moved 0" or similar zero-count summaries
-    if low.count(" 0") >= 2 and ("tagged" in low or "moved" in low or "drafted" in low):
-        return False
-    return True
+    return not (low.count(" 0") >= 2 and ("tagged" in low or "moved" in low or "drafted" in low))
 
 
 def _result_is_config_error(result: str | None) -> bool:
@@ -1008,8 +1006,8 @@ async def action_email_auto_translate(owner: str, **kwargs) -> tuple[str, bool]:
                 return f"Email Auto Translate failed: {result}", False
             raise TaskNoop(result)
         return (
-            f"Email Auto Translate cached {translated} translation(s), marked {same_language} same-language "
-            f"(examined {examined}, already cached {cached}, skipped {skipped}, failures {failures})",
+            (f"Email Auto Translate cached {translated} translation(s), marked {same_language} same-language "
+            f"(examined {examined}, already cached {cached}, skipped {skipped}, failures {failures})"),
             True,
         )
     except TaskNoop:
@@ -2530,11 +2528,7 @@ async def action_check_email_urgency(owner: str, **kwargs) -> tuple[str, bool]:
                             # is dropped before classification to prevent the
                             # scanner from labelling its own emails "urgent".
                             if (
-                                _ody_origin == "odysseus-ui"
-                                or _ody_kind == "reminder"
-                                or _raw_subj.startswith("reminder (odysseus):")
-                                or _raw_subj.startswith("reminder:")
-                                or _raw_subj.startswith("[task]")
+                                _ody_origin == "odysseus-ui" or _ody_kind == "reminder" or _raw_subj.startswith(("reminder (odysseus):", "reminder:", "[task]"))
                             ):
                                 # Drop this candidate entirely — don't list it
                                 # in results so its UID never enters the cache
@@ -3221,8 +3215,8 @@ async def action_cookbook_serve(
         ]
         hint = f" Saved presets: {preset_names!r}" if preset_names else ""
         return (
-            f"No launchable config for {preset_name!r} (repo_id={repo_id!r}). "
-            f"Check Cookbook → Presets has a real cmd, not 'adopted'.{hint}",
+            (f"No launchable config for {preset_name!r} (repo_id={repo_id!r}). "
+            f"Check Cookbook → Presets has a real cmd, not 'adopted'.{hint}"),
             False,
         )
 

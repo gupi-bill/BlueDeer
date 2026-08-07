@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 """BlueDeer 外部集成渠道包。
 
 零基础读者可以这样理解：

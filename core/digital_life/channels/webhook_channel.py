@@ -14,6 +14,8 @@
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import base64
 import hashlib
@@ -207,6 +209,7 @@ def _async_call(fn, *args) -> bool:
         try:
             fn(*args)
         except Exception:
+            logger.exception("Exception in block")
             pass
 
     t = threading.Thread(target=_worker, daemon=True)

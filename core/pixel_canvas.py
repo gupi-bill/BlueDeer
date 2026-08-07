@@ -175,7 +175,7 @@ class PixelCanvas:
         if not self._in_bounds(x, y):
             return None
         result: tuple[str, int] | None = None
-        for lname, grid in self._layers.items():
+        for grid in self._layers.values():
             ch, color = grid[y][x]
             if ch != " ":
                 result = (ch, color)

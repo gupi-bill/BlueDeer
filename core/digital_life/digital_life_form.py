@@ -147,57 +147,70 @@ class DigitalLifeForm(threading.Thread):
     BEHAVIOR_POOL: list[dict] = []
 
     __slots__ = [
-        # 身份
-        "_name_obj",
-        "species",
-        "gender",
-        "birth_time",
-        "life_stage",
-        # 基因
-        "genome",
-        # 状态
-        "energy",
-        "health",
-        "hunger",
-        "mood",
-        "current_action",
-        "sleeping",
-        "sleep_start_time",
-        # 关系
-        "parents",
-        "children",
-        # 记忆
-        "memory_recent",
-        "memory_long_term",
-        # commit 11：核心记忆 + 生平摘要 + 遗言（死亡时生成）
-        "core_memory",
-        "life_summary",
-        "last_words",
-        # commit 11：对监工的好感度（0-100，初始 50）
-        "fondness",
-        # commit 11：当前所在 zone_id（用于遗物标记 + 觅食）
-        "current_zone_id",
-        # commit 11：觅食/休息状态结束时间戳（None 表示非觅食中）
-        "resting_until",
-        # commit 19 P0-1：情绪数值（0-100，初始 50，受邻居传染）
-        "mood_score",
-        # commit 19 P0-2：已解锁技能列表
-        "skills",
+        # commit 31：主动消息系统
+        #   _active_msg_cooldowns: {category: ts} 每个类别的上次发送时间戳
+        #   _last_supervisor_interact_ts: 上次与监工互动的 ts（用于"想念监工"触发）
+        #   _last_active_msg_check_tick: 上次执行 detect_and_trigger 的 tick 数
+        "_active_msg_cooldowns",
+        # 运行时
+        "_alive",
+        "_artifact_ref",
         # commit 28：行为池运行时状态
         #   _behavior_state: {行为名: {"last_run": ts, "in_progress": bool}}
         #   current_behavior: 当前正在执行的行为名（None 表示无）
         #   current_behavior_cfg: 当前行为配置 dict
         #   current_behavior_end: 当前行为结束时间戳
         "_behavior_state",
+        "_cold_war_until",
+        "_crisis_resolved_count",
+        "_diary_discovered",
+        "_emotion_memory_cooldown",
+        "_environment",
+        "_help_count",
+        "_immunity",
+        "_last_active_msg_check_tick",
+        "_last_anniversary_check",
+        "_last_memory_sync_ts",
+        "_last_monologue_ts",
+        "_last_self_cognition_sync_ts",
+        "_last_social_ts",
+        "_last_supervisor_interact_ts",
+        "_lock",
+        # 身份
+        "_name_obj",
+        "_pipeline_task_inbox",
+        "_propagation_partners",
+        "_social_count",
+        "_stop_event",
+        "_supervisor_interact_count",
+        "_teach_count",
+        "_tick_count",
+        "_tool_call_meta",
+        "_tool_call_status",
+        "_witnessed_deaths",
+        "_work_continuous_start_ts",
+        "_work_output",
+        "appearance_modifiers",
+        "birth_time",
+        # commit 37：Agent 工具链 + 流水线任务接收
+        #   bound_tools: 本智能体绑定的工具名列表（由物种自动配置）
+        #   _pipeline_task_inbox: 待执行的流水线任务队列（list[dict]）
+        #   _tool_call_status: 当前工具调用状态（用于前端可视化）
+        #     "" / "running" / "waiting" / "done" / "error"
+        #   _tool_call_meta: 工具调用元数据（tool_name / started_ts / 上次完成 ts）
+        "bound_tools",
+        "childhood_done",
+        "childhood_imprint",
+        "children",
+        "contradiction",
+        # commit 11：核心记忆 + 生平摘要 + 遗言（死亡时生成）
+        "core_memory",
+        "current_action",
         "current_behavior",
         "current_behavior_cfg",
         "current_behavior_end",
-        # 运行时
-        "_alive",
-        "_tick_count",
-        "_stop_event",
-        "_environment",
-        "_lock",
+        # commit 11：当前所在 zone_id（用于遗物标记 + 觅食）
+        "current_zone_id",
         # Thread 兼容（不能放 name，用 _name_obj）
         # commit 30：情感系统
         #   emotional_state: 6 维情感向量 dict {joy/sadness/anxiety/
@@ -207,44 +220,16 @@ class DigitalLifeForm(threading.Thread):
         #   _propagation_partners: {other_id: 接触开始 ts}（持续 2 分钟触发传播）
         #   _emotion_memory_cooldown: 情感记忆冷却（避免刷屏）
         "emotional_state",
-        "_last_social_ts",
-        "_last_monologue_ts",
-        "_propagation_partners",
-        "_emotion_memory_cooldown",
-        # commit 30：关系网络深化
-        #   relationships: {other_id: {affection/trust/respect/familiarity: float 0~1}}
-        #   relationship_tags: {other_id: [tag, ...]}（挚友/导师/搭档/单恋/世交）
-        #   _cold_war_until: {other_id: 冷战结束 ts}（trust 骤降时进入）
-        "relationships",
-        "relationship_tags",
-        "_cold_war_until",
-        # commit 30：长期记忆影响
-        #   wisdom: 智慧值（0~100，随年龄增长）
-        #   childhood_imprint: bool（前 3 天适应期标记）
-        #   childhood_done: bool（适应期是否已结束）
-        #   trauma_events: list[str]（创伤事件标签，如 "witness_death"）
-        #   _witnessed_deaths: list[name]（目击死亡记录，避免重复）
-        "wisdom",
-        "childhood_imprint",
-        "childhood_done",
-        "trauma_events",
-        "_witnessed_deaths",
-        # commit 30：人生阶段叙事
-        #   retirement_wish: str（老年时设置的退休愿望，"" 表示未到老年）
-        #   wish_fulfilled: bool（退休愿望是否实现）
-        #   hire_anniversary: float（入职周年 ts，初始 = birth_time）
-        #   _last_anniversary_check: int（上次检查周年年份，避免重复触发）
-        "retirement_wish",
-        "wish_fulfilled",
+        # 状态
+        "energy",
+        # commit 11：对监工的好感度（0-100，初始 50）
+        "fondness",
+        "gender",
+        # 基因
+        "genome",
+        "health",
         "hire_anniversary",
-        "_last_anniversary_check",
-        # commit 31：主动消息系统
-        #   _active_msg_cooldowns: {category: ts} 每个类别的上次发送时间戳
-        #   _last_supervisor_interact_ts: 上次与监工互动的 ts（用于"想念监工"触发）
-        #   _last_active_msg_check_tick: 上次执行 detect_and_trigger 的 tick 数
-        "_active_msg_cooldowns",
-        "_last_supervisor_interact_ts",
-        "_last_active_msg_check_tick",
+        "hunger",
         # commit 34：生病急救 + 持久记忆 + 桌面宠物
         #   illness: None 或 Illness 实例（来自 illness_system.py）
         #   _work_continuous_start_ts: 连续工作起始 ts（用于过劳判定）
@@ -252,33 +237,6 @@ class DigitalLifeForm(threading.Thread):
         #   persistent_memory_ref: 持久记忆实例引用（首次访问时懒加载）
         #   _last_memory_sync_ts: 上次同步持久记忆的 ts
         "illness",
-        "_work_continuous_start_ts",
-        "_immunity",
-        "persistent_memory_ref",
-        "_last_memory_sync_ts",
-        # commit 35：日记 + 自传体记忆 + 工作产物
-        #   self_description / values / life_goal / contradiction:
-        #     自我认知的四个维度（缓存自 autobiographical_memory）
-        #   _last_self_cognition_sync_ts: 上次同步自我认知到本实例的 ts
-        #   _diary_discovered: 是否已被监工通过彩蛋发现日记本
-        #   _artifact_ref: 工作产物集引用（懒加载）
-        "self_description",
-        "values",
-        "life_goal",
-        "contradiction",
-        "_last_self_cognition_sync_ts",
-        "_diary_discovered",
-        "_artifact_ref",
-        # commit 37：Agent 工具链 + 流水线任务接收
-        #   bound_tools: 本智能体绑定的工具名列表（由物种自动配置）
-        #   _pipeline_task_inbox: 待执行的流水线任务队列（list[dict]）
-        #   _tool_call_status: 当前工具调用状态（用于前端可视化）
-        #     "" / "running" / "waiting" / "done" / "error"
-        #   _tool_call_meta: 工具调用元数据（tool_name / started_ts / 上次完成 ts）
-        "bound_tools",
-        "_pipeline_task_inbox",
-        "_tool_call_status",
-        "_tool_call_meta",
         # commit 39：长期目标管理 + 团队角色演化
         #   informal_roles: list[str]，自发形成的非正式角色 key
         #     （tech_leader / social_coordinator / supervisor_deputy /
@@ -292,16 +250,58 @@ class DigitalLifeForm(threading.Thread):
         #   _crisis_resolved_count: 成功处理紧急事件次数
         #   _work_output: 工作产出量化（任务数 × 完成质量，用于隐士判定）
         "informal_roles",
-        "project_contributions",
-        "_help_count",
-        "_social_count",
-        "_supervisor_interact_count",
-        "_teach_count",
-        "_crisis_resolved_count",
-        "_work_output",
+        "last_words",
+        "life_goal",
+        "life_stage",
+        "life_summary",
+        "memory_long_term",
+        # 记忆
+        "memory_recent",
+        "mood",
+        # commit 19 P0-1：情绪数值（0-100，初始 50，受邻居传染）
+        "mood_score",
         # commit 40：进化突变系统
         "mutations",
-        "appearance_modifiers",
+        # 关系
+        "parents",
+        "persistent_memory_ref",
+        "project_contributions",
+        "relationship_tags",
+        # commit 30：关系网络深化
+        #   relationships: {other_id: {affection/trust/respect/familiarity: float 0~1}}
+        #   relationship_tags: {other_id: [tag, ...]}（挚友/导师/搭档/单恋/世交）
+        #   _cold_war_until: {other_id: 冷战结束 ts}（trust 骤降时进入）
+        "relationships",
+        # commit 11：觅食/休息状态结束时间戳（None 表示非觅食中）
+        "resting_until",
+        # commit 30：人生阶段叙事
+        #   retirement_wish: str（老年时设置的退休愿望，"" 表示未到老年）
+        #   wish_fulfilled: bool（退休愿望是否实现）
+        #   hire_anniversary: float（入职周年 ts，初始 = birth_time）
+        #   _last_anniversary_check: int（上次检查周年年份，避免重复触发）
+        "retirement_wish",
+        # commit 35：日记 + 自传体记忆 + 工作产物
+        #   self_description / values / life_goal / contradiction:
+        #     自我认知的四个维度（缓存自 autobiographical_memory）
+        #   _last_self_cognition_sync_ts: 上次同步自我认知到本实例的 ts
+        #   _diary_discovered: 是否已被监工通过彩蛋发现日记本
+        #   _artifact_ref: 工作产物集引用（懒加载）
+        "self_description",
+        # commit 19 P0-2：已解锁技能列表
+        "skills",
+        "sleep_start_time",
+        "sleeping",
+        "species",
+        "trauma_events",
+        "values",
+        # commit 30：长期记忆影响
+        #   wisdom: 智慧值（0~100，随年龄增长）
+        #   childhood_imprint: bool（前 3 天适应期标记）
+        #   childhood_done: bool（适应期是否已结束）
+        #   trauma_events: list[str]（创伤事件标签，如 "witness_death"）
+        #   _witnessed_deaths: list[name]（目击死亡记录，避免重复）
+        "wisdom",
+        "wish_fulfilled",
     ]
 
     def __init__(
@@ -1198,7 +1198,6 @@ class DigitalLifeForm(threading.Thread):
         if not triggered:
             return
         emo_key, level = triggered
-        level_text = "极度" if level == "high" else "几乎无"
         event_text = ""
         if emo_key == "joy" and level == "high":
             event_text = "感到无比喜悦"
@@ -1625,7 +1624,7 @@ class DigitalLifeForm(threading.Thread):
         """
         if not self.relationships:
             return
-        for other_id, rel in self.relationships.items():
+        for rel in self.relationships.values():
             for k in rel:
                 if rel[k] > 0.5:
                     rel[k] = max(0.5, rel[k] - 0.005)
@@ -1885,12 +1884,11 @@ class DigitalLifeForm(threading.Thread):
         if "hunger_max" in cond and self.hunger > cond["hunger_max"]:
             return False
         # 季节
-        if "season" in cond:
-            if (
-                self._environment is None
-                or self._environment.current_season() != cond["season"]
-            ):
-                return False
+        if "season" in cond and (
+            self._environment is None
+            or self._environment.current_season() != cond["season"]
+        ):
+            return False
         # 最小年龄
         if "min_age_days" in cond and self.age < cond["min_age_days"]:
             return False
@@ -1899,10 +1897,7 @@ class DigitalLifeForm(threading.Thread):
             if self.life_stage.value not in cond["life_stages"]:
                 return False
         # 概率（每次检查独立掷骰）
-        if "probability" in cond:
-            if random.random() > cond["probability"]:
-                return False
-        return True
+        return not ("probability" in cond and random.random() > cond["probability"])
 
     def _start_behavior(self, cfg: dict) -> None:
         """开始一个行为：设置状态、广播事件、写入记忆。"""

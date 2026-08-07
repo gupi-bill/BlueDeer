@@ -19,10 +19,15 @@ from .providers import PROVIDER_INFO, searxng_search, searxng_search_api
 from .service import SearchResponse, SearchResult, SearchService
 
 __all__ = [
+    "PROVIDER_INFO",
+    "NetworkError",
+    "ParseError",
+    "RateLimitError",
+    "SearchEngineError",
+    "SearchResponse",
+    "SearchResult",
     # Service interface (preferred)
     "SearchService",
-    "SearchResult",
-    "SearchResponse",
     # Low-level functions (for backwards compat)
     "comprehensive_web_search",
     "fetch_webpage_content",
@@ -33,9 +38,4 @@ __all__ = [
     "searxng_search_api",
     "searxng_search_results",
     "update_search_config",
-    "PROVIDER_INFO",
-    "SearchEngineError",
-    "NetworkError",
-    "ParseError",
-    "RateLimitError",
 ]

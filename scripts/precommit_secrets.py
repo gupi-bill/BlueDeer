@@ -4,6 +4,8 @@ Exit code 0 = clean, 1 = secret-like tokens found (block commit).
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import os
 import sys
@@ -42,6 +44,7 @@ def main() -> int:
             try:
                 text = open(path, "r", encoding="utf-8").read()
             except OSError:
+                logger.exception("Exception in block")
                 continue
             threats = scanner.scan_secret_leak(text) + scanner.scan_hardcoded(text)
             for t in threats:

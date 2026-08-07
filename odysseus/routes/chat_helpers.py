@@ -242,9 +242,7 @@ def needs_auto_name(name: str) -> bool:
     if name.startswith("Chat:") or name == "Chat":
         return True
     # Default frontend name: "modelname HH:MM:SS AM/PM"
-    if re.match(r"^.+ \d{1,2}:\d{2}:\d{2}(\s*(AM|PM))?$", name, re.IGNORECASE):
-        return True
-    return False
+    return bool(re.match(r"^.+ \d{1,2}:\d{2}:\d{2}(\s*(AM|PM))?$", name, re.IGNORECASE))
 
 
 async def auto_name_session(session_manager, sess):
@@ -766,14 +764,14 @@ async def build_chat_context(
     message: str,
     session_id: str,
     preset_id=None,
-    att_ids: list = None,
+    att_ids: list | None = None,
     use_web=None,
     use_rag=None,
     use_research=None,
     time_filter=None,
     incognito: bool = False,
     no_memory: bool = False,
-    search_context: str = None,
+    search_context: str | None = None,
     compare_mode: bool = False,
     webhook_manager=None,
     use_enhanced_message: bool = False,
@@ -883,19 +881,19 @@ async def build_chat_context(
         if use_enhanced_message
         else preprocessed.text_for_context
     )
-    _preface_kwargs = dict(
-        message=_ctx_msg,
-        session=sess,
-        use_web=use_web and not skip_web,
-        use_memory=mem_enabled,
-        time_filter=time_filter,
-        preset_system_prompt=preset.system_prompt,
-        owner=user,
-        character_name=preset.character_name,
-        agent_mode=agent_mode,
-        incognito=incognito,
-        use_skills=skills_enabled,
-    )
+    _preface_kwargs = {
+        "message": _ctx_msg,
+        "session": sess,
+        "use_web": use_web and not skip_web,
+        "use_memory": mem_enabled,
+        "time_filter": time_filter,
+        "preset_system_prompt": preset.system_prompt,
+        "owner": user,
+        "character_name": preset.character_name,
+        "agent_mode": agent_mode,
+        "incognito": incognito,
+        "use_skills": skills_enabled,
+    }
     if use_rag is not None or is_research_spinoff or casual_low_signal:
         _preface_kwargs["use_rag"] = use_rag_val
     preface, rag_sources, web_sources = chat_processor.build_context_preface(
@@ -1247,13 +1245,13 @@ def save_assistant_response(
     full_response: str,
     last_metrics: dict | None,
     *,
-    character_name: str = None,
-    web_sources: list = None,
-    rag_sources: list = None,
-    research_sources: list = None,
-    used_memories: list = None,
+    character_name: str | None = None,
+    web_sources: list | None = None,
+    rag_sources: list | None = None,
+    research_sources: list | None = None,
+    used_memories: list | None = None,
     do_research: bool = False,
-    tool_events: list = None,
+    tool_events: list | None = None,
     incognito: bool = False,
 ):
     """Add assistant response to session history.
@@ -1401,11 +1399,11 @@ def run_post_response_tasks(
     *,
     incognito: bool = False,
     compare_mode: bool = False,
-    character_name: str = None,
+    character_name: str | None = None,
     agent_rounds: int = 0,
     agent_tool_calls: int = 0,
     skills_manager=None,
-    owner: str = None,
+    owner: str | None = None,
     extract_skills: bool = True,
     allow_background_extraction: bool = True,
 ):

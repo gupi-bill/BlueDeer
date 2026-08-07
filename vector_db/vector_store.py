@@ -290,7 +290,7 @@ class VectorStore:
         store = cls()
         store._df = data.get("df", {})
         for doc_id, doc_data in data.get("documents", {}).items():
-            tokens = store._tokenize(doc_data["text"])
+            store._tokenize(doc_data["text"])
             tfidf = store._compute_tfidf(doc_data["text"])
             store._documents[doc_id] = VectorDocument(
                 id=doc_data["id"],

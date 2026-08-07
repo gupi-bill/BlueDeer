@@ -157,7 +157,7 @@ class GracefulShutdown:
         with self._lock:
             return self._active
 
-    def shutdown(self, timeout: float = None) -> bool:
+    def shutdown(self, timeout: float | None = None) -> bool:
         """发起停机并等待在途任务完成。返回是否在超时前完成。
 
         - 拒绝新任务
@@ -205,7 +205,7 @@ class GracefulShutdown:
             self._cond.notify_all()
             return self._active
 
-    def wait_shutdown(self, timeout: float = None) -> bool:
+    def wait_shutdown(self, timeout: float | None = None) -> bool:
         """等待 TERMINATED 状态。"""
         with self._cond:
             if self._state == TERMINATED:

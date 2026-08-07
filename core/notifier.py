@@ -21,7 +21,7 @@ from typing import Any
 
 logger = logging.getLogger("bluedeer.notifier")
 
-__all__ = ["NotificationChannel", "EmailConfig", "EmailChannel", "DingTalkChannel", "FeishuChannel", "SlackChannel", "Notif", "NotificationDispatcher", "Notifier"]
+__all__ = ["DingTalkChannel", "EmailChannel", "EmailConfig", "FeishuChannel", "Notif", "NotificationChannel", "NotificationDispatcher", "Notifier", "SlackChannel"]
 
 
 class NotificationChannel(ABC):

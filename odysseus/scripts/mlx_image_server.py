@@ -213,7 +213,7 @@ def _write_bridge_mask(raw: bytes, out_path: Path) -> None:
 def _run_bridge(cmd: list[str]) -> None:
     env = os.environ.copy()
     proc = subprocess.run(
-        cmd, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        cmd, env=env, text=True, capture_output=True
     )
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "MLX Swift bridge failed").strip()
@@ -317,7 +317,7 @@ def _generate_hidream(
     ]
     env = os.environ.copy()
     proc = subprocess.run(
-        cmd, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        cmd, env=env, text=True, capture_output=True
     )
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "HiDream generator failed").strip()
@@ -423,8 +423,7 @@ def generate(req: ImageRequest):
                     cmd,
                     env=env,
                     text=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    capture_output=True,
                 )
                 if proc.returncode != 0:
                     detail = (proc.stderr or proc.stdout or f"{cli} failed").strip()

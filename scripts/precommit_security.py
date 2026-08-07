@@ -8,6 +8,8 @@ Exit code 0 = acceptable, 1 = blocked.
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import os
 import sys
@@ -64,6 +66,7 @@ def main() -> int:
             try:
                 text = open(path, "r", encoding="utf-8").read()
             except OSError:
+                logger.exception("Exception in block")
                 continue
             report = scanner.scan_all(text, target=fn)
             if report.threats:

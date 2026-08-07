@@ -184,7 +184,7 @@ async def api_eco() -> Any:
 async def api_emotions() -> Any:
     bio = get_biosphere()
     data = {}
-    for eid, emp in bio.env.employees.items():
+    for emp in bio.env.employees.values():
         data[emp.name] = {
             "emotion": getattr(emp, "emotion", "平静"),
             "energy": getattr(emp, "energy", 100),
@@ -216,7 +216,7 @@ async def api_messages() -> Any:
 
 @router.get("/api/memoir")
 async def api_memoir() -> Any:
-    bio = get_biosphere()
+    get_biosphere()
     from core.digital_life import MemoryArchive
 
     archive = MemoryArchive()
@@ -266,7 +266,7 @@ async def api_evolution() -> Any:
 async def api_diary() -> Any:
     bio = get_biosphere()
     diaries = []
-    for eid, emp in bio.env.employees.items():
+    for emp in bio.env.employees.values():
         d = getattr(emp, "diary", None)
         if d:
             diaries.append({"name": emp.name, "diary": d[-5:]})

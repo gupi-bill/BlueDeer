@@ -1090,12 +1090,11 @@ def setup_chat_routes(
 
         # Check for research_pending BEFORE mode persist overwrites it
         do_research = str(use_research).lower() == "true"
-        if not do_research:
-            if get_session_mode(session) == "research_pending":
-                do_research = True
-                logger.info(
-                    f"Session {session} in research_pending — auto-triggering research"
-                )
+        if not do_research and get_session_mode(session) == "research_pending":
+            do_research = True
+            logger.info(
+                f"Session {session} in research_pending — auto-triggering research"
+            )
 
         att_ids = []
         if body and isinstance(body.get("attachments"), list):

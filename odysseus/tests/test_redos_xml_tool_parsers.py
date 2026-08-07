@@ -168,7 +168,7 @@ def test_tool_code_param_backref_flood_is_fast():
     # `<x><x>...` param flood inside tool_code args, no `</x>` closer — exercises
     # the `<tag>([\\s\\S]*?)</\\1>` backreference scan in _parse_tool_code_block.
     args_flood = "tool => 'bash', args => " + "<x><x>a" * 6000
-    block, dt = _timed(_parse_tool_code_block, args_flood)
+    _block, dt = _timed(_parse_tool_code_block, args_flood)
     assert dt < _BUDGET_S, f"_parse_tool_code_block took {dt:.2f}s"
     # Through the public path, inside a closed <tool_code> block.
     _, dt2 = _timed(parse_tool_blocks, "<tool_code>{" + args_flood + "}</tool_code>")

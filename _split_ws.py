@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """一次性机械拆分 web_server.py -> web_server/ 包。
 规则：保留 app 实例/全局/中间件/startup/shutdown/websocket/静态挂载在主文件，
 路由块按路径前缀分到 routes_*.py（@app.x -> @router.x），末尾 __main__ 提取。
 运行后验证：import web_server; 路由路径集合不变。
 """
-import os, re, shutil
+import logging
+logger = logging.getLogger(__name__)
+import os
+import re
+import shutil
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(BASE, "web_server.py")
@@ -34,19 +37,15 @@ def classify(method, deco_line):
         return "admin"
     if p.startswith("/api/users"):
         return "users"
-    if p in ("/api/status", "/api/scene", "/api/jarvis", "/api/github") \
-       or p.startswith("/api/system") or p.startswith("/api/rag") \
-       or p.startswith("/api/rewards") or p.startswith("/api/cleanup") \
-       or p.startswith("/api/backups"):
+    if p in ("/api/status", "/api/scene", "/api/jarvis", "/api/github") or p.startswith(("/api/system", "/api/rag", "/api/rewards", "/api/cleanup", "/api/backups")):
         return "system"
-    if p.startswith("/api/traces") or p.startswith("/api/canvas"):
+    if p.startswith(("/api/traces", "/api/canvas")):
         return "traces"
     if p.startswith("/api/plugins"):
         return "plugins"
     if p.startswith("/api/agents"):
         return "agents"
-    if p.startswith("/api/dag") or p in ("/api/gantt", "/api/tasks/retry") \
-       or p.startswith("/api/dag-templates") or p == "/api/audit":
+    if p.startswith(("/api/dag", "/api/dag-templates")) or p in ("/api/gantt", "/api/tasks/retry") or p == "/api/audit":
         return "dag"
     if p.startswith("/api/alerts"):
         return "alerts"
@@ -70,7 +69,7 @@ for ai, (ln, method, deco) in enumerate(anchors):
         groups.setdefault("__app__", []).append(block)
     else:
         # 改装饰器 @app. -> @router.
-        new_block = re.sub(r'^@app\.', '@router.', block, flags=re.M)
+        new_block = re.sub(r'^@app\.', '@router.', block, flags=re.MULTILINE)
         groups.setdefault(g, []).append(new_block)
 
 # 头部 [0, first_anchor)
@@ -120,11 +119,11 @@ for g, fname in router_files.items():
         continue
     body = "\n\n\n".join(groups[g])
     content = (
-        "# 自动拆分自 web_server.py（路由域: %s）\n"
+        f"# 自动拆分自 web_server.py（路由域: {g}）\n"
         "from fastapi import APIRouter\n"
-        "%s\n"
+        f"{GLOBALS_IMPORT}\n"
         "router = APIRouter()\n\n\n"
-        "%s\n" % (g, GLOBALS_IMPORT, body)
+        f"{body}\n"
     )
     open(os.path.join(PKG, fname), "w", encoding="utf-8").write(content)
     router_regions.append((g, fname))
@@ -136,10 +135,10 @@ app_parts.append("\n".join(groups.get("__app__", [])))
 reg_lines = ["\n\n# ===== 路由注册（自动拆分） ====="]
 for g, fname in router_regions:
     mod = fname[:-3]
-    reg_lines.append("from .%s import router as _%s_router" % (mod, g))
+    reg_lines.append(f"from .{mod} import router as _{g}_router")
 reg_lines.append("")
 for g, fname in router_regions:
-    reg_lines.append("app.include_router(_%s_router)" % g)
+    reg_lines.append(f"app.include_router(_{g}_router)")
 app_parts.append("\n".join(reg_lines))
 app_py = "\n".join(app_parts).rstrip("\n") + "\n"
 open(os.path.join(PKG, "app.py"), "w", encoding="utf-8").write(app_py)

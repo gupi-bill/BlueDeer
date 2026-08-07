@@ -124,7 +124,7 @@ def test_writeback_closes_client_on_success(monkeypatch):
 def test_sync_closes_client_when_session_local_raises(monkeypatch):
     import src.caldav_sync as sync
 
-    AuthorizationError = _stub_sync_deps(monkeypatch)
+    _stub_sync_deps(monkeypatch)
 
     # Give principal() a working response so discovery passes
     mock_principal = MagicMock()

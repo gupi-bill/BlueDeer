@@ -474,7 +474,7 @@ class StatusAggregator:
         self._callbacks.append((condition, callback))
 
     def _evaluate_callbacks(self) -> None:
-        for agent_id, snapshot in self._snapshots.items():
+        for snapshot in self._snapshots.values():
             for condition, callback in self._callbacks:
                 try:
                     if condition(snapshot):

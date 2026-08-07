@@ -87,9 +87,7 @@ def should_track_interactive_request(path: str, method: str = "GET") -> bool:
         return False
     if path in _PASSIVE_EXACT_PATHS:
         return False
-    if any(path.startswith(prefix) for prefix in _PASSIVE_PREFIXES):
-        return False
-    return True
+    return not any(path.startswith(prefix) for prefix in _PASSIVE_PREFIXES)
 
 
 async def mark_browser_activity() -> None:

@@ -15,23 +15,23 @@ from .search import SearchResponse, SearchResult, SearchService
 from .shell import ShellResult, ShellService
 
 __all__ = [
-    # Search
-    "SearchService",
-    "SearchResult",
-    "SearchResponse",
+    "DocChunk",
     # Docs
     "DocsService",
-    "DocChunk",
     "IndexResult",
-    # Research
-    "ResearchService",
-    "ResearchResult",
-    "ResearchSource",
-    # Memory
-    "MemoryService",
     "Memory",
     "MemorySearchResult",
+    # Memory
+    "MemoryService",
+    "ResearchResult",
+    # Research
+    "ResearchService",
+    "ResearchSource",
+    "SearchResponse",
+    "SearchResult",
+    # Search
+    "SearchService",
+    "ShellResult",
     # Shell
     "ShellService",
-    "ShellResult",
 ]

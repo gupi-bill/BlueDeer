@@ -267,7 +267,7 @@ async def test_read_file_dispatch_blocks_etc_shadow(monkeypatch):
 
     from src.tool_execution import execute_tool_block
 
-    desc, result = await execute_tool_block(
+    _desc, result = await execute_tool_block(
         _make_block("read_file", "/etc/shadow"),
         owner="admin-user",
     )
@@ -298,7 +298,7 @@ async def test_write_file_dispatch_blocks_authorized_keys(monkeypatch):
 
     from src.tool_execution import execute_tool_block
 
-    desc, result = await execute_tool_block(
+    _desc, result = await execute_tool_block(
         _make_block("write_file", "~/.ssh/authorized_keys\nssh-rsa AAAAB3..."),
         owner="admin-user",
     )
@@ -329,7 +329,7 @@ async def test_write_file_dispatch_blocks_cron(monkeypatch):
 
     from src.tool_execution import execute_tool_block
 
-    desc, result = await execute_tool_block(
+    _desc, result = await execute_tool_block(
         _make_block("write_file", "/etc/cron.d/agent-payload\n* * * * * root /tmp/p\n"),
         owner="admin-user",
     )

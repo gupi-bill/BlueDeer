@@ -225,7 +225,7 @@ class EvolutionVisualizer:
             # 趋势
             if len(snaps) >= 2:
                 lines.extend(["", "## 5. 趋势", ""])
-                for sp in last.species_stats.keys():
+                for sp in last.species_stats:
                     trend = self._tracker.get_species_trend(sp, last_n=20)
                     if trend:
                         lines.append(f"### {sp} 数量趋势")

@@ -1,5 +1,7 @@
 """EventBus 单元测试：订阅/通配符/优先级/过滤/重试/定向/历史/回放/request 超时。"""
 
+import logging
+logger = logging.getLogger(__name__)
 import asyncio
 
 from core.event_bus import EventBus

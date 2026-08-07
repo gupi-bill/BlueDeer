@@ -30,8 +30,8 @@ class _SpyImap:
                 return "OK", [
                     (
                         None,
-                        b"From: Writer <writer@example.com>\r\n"
-                        b"Subject: Hello\r\n\r\n",
+                        (b"From: Writer <writer@example.com>\r\n"
+                        b"Subject: Hello\r\n\r\n"),
                     )
                 ]
             return "OK", [(None, b"Body text\r\n\r\nRegards,\r\nThe Writer\r\n")]
@@ -62,7 +62,7 @@ async def test_sig_learner_uses_uid_search(monkeypatch):
     monkeypatch.setattr(email_helpers, "_imap_connect", lambda *a, **kw: spy)
     monkeypatch.setattr(task_endpoint, "resolve_task_candidates", lambda *a, **kw: [])
 
-    message, ok = await action_learn_sender_signatures("alice")
+    _message, ok = await action_learn_sender_signatures("alice")
 
     assert ok is False  # no LLM candidates — stops before LLM, after IMAP
     assert any(
@@ -126,7 +126,7 @@ async def test_daily_brief_uses_uid_commands(monkeypatch):
     spy = _SpyImap(uid_list=b"10 20 30")
     monkeypatch.setattr(email_helpers, "_imap_connect", lambda *a, **kw: spy)
 
-    message, ok = await action_daily_brief("")
+    _message, ok = await action_daily_brief("")
 
     assert ok is True
     assert any(

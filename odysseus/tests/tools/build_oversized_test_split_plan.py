@@ -55,9 +55,8 @@ def count_ast_tests(text: str) -> tuple[int, int]:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             if node.name.startswith("test_"):
                 test_defs += 1
-        elif isinstance(node, ast.ClassDef):
-            if node.name.startswith("Test"):
-                test_classes += 1
+        elif isinstance(node, ast.ClassDef) and node.name.startswith("Test"):
+            test_classes += 1
 
     return test_defs, test_classes
 

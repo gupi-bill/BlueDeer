@@ -191,7 +191,7 @@ def _clean_tmux_command_output(text: str, wrapped_command: str) -> str:
             continue
         if stripped in wrapped_lines:
             continue
-        if stripped.startswith("__ody_rc=") or stripped.startswith("printf "):
+        if stripped.startswith(("__ody_rc=", "printf ")):
             continue
         if re.fullmatch(r"(?:bash|sh)-[\d.]+\$ ?", stripped):
             continue

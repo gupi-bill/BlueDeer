@@ -8,6 +8,8 @@
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import asyncio
 import json
@@ -519,8 +521,8 @@ class SparrowAnnouncer:
         """轻度简报格式化。"""
         lines = [
             f"【灵音雀轻度巡检 @ {time.strftime('%H:%M:%S', time.localtime(snapshot.collected_at))}】",
-            f"流水线: {snapshot.task_progress.active_pipelines} 激活 | "
-            f"步骤: {snapshot.task_progress.completed_steps}/{snapshot.task_progress.total_steps}",
+            (f"流水线: {snapshot.task_progress.active_pipelines} 激活 | "
+            f"步骤: {snapshot.task_progress.completed_steps}/{snapshot.task_progress.total_steps}"),
             f"在岗员工: {len(snapshot.agents)} 名",
             f"高危拦截: {snapshot.system_runtime.hazardous_blocked_count} 次",
         ]
@@ -566,6 +568,7 @@ class SparrowAnnouncer:
                 )
             )
         except asyncio.CancelledError:
+            logger.exception("Exception in block")
             pass
 
     def cancel_broadcast(self, sid: int) -> bool:

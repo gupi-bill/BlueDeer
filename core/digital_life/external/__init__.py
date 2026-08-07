@@ -7,6 +7,8 @@
 - external_manager：统一管理开关、审批、配置
 """
 
+import logging
+logger = logging.getLogger(__name__)
 from core.digital_life.external.api_caller import ApiCaller
 from core.digital_life.external.external_manager import (
     ExternalManager,

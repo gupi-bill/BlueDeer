@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 def _format_mcp_connection_error(
-    name: str, command: str = "", args: list[str] | None = None, error: Exception = None
+    name: str, command: str = "", args: list[str] | None = None, error: Exception | None = None
 ) -> str:
     """Return a user-actionable MCP connection error message."""
     args = args or []

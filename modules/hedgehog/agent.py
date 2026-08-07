@@ -8,6 +8,8 @@ P5 扩容：安全角色拆分
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import logging
 from typing import Any
@@ -376,6 +378,7 @@ class RuntimeAuditHedgehogAgent(HedgehogAgent):
                             )
                         )
                     except (ValueError, KeyError):
+                        logger.exception("Exception in block")
                         continue
                 report = SecurityReport(
                     target=scan_report_dict.get("target", ""),

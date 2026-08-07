@@ -1576,8 +1576,8 @@ def _diagnose_serve_output(text: str) -> dict | None:
         ),
         (
             r"Failed to infer device type|NVML Shared Library Not Found|No module named 'amdsmi'|platform is not available",
-            "vLLM could not find a supported GPU (CUDA or ROCm). "
-            "This machine may have integrated or unsupported graphics only.",
+            ("vLLM could not find a supported GPU (CUDA or ROCm). "
+            "This machine may have integrated or unsupported graphics only."),
             [
                 {
                     "label": "switch to llama.cpp (CPU/Metal, works without a discrete GPU)",
@@ -1601,10 +1601,10 @@ def _diagnose_serve_output(text: str) -> dict | None:
             ],
         ),
         (
-            r"sgl_kernel[\s\S]*(Python\.h|libnuma\.so\.1|common_ops|libnvrtc\.so)|"
+            (r"sgl_kernel[\s\S]*(Python\.h|libnuma\.so\.1|common_ops|libnvrtc\.so)|"
             r"(Python\.h|libnuma\.so\.1|common_ops|libnvrtc\.so)[\s\S]*sgl_kernel|"
             r"Could not load any common_ops library|"
-            r"Please ensure sgl_kernel is properly installed",
+            r"Please ensure sgl_kernel is properly installed"),
             "SGLang native kernel/runtime is missing or mismatched on this server.",
             [
                 {

@@ -246,7 +246,7 @@ class VectorBrowser:
         m = len(all_tokens)
 
         # 构建文档向量矩阵
-        token_idx = {t: i for i, t in enumerate(all_tokens)}
+        {t: i for i, t in enumerate(all_tokens)}
         matrix: list[list[float]] = []
         for d in docs:
             row = [d.tfidf_vector.get(t, 0.0) for t in all_tokens]
@@ -264,7 +264,7 @@ class VectorBrowser:
                         centered[k][i] * centered[k][j] for k in range(n)
                     ) / (n - 1 if n > 1 else 1)
 
-            eig_vals, eig_vecs = self._power_iteration(cov, 2)
+            _eig_vals, eig_vecs = self._power_iteration(cov, 2)
             result_2d = []
             for i in range(n):
                 x = sum(centered[i][j] * eig_vecs[0][j] for j in range(m))

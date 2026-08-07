@@ -70,8 +70,8 @@ class ToolMarket:
                 or q in " ".join(p.tags).lower()
             ]
         if tags:
-            tag_set = set(t.lower() for t in tags)
-            results = [p for p in results if tag_set & set(t.lower() for t in p.tags)]
+            tag_set = {t.lower() for t in tags}
+            results = [p for p in results if tag_set & {t.lower() for t in p.tags}]
         return results
 
     def filter_by_category(self, cat: str) -> list[ToolPackage]:

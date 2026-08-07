@@ -36,7 +36,7 @@ def _make_manager():
 def test_truncate_keep_count_exceeds_total_does_not_inflate_count():
     from core.models import ChatMessage
 
-    sm, database, sm_mod = _make_manager()
+    sm, database, _sm_mod = _make_manager()
     sid = "short-session"
     sm.create_session(
         session_id=sid, name="t", endpoint_url="x", model="m", rag=False, owner="u"
@@ -66,7 +66,7 @@ def test_truncate_keep_count_exceeds_total_does_not_inflate_count():
 def test_truncate_keeps_history_alias_for_context_messages():
     from core.models import ChatMessage
 
-    sm, database, sm_mod = _make_manager()
+    sm, _database, _sm_mod = _make_manager()
     sid = "alias-after-truncate"
     sm.create_session(
         session_id=sid, name="t", endpoint_url="x", model="m", rag=False, owner="u"

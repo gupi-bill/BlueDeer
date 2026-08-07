@@ -61,8 +61,7 @@ class PersonalDocsConfig:
 
     def __post_init__(self):
         if self.STOP_WORDS is None:
-            self.STOP_WORDS = set(
-                [
+            self.STOP_WORDS = {
                     "the",
                     "a",
                     "an",
@@ -110,8 +109,7 @@ class PersonalDocsConfig:
                     "her",
                     "us",
                     "them",
-                ]
-            )
+                }
 
 
 # Initialize configuration
@@ -155,7 +153,7 @@ def tokenize(s: str) -> set[str]:
     """Tokenize string into words, excluding stop words."""
     text = s if isinstance(s, str) else ""
     tokens = re.findall(r"[A-Za-z0-9_\-]+", text.lower())
-    return set(t for t in tokens if t not in config.STOP_WORDS and len(t) > 1)
+    return {t for t in tokens if t not in config.STOP_WORDS and len(t) > 1}
 
 
 def load_personal_index(
@@ -346,7 +344,7 @@ class PersonalDocsManager:
             if os.path.abspath(f.get("path", "")) != os.path.abspath(filepath)
         ]
 
-    def add_directory(self, directory: str, *, index: bool = True, owner: str = None):
+    def add_directory(self, directory: str, *, index: bool = True, owner: str | None = None):
         """Add a directory to the tracking list and optionally index it."""
         # Normalize the path
         directory = os.path.abspath(directory)
@@ -415,7 +413,7 @@ class PersonalDocsManager:
             logger.info(f"Directory not in index: {directory}")
 
     def rename_directory(
-        self, old_directory: str, new_directory: str, *, path_map: dict[str, str] = None
+        self, old_directory: str, new_directory: str, *, path_map: dict[str, str] | None = None
     ):
         """Rewrite tracked directory and excluded-file paths after an owner rename."""
         old_directory = os.path.abspath(old_directory)

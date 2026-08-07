@@ -132,7 +132,7 @@ def test_translate_path_converts_windows_drive_path_on_wsl(monkeypatch):
 def test_translate_path_resolves_paths_when_not_wsl(monkeypatch):
     monkeypatch.setattr(platform_compat, "is_wsl", lambda: False)
 
-    assert platform_compat.translate_path(".") == str(Path(".").resolve())
+    assert platform_compat.translate_path(".") == str(Path.cwd())
 
 
 def test_translate_path_returns_input_when_resolve_fails(monkeypatch):

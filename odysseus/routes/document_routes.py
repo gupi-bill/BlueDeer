@@ -495,9 +495,8 @@ def setup_document_routes(session_manager, upload_handler=None) -> APIRouter:
         user = get_current_user(request)
         db = SessionLocal()
         try:
-            if not user:
-                if not _auth_disabled():
-                    raise HTTPException(403, "Authentication required")
+            if not user and not _auth_disabled():
+                raise HTTPException(403, "Authentication required")
             # v2 review HIGH-9: raise 403 explicitly when the caller
             # can't see this session, instead of returning [] which the
             # UI treats identically to "no docs" and silently masks
@@ -1028,7 +1027,7 @@ def setup_document_routes(session_manager, upload_handler=None) -> APIRouter:
                 stripped = _re.sub(r"^#{1,6}\s+", "", content, flags=_re.MULTILINE)
                 stripped = _re.sub(r"[*_`>\-=]+", "", stripped)
                 stripped = _re.sub(r"\s+", " ", stripped).strip()
-                real_len = len(stripped)
+                len(stripped)
 
                 # Detect email-scaffold stubs: "To: \nSubject: \n---\n" style
                 # bodies with nothing typed in. Stub = every meaningful line

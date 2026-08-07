@@ -31,7 +31,7 @@ def test_valid_question_returns_ask_user_payload():
             ],
         }
     )
-    desc, result = _run(content)
+    _desc, result = _run(content)
     assert result.get("exit_code") == 0
     assert "error" not in result
     payload = result["ask_user"]

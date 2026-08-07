@@ -228,7 +228,7 @@ def test_verify_doc_owner_rejects_wrong_owner_when_auth_enabled(monkeypatch):
 
     This confirms the authenticated path is untouched by the no-auth bypass."""
     monkeypatch.delenv("AUTH_ENABLED", raising=False)
-    session_id, doc_id = _seed(owner="alice")
+    _session_id, doc_id = _seed(owner="alice")
     db = _TS()
     try:
         doc = db.query(Document).filter(Document.id == doc_id).first()

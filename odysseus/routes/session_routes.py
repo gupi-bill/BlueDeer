@@ -331,7 +331,7 @@ def setup_session_routes(
             # Sessions with active documents that have content
             from sqlalchemy import func
 
-            doc_session_ids = set(
+            doc_session_ids = {
                 r[0]
                 for r in owner_filter(
                     db.query(Document.session_id).filter(
@@ -344,8 +344,8 @@ def setup_session_routes(
                 )
                 .distinct()
                 .all()
-            )
-            img_session_ids = set(
+            }
+            img_session_ids = {
                 r[0]
                 for r in owner_filter(
                     db.query(GalleryImage.session_id).filter(
@@ -356,7 +356,7 @@ def setup_session_routes(
                 )
                 .distinct()
                 .all()
-            )
+            }
         finally:
             db.close()
 

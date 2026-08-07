@@ -1,4 +1,6 @@
 # 自动拆分自 web_server.py（路由域: dag）
+import logging
+logger = logging.getLogger(__name__)
 from fastapi import APIRouter
 
 router = APIRouter()
@@ -89,7 +91,7 @@ async def dag_auto_layout() -> dict[str, Any]:
 
     dag = TaskDAG()
     plan = dag.execution_plan()
-    nodes = dag.list_nodes()
+    dag.list_nodes()
     layout = {}
     y_offset = 80
     for layer_idx, layer in enumerate(plan):
@@ -158,6 +160,7 @@ async def retry_status() -> dict[str, Any]:
         if mgr:
             active = mgr.retry_summary()
     except Exception:
+        logger.exception("Exception in block")
         pass
     return {
         "config": {

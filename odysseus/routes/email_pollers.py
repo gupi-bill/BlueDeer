@@ -174,9 +174,7 @@ def _away_reply_active(settings: dict, account_id: str | None) -> bool:
     end = _email_date_only(settings.get("email_auto_reply_end"))
     if start and today < start:
         return False
-    if end and today > end:
-        return False
-    return True
+    return not (end and today > end)
 
 
 def _message_after_away_enabled(settings: dict, msg) -> bool:

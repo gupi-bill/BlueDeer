@@ -1158,25 +1158,25 @@ def _get_route(path, method):
 
 
 def _make_endpoint(**kwargs):
-    base = dict(
-        id="ep1",
-        name="EP",
-        base_url="http://localhost:9999/v1",
-        api_key=None,
-        is_enabled=True,
-        hidden_models=None,
-        cached_models=None,
-        pinned_models=None,
-        model_type="llm",
-        supports_tools=None,
-        endpoint_kind="auto",
-        model_refresh_mode="auto",
-        model_refresh_interval=None,
-        model_refresh_timeout=None,
-        owner=None,
-        created_at=None,
-        updated_at=None,
-    )
+    base = {
+        "id": "ep1",
+        "name": "EP",
+        "base_url": "http://localhost:9999/v1",
+        "api_key": None,
+        "is_enabled": True,
+        "hidden_models": None,
+        "cached_models": None,
+        "pinned_models": None,
+        "model_type": "llm",
+        "supports_tools": None,
+        "endpoint_kind": "auto",
+        "model_refresh_mode": "auto",
+        "model_refresh_interval": None,
+        "model_refresh_timeout": None,
+        "owner": None,
+        "created_at": None,
+        "updated_at": None,
+    }
     base.update(kwargs)
     return SimpleNamespace(**base)
 
@@ -1389,21 +1389,21 @@ def _create_form_kwargs(**overrides):
     Calling the route as a plain function bypasses FastAPI form parsing, so the
     Form() sentinels must be replaced with real strings.
     """
-    kwargs = dict(
-        name="",
-        api_key="",
-        skip_probe="true",  # avoid any network probe in unit tests
-        require_models="false",
-        model_type="llm",
-        endpoint_kind="auto",
-        model_refresh_mode="",
-        model_refresh_interval="",
-        model_refresh_timeout="",
-        supports_tools="",
-        pinned_models="",
-        container_local="false",
-        shared="true",
-    )
+    kwargs = {
+        "name": "",
+        "api_key": "",
+        "skip_probe": "true",  # avoid any network probe in unit tests
+        "require_models": "false",
+        "model_type": "llm",
+        "endpoint_kind": "auto",
+        "model_refresh_mode": "",
+        "model_refresh_interval": "",
+        "model_refresh_timeout": "",
+        "supports_tools": "",
+        "pinned_models": "",
+        "container_local": "false",
+        "shared": "true",
+    }
     kwargs.update(overrides)
     return kwargs
 

@@ -5,6 +5,8 @@ commit 28：行为池——高空盘旋 / 整理羽毛 / 俯冲假动作
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import random
 
@@ -121,6 +123,7 @@ class Kite(DigitalLifeForm):
                     if getattr(lf, "_alive", False):
                         lf.energy = min(100.0, lf.energy + 1.0)
             except Exception:
+                logger.exception("Exception in block")
                 pass
         self._remember("上升气流给团队 +1 能量")
 

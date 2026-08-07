@@ -238,10 +238,10 @@ def _fit_inline_attachment_text(
     name = os.path.basename(display_name or "attachment")
     if remaining < MIN_INLINE_ATTACHMENT_SLICE:
         return (
-            f"\n\n[Attachment omitted from inline context: {name}. "
+            (f"\n\n[Attachment omitted from inline context: {name}. "
             f"The {MAX_INLINE_ATTACHMENT_CHARS:,}-character shared inline "
             "attachment budget was already used by earlier attachments. Ask "
-            "to inspect this file specifically if more detail is needed.]",
+            "to inspect this file specifically if more detail is needed.]"),
             0,
         )
     marker = (

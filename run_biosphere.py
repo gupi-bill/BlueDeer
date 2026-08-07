@@ -80,33 +80,33 @@ class Biosphere:
     """森林公司总管：把所有子系统粘合在一起。"""
 
     __slots__ = [
-        "env",
-        "naming",
-        "observer",
-        "evolution",
-        "visualizer",
-        "tasks",
-        "storyteller",
-        "employees",
-        "_lock",
-        "_stop_event",
-        "_save_thread",
-        "_snapshot_thread",
-        "_save_path",
-        "_running",
-        # commit 11 新增：记忆归档 + 招募系统 + 死亡监听
-        "memory_archive",
-        "recruit_system",
-        "_death_watcher_thread",
-        "_router",
-        "_raven_agent",
-        "_last_death_processed",
-        # commit 14 新增：内部事件队列（招募完成等）
-        "_internal_events",
         # commit 19 P0-3 新增：随机小事件循环线程
         "_daily_events_thread",
+        "_death_watcher_thread",
         # commit 29 新增：环境生态循环线程
         "_eco_tick_thread",
+        # commit 14 新增：内部事件队列（招募完成等）
+        "_internal_events",
+        "_last_death_processed",
+        "_lock",
+        "_raven_agent",
+        "_router",
+        "_running",
+        "_save_path",
+        "_save_thread",
+        "_snapshot_thread",
+        "_stop_event",
+        "employees",
+        "env",
+        "evolution",
+        # commit 11 新增：记忆归档 + 招募系统 + 死亡监听
+        "memory_archive",
+        "naming",
+        "observer",
+        "recruit_system",
+        "storyteller",
+        "tasks",
+        "visualizer",
     ]
 
     def __init__(

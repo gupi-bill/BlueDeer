@@ -40,9 +40,8 @@ def parse_imports(file_path: Path) -> tuple[set[str], set[str]]:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 imports.add(alias.name.split(".")[0])
-        elif isinstance(node, ast.ImportFrom):
-            if node.module:
-                from_imports.add(node.module.split(".")[0])
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            from_imports.add(node.module.split(".")[0])
 
     return imports, from_imports
 

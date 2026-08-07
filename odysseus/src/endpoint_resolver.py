@@ -165,7 +165,7 @@ def _resolve_tailscale_host(hostname: str) -> str | None:
 
             data = _json.loads(result.stdout)
             peers = data.get("Peer", {})
-            for _id, peer in peers.items():
+            for peer in peers.values():
                 peer_name = (peer.get("HostName") or "").lower()
                 dns_name = (peer.get("DNSName") or "").split(".")[0].lower()
                 if peer_name == hostname.lower() or dns_name == hostname.lower():

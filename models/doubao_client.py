@@ -1,6 +1,8 @@
 """BlueDeer DoubaoClient：真实 Doubao Seed API HTTP 调用客户端。"""
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import asyncio
 import json
@@ -125,6 +127,7 @@ class DoubaoClient(ModelClient):
                         if delta:
                             yield delta
                     except json.JSONDecodeError:
+                        logger.exception("Exception in block")
                         continue
 
     async def complete(self, prompt: str, **kwargs: object) -> ModelResponse:

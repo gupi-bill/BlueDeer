@@ -197,9 +197,8 @@ class SkipList:
             x = self._head.forward[0]
             started = False
             while x is not None:
-                if not started:
-                    if x.member == start_member:
-                        started = True
+                if not started and x.member == start_member:
+                    started = True
                 if started:
                     result.append((x.score, x.member))
                     if x.member == end_member:

@@ -60,9 +60,7 @@ def _is_safe_svg(content: bytes) -> bool:
         return False
     if b"<svg" not in content[:256].lower():
         return False
-    if _BLOCKED_SVG_RE.search(content) or _EXTERNAL_REF_RE.search(content):
-        return False
-    return True
+    return not (_BLOCKED_SVG_RE.search(content) or _EXTERNAL_REF_RE.search(content))
 
 
 def setup_emoji_routes() -> APIRouter:

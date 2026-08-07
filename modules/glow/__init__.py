@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 """BlueDeer Glow 发光渲染引擎模块。
 
 融合 50 个跨平台 Glow/Agent 项目理念，为灵音雀、像素沙盘、各 Agent 提供统一发光渲染能力。

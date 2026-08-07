@@ -188,7 +188,7 @@ def _parse_vcards(text: str) -> list[dict]:
             # precedes the property name, so it is safe to strip for matching
             # and value extraction, and a no-op for non-grouped lines.
             name_part = re.sub(r"^[A-Za-z0-9-]+\.", "", line, count=1)
-            if name_part.startswith("FN:") or name_part.startswith("FN;"):
+            if name_part.startswith(("FN:", "FN;")):
                 contact["name"] = (
                     _vunesc(name_part.split(":", 1)[1]) if ":" in name_part else ""
                 )

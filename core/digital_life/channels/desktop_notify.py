@@ -73,7 +73,6 @@ def _windows_notify(title: str, body: str, urgent: bool = False) -> None:
     title_esc = title.replace("'", "''")
     body_esc = body.replace("'", "''")
     # 用 MessageBox 弹窗（系统自带，不依赖第三方）
-    icon = "Warning" if urgent else "Information"
     ps_script = (
         f"[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null;"
         f"$notify = New-Object System.Windows.Forms.NotifyIcon;"

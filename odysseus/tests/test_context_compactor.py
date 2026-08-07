@@ -189,7 +189,7 @@ class TestMaybeCompactFourthMessage:
         # Must not raise TypeError; returns the 3-tuple contract.
         result = self._run(self._four_turn_history_with_tool_call())
         assert isinstance(result, tuple) and len(result) == 3
-        compacted_messages, context_length, was_compacted = result
+        compacted_messages, _context_length, was_compacted = result
         assert isinstance(compacted_messages, list)
         assert was_compacted is True
         # The summary the model produced is present and a system message.

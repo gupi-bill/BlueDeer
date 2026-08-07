@@ -78,7 +78,7 @@ def _save_config(cfg: dict):
 
 
 async def _run_bw(
-    args: list, session: str = None, input_text: str = None, bw_password: str = None
+    args: list, session: str | None = None, input_text: str | None = None, bw_password: str | None = None
 ) -> tuple:
     env = {}
     env.update(os.environ)

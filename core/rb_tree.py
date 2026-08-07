@@ -314,9 +314,8 @@ class RBTree:
     def _check_red_children(self, n: _Node) -> bool:
         if n is self._nil:
             return True
-        if self._is_red(n):
-            if self._is_red(n.left) or self._is_red(n.right):
-                return False
+        if self._is_red(n) and (self._is_red(n.left) or self._is_red(n.right)):
+            return False
         return self._check_red_children(n.left) and self._check_red_children(n.right)
 
     def is_valid(self) -> bool:

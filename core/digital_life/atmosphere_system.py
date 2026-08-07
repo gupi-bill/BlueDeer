@@ -15,10 +15,14 @@
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import random
 import threading
 import time
+
+from typing_extensions import Self
 
 # ====================================================================
 # 情感 → 颜色映射
@@ -145,7 +149,7 @@ class AtmosphereSystem:
 
     PARTICLE_LIMIT: int = 50
 
-    def __new__(cls, *args, **kwargs) -> AtmosphereSystem:
+    def __new__(cls, *args, **kwargs) -> Self:
         if cls._instance is None:
             with cls._instance_lock:
                 if cls._instance is None:
@@ -471,6 +475,7 @@ def update_atmosphere(population: list, dt: float = 1.0) -> None:
     try:
         get_atmosphere().update(population, dt)
     except Exception:
+        logger.exception("Exception in block")
         pass
 
 

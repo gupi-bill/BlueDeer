@@ -1,5 +1,7 @@
 """P1-3 CrewAI Flow: EventBus-based state machine tests."""
 
+import logging
+logger = logging.getLogger(__name__)
 import asyncio
 
 from core.base_agent import BaseAgent
@@ -106,6 +108,7 @@ def test_sync_run_bound_agent_raises():
         flow.run()
         assert False, "expected RuntimeError"
     except RuntimeError:
+        logger.exception("Exception in block")
         pass
 
 
@@ -136,7 +139,7 @@ def test_bus_events_published():
     assert f"{flow.flow_topic}.task_completed" in topics
     assert f"{flow.flow_topic}.finished" in topics
     assert f"{flow.flow_topic}.task_failed" not in topics
-    finished = [e for e in bus.events if e.event_type == "finished"][0]
+    finished = next(e for e in bus.events if e.event_type == "finished")
     assert finished.payload["phase"] == "completed"
     assert finished.payload["completed"] == 2
     assert all(t.startswith(prefix) for t in topics)

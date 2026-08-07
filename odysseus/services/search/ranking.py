@@ -146,7 +146,7 @@ def rank_search_results(query: str, results: list[dict]) -> list[dict]:
             return 0.0
         if netloc in _TRUSTED_NEWS_DOMAINS:
             return 1.0
-        if netloc.endswith(".edu") or netloc.endswith(".gov"):
+        if netloc.endswith((".edu", ".gov")):
             return 1.0
         if netloc.endswith(".org"):
             return 0.7

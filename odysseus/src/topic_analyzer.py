@@ -90,7 +90,7 @@ TOPIC_KEYWORDS: dict[str, list[str]] = {
 }
 
 
-def analyze_topics(session_manager, owner: str = None) -> dict[str, Any]:
+def analyze_topics(session_manager, owner: str | None = None) -> dict[str, Any]:
     """
     Scan non-archived sessions and return topic frequency data.
     If owner is set, only include sessions belonging to that user.

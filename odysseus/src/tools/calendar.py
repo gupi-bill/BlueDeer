@@ -175,11 +175,7 @@ async def do_manage_calendar(content: str, owner: str | None = None) -> dict:
         now = datetime.utcnow() if is_utc else datetime.now()
         if dtstart <= now:
             return None, "event already passed"
-        if remind_at <= now:
-            # If the requested "before" time already passed but the event is
-            # still upcoming, create an immediate Note reminder instead of
-            # silently dropping it.
-            remind_at = now
+        remind_at = max(now, remind_at)
         start_fmt = (
             dtstart.strftime("%a %b %d")
             if all_day

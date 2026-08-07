@@ -8,6 +8,8 @@
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import gzip
 import json
@@ -86,6 +88,7 @@ class _CompressedRotatingHandler(RotatingFileHandler):
                             shutil.copyfileobj(fin, fout)
                     os.remove(src)
                 except OSError:
+                    logger.exception("Exception in block")
                     pass
 
 
@@ -123,6 +126,7 @@ class _AsyncLogWriter:
             try:
                 self._handler.emit(rec)
             except Exception:
+                logger.exception("Exception in block")
                 pass
 
     def close(self) -> None:

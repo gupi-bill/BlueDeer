@@ -240,7 +240,7 @@ class GitOps:
         branch = branch or self.current_branch()
         if not branch:
             return False, "no branch"
-        rc, out, err = self._run(["push", remote, branch], check=False)
+        rc, _out, err = self._run(["push", remote, branch], check=False)
         if rc != 0:
             return False, err
         return True, f"pushed {branch} to {remote}"
@@ -266,7 +266,7 @@ class GitOps:
         Returns:
             (无冲突?, 详情消息)
         """
-        rc, out, err = self._run(
+        rc, _out, err = self._run(
             ["merge", "--no-commit", "--no-ff", branch], check=False
         )
         # 无论结果都 abort，模拟结束

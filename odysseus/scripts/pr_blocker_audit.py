@@ -296,7 +296,7 @@ def _fetch_live_pr_files(repo: str, number: int) -> list[str]:
 
 def _run_gh_json(cmd: list[str]):
     result = subprocess.run(
-        cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
+        cmd, text=True, capture_output=True, check=False
     )
     if result.returncode != 0:
         raise RuntimeError(
@@ -408,13 +408,7 @@ def is_docs_tooling_only(files: Iterable[str]) -> bool:
 def is_docs_tooling_path(path: str) -> bool:
     name = path.rsplit("/", 1)[-1]
     return (
-        path.startswith("docs/")
-        or path.startswith("scripts/")
-        or path.startswith("tests/")
-        or path.startswith(".github/")
-        or "tooling" in path
-        or name.startswith("readme")
-        or name in {"pytest.ini", "tox.ini", "mypy.ini", "ruff.toml"}
+        path.startswith(("docs/", "scripts/", "tests/", ".github/")) or "tooling" in path or name.startswith("readme") or name in {"pytest.ini", "tox.ini", "mypy.ini", "ruff.toml"}
     )
 
 

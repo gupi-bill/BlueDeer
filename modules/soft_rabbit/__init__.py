@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 """软耳兔美术技能包：跨全平台通用像素复古 UI 美学。
 
 P-UI 板块划分：

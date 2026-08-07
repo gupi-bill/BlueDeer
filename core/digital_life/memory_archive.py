@@ -202,7 +202,7 @@ class MemoryArchive:
 
         with self._lock:
             results = []
-            for species, entries in self._cache.items():
+            for entries in self._cache.values():
                 for i, e in enumerate(entries):
                     name = e.get("name", "")
                     summary = e.get("life_summary", "")

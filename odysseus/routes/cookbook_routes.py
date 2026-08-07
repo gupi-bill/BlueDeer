@@ -606,8 +606,8 @@ def setup_cookbook_routes() -> APIRouter:
             ),
             (
                 r"Failed to infer device type|NVML Shared Library Not Found|No module named 'amdsmi'|platform is not available",
-                "vLLM could not find a supported GPU (CUDA or ROCm). "
-                "This machine may have integrated or unsupported graphics only.",
+                ("vLLM could not find a supported GPU (CUDA or ROCm). "
+                "This machine may have integrated or unsupported graphics only."),
                 [
                     {
                         "label": "switch to llama.cpp (CPU/Metal, works without a discrete GPU)",
@@ -631,10 +631,10 @@ def setup_cookbook_routes() -> APIRouter:
                 ],
             ),
             (
-                r"sgl_kernel[\s\S]*(Python\.h|libnuma\.so\.1|common_ops|libnvrtc\.so)|"
+                (r"sgl_kernel[\s\S]*(Python\.h|libnuma\.so\.1|common_ops|libnvrtc\.so)|"
                 r"(Python\.h|libnuma\.so\.1|common_ops|libnvrtc\.so)[\s\S]*sgl_kernel|"
                 r"Could not load any common_ops library|"
-                r"Please ensure sgl_kernel is properly installed",
+                r"Please ensure sgl_kernel is properly installed"),
                 "SGLang native kernel/runtime is missing or mismatched on this server.",
                 [
                     {
@@ -1598,7 +1598,6 @@ def setup_cookbook_routes() -> APIRouter:
                 runner_lines.append(_HF_TOKEN_STATUS_SNIPPET)
             # Wrap the download in a retry loop. Large HF/Ollama transfers can
             # hit transient network failures; both backends resume cached partials.
-            mw = 4 if req.disable_hf_transfer else 8
             runner_lines.append("_max_retries=10; _attempt=0; _ec=0")
             runner_lines.append("while [ $_attempt -lt $_max_retries ]; do")
             runner_lines.append("  _attempt=$((_attempt+1))")
@@ -4286,7 +4285,7 @@ def setup_cookbook_routes() -> APIRouter:
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=5)
+            _stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=5)
             if proc.returncode != 0:
                 err = (stderr.decode("utf-8", errors="replace") or "").strip()[:200]
                 return {"ok": False, "error": err or f"kill returned {proc.returncode}"}
@@ -4322,7 +4321,7 @@ def setup_cookbook_routes() -> APIRouter:
             try:
                 state = json.loads(_cookbook_state_path.read_text(encoding="utf-8"))
                 saved_tasks = state.get("tasks", [])
-                tasks = (
+                (
                     saved_tasks
                     if isinstance(saved_tasks, list)
                     else (
@@ -5649,8 +5648,8 @@ def setup_cookbook_routes() -> APIRouter:
                     remote,
                     "powershell",
                     "-Command",
-                    f'$pid = Get-Content "{sd}\\{session_id}.pid" -ErrorAction SilentlyContinue; '
-                    "if ($pid) {{ Get-Process -Id $pid -ErrorAction SilentlyContinue | Out-Null; if ($?) {{ exit 0 }} else {{ exit 1 }} }} else {{ exit 1 }}",
+                    (f'$pid = Get-Content "{sd}\\{session_id}.pid" -ErrorAction SilentlyContinue; '
+                    "if ($pid) {{ Get-Process -Id $pid -ErrorAction SilentlyContinue | Out-Null; if ($?) {{ exit 0 }} else {{ exit 1 }} }} else {{ exit 1 }}"),
                 ]
                 capture_cmd = ssh_base + [
                     remote,

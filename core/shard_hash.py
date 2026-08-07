@@ -35,7 +35,7 @@ class ShardHash:
             raise ValueError("max_load 必须 >= 1")
         self._shard_count = shard_count
         self._max_load = max_load
-        self._shards: list[dict[Any, Any]] = [dict() for _ in range(shard_count)]
+        self._shards: list[dict[Any, Any]] = [{} for _ in range(shard_count)]
         self._shard_locks: list[threading.RLock] = [
             threading.RLock() for _ in range(shard_count)
         ]
@@ -109,7 +109,7 @@ class ShardHash:
 
     def _start_rehash(self) -> None:
         self._new_count = self._shard_count * 2
-        self._new_shards = [dict() for _ in range(self._new_count)]
+        self._new_shards = [{} for _ in range(self._new_count)]
         self._rehash_idx = 0
         self._rehash_count += 1
 
@@ -153,7 +153,7 @@ class ShardHash:
             for s in self._shards:
                 s.clear()
             n = self._shard_count
-            new_shards = [dict() for _ in range(n)]
+            new_shards = [{} for _ in range(n)]
             migration: dict[str, int] = {}
             for k, v in all_items.items():
                 new_idx = self._weighted_shard_for(k)

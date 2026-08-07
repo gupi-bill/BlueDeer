@@ -153,7 +153,7 @@ def test_restart_does_not_re_dispatch_overdue_task(monkeypatch):
         db.commit()
         db.close()
 
-    cd, ScheduledTask, TaskRun, dispatched = _drive_scheduler(monkeypatch, _setup)
+    cd, ScheduledTask, _TaskRun, dispatched = _drive_scheduler(monkeypatch, _setup)
 
     db = cd.SessionLocal()
     t = db.query(ScheduledTask).filter(ScheduledTask.id == "t_due_1").first()
@@ -189,7 +189,7 @@ def test_startup_does_not_advance_fresh_tasks(monkeypatch):
         db.commit()
         db.close()
 
-    cd, ScheduledTask, TaskRun, dispatched = _drive_scheduler(monkeypatch, _setup)
+    cd, ScheduledTask, _TaskRun, dispatched = _drive_scheduler(monkeypatch, _setup)
 
     db = cd.SessionLocal()
     t = db.query(ScheduledTask).filter(ScheduledTask.id == "t_fresh").first()
@@ -219,7 +219,7 @@ def test_startup_does_not_advance_paused_tasks(monkeypatch):
         db.commit()
         db.close()
 
-    cd, ScheduledTask, TaskRun, dispatched = _drive_scheduler(monkeypatch, _setup)
+    cd, ScheduledTask, _TaskRun, _dispatched = _drive_scheduler(monkeypatch, _setup)
 
     db = cd.SessionLocal()
     t = db.query(ScheduledTask).filter(ScheduledTask.id == "t_paused").first()

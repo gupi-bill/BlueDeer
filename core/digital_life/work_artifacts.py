@@ -554,7 +554,7 @@ class WorkArtifactsManager:
         return a.to_dict(include_archived=include_archived)
 
     def tick(
-        self, dt: float = 1.0, population: list = None, router: Any = None
+        self, dt: float = 1.0, population: list | None = None, router: Any = None
     ) -> list[dict]:
         """每秒调用：尝试生成产物。返回生成事件列表。"""
         events: list[dict] = []
@@ -626,7 +626,7 @@ def get_artifacts_manager() -> WorkArtifactsManager:
 
 
 def tick_artifacts(
-    dt: float = 1.0, population: list = None, router: Any = None
+    dt: float = 1.0, population: list | None = None, router: Any = None
 ) -> list[dict]:
     return get_artifacts_manager().tick(dt, population=population, router=router)
 

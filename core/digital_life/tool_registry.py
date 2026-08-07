@@ -20,6 +20,8 @@
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import ast
 import os
@@ -1036,7 +1038,7 @@ def _fallback_render_dashboard(title: str, panels: list) -> str:
     return "\n".join(html)
 
 
-def _fallback_collect_metrics(sources: list = None) -> dict:
+def _fallback_collect_metrics(sources: list | None = None) -> dict:
     """指标收集兜底：返回模拟指标。"""
     import random as _r
 
@@ -1186,7 +1188,7 @@ def _fallback_code_reviewer(code: str = "", language: str = "python") -> dict:
 
 
 def _fallback_hypothesis_test(
-    samples: list = None, property_name: str = "", runs: int = 100
+    samples: list | None = None, property_name: str = "", runs: int = 100
 ) -> dict:
     """假设测试兜底：基于随机输入验证简单属性。"""
     import random as _r
@@ -1197,7 +1199,7 @@ def _fallback_hypothesis_test(
     for r in range(int(runs)):
         x = _r.choice(samples) if samples else _r.randint(-100, 100)
         # 简单不变量：x == x
-        if not (x == x):
+        if x != x:
             failures.append({"run": r, "input": x, "reason": "identity violated"})
     return {
         "property": property_name or "identity",
@@ -1273,7 +1275,7 @@ def _fallback_file_system_op(
 
 
 def _fallback_http_request(
-    url: str = "", method: str = "GET", headers: dict = None, body: str = ""
+    url: str = "", method: str = "GET", headers: dict | None = None, body: str = ""
 ) -> dict:
     """HTTP 请求兜底：模拟 HTTP 响应（不真发请求）。"""
     return {
@@ -1287,7 +1289,7 @@ def _fallback_http_request(
     }
 
 
-def _fallback_layout_designer(page_type: str = "list", components: list = None) -> dict:
+def _fallback_layout_designer(page_type: str = "list", components: list | None = None) -> dict:
     """布局设计兜底：返回模拟布局 HTML。"""
     components = components or ["header", "content", "footer"]
     html_parts = ['<div class="layout" data-page="' + page_type + '">']
@@ -1316,7 +1318,7 @@ def _fallback_image_prompt_expand(prompt: str = "", style: str = "") -> dict:
     }
 
 
-def _fallback_task_orchestrate(task: str = "", subtasks: list = None) -> dict:
+def _fallback_task_orchestrate(task: str = "", subtasks: list | None = None) -> dict:
     """任务编排兜底：把任务拆成线性步骤。"""
     subtasks = subtasks or [
         {"step": 1, "task": f"针对「{task}」执行第一步"},
@@ -1330,7 +1332,7 @@ def _fallback_task_orchestrate(task: str = "", subtasks: list = None) -> dict:
     }
 
 
-def _fallback_pipeline_plan(goal: str = "", steps: list = None) -> dict:
+def _fallback_pipeline_plan(goal: str = "", steps: list | None = None) -> dict:
     """流水线规划兜底。"""
     steps = steps or [
         {"agent": "squirrel", "task": f"实现「{goal}」的代码"},
@@ -1532,6 +1534,7 @@ class ToolRegistry:
                 elif recursive and os.path.isdir(full):
                     discovered.extend(self.discover_tools(full, recursive=True))
         except Exception:
+            logger.exception("Exception in block")
             pass
         return discovered
 

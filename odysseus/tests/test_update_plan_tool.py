@@ -20,7 +20,7 @@ def _run(content):
 
 def test_valid_plan_returns_marker_and_counts():
     plan = "- [x] step one\n- [ ] step two\n- [ ] step three"
-    desc, result = _run(json.dumps({"plan": plan}))
+    _desc, result = _run(json.dumps({"plan": plan}))
     assert result.get("exit_code") == 0
     assert result["plan_update"]["plan"] == plan
     assert "1/3" in result["output"]  # 1 done of 3

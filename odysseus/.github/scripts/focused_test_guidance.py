@@ -90,8 +90,8 @@ def format_report(paths: Iterable[str]) -> str:
     lines.extend(
         [
             "",
-            "This guidance does not infer tests from source changes. "
-            "Existing blocking CI remains the source of truth.",
+            ("This guidance does not infer tests from source changes. "
+            "Existing blocking CI remains the source of truth."),
         ]
     )
     return "\n".join(lines)

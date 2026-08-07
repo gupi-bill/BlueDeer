@@ -343,7 +343,7 @@ class PluginManager:
 
     def _check_version_conflict(self, plugin: PluginBase) -> None:
         v = Version(plugin.manifest.version)
-        for name, existing in self._plugins.items():
+        for existing in self._plugins.values():
             ev = Version(existing.manifest.version)
             if v.major != ev.major and v.minor != ev.minor:
                 logger.warning(

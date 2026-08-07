@@ -20,6 +20,8 @@
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import io
 import os
@@ -360,15 +362,13 @@ class ToolExecutor:
         from core.digital_life.external import get_external_manager
 
         agent_id = ""
-        agent_name = ""
-        species = ""
         if agent is not None:
             try:
                 agent_id = agent.get_agent_id()
             except Exception:
                 agent_id = ""
-            agent_name = getattr(agent, "_name_obj", "") or ""
-            species = getattr(agent, "species", "") or ""
+            getattr(agent, "_name_obj", "") or ""
+            getattr(agent, "species", "") or ""
 
         mgr = get_external_manager()
         start = time.time()
@@ -547,6 +547,7 @@ class ToolExecutor:
                             k: v for k, v in clean_params.items() if k in valid_keys
                         }
                 except (ValueError, TypeError):
+                    logger.exception("Exception in block")
                     pass
                 result = impl(**clean_params)
                 out_box["output"] = result

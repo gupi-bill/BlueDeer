@@ -82,7 +82,7 @@ async def request_validation_middleware(request: Request, call_next):
         content_type = request.headers.get("content-type", "")
         if "json" in content_type:
             try:
-                body = await request.json()
+                await request.json()
             except Exception:
                 return Response(
                     content='{"error": "无效的 JSON"}',
@@ -440,16 +440,16 @@ LOGIN_HTML = """<!DOCTYPE html>
 
 # ===== 路由注册（自动拆分） =====
 from .routes_admin import router as _admin_router
-from .routes_users import router as _users_router
+from .routes_agents import router as _agents_router
+from .routes_alerts import router as _alerts_router
+from .routes_dag import router as _dag_router
+from .routes_misc import router as _misc_router
+from .routes_pages import router as _pages_router
+from .routes_plugins import router as _plugins_router
 from .routes_system import router as _system_router
 from .routes_traces import router as _traces_router
-from .routes_plugins import router as _plugins_router
-from .routes_agents import router as _agents_router
-from .routes_dag import router as _dag_router
-from .routes_alerts import router as _alerts_router
+from .routes_users import router as _users_router
 from .routes_vector import router as _vector_router
-from .routes_pages import router as _pages_router
-from .routes_misc import router as _misc_router
 
 app.include_router(_admin_router)
 app.include_router(_users_router)

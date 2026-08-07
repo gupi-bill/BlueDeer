@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 from typing import Any
 
 from tools.base_tool import BaseTool, ToolCategory

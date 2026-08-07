@@ -112,11 +112,11 @@ async def _cached(key: tuple, ttl: float, fetch: Callable[[], Awaitable[Any]]) -
 def compute_next_run(
     schedule: str,
     scheduled_time: str,
-    scheduled_day: int = None,
-    scheduled_date: datetime = None,
-    after: datetime = None,
-    cron_expression: str = None,
-    tz_name: str = None,
+    scheduled_day: int | None = None,
+    scheduled_date: datetime | None = None,
+    after: datetime | None = None,
+    cron_expression: str | None = None,
+    tz_name: str | None = None,
 ) -> datetime | None:
     """Compute the next run datetime (stored as naive UTC) based on schedule type.
 
@@ -533,9 +533,9 @@ class TaskScheduler:
         self,
         task_name: str,
         status: str,
-        task_id: str = None,
-        owner: str = None,
-        body: str = None,
+        task_id: str | None = None,
+        owner: str | None = None,
+        body: str | None = None,
     ):
         """Store a notification about a completed task run. Tagged with the
         task's owner so `pop_notifications` can return only that user's
@@ -556,7 +556,7 @@ class TaskScheduler:
         if len(self._pending_notifications) > 50:
             self._pending_notifications = self._pending_notifications[-50:]
 
-    def pop_notifications(self, owner: str = None) -> list:
+    def pop_notifications(self, owner: str | None = None) -> list:
         """Return and clear pending notifications.
 
         When `owner` is set, only matching notifications are returned (and
@@ -1616,7 +1616,7 @@ class TaskScheduler:
                     lines.append(f"- {sender} — {subject}")
                 else:
                     lines.append(f"- {subject}")
-            elif line.startswith("[") or line.startswith("-"):
+            elif line.startswith(("[", "-")):
                 # Generic cleanup
                 cleaned = _re.sub(
                     r"^\[?\d+\]?\s*(?:↩️\s*|📎\s*)?", "", line.lstrip("- ")
@@ -1722,7 +1722,9 @@ class TaskScheduler:
                 # Miniflux: fetch unread entries (cached 3 min across tasks)
                 if preset == "miniflux":
 
-                    async def _fetch_miniflux(_base=base_url, _headers=dict(headers)):
+                    async def _fetch_miniflux(_base=base_url, _headers=None):
+                        if _headers is None:
+                            _headers = dict(headers)
                         async with httpx.AsyncClient(timeout=10) as client:
                             resp = await client.get(
                                 f"{_base}/v1/entries",
@@ -2034,7 +2036,7 @@ class TaskScheduler:
 
         return result
 
-    async def _deliver_task_result(self, task, result: str, db, model: str = None):
+    async def _deliver_task_result(self, task, result: str, db, model: str | None = None):
         """Deliver a completed task result according to output_target.
 
         This is intentionally shared by LLM/research/action tasks so built-in
@@ -2848,7 +2850,7 @@ class TaskScheduler:
                         created_key,
                     )
 
-                keep = sorted(tasks, key=_score, reverse=True)[0]
+                keep = max(tasks, key=_score)
                 kept_ids.add(keep.id)
                 for dupe in tasks:
                     if dupe.id == keep.id:

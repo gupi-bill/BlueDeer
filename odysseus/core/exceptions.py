@@ -13,7 +13,7 @@ class SessionNotFoundError(Exception):
 class InvalidFileUploadError(Exception):
     """Raised when a file upload fails validation."""
 
-    def __init__(self, message: str, filename: str = None):
+    def __init__(self, message: str, filename: str | None = None):
         self.filename = filename
         self.message = message
         super().__init__(message)
@@ -22,7 +22,7 @@ class InvalidFileUploadError(Exception):
 class LLMServiceError(Exception):
     """Raised when there is an error communicating with the LLM service."""
 
-    def __init__(self, message: str, endpoint: str = None):
+    def __init__(self, message: str, endpoint: str | None = None):
         self.endpoint = endpoint
         self.message = message
         super().__init__(message)
@@ -31,7 +31,7 @@ class LLMServiceError(Exception):
 class WebSearchError(Exception):
     """Raised when there is an error with web search functionality."""
 
-    def __init__(self, message: str, query: str = None):
+    def __init__(self, message: str, query: str | None = None):
         self.query = query
         self.message = message
         super().__init__(message)

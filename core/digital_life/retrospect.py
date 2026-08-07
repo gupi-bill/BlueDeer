@@ -142,7 +142,7 @@ def generate_retrospect(
     tool_calls: list,
     result_ok: bool,
     duration_sec: float,
-    experience_adopted: list = None,
+    experience_adopted: list | None = None,
     router: Any = None,
 ) -> dict:
     """生成一次任务的复盘。

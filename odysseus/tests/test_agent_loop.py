@@ -233,21 +233,21 @@ class TestComputeFinalMetrics:
     """Test metric computation with real and estimated usage."""
 
     def _base_args(self, **overrides):
-        defaults = dict(
-            messages=[{"role": "user", "content": "hello world"}],
-            full_response="This is a test response.",
-            total_duration=2.0,
-            time_to_first_token=0.5,
-            context_length=8192,
-            real_input_tokens=100,
-            real_output_tokens=50,
-            has_real_usage=True,
-            tool_events=[],
-            round_texts=[],
-            model="test-model",
-            last_round_input_tokens=0,
-            prep_timings=None,
-        )
+        defaults = {
+            "messages": [{"role": "user", "content": "hello world"}],
+            "full_response": "This is a test response.",
+            "total_duration": 2.0,
+            "time_to_first_token": 0.5,
+            "context_length": 8192,
+            "real_input_tokens": 100,
+            "real_output_tokens": 50,
+            "has_real_usage": True,
+            "tool_events": [],
+            "round_texts": [],
+            "model": "test-model",
+            "last_round_input_tokens": 0,
+            "prep_timings": None,
+        }
         defaults.update(overrides)
         return defaults
 

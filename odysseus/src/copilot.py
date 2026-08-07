@@ -93,9 +93,7 @@ def is_copilot_base(url: str | None) -> bool:
     if host == "githubcopilot.com" or host.endswith(".githubcopilot.com"):
         return True
     # Enterprise: copilot-api.<domain>.
-    if host.startswith("copilot-api."):
-        return True
-    return False
+    return bool(host.startswith("copilot-api."))
 
 
 def copilot_headers(

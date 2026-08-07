@@ -313,7 +313,7 @@ def _validate_mcp_command(command, args, env) -> str | None:
     if any(ch in _MCP_SHELL_METACHARS for ch in command):
         return "command contains shell metacharacters"
     base = command.lower()
-    if base.endswith(".exe") or base.endswith(".cmd") or base.endswith(".bat"):
+    if base.endswith((".exe", ".cmd", ".bat")):
         base = base.rsplit(".", 1)[0]
     # Canonicalize a trailing version suffix so versioned aliases collapse to the
     # family name (python3.11 -> python, node18 -> node, pip3 -> pip); both the

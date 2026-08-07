@@ -105,7 +105,7 @@ def test_pre_retrieve_context_logs_out_on_search_failure(monkeypatch):
     )
 
     # Provide a body with a capitalised term so terms_list is non-empty
-    snippets, terms = helpers._pre_retrieve_context(
+    _snippets, _terms = helpers._pre_retrieve_context(
         body="Project Alpha update",
         sender="Known Sender <known@example.com>",
     )

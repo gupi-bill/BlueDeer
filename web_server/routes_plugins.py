@@ -1,7 +1,11 @@
 # 自动拆分自 web_server.py（路由域: plugins）
+import logging
+logger = logging.getLogger(__name__)
 from fastapi import APIRouter
+
 from web_server.app import (
-    app, plugin_manager,
+    app,
+    plugin_manager,
 )
 
 router = APIRouter()
@@ -75,6 +79,7 @@ def _ensure_agent_registry() -> None:
 
         get_market().refresh_from_registry()
     except Exception:
+        logger.exception("Exception in block")
         pass
     _agent_registry_loaded = True
 

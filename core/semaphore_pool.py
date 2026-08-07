@@ -59,7 +59,7 @@ class SemaphorePool:
             self._conds[key] = threading.Condition(self._lock)
         return s
 
-    def acquire(self, key: str, timeout: float = None) -> bool:
+    def acquire(self, key: str, timeout: float | None = None) -> bool:
         with self._lock:
             s = self._get_sema(key)
             cond = self._conds[key]
@@ -103,7 +103,7 @@ class SemaphorePool:
             self._conds[key].notify(n=min(n, s.waiters) if s.waiters else 1)
             return s.permits
 
-    def acquire_ctx(self, key: str, timeout: float = None) -> Any:
+    def acquire_ctx(self, key: str, timeout: float | None = None) -> Any:
         class _Ctx:
             def __init__(self, pool, k, t):
                 self._pool = pool

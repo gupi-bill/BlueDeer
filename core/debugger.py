@@ -112,9 +112,7 @@ class Debugger:
         if action.endswith("_start") or action == "handle_start":
             self._active_spans[span_key] = now
         elif (
-            action.endswith("_success")
-            or action.endswith("_failed")
-            or action == "handle_success"
+            action.endswith(("_success", "_failed")) or action == "handle_success"
         ):
             start = self._active_spans.pop(span_key, None)
             if start is not None:
@@ -164,7 +162,7 @@ class Debugger:
         """
         events: list[dict[str, Any]] = []
         pid = 1
-        for trace_id, spans in self._spans.items():
+        for spans in self._spans.values():
             for span in spans:
                 ts_us = int(span.timestamp * 1_000_000)
                 dur_us = int(span.duration_ms * 1_000) if span.duration_ms > 0 else 0

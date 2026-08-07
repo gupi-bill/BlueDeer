@@ -775,7 +775,7 @@ def get_autobiography_manager() -> AutobiographyManager:
 
 
 def tick_autobiography(
-    dt: float = 1.0, population: list = None, router: Any = None
+    dt: float = 1.0, population: list | None = None, router: Any = None
 ) -> list[dict]:
     """每秒调用：定期触发周反思、记忆整理、临终自传。
 

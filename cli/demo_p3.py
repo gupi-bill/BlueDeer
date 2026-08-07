@@ -79,7 +79,7 @@ async def run_demo() -> None:
     )
 
     harness = Harness(event_bus=bus, tracer=tracer)
-    squirrel = SquirrelAgent(
+    SquirrelAgent(
         event_bus=bus,
         router=router,
         tool_registry=tools,

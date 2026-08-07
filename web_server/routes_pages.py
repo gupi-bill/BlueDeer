@@ -1,7 +1,12 @@
 # 自动拆分自 web_server.py（路由域: pages）
+import logging
+logger = logging.getLogger(__name__)
 from fastapi import APIRouter
+
 from web_server.app import (
-    app, debugger, scene,
+    app,
+    debugger,
+    scene,
 )
 
 router = APIRouter()
@@ -13,7 +18,7 @@ async def dashboard(request: Request) -> str:
     status = scene.status()
     offices_data = scene.office_manager.to_dict()
     github_data = github.stats()
-    announcements = scene.breakroom.recent(count=5, msg_type=None)
+    scene.breakroom.recent(count=5, msg_type=None)
 
     html = (
         """<!DOCTYPE html>

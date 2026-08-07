@@ -84,6 +84,6 @@ def test_no_same_host_selector_paths_resolve_by_first_matching_host():
         "servers.find(x => x.host === val)",
         "servers.find(s => s.host === _ssv)",
     ]
-    combined = "\n".join([DOWNLOAD, HWFIT, SERVE])
+    combined = f"{DOWNLOAD}\n{HWFIT}\n{SERVE}"
     for needle in forbidden:
         assert needle not in combined

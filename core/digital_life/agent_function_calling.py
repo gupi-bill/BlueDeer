@@ -292,7 +292,7 @@ class FunctionCaller:
     # ---------------- LLM 路径 ----------------
 
     def _run_with_llm(
-        self, task: str, max_rounds: int, adopted_exp_strs: list = None
+        self, task: str, max_rounds: int, adopted_exp_strs: list | None = None
     ) -> dict:
         router = self._get_router()
         if router is None:
@@ -378,7 +378,7 @@ class FunctionCaller:
     # ---------------- 降级路径（LLM 不可用时） ----------------
 
     def _run_fallback(
-        self, task: str, reason: str, adopted_exp_strs: list = None
+        self, task: str, reason: str, adopted_exp_strs: list | None = None
     ) -> dict:
         """LLM 不可用时，按关键词匹配挑一个工具调用一次。"""
         tool_calls: list[dict] = []
@@ -792,10 +792,10 @@ def cleanup_function_callers(max_age: float = 3600) -> int:
     Returns:
         清理的缓存数
     """
-    now = time.time()
+    time.time()
     removed = 0
     with _FUNCTION_CALLERS_LOCK:
-        stale = [
+        [
             k
             for k in list(_FUNCTION_CALLERS.keys())
             if hasattr(_FUNCTION_CALLERS[k], "_last_used")

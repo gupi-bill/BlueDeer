@@ -152,10 +152,10 @@ class AgentMarket:
         """基于能力匹配推荐 Agent。"""
         if not user_profile or not self._agents:
             return []
-        profile_set = set(c.lower() for c in user_profile)
+        profile_set = {c.lower() for c in user_profile}
         scored: list[tuple[float, MarketAgent]] = []
         for agent in self._agents.values():
-            caps = set(c.lower() for c in agent.info.capabilities)
+            caps = {c.lower() for c in agent.info.capabilities}
             if not caps:
                 continue
             overlap = len(profile_set & caps)

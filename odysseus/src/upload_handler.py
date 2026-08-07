@@ -298,7 +298,7 @@ class UploadHandler:
 
         return content_type
 
-    def is_image_file(self, filename: str, content_type: str = None) -> bool:
+    def is_image_file(self, filename: str, content_type: str | None = None) -> bool:
         """Check if a file is an image based on extension or content type."""
         image_extensions = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
         image_mime_types = {
@@ -315,12 +315,9 @@ class UploadHandler:
             return True
 
         # Check by content type if provided
-        if content_type and content_type in image_mime_types:
-            return True
+        return bool(content_type and content_type in image_mime_types)
 
-        return False
-
-    def is_document_file(self, filename: str, content_type: str = None) -> bool:
+    def is_document_file(self, filename: str, content_type: str | None = None) -> bool:
         """Check if a file is a document based on extension or content type."""
         document_extensions = {
             ".pdf",
@@ -374,12 +371,9 @@ class UploadHandler:
             return True
 
         # Check by content type if provided
-        if content_type and content_type in document_mime_types:
-            return True
+        return bool(content_type and content_type in document_mime_types)
 
-        return False
-
-    def is_audio_file(self, filename: str, content_type: str = None) -> bool:
+    def is_audio_file(self, filename: str, content_type: str | None = None) -> bool:
         """Check if a file is an audio file based on extension or content type."""
         audio_extensions = {".webm", ".wav", ".mp3", ".m4a", ".ogg"}
         audio_mime_types = {
@@ -396,10 +390,7 @@ class UploadHandler:
             return True
 
         # Check by content type if provided
-        if content_type and content_type in audio_mime_types:
-            return True
-
-        return False
+        return bool(content_type and content_type in audio_mime_types)
 
     def is_safe_file_type(self, content_type: str, filename: str) -> bool:
         """Check if file type is safe to store and serve."""
@@ -431,10 +422,7 @@ class UploadHandler:
             return False
 
         _, ext = os.path.splitext(filename.lower())
-        if ext in dangerous_extensions:
-            return False
-
-        return True
+        return ext not in dangerous_extensions
 
     @staticmethod
     def _parse_upload_timestamp(value: Any) -> datetime | None:
@@ -1241,7 +1229,7 @@ class UploadHandler:
             logger.error(f"Failed to get upload stats: {e}")
             return {"error": str(e)}
 
-    def save_upload(self, u: UploadFile, client_ip: str, owner: str = None) -> dict:
+    def save_upload(self, u: UploadFile, client_ip: str, owner: str | None = None) -> dict:
         """Save uploaded file with enhanced security and organization."""
         # Rate limiting
         now = time.time()

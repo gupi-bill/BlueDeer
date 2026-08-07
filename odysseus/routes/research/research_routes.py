@@ -127,9 +127,7 @@ def _research_thumbnail(data: dict) -> str:
             return False
         if any(blocked in image for blocked in _RESEARCH_IMAGE_BLOCKLIST):
             return False
-        if _is_research_icon_or_logo_url(image):
-            return False
-        return True
+        return not _is_research_icon_or_logo_url(image)
 
     for source in data.get("sources") or []:
         if not isinstance(source, dict):

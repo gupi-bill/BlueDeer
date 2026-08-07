@@ -17,6 +17,8 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from typing_extensions import Self
+
 
 class TimeoutError(Exception):
     """超时异常。"""
@@ -126,7 +128,7 @@ class timeout:
         self._reraise = reraise
         self._timer: threading.Timer | None = None
 
-    def __enter__(self) -> timeout:
+    def __enter__(self) -> Self:
         self._timer = threading.Timer(self._seconds, self._raise_timeout)
         self._timer.daemon = True
         self._timer.start()
@@ -136,9 +138,7 @@ class timeout:
         if self._timer is not None:
             self._timer.cancel()
             self._timer = None
-        if exc_type is TimeoutError:
-            return True
-        return False
+        return exc_type is TimeoutError
 
     @staticmethod
     def _raise_timeout():
@@ -187,7 +187,7 @@ class TimeoutGuard:
     def expired(self) -> bool:
         return self._deadline.expired()
 
-    def __enter__(self) -> TimeoutGuard:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> bool:
@@ -208,7 +208,7 @@ class _timeout_ctx:
         self._seconds = seconds
         self._timer: threading.Timer | None = None
 
-    def __enter__(self) -> _timeout_ctx:
+    def __enter__(self) -> Self:
         self._timer = threading.Timer(self._seconds, self._raise_timeout)
         self._timer.daemon = True
         self._timer.start()
@@ -218,9 +218,7 @@ class _timeout_ctx:
         if self._timer is not None:
             self._timer.cancel()
             self._timer = None
-        if exc_type is TimeoutError:
-            return True
-        return False
+        return exc_type is TimeoutError
 
     @staticmethod
     def _raise_timeout():

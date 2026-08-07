@@ -1843,7 +1843,6 @@ def setup_gallery_routes() -> APIRouter:
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
 
-        last_err = None
         # Cold-start SDXL inpaint can take 60-90s on first request (loading
         # weights to GPU). 240s gives headroom for both that and a full
         # 1024×1024 inference pass on slower setups.
@@ -1854,11 +1853,9 @@ def setup_gallery_routes() -> APIRouter:
                 try:
                     r = await client.post(target, json=payload, headers=headers)
                     if r.status_code == 404:
-                        last_err = f"{path}: 404"
                         continue  # try next variant
                     if r.status_code != 200:
                         logger.warning("harmonize: %s returned %s", path, r.status_code)
-                        last_err = f"{path}: {r.status_code}"
                         continue
                     data = r.json()
                     # Normalise return shape.
@@ -1893,7 +1890,6 @@ def setup_gallery_routes() -> APIRouter:
                                 img_b64 = await _fetch_result_image_b64(item["url"])
                                 if img_b64:
                                     return {"image": img_b64}
-                    last_err = f"{path}: server returned no image"
                 except httpx.ConnectError:
                     logger.warning(
                         "harmonize: can't reach diffusion server at %s", base
@@ -2141,8 +2137,8 @@ def setup_gallery_routes() -> APIRouter:
                 if input_points:
                     try:
                         point_xy = (
-                            int(round(float(input_points[0][0]))),
-                            int(round(float(input_points[0][1]))),
+                            round(float(input_points[0][0])),
+                            round(float(input_points[0][1])),
                         )
                     except Exception:
                         point_xy = None

@@ -696,7 +696,7 @@ def _skill_duplicate_blocker(skills_manager, name: str, owner) -> str | None:
             duplicates.append(other)
     if not duplicates:
         return None
-    keeper = sorted([current, *duplicates], key=_score, reverse=True)[0]
+    keeper = max([current, *duplicates], key=_score)
     keeper_name = keeper.get("name") or keeper.get("id") or ""
     if keeper_name and keeper_name != cur_name:
         try:

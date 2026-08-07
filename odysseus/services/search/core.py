@@ -80,7 +80,7 @@ def get_search_config() -> dict[str, Any]:
     }
 
 
-def update_search_config(api_key: str = None, **kwargs):
+def update_search_config(api_key: str | None = None, **kwargs):
     """Merge non-secret search config into SEARCH_CONFIG.
 
     Provider API keys are intentionally NOT cached here. They are read on demand
@@ -96,7 +96,7 @@ def update_search_config(api_key: str = None, **kwargs):
 
 
 def _call_provider(
-    provider_name: str, query: str, count: int, time_filter: str = None
+    provider_name: str, query: str, count: int, time_filter: str | None = None
 ) -> list[dict]:
     """Call a search provider by name. Returns list of results or empty list."""
     if provider_name == "searxng":
@@ -138,7 +138,7 @@ def _build_provider_chain(primary: str) -> list[str]:
 # Unified search with caching and retry
 # ----------------------------------------------------------------------
 def searxng_search_results(
-    query: str, count: int = 10, time_filter: str = None
+    query: str, count: int = 10, time_filter: str | None = None
 ) -> list[dict]:
     """Perform a web search using configured provider with caching and retry."""
     settings = _get_search_settings()
@@ -267,7 +267,7 @@ def comprehensive_web_search(
     query: str,
     max_pages: int = 3,
     max_workers: int = 4,
-    time_filter: str = None,
+    time_filter: str | None = None,
     domain_whitelist: set[str] | None = None,
     domain_blacklist: set[str] | None = None,
     content_type: str | None = None,
@@ -364,12 +364,11 @@ def comprehensive_web_search(
                     k in url.lower() for k in ("forum", "discussion", "thread", "topic")
                 ):
                     return False
-            elif ct == "academic":
-                if not any(
-                    k in url.lower()
-                    for k in ("pdf", "doi", "scholar", "arxiv", "journal", "research")
-                ):
-                    return False
+            elif ct == "academic" and not any(
+                k in url.lower()
+                for k in ("pdf", "doi", "scholar", "arxiv", "journal", "research")
+            ):
+                return False
         if language:
             lang_pat = language.lower()
             if not (

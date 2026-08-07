@@ -133,7 +133,7 @@ class CapabilityEnforcer:
     def compose(*capabilities: CapabilityEnforcer) -> CapabilityEnforcer:
         """合并多个 CapabilityEnforcer 的能力为新的 enforcer。"""
         combined = set(chain.from_iterable(c.capabilities for c in capabilities))
-        agent_ids = "+".join(sorted(set(c.agent_id for c in capabilities)))
+        agent_ids = "+".join(sorted({c.agent_id for c in capabilities}))
         return CapabilityEnforcer(agent_id=agent_ids, capabilities=combined)
 
 

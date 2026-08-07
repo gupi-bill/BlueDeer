@@ -114,7 +114,7 @@ def init_api(
 
 @router.get("/health")
 async def health(request: Request) -> dict[str, Any]:
-    allowed, current = _rate_limiter.check(
+    _allowed, _current = _rate_limiter.check(
         f"health:{request.client.host if request.client else 'unknown'}"
     )
     return {

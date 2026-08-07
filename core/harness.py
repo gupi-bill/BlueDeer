@@ -6,6 +6,8 @@
 - core/circuit_breaker.py: CircuitBreakerMixin —— 熔断/重试/负载均衡/Token 超限回调
 
 本文件保留为薄壳，Harness 组合三 mixin，对外 API 完全兼容：
+import logging
+logger = logging.getLogger(__name__)
 from core.harness import Harness, HarnessResult 不受影响。
 
 P0 修复（融合 50 项目）：

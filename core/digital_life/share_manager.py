@@ -114,9 +114,7 @@ class ShareToken:
         """是否有效（未撤销、未过期）。"""
         if self.revoked:
             return False
-        if time.time() > self.expires_ts:
-            return False
-        return True
+        return not time.time() > self.expires_ts
 
     def to_dict(self) -> dict:
         return {
@@ -256,9 +254,7 @@ class ShareManager:
         if path.startswith("/sprites/"):
             return True
         # /api/memory?xxx 这种带参数的 GET 允许
-        if path.startswith("/api/memory"):
-            return True
-        return False
+        return bool(path.startswith("/api/memory"))
 
 
 def get_share_manager() -> ShareManager:

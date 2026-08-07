@@ -8,6 +8,8 @@
 """
 
 from __future__ import annotations
+import logging
+logger = logging.getLogger(__name__)
 
 import asyncio
 import logging
@@ -19,7 +21,7 @@ from typing import Any
 
 logger = logging.getLogger("bluedeer.monitor")
 
-__all__ = ["HealthStatus", "AlertEvaluator", "SystemMonitor"]
+__all__ = ["AlertEvaluator", "HealthStatus", "SystemMonitor"]
 
 
 @dataclass(slots=True)
@@ -249,6 +251,7 @@ class SystemMonitor:
             try:
                 await self._task
             except asyncio.CancelledError:
+                logger.exception("Exception in block")
                 pass
             self._task = None
         logger.info("系统监控已停止")

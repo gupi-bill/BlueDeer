@@ -490,7 +490,7 @@ def setup_mcp_routes(mcp_manager: McpManager):
 
             # Determine if user is accessing from the same machine
             host = request.headers.get("host", "")
-            is_local = host.startswith("localhost") or host.startswith("127.0.0.1")
+            is_local = host.startswith(("localhost", "127.0.0.1"))
 
             if is_local:
                 # Same machine — just redirect, callback will work directly

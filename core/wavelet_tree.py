@@ -100,7 +100,7 @@ class WaveletTree:
             node = self._root
             while node is not None and node.lo != node.hi:
                 bit = node.bits[i]
-                mid = (node.lo + node.hi) // 2
+                (node.lo + node.hi) // 2
                 # 计算 i 在子树中的新位置
                 if bit == 0:
                     # 走左：前 i+1 位中 0 的数量
