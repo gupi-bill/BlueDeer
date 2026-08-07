@@ -5,7 +5,7 @@
 路由块按路径前缀分到 routes_*.py（@app.x -> @router.x），末尾 __main__ 提取。
 运行后验证：import web_server; 路由路径集合不变。
 """
-import os, re, shutil, ast
+import os, re, shutil
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(BASE, "web_server.py")

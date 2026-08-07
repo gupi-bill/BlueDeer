@@ -1,10 +1,7 @@
 # 自动拆分自 web_server.py（路由域: agents）
 from fastapi import APIRouter
 from web_server.app import (
-    app, cache_response, invalidate_cache,
-    library, breakroom, office_manager, rest_area, jarvis,
-    plugin_manager, vector_browser, debugger, canvas, scene,
-    github_kb, scheduler, webhook, harness, ws_manager,
+    app,
 )
 
 router = APIRouter()

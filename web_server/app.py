@@ -15,12 +15,11 @@ from collections.abc import Callable
 from typing import Any
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
 from core.breakroom import BreakRoom
 from core.canvas import Canvas
-from core.config import get_config
 from core.debugger import Debugger
 from core.github_knowledge import GitHubKnowledge
 from core.jarvis import JARVIS
