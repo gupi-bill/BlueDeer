@@ -30,6 +30,7 @@ import threading
 import time
 import uuid
 from typing import Any
+# ruff: noqa: S110, S112
 
 # ----------------------------------------------------------------------
 # 状态枚举（字符串，便于 JSON 序列化）

@@ -23,6 +23,7 @@ import re
 import threading
 import time
 from typing import Any
+# ruff: noqa: S110, S112
 
 # 单轮工具调用的最大轮数（防止 LLM 死循环）
 MAX_TOOL_ROUNDS = 5

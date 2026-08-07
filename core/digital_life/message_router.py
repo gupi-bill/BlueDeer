@@ -24,6 +24,7 @@ import time
 from typing import Any
 
 from typing_extensions import Self
+# ruff: noqa: S110, S112
 
 
 # ====================================================================

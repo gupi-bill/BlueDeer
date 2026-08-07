@@ -24,6 +24,7 @@ import sys
 import threading
 import time
 from collections import deque
+# ruff: noqa: S110, S112
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 

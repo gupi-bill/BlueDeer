@@ -26,6 +26,7 @@ import random
 import threading
 import time
 from collections import defaultdict, deque
+# ruff: noqa: S110, S112
 
 # 11 种任务类型与物种岗位匹配
 TASK_TYPES = {

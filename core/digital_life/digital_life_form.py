@@ -24,6 +24,7 @@ import random
 import threading
 import time
 from collections import deque
+# ruff: noqa: S110, S112
 
 # ----------------------------------------------------------------------
 # 枚举
@@ -479,186 +480,25 @@ class DigitalLifeForm(threading.Thread):
             environment: 所属 Environment 实例（可空）。
             birth_time: 出生时间戳；None 表示现在出生。
         """
-        # 先把自定义属性塞到 slot 里，再调用 Thread.__init__
-        self._name_obj = name
-        self.species = species
-        self.gender = gender
-        self.birth_time = float(birth_time) if birth_time is not None else time.time()
-        self.life_stage = LifeStage.BABY
-
-        # 复制一份 genome，避免子类共享可变默认值
-        self.genome = (
-            dict(self._DEFAULT_GENOME, **genome)
-            if genome
-            else dict(self._DEFAULT_GENOME)
-        )
-
-        # 状态：能量/健康/饥饿/情绪
-        self.energy = 80.0
-        self.health = 100.0
-        self.hunger = 20.0
-        self.mood = "neutral"
-
-        # 当前行为
-        self.current_action = ActionState.REST
-        self.sleeping = False
-        self.sleep_start_time: float | None = None
-
-        # 关系
-        self.parents: list = []
-        self.children: list = []
-
-        # 记忆
-        self.memory_recent: deque = deque(maxlen=100)
-        self.memory_long_term: list = []
-        # commit 11：核心记忆（重要事件，死亡时归档）
-        self.core_memory: list = []
-        # commit 11：生平摘要 + 遗言（死亡时由 Biosphere 调 LLM 生成）
-        self.life_summary: str = ""
-        self.last_words: str = ""
-
-        # commit 11：对监工的好感度（0-100，初始 50）
-        self.fondness: int = 50
-
-        # commit 11：当前所在 zone_id（初始为物种岗位 zone）
-        self.current_zone_id: str = ""
-
-        # commit 11：觅食/休息状态结束时间戳（None 表示非觅食中）
-        self.resting_until: float | None = None
-
-        # commit 19 P0-1：情绪数值（0-100，初始 50）
-        # 受 mood 字符串同步影响 + 同 zone 邻居情绪传染
-        self.mood_score: float = 50.0
-
-        # commit 19 P0-2：已解锁技能列表（按年龄从 SKILL_TREE 解锁）
-        self.skills: list[str] = []
-
-        # commit 28：行为池运行时状态
-        self._behavior_state: dict = (
-            {}
-        )  # {行为名: {"last_run": ts, "in_progress": bool}}
-        self.current_behavior: str | None = None
-        self.current_behavior_cfg: dict | None = None
-        self.current_behavior_end: float | None = None
-
-        # 运行时
-        self._alive = True
-        self._tick_count = 0
-        self._stop_event = threading.Event()
-        self._environment = environment
-        self._lock = threading.RLock()
-
-        # commit 30：情感系统（6 维情感向量，初始 0.5）
-        self.emotional_state: dict = {
-            "joy": 0.5,
-            "sadness": 0.1,
-            "anxiety": 0.2,
-            "contentment": 0.6,
-            "loneliness": 0.3,
-            "curiosity": 0.7,
-        }
-        self._last_social_ts: float = time.time()
-        self._last_monologue_ts: float = 0.0
-        self._propagation_partners: dict = {}  # {other_id: 接触开始 ts}
-        self._emotion_memory_cooldown: float = 0.0
-
-        # commit 30：关系网络
-        self.relationships: dict = {}  # {other_id: {affection/trust/...}}
-        self.relationship_tags: dict = {}  # {other_id: [tag, ...]}
-        self._cold_war_until: dict = {}  # {other_id: 冷战结束 ts}
-
-        # commit 30：长期记忆影响
-        self.wisdom: float = 0.0
-        self.childhood_imprint: bool = True  # 入职前 3 天标记
-        self.childhood_done: bool = False
-        self.trauma_events: list = []
-        self._witnessed_deaths: list = []
-
-        # commit 30：人生阶段叙事
-        self.retirement_wish: str = ""
-        self.wish_fulfilled: bool = False
-        self.hire_anniversary: float = self.birth_time
-        self._last_anniversary_check: int = 0
-
-        # commit 31：主动消息系统
-        self._active_msg_cooldowns: dict = {}
-        self._last_supervisor_interact_ts: float = time.time()  # 初始为入职时刻
-        self._last_active_msg_check_tick: int = 0
-
-        # commit 34：生病急救 + 持久记忆 + 桌面宠物
-        self.illness = None  # None 或 Illness 实例
-        self._work_continuous_start_ts: float = 0.0  # 连续工作起始 ts
-        self._immunity: dict = {}  # {kind: 免疫力 0~1}
-        self.persistent_memory_ref = None  # 持久记忆实例（懒加载）
-        self._last_memory_sync_ts: float = 0.0
-
-        # commit 35：日记 + 自传体记忆 + 工作产物
-        self.self_description: str = ""
-        self.values: str = ""
-        self.life_goal: str = ""
-        self.contradiction: str = ""
-        self._last_self_cognition_sync_ts: float = 0.0
-        self._diary_discovered: bool = False
-        self._artifact_ref = None
-
-        # commit 37：Agent 工具链 + 流水线任务接收
-        self.bound_tools: list[str] = []  # 由 ToolRegistry 在初始化时填入
-        self._pipeline_task_inbox: list[dict] = []  # 待执行的流水线任务
-        self._tool_call_status: str = ""  # "" / running / waiting / done / error
-        self._tool_call_meta: dict = {}  # {tool_name, started_ts, last_done_ts}
-        # 自动绑定本物种工具
-        try:
-            from core.digital_life.tool_registry import get_tool_registry
-
-            self.bound_tools = get_tool_registry().list_tool_names_for_species(
-                self.species
-            )
-        except Exception:
-            self.bound_tools = []
-
-        # commit 39：长期目标管理 + 团队角色演化
-        self.informal_roles: list[str] = []  # 由 RoleEvolutionEngine 周评估填入
-        self.project_contributions: dict = (
-            {}
-        )  # {project_id: {commits/tasks/last_active_ts/role}}
-        self._help_count: int = 0  # 被同事求助次数
-        self._social_count: int = 0  # 自发社交次数
-        self._supervisor_interact_count: int = 0  # 与监工互动次数
-        self._teach_count: int = 0  # 成功教学次数
-        self._crisis_resolved_count: int = 0  # 成功处理紧急事件次数
-        self._work_output: float = 0.0  # 工作产出量化（任务数 × 质量）
-
-        # commit 40：进化突变系统
-        self.mutations: list[dict] = []  # 已获得的突变记录列表
-        self.appearance_modifiers: dict = {}  # 外观微调参数（颜色覆盖、体型等）
-
-        # 必须在 stop_event / lock 初始化完成后调用
-        super().__init__(daemon=True)
-        # 设置线程名（Thread 的 name 参数）
-        try:
-            super().__init__(name=f"life-{species}-{name}", daemon=True)
-        except TypeError:
-            pass
-
-        # 注册到环境
-        if environment is not None:
-            environment.register(self)
-            environment.birth_log.append(
-                {
-                    "time": time.time(),
-                    "species": species,
-                    "name": name,
-                    "gender": gender,
-                }
-            )
-            environment.broadcast_event(
-                "birth",
-                {
-                    "species": species,
-                    "name": name,
-                    "gender": gender,
-                },
-            )
+        self._init_base_attributes(name, species, gender, genome, birth_time)
+        self._init_physical_state()
+        self._init_relationships()
+        self._init_memory_core()
+        self._init_fondness_and_zone()
+        self._init_emotion_score()
+        self._init_skills()
+        self._init_behavior_state()
+        self._init_runtime()
+        self._init_emotional_system()
+        self._init_relationship_network()
+        self._init_long_term_memory()
+        self._init_life_narrative()
+        self._init_active_messaging()
+        self._init_illness_persistence()
+        self._init_self_cognition()
+        self._init_tools_and_pipeline()
+        self._init_goals_and_evolution()
+        self._init_thread_and_register(environment)
 
     # ------------------------------------------------------------------
     # 基因构造（子类可覆盖）

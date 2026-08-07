@@ -16,6 +16,7 @@ import json
 import os
 import threading
 import time
+# ruff: noqa: S110, S112
 
 # ----------------------------------------------------------------------
 # 配置

@@ -16,6 +16,7 @@ from __future__ import annotations
 import random
 import threading
 import time
+# ruff: noqa: S110, S112
 
 # ----------------------------------------------------------------------
 # 疾病定义

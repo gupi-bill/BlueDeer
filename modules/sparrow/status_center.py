@@ -19,6 +19,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from typing import Any
+# ruff: noqa: S110, S112
 
 logger = logging.getLogger("bluedeer.sparrow.status")
 
