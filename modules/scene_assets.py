@@ -12,6 +12,7 @@ P6 扩容新增：
 from __future__ import annotations
 
 from core.pixel_canvas import Color
+
 # ruff: noqa: F821
 
 # ============== 背景工位区块 ==============

@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import logging
+
 # ruff: noqa: F821
 
 logger = logging.getLogger(__name__)

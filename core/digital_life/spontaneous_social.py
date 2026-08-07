@@ -22,6 +22,7 @@ import threading
 import time
 
 from typing_extensions import Self
+
 # ruff: noqa: S110, S112
 
 # ====================================================================

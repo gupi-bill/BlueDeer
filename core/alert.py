@@ -13,6 +13,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
+
 # ruff: noqa: S110, S112
 
 logger = logging.getLogger("bluedeer.alert")

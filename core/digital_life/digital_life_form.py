@@ -24,6 +24,7 @@ import random
 import threading
 import time
 from collections import deque
+
 # ruff: noqa: S110, S112
 
 # ----------------------------------------------------------------------
@@ -2818,6 +2819,7 @@ class DigitalLifeForm(threading.Thread):
     def _spawn_death_relic(self, reason: str) -> None:
         try:
             import hashlib
+
             from core.digital_life.memory_fragment import spawn_fragment
             zone_id = self.current_zone_id or "outdoor"
             hv = int(

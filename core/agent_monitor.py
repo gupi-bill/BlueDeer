@@ -71,6 +71,86 @@ class AgentMonitor:
         component = record.get("component", "")
         return component.startswith("agent.")
 
+    def _init_health_stats(self) -> dict[str, dict]:
+        return {
+            aid: {
+                "agent_id": aid,
+                "role": self._agent_roles[aid],
+                "total_runs": 0,
+                "success_count": 0,
+                "failure_count": 0,
+                "durations": [],
+                "last_run_at": 0.0,
+                "last_error": "",
+                "errors": [],
+                "recent_runs": [],
+            }
+            for aid in self._agent_roles
+        }
+
+    def _ensure_agent_stats(self, stats: dict[str, dict], aid: str) -> dict:
+        if aid not in stats:
+            stats[aid] = {
+                "agent_id": aid,
+                "role": self._agent_roles.get(aid, ""),
+                "total_runs": 0,
+                "success_count": 0,
+                "failure_count": 0,
+                "durations": [],
+                "last_run_at": 0.0,
+                "last_error": "",
+                "errors": [],
+                "recent_runs": [],
+            }
+        return stats[aid]
+
+    def _update_health_stats(
+        self,
+        stats: dict[str, dict],
+        record: dict,
+        aid: str,
+        max_errors: int,
+        max_recent: int,
+    ) -> None:
+        s = self._ensure_agent_stats(stats, aid)
+        s["total_runs"] += 1
+
+        is_error = record.get("level") == "ERROR" or bool(record.get("error"))
+        duration = record.get("duration_ms", 0) or 0
+
+        if is_error:
+            s["failure_count"] += 1
+            err_text = record.get("error") or record.get("message", "")
+            s["last_error"] = err_text
+            if len(s["errors"]) < max_errors:
+                s["errors"].append(
+                    {
+                        "ts": record.get("ts", 0),
+                        "span": record.get("span", ""),
+                        "error": err_text[:200],
+                        "trace_id": record.get("trace_id", ""),
+                    }
+                )
+        else:
+            s["success_count"] += 1
+
+        if duration > 0:
+            s["durations"].append(duration)
+
+        s["last_run_at"] = max(s["last_run_at"], record.get("ts", 0))
+
+        if len(s["recent_runs"]) < max_recent:
+            s["recent_runs"].append(
+                {
+                    "ts": record.get("ts", 0),
+                    "span": record.get("span", ""),
+                    "trace_id": record.get("trace_id", ""),
+                    "duration_ms": duration,
+                    "error": record.get("error", ""),
+                    "level": record.get("level", "INFO"),
+                }
+            )
+
     def get_health(
         self,
         *,
@@ -89,20 +169,7 @@ class AgentMonitor:
             since: 仅统计该时间戳之后的记录（默认不限）。
             upto: 仅统计该时间戳之前的记录。
         """
-        stats: dict[str, dict] = {}
-        for aid in self._agent_roles:
-            stats[aid] = {
-                "agent_id": aid,
-                "role": self._agent_roles[aid],
-                "total_runs": 0,
-                "success_count": 0,
-                "failure_count": 0,
-                "durations": [],
-                "last_run_at": 0.0,
-                "last_error": "",
-                "errors": [],
-                "recent_runs": [],
-            }
+        stats = self._init_health_stats()
 
         if not os.path.exists(self._trace_log):
             if agent_id:
@@ -134,60 +201,7 @@ class AgentMonitor:
                         component = record.get("component", "")
                         aid = component.split(".", 1)[1] if "." in component else span
 
-                    if aid not in stats:
-                        stats[aid] = {
-                            "agent_id": aid,
-                            "role": self._agent_roles.get(aid, ""),
-                            "total_runs": 0,
-                            "success_count": 0,
-                            "failure_count": 0,
-                            "durations": [],
-                            "last_run_at": 0.0,
-                            "last_error": "",
-                            "errors": [],
-                            "recent_runs": [],
-                        }
-
-                    s = stats[aid]
-                    s["total_runs"] += 1
-
-                    is_error = record.get("level") == "ERROR" or bool(
-                        record.get("error")
-                    )
-                    duration = record.get("duration_ms", 0) or 0
-
-                    if is_error:
-                        s["failure_count"] += 1
-                        err_text = record.get("error") or record.get("message", "")
-                        s["last_error"] = err_text
-                        if len(s["errors"]) < max_errors:
-                            s["errors"].append(
-                                {
-                                    "ts": ts,
-                                    "span": span,
-                                    "error": err_text[:200],
-                                    "trace_id": record.get("trace_id", ""),
-                                }
-                            )
-                    else:
-                        s["success_count"] += 1
-
-                    if duration > 0:
-                        s["durations"].append(duration)
-
-                    s["last_run_at"] = max(s["last_run_at"], ts)
-
-                    if len(s["recent_runs"]) < max_recent:
-                        s["recent_runs"].append(
-                            {
-                                "ts": ts,
-                                "span": span,
-                                "trace_id": record.get("trace_id", ""),
-                                "duration_ms": duration,
-                                "error": record.get("error", ""),
-                                "level": record.get("level", "INFO"),
-                            }
-                        )
+                    self._update_health_stats(stats, record, aid, max_errors, max_recent)
         except (OSError, json.JSONDecodeError) as e:
             logger.warning("读取 trace 日志失败: %s", e)
 

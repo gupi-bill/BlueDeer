@@ -24,6 +24,7 @@ from typing import Any
 from core.digital_life.external.api_caller import ApiCaller
 from core.digital_life.external.git_integration import GitIntegration
 from core.digital_life.external.shell_executor import ShellExecutor
+
 # ruff: noqa: S110, S112
 
 _CONFIG_PATH = os.path.join(

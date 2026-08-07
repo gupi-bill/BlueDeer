@@ -19,6 +19,7 @@ from core.capability import CapabilityEnforcer, parse_capability
 from core.config import get_config
 from core.exceptions import ToolExecutionError, ToolNotFoundError, ToolValidationError
 from tools.base_tool import BaseTool, ToolCategory, category_level, needs_security_check
+
 # ruff: noqa: F821
 
 logger = logging.getLogger("bluedeer.tools")

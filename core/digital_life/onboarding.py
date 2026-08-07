@@ -16,6 +16,7 @@ import os
 import threading
 import time
 from typing import Any
+
 # ruff: noqa: S110, S112
 
 _ONBOARDING_PATH = os.path.join(

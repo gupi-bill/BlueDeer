@@ -22,6 +22,7 @@ import time
 import urllib.parse
 import urllib.request
 from collections.abc import Callable
+
 # ruff: noqa: S110, S112
 
 # ====================================================================

@@ -22,6 +22,7 @@ from core.scheduler import JobDef, Scheduler
 from core.task import Task
 from core.task_templates import TaskTemplates
 from core.webhook import _ALL_EVENTS, WebhookDef, WebhookDispatcher
+
 # ruff: noqa: S110, S112
 
 logger = logging.getLogger("bluedeer.admin")

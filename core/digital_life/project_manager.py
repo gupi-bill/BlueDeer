@@ -18,6 +18,7 @@ import threading
 import time
 import uuid
 from typing import Any
+
 # ruff: noqa: S110, S112
 
 _PROJECTS_PATH = os.path.join(

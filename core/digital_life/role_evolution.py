@@ -24,6 +24,7 @@ import os
 import threading
 import time
 from typing import Any
+
 # ruff: noqa: S110, S112
 
 _ROLE_HISTORY_PATH = os.path.join(

@@ -23,6 +23,7 @@ from core.tracer import Tracer
 from models.router import Router
 from modules.sparrow.status_center import StatusCenter, SystemSnapshot
 from tools.registry import ToolRegistry
+
 # ruff: noqa: F821
 
 logger = logging.getLogger("bluedeer.sparrow.agent")

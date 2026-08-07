@@ -16,6 +16,7 @@ from collections import namedtuple
 
 from src.tool_security import BUILTIN_EMAIL_TOOLS
 from src.tool_utils import _truncate, get_mcp_manager, set_mcp_manager
+# ruff: noqa: F401
 
 logger = logging.getLogger(__name__)
 
