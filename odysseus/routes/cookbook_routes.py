@@ -16,6 +16,7 @@ from pathlib import Path
 
 from core.middleware import require_admin
 from core.platform_compat import (
+# ruff: noqa: F821
     IS_WINDOWS,
     detached_popen_kwargs,
     find_bash,

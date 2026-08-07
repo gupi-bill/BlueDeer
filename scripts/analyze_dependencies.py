@@ -18,6 +18,7 @@ import ast
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
+# ruff: noqa: F821
 
 
 def parse_imports(file_path: Path) -> tuple[set[str], set[str]]:

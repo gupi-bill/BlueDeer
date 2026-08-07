@@ -14,6 +14,7 @@ from __future__ import annotations
 import datetime
 import threading
 import time
+# ruff: noqa: F821
 
 # ----------------------------------------------------------------------
 # 桌面宠物状态管理（服务端推送当前活跃智能体）

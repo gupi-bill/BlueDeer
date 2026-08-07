@@ -2708,6 +2708,137 @@ class DigitalLifeForm(threading.Thread):
         elif self.energy <= 0 and self.hunger >= 100:
             self._die("starvation")
 
+    def _prepare_death(self) -> bool:
+        with self._lock:
+            if not self._alive:
+                return False
+            self._alive = False
+            self._stop_event.set()
+        return True
+
+    def _record_death_memory(self, reason: str) -> None:
+        self._remember(f"生命终结（{reason}）", importance="high")
+        if self.wish_fulfilled:
+            self.emotional_state["sadness"] = 0.0
+            self._remember("退休愿望已实现，安详离世", importance="high")
+        else:
+            self._remember(
+                f"离世时仍有未竟之愿：{self.retirement_wish or '（无）'}",
+                importance="high",
+            )
+
+    def _unregister_and_log(self, reason: str) -> None:
+        if self._environment is None:
+            return
+        self._environment.unregister(self)
+        self._environment.death_log.append(
+            {
+                "time": time.time(),
+                "species": self.species,
+                "name": self._name_obj,
+                "reason": reason,
+                "age_days": self.age,
+                "zone_id": self.current_zone_id,
+                "gender": self.gender,
+            }
+        )
+        self._environment.broadcast_event(
+            "death",
+            {
+                "species": self.species,
+                "name": self._name_obj,
+                "reason": reason,
+                "zone_id": self.current_zone_id,
+                "wish_fulfilled": self.wish_fulfilled,
+            },
+        )
+
+    def _record_relic(self) -> None:
+        if self._environment is None:
+            return
+        try:
+            from core.digital_life.dialogue_system import get_relic_def
+            relic_def = get_relic_def(self.species)
+            self._environment.record_relic(self, relic_def)
+        except Exception:
+            pass
+
+    def _notify_witnesses(self) -> None:
+        if self._environment is None:
+            return
+        try:
+            with self._environment._lock:
+                witnesses = [
+                    lf
+                    for lf in self._environment.population
+                    if lf is not self
+                    and getattr(lf, "_alive", False)
+                    and getattr(lf, "current_zone_id", "") == self.current_zone_id
+                ]
+            for w in witnesses:
+                try:
+                    with w._lock:
+                        w._witness_death(self._name_obj)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    def _notify_supervisor(self, reason: str) -> None:
+        if self._environment is None:
+            return
+        try:
+            notifier = None
+            with self._environment._lock:
+                for lf in self._environment.population:
+                    if lf is not self and getattr(lf, "_alive", False):
+                        if lf.species == "raven":
+                            notifier = lf
+                            break
+                if notifier is None:
+                    for lf in self._environment.population:
+                        if lf is not self and getattr(lf, "_alive", False):
+                            if lf.species == "deer":
+                                notifier = lf
+                                break
+            if notifier is not None:
+                from core.digital_life.active_messaging import (
+                    trigger_active_message,
+                )
+                trigger_active_message(
+                    notifier,
+                    "death_notice",
+                    detail=self._name_obj,
+                    context=f"同事 {self._name_obj}（{self.species}）因 {reason} 离世",
+                    router=self._get_router(),
+                )
+        except Exception:
+            pass
+
+    def _spawn_death_relic(self, reason: str) -> None:
+        try:
+            import hashlib
+            from core.digital_life.memory_fragment import spawn_fragment
+            zone_id = self.current_zone_id or "outdoor"
+            hv = int(
+                hashlib.md5(
+                    (zone_id + self._name_obj + "death").encode()
+                ).hexdigest()[:8],
+                16,
+            )
+            spawn_fragment(
+                frag_type="death_relic",
+                x=(hv % 100) * 0.5,
+                y=((hv >> 8) % 100) * 0.5,
+                zone_id=zone_id,
+                agent_name=self._name_obj,
+                agent_species=self.species,
+                detail=f"{self.species}，因{reason}离世",
+                is_relic=True,
+            )
+        except Exception:
+            pass
+
     def _die(self, reason: str) -> None:
         """死亡流程。
 
@@ -2721,127 +2852,14 @@ class DigitalLifeForm(threading.Thread):
         - 如果退休愿望已实现，sadness 归零（安详离世）；否则记录遗憾
         - 调用 environment.record_relic 记录物理遗物
         """
-        with self._lock:
-            if not self._alive:
-                return
-            self._alive = False
-            self._stop_event.set()
-            # 死亡本身入核心记忆
-            self._remember(f"生命终结（{reason}）", importance="high")
-            # commit 30：安详离世判定
-            if self.wish_fulfilled:
-                self.emotional_state["sadness"] = 0.0
-                self._remember("退休愿望已实现，安详离世", importance="high")
-            else:
-                self._remember(
-                    f"离世时仍有未竟之愿：{self.retirement_wish or '（无）'}",
-                    importance="high",
-                )
-            if self._environment is not None:
-                self._environment.unregister(self)
-                self._environment.death_log.append(
-                    {
-                        "time": time.time(),
-                        "species": self.species,
-                        "name": self._name_obj,
-                        "reason": reason,
-                        "age_days": self.age,
-                        "zone_id": self.current_zone_id,  # commit 11：遗物标记用
-                        "gender": self.gender,
-                    }
-                )
-                self._environment.broadcast_event(
-                    "death",
-                    {
-                        "species": self.species,
-                        "name": self._name_obj,
-                        "reason": reason,
-                        "zone_id": self.current_zone_id,
-                        "wish_fulfilled": self.wish_fulfilled,
-                    },
-                )
-                # commit 30：记录遗物
-                try:
-                    from core.digital_life.dialogue_system import get_relic_def
-
-                    relic_def = get_relic_def(self.species)
-                    self._environment.record_relic(self, relic_def)
-                except Exception:
-                    pass
-                # commit 30：通知同 zone 邻居目击死亡
-                try:
-                    with self._environment._lock:
-                        witnesses = [
-                            lf
-                            for lf in self._environment.population
-                            if lf is not self
-                            and getattr(lf, "_alive", False)
-                            and getattr(lf, "current_zone_id", "")
-                            == self.current_zone_id
-                        ]
-                    for w in witnesses:
-                        try:
-                            with w._lock:
-                                w._witness_death(self._name_obj)
-                        except Exception:
-                            pass
-                except Exception:
-                    pass
-                # commit 31：由渡鸦或鹿代为通知监工（死亡通知，high 优先级）
-                try:
-                    notifier = None
-                    with self._environment._lock:
-                        # 优先找渡鸦，没有则找鹿
-                        for lf in self._environment.population:
-                            if lf is not self and getattr(lf, "_alive", False):
-                                if lf.species == "raven":
-                                    notifier = lf
-                                    break
-                        if notifier is None:
-                            for lf in self._environment.population:
-                                if lf is not self and getattr(lf, "_alive", False):
-                                    if lf.species == "deer":
-                                        notifier = lf
-                                        break
-                    if notifier is not None:
-                        from core.digital_life.active_messaging import (
-                            trigger_active_message,
-                        )
-
-                        trigger_active_message(
-                            notifier,
-                            "death_notice",
-                            detail=self._name_obj,
-                            context=f"同事 {self._name_obj}（{self.species}）因 {reason} 离世",
-                            router=self._get_router(),
-                        )
-                except Exception:
-                    pass
-            # commit 33：死亡 → 在死亡位置生成永久遗物碎片
-            try:
-                import hashlib
-
-                from core.digital_life.memory_fragment import spawn_fragment
-
-                zone_id = self.current_zone_id or "outdoor"
-                hv = int(
-                    hashlib.md5(
-                        (zone_id + self._name_obj + "death").encode()
-                    ).hexdigest()[:8],
-                    16,
-                )
-                spawn_fragment(
-                    frag_type="death_relic",
-                    x=(hv % 100) * 0.5,
-                    y=((hv >> 8) % 100) * 0.5,
-                    zone_id=zone_id,
-                    agent_name=self._name_obj,
-                    agent_species=self.species,
-                    detail=f"{self.species}，因{reason}离世",
-                    is_relic=True,
-                )
-            except Exception:
-                pass
+        if not self._prepare_death():
+            return
+        self._record_death_memory(reason)
+        self._unregister_and_log(reason)
+        self._record_relic()
+        self._notify_witnesses()
+        self._notify_supervisor(reason)
+        self._spawn_death_relic(reason)
 
     def stop(self) -> None:
         """外部停止生命体线程（非死亡，仅停）。"""

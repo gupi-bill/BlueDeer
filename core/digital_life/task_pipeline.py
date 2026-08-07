@@ -30,6 +30,7 @@ import threading
 import time
 import uuid
 from typing import Any
+# ruff: noqa: F821
 # ruff: noqa: S110, S112
 
 # ----------------------------------------------------------------------
@@ -567,22 +568,98 @@ badger（网络）、lark（监控）、kite（调度）
 
     # ---------------- 调度执行 ----------------
 
+    def _create_pipeline_executor(self, pipeline: Pipeline) -> tuple[ThreadPoolExecutor, dict[int, "Future"]]:
+        max_workers = min(8, max(2, len(pipeline.steps)))
+        executor = ThreadPoolExecutor(
+            max_workers=max_workers, thread_name_prefix="pipe-step"
+        )
+        return executor, {}
+
+    def _scan_ready_steps(self, pipeline: Pipeline) -> None:
+        for step in pipeline.steps:
+            if step.status != STEP_PENDING:
+                continue
+            deps_ok = True
+            deps_failed = False
+            for dep_id in step.depends_on:
+                dep = next(
+                    (x for x in pipeline.steps if x.step_id == dep_id), None
+                )
+                if dep is None:
+                    continue
+                if dep.status != STEP_DONE:
+                    deps_ok = False
+                    if dep.status in (STEP_FAILED, STEP_SKIPPED):
+                        deps_failed = True
+                    break
+            if deps_failed:
+                step.status = STEP_SKIPPED
+                step.error = "前置步骤失败，跳过"
+                step.finished_ts = time.time()
+                self._notify(
+                    "step_skipped",
+                    {
+                        "pipeline_id": pipeline.id,
+                        "step_id": step.step_id,
+                        "agent": step.agent_species,
+                        "task": step.task[:80],
+                    },
+                )
+                continue
+            if deps_ok:
+                step.status = STEP_READY
+
+    def _dispatch_ready_steps(
+        self, pipeline: Pipeline, executor: ThreadPoolExecutor, running: dict[int, "Future"]
+    ) -> None:
+        for step in pipeline.steps:
+            if step.status == STEP_READY and step.step_id not in running:
+                step.status = STEP_RUNNING
+                step.started_ts = time.time()
+                running[step.step_id] = executor.submit(
+                    self._execute_step, pipeline, step
+                )
+                self._notify(
+                    "step_started",
+                    {
+                        "pipeline_id": pipeline.id,
+                        "step_id": step.step_id,
+                        "agent": step.agent_species,
+                        "task": step.task[:80],
+                    },
+                )
+
+    def _collect_finished_steps(self, pipeline: Pipeline, running: dict[int, "Future"]) -> None:
+        done_ids = []
+        for sid, fut in list(running.items()):
+            if fut.done():
+                done_ids.append(sid)
+                del running[sid]
+        if done_ids:
+            pipeline.notify_update()
+
+    def _finalize_pipeline(self, pipeline: Pipeline) -> None:
+        total = len(pipeline.steps)
+        done = sum(1 for s in pipeline.steps if s.status == STEP_DONE)
+        failed = sum(
+            1 for s in pipeline.steps if s.status in (STEP_FAILED, STEP_SKIPPED)
+        )
+        pipeline.finished_ts = time.time()
+        if failed == 0:
+            pipeline.status = PIPELINE_DONE
+        elif done == 0:
+            pipeline.status = PIPELINE_FAILED
+        else:
+            pipeline.status = PIPELINE_PARTIAL
+        pipeline.summary = self._build_summary(pipeline)
+
     def _run_pipeline(self, pipeline: Pipeline) -> None:
         """后台线程：调度流水线执行。"""
         try:
-            # 简单调度：循环扫描，找到就绪的 step 就派活
-            # 用线程池跑并发的 step（同依赖层可并行）
-            from concurrent.futures import Future, ThreadPoolExecutor
-
-            max_workers = min(8, max(2, len(pipeline.steps)))
-            executor = ThreadPoolExecutor(
-                max_workers=max_workers, thread_name_prefix="pipe-step"
-            )
-            running: dict[int, Future] = {}
+            executor, running = self._create_pipeline_executor(pipeline)
 
             while True:
                 with pipeline.lock:
-                    # 终止条件：所有 step 都不在 pending/ready/running
                     pending = [
                         s
                         for s in pipeline.steps
@@ -591,110 +668,36 @@ badger（网络）、lark（监控）、kite（调度）
                     if not pending:
                         break
 
-                    # 找就绪 step（依赖全部 done）
-                    for step in pipeline.steps:
-                        if step.status != STEP_PENDING:
-                            continue
-                        deps_ok = True
-                        deps_failed = False
-                        for dep_id in step.depends_on:
-                            dep = next(
-                                (x for x in pipeline.steps if x.step_id == dep_id), None
-                            )
-                            if dep is None:
-                                continue
-                            if dep.status != STEP_DONE:
-                                deps_ok = False
-                                if dep.status in (STEP_FAILED, STEP_SKIPPED):
-                                    deps_failed = True
-                                break
-                        if deps_failed:
-                            step.status = STEP_SKIPPED
-                            step.error = "前置步骤失败，跳过"
-                            step.finished_ts = time.time()
-                            self._notify(
-                                "step_skipped",
-                                {
-                                    "pipeline_id": pipeline.id,
-                                    "step_id": step.step_id,
-                                    "agent": step.agent_species,
-                                    "task": step.task[:80],
-                                },
-                            )
-                            continue
-                        if deps_ok:
-                            step.status = STEP_READY
+                    self._scan_ready_steps(pipeline)
+                    self._dispatch_ready_steps(pipeline, executor, running)
 
-                    # 把 ready 的派给线程池
-                    for step in pipeline.steps:
-                        if step.status == STEP_READY and step.step_id not in running:
-                            step.status = STEP_RUNNING
-                            step.started_ts = time.time()
-                            running[step.step_id] = executor.submit(
-                                self._execute_step, pipeline, step
-                            )
-                            self._notify(
-                                "step_started",
-                                {
-                                    "pipeline_id": pipeline.id,
-                                    "step_id": step.step_id,
-                                    "agent": step.agent_species,
-                                    "task": step.task[:80],
-                                },
-                            )
-
-                # 检查 running 中已完成的
-                done_ids = []
-                for sid, fut in list(running.items()):
-                    if fut.done():
-                        done_ids.append(sid)
-                        # result 已经在 _execute_step 内写到 step 上了
-                        del running[sid]
-                if done_ids:
-                    pipeline.notify_update()
-
-                # 避免空转
+                self._collect_finished_steps(pipeline, running)
                 time.sleep(0.2)
 
             executor.shutdown(wait=True)
 
-            # 汇总状态
-            with pipeline.lock:
-                total = len(pipeline.steps)
-                done = sum(1 for s in pipeline.steps if s.status == STEP_DONE)
-                failed = sum(
-                    1 for s in pipeline.steps if s.status in (STEP_FAILED, STEP_SKIPPED)
-                )
-                pipeline.finished_ts = time.time()
-                if failed == 0:
-                    pipeline.status = PIPELINE_DONE
-                elif done == 0:
-                    pipeline.status = PIPELINE_FAILED
-                else:
-                    pipeline.status = PIPELINE_PARTIAL
-                pipeline.summary = self._build_summary(pipeline)
-
+            self._finalize_pipeline(pipeline)
             pipeline.notify_update()
             self._notify(
                 "pipeline_finished",
                 {
                     "pipeline_id": pipeline.id,
                     "status": pipeline.status,
-                    "total": total,
-                    "done": done,
-                    "failed": failed,
+                    "total": len(pipeline.steps),
+                    "done": sum(1 for s in pipeline.steps if s.status == STEP_DONE),
+                    "failed": sum(
+                        1 for s in pipeline.steps if s.status in (STEP_FAILED, STEP_SKIPPED)
+                    ),
                     "summary": pipeline.summary[:200],
                 },
             )
 
-            # commit 39：如果关联了项目里程碑，更新里程碑进度并触发下一里程碑
             if pipeline.project_id:
                 try:
-                    self._advance_milestone(pipeline, total, done, failed)
+                    self._advance_milestone(pipeline, len(pipeline.steps), sum(1 for s in pipeline.steps if s.status == STEP_DONE), sum(1 for s in pipeline.steps if s.status in (STEP_FAILED, STEP_SKIPPED)))
                 except Exception:
                     pass
 
-            # commit 38：流水线完成后触发整体复盘（鹿总结）
             try:
                 self._pipeline_retrospect(pipeline)
             except Exception:

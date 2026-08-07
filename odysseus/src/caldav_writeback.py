@@ -19,6 +19,7 @@ network.
 import asyncio
 import logging
 from datetime import UTC
+# ruff: noqa: F821
 
 logger = logging.getLogger(__name__)
 

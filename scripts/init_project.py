@@ -18,6 +18,7 @@ import platform
 import subprocess
 import sys
 from pathlib import Path
+# ruff: noqa: F821
 
 
 def run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
