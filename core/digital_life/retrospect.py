@@ -19,6 +19,7 @@ import threading
 import time
 import uuid
 from typing import Any
+# ruff: noqa: S110, S112
 
 # ----------------------------------------------------------------------
 # 存储路径

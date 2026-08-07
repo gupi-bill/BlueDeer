@@ -16,6 +16,7 @@ import random
 
 from .digital_life_form import DigitalLifeForm
 from .environment import Environment
+# ruff: noqa: S110, S112
 
 
 class Deer(DigitalLifeForm):

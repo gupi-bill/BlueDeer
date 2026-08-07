@@ -16,6 +16,7 @@ from collections.abc import Awaitable, Callable
 from core.config import get_config
 from core.task import Message, Task, TaskResult, TaskStatus
 from core.tracer import Tracer
+# ruff: noqa: S110, S112
 
 logger = logging.getLogger("bluedeer.event_bus")
 

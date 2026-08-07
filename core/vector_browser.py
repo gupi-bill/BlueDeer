@@ -220,6 +220,113 @@ class VectorBrowser:
 
     # ============== 可视化与筛选 ==============
 
+    def _build_document_matrix(self, docs: list) -> tuple[list[list[float]], list[str]]:
+        all_tokens = sorted({t for d in docs for t in d.tfidf_vector})
+        matrix = []
+        for d in docs:
+            row = [d.tfidf_vector.get(t, 0.0) for t in all_tokens]
+            matrix.append(row)
+        return matrix, all_tokens
+
+    def _project_pca(self, matrix: list[list[float]], docs: list) -> list[dict[str, Any]]:
+        n = len(matrix)
+        m = len(matrix[0]) if n else 0
+        if not n or not m:
+            return []
+        means = [sum(matrix[i][j] for i in range(n)) / n for j in range(m)]
+        centered = [[matrix[i][j] - means[j] for j in range(m)] for i in range(n)]
+        cov = [[0.0] * m for _ in range(m)]
+        for i in range(m):
+            for j in range(m):
+                cov[i][j] = sum(
+                    centered[k][i] * centered[k][j] for k in range(n)
+                ) / (n - 1 if n > 1 else 1)
+        _eig_vals, eig_vecs = self._power_iteration(cov, 2)
+        result_2d = []
+        for i in range(n):
+            x = sum(centered[i][j] * eig_vecs[0][j] for j in range(m))
+            y = sum(centered[i][j] * eig_vecs[1][j] for j in range(m))
+            result_2d.append(
+                {
+                    "id": docs[i].id,
+                    "text_preview": docs[i].text[:80],
+                    "x": round(x, 6),
+                    "y": round(y, 6),
+                    "metadata": docs[i].metadata,
+                }
+            )
+        return result_2d
+
+    def _project_tsne(self, matrix: list[list[float]], docs: list) -> list[dict[str, Any]]:
+        n = len(matrix)
+        m = len(matrix[0]) if n else 0
+        if not n or not m:
+            return []
+        sim_matrix = [[0.0] * n for _ in range(n)]
+        for i in range(n):
+            for j in range(n):
+                num = sum(matrix[i][k] * matrix[j][k] for k in range(m))
+                ni = math.sqrt(sum(v * v for v in matrix[i])) or 1
+                nj = math.sqrt(sum(v * v for v in matrix[j])) or 1
+                sim_matrix[i][j] = num / (ni * nj)
+        perplexity = max(1, min(n // 3, 30))
+        eps = 1e-8
+        p_joint = [[0.0] * n for _ in range(n)]
+        for i in range(n):
+            dists = [(j, 1.0 - sim_matrix[i][j]) for j in range(n) if j != i]
+            dists.sort(key=lambda x: x[1])
+            sigma = (
+                dists[min(perplexity, len(dists)) - 1][1] + eps if dists else 1.0
+            )
+            row_sum = 0.0
+            for j in range(n):
+                if i == j:
+                    continue
+                p_joint[i][j] = math.exp(-(1.0 - sim_matrix[i][j]) / sigma)
+                row_sum += p_joint[i][j]
+            for j in range(n):
+                if i == j:
+                    continue
+                p_joint[i][j] /= row_sum if row_sum else 1
+        for i in range(n):
+            for j in range(n):
+                if i != j:
+                    p_joint[i][j] = (p_joint[i][j] + p_joint[j][i]) / (2 * n)
+        pos = [[random.gauss(0, 1e-4), random.gauss(0, 1e-4)] for _ in range(n)]
+        lr = 200.0
+        for _iter in range(200):
+            grad = [[0.0, 0.0] for _ in range(n)]
+            for i in range(n):
+                for j in range(n):
+                    if i == j:
+                        continue
+                    dij = (
+                        math.sqrt(
+                            (pos[i][0] - pos[j][0]) ** 2
+                            + (pos[i][1] - pos[j][1]) ** 2
+                        )
+                        + eps
+                    )
+                    qij = 1.0 / (1.0 + dij**2)
+                    pq = (p_joint[i][j] - qij) * qij
+                    grad[i][0] += pq * (pos[i][0] - pos[j][0])
+                    grad[i][1] += pq * (pos[i][1] - pos[j][1])
+            for i in range(n):
+                pos[i][0] += lr * grad[i][0]
+                pos[i][1] += lr * grad[i][1]
+        result_2d = []
+        for i in range(n):
+            result_2d.append(
+                {
+                    "id": docs[i].id,
+                    "text_preview": docs[i].text[:80],
+                    "x": round(pos[i][0], 6),
+                    "y": round(pos[i][1], 6),
+                    "metadata": docs[i].metadata,
+                }
+            )
+        return result_2d
+
     def project_2d(
         self, scope: str, sub_id: str = "", method: str = "tsne"
     ) -> list[dict[str, Any]]:
@@ -241,116 +348,11 @@ class VectorBrowser:
         if not docs:
             return []
 
-        all_tokens = sorted({t for d in docs for t in d.tfidf_vector})
-        n = len(docs)
-        m = len(all_tokens)
-
-        # 构建文档向量矩阵
-        {t: i for i, t in enumerate(all_tokens)}
-        matrix: list[list[float]] = []
-        for d in docs:
-            row = [d.tfidf_vector.get(t, 0.0) for t in all_tokens]
-            matrix.append(row)
+        matrix, _ = self._build_document_matrix(docs)
 
         if method == "pca":
-            # PCA：中心化 → 协方差矩阵 → 取 top-2 特征向量
-            means = [sum(matrix[i][j] for i in range(n)) / n for j in range(m)]
-            centered = [[matrix[i][j] - means[j] for j in range(m)] for i in range(n)]
-
-            cov = [[0.0] * m for _ in range(m)]
-            for i in range(m):
-                for j in range(m):
-                    cov[i][j] = sum(
-                        centered[k][i] * centered[k][j] for k in range(n)
-                    ) / (n - 1 if n > 1 else 1)
-
-            _eig_vals, eig_vecs = self._power_iteration(cov, 2)
-            result_2d = []
-            for i in range(n):
-                x = sum(centered[i][j] * eig_vecs[0][j] for j in range(m))
-                y = sum(centered[i][j] * eig_vecs[1][j] for j in range(m))
-                result_2d.append(
-                    {
-                        "id": docs[i].id,
-                        "text_preview": docs[i].text[:80],
-                        "x": round(x, 6),
-                        "y": round(y, 6),
-                        "metadata": docs[i].metadata,
-                    }
-                )
-            return result_2d
-
-        else:
-            # t-SNE 近似：用余弦距离做随机投影 + 梯度下降
-            sim_matrix = [[0.0] * n for _ in range(n)]
-            for i in range(n):
-                for j in range(n):
-                    num = sum(matrix[i][k] * matrix[j][k] for k in range(m))
-                    ni = math.sqrt(sum(v * v for v in matrix[i])) or 1
-                    nj = math.sqrt(sum(v * v for v in matrix[j])) or 1
-                    sim_matrix[i][j] = num / (ni * nj)
-
-            perplexity = max(1, min(n // 3, 30))
-            eps = 1e-8
-
-            p_joint = [[0.0] * n for _ in range(n)]
-            for i in range(n):
-                dists = [(j, 1.0 - sim_matrix[i][j]) for j in range(n) if j != i]
-                dists.sort(key=lambda x: x[1])
-                sigma = (
-                    dists[min(perplexity, len(dists)) - 1][1] + eps if dists else 1.0
-                )
-                row_sum = 0.0
-                for j in range(n):
-                    if i == j:
-                        continue
-                    p_joint[i][j] = math.exp(-(1.0 - sim_matrix[i][j]) / sigma)
-                    row_sum += p_joint[i][j]
-                for j in range(n):
-                    if i == j:
-                        continue
-                    p_joint[i][j] /= row_sum if row_sum else 1
-
-            for i in range(n):
-                for j in range(n):
-                    if i != j:
-                        p_joint[i][j] = (p_joint[i][j] + p_joint[j][i]) / (2 * n)
-
-            pos = [[random.gauss(0, 1e-4), random.gauss(0, 1e-4)] for _ in range(n)]
-            lr = 200.0
-            for _iter in range(200):
-                grad = [[0.0, 0.0] for _ in range(n)]
-                for i in range(n):
-                    for j in range(n):
-                        if i == j:
-                            continue
-                        dij = (
-                            math.sqrt(
-                                (pos[i][0] - pos[j][0]) ** 2
-                                + (pos[i][1] - pos[j][1]) ** 2
-                            )
-                            + eps
-                        )
-                        qij = 1.0 / (1.0 + dij**2)
-                        pq = (p_joint[i][j] - qij) * qij
-                        grad[i][0] += pq * (pos[i][0] - pos[j][0])
-                        grad[i][1] += pq * (pos[i][1] - pos[j][1])
-                for i in range(n):
-                    pos[i][0] += lr * grad[i][0]
-                    pos[i][1] += lr * grad[i][1]
-
-            result_2d = []
-            for i in range(n):
-                result_2d.append(
-                    {
-                        "id": docs[i].id,
-                        "text_preview": docs[i].text[:80],
-                        "x": round(pos[i][0], 6),
-                        "y": round(pos[i][1], 6),
-                        "metadata": docs[i].metadata,
-                    }
-                )
-            return result_2d
+            return self._project_pca(matrix, docs)
+        return self._project_tsne(matrix, docs)
 
     @staticmethod
     def _power_iteration(

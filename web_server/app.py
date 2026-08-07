@@ -29,6 +29,7 @@ from core.plugin_manager import PluginManager
 from core.restarea import RestArea
 from core.scene import CEOOffice
 from core.vector_browser import VectorBrowser
+# ruff: noqa: S110, S112
 
 logger = logging.getLogger("bluedeer.web")
 

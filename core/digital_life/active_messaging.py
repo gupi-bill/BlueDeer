@@ -17,6 +17,7 @@ import datetime
 import random
 import time
 from typing import Any
+# ruff: noqa: S110, S112
 
 # ====================================================================
 # 消息分类与优先级

@@ -9,6 +9,7 @@ from __future__ import annotations
 import random
 
 from .digital_life_form import DigitalLifeForm
+# ruff: noqa: S110, S112
 
 
 class Fox(DigitalLifeForm):
