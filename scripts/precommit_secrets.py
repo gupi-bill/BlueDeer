@@ -4,7 +4,9 @@ Exit code 0 = clean, 1 = secret-like tokens found (block commit).
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import os

@@ -8,7 +8,9 @@
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import gzip
@@ -89,7 +91,6 @@ class _CompressedRotatingHandler(RotatingFileHandler):
                     os.remove(src)
                 except OSError:
                     logger.exception("Exception in block")
-                    pass
 
 
 class _AsyncLogWriter:
@@ -127,7 +128,6 @@ class _AsyncLogWriter:
                 self._handler.emit(rec)
             except Exception:
                 logger.exception("Exception in block")
-                pass
 
     def close(self) -> None:
         self._stop = True

@@ -7,7 +7,9 @@
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import json
@@ -113,7 +115,6 @@ def _clean_jsonl(
                         continue
                 except json.JSONDecodeError:
                     logger.exception("Exception in block")
-                    pass
                 kept.append(line)
     except Exception as e:
         result.errors.append(f"读取 {path} 失败: {e}")
@@ -215,7 +216,6 @@ def _save_last_run() -> None:
             json.dump({"last_run": time.time()}, f)
     except Exception:
         logger.exception("Exception in block")
-        pass
 
 
 def run_cleanup_incremental(

@@ -16,7 +16,9 @@
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import math
@@ -371,7 +373,6 @@ class MemoryFragmentSystem:
             get_illness_system().trigger_memory_heartbreak(target)
         except Exception:
             logger.exception("Exception in block")
-            pass
 
     def get_memoir(self) -> list[dict]:
         """返回监工回忆录（收藏的碎片列表）。"""
@@ -461,7 +462,6 @@ def update_fragments(dt: float = 1.0) -> None:
         get_fragments().update(dt)
     except Exception:
         logger.exception("Exception in block")
-        pass
 
 
 def snapshot_fragments() -> dict:

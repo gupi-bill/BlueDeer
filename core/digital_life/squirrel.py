@@ -5,7 +5,9 @@ commit 28：行为池——藏坚果 / 忘记藏哪儿了 / 炫耀代码
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import random
@@ -150,7 +152,6 @@ class Squirrel(DigitalLifeForm):
                             target.mood_score = min(100.0, target.mood_score + 1.0)
                     except Exception:
                         logger.exception("Exception in block")
-                        pass
 
     def _on_behavior_end(self, cfg: dict, reason: str) -> None:
         """行为结束时：记录特殊事件。"""

@@ -8,7 +8,9 @@
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import asyncio
@@ -252,7 +254,6 @@ class SystemMonitor:
                 await self._task
             except asyncio.CancelledError:
                 logger.exception("Exception in block")
-                pass
             self._task = None
         logger.info("系统监控已停止")
 

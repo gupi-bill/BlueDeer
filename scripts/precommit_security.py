@@ -8,7 +8,9 @@ Exit code 0 = acceptable, 1 = blocked.
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import os

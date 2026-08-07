@@ -1,7 +1,9 @@
 """BlueDeer DoubaoClient：真实 Doubao Seed API HTTP 调用客户端。"""
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import asyncio

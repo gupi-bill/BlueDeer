@@ -20,7 +20,9 @@
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import io
@@ -548,7 +550,6 @@ class ToolExecutor:
                         }
                 except (ValueError, TypeError):
                     logger.exception("Exception in block")
-                    pass
                 result = impl(**clean_params)
                 out_box["output"] = result
             except Exception as e:

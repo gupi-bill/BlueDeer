@@ -1,7 +1,9 @@
 """BlueDeer RAG 检索增强层：分层知识库 + 跨岗位定向检索。"""
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import logging

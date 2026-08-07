@@ -14,7 +14,9 @@
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import datetime
@@ -325,7 +327,6 @@ class Storyteller:
                     self.daily_summary()
             except Exception:
                 logger.exception("Exception in block")
-                pass
             self._stop_event.wait(interval)
 
     # ------------------------------------------------------------------

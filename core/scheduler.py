@@ -7,7 +7,9 @@
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import asyncio
@@ -184,7 +186,6 @@ class Scheduler:
                 await self._task
             except asyncio.CancelledError:
                 logger.exception("Exception in block")
-                pass
             self._task = None
         logger.info("调度器已停止")
 

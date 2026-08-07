@@ -5,7 +5,9 @@ commit 28：行为池——梳羽 / 摆弄闪亮物 / 讲古 / 高飞眺望
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import random
@@ -211,7 +213,6 @@ class Raven(DigitalLifeForm):
                             )
                     except Exception:
                         logger.exception("Exception in block")
-                        pass
         elif bname == "fly_high":
             # 高飞：能量消耗，但记忆 +1
             self.energy = max(0.0, self.energy - 0.2)

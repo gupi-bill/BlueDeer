@@ -7,7 +7,9 @@
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import os
@@ -405,7 +407,6 @@ class AppConfig:
                     self._set(section, attr, cast(val))
                 except (ValueError, TypeError):
                     logger.exception("Exception in block")
-                    pass
 
     @classmethod
     def from_env(cls) -> AppConfig:
@@ -423,7 +424,6 @@ class AppConfig:
                 import yaml
             except ImportError:
                 logger.exception("Exception in block")
-                pass
             else:
                 with open(path, "r", encoding="utf-8") as f:
                     raw = yaml.safe_load(f) or {}
@@ -472,7 +472,6 @@ class AppConfig:
             cfg._file_mtime = os.path.getmtime(path)
         except OSError:
             logger.exception("Exception in block")
-            pass
         errors = cfg.validate()
         if errors:
             import logging

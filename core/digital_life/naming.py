@@ -16,7 +16,9 @@
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import threading
@@ -144,7 +146,6 @@ class NamingSystem:
                 life_form._name_obj = final_name
             except (AttributeError, TypeError):
                 logger.exception("Exception in block")
-                pass
             self._life_history[life_id].append(
                 {
                     "time": time.time(),

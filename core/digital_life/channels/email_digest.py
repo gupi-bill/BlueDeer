@@ -16,7 +16,9 @@
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import datetime
@@ -327,7 +329,6 @@ def make_sender(config: dict):
                 _send_instant(config, message)
             except Exception:
                 logger.exception("Exception in block")
-                pass
 
         t = threading.Thread(target=_worker, daemon=True)
         t.start()

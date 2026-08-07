@@ -12,7 +12,9 @@
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import logging
@@ -195,5 +197,4 @@ class BabyAGILoopAgent(BaseAgent):
                 ]
         except Exception:
             logger.exception("Exception in block")
-            pass
         return []

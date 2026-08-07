@@ -1,5 +1,6 @@
 # 自动拆分自 web_server.py（路由域: dag）
 import logging
+
 logger = logging.getLogger(__name__)
 from fastapi import APIRouter
 
@@ -161,7 +162,6 @@ async def retry_status() -> dict[str, Any]:
             active = mgr.retry_summary()
     except Exception:
         logger.exception("Exception in block")
-        pass
     return {
         "config": {
             "retry_enabled": cfg.retry_enabled,

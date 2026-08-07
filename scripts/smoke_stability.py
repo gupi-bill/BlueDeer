@@ -13,7 +13,9 @@
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import argparse
@@ -71,7 +73,6 @@ def reset_shared_env() -> None:
                 env.population.remove(life)
             except ValueError:
                 logger.exception("Exception in block")
-                pass
         env.event_log.clear()
         env.death_log.clear()
         env.birth_log.clear()

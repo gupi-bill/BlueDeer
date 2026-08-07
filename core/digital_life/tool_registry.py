@@ -20,7 +20,9 @@
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import ast
@@ -1535,7 +1537,6 @@ class ToolRegistry:
                     discovered.extend(self.discover_tools(full, recursive=True))
         except Exception:
             logger.exception("Exception in block")
-            pass
         return discovered
 
     @staticmethod

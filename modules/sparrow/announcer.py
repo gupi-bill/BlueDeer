@@ -8,7 +8,9 @@
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import asyncio
@@ -569,7 +571,6 @@ class SparrowAnnouncer:
             )
         except asyncio.CancelledError:
             logger.exception("Exception in block")
-            pass
 
     def cancel_broadcast(self, sid: int) -> bool:
         """取消定时播报，返回是否成功取消。"""

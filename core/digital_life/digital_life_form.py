@@ -304,6 +304,162 @@ class DigitalLifeForm(threading.Thread):
         "wish_fulfilled",
     ]
 
+    def _init_base_attributes(
+        self, name: str, species: str, gender: str, genome: dict, birth_time: float | None
+    ) -> None:
+        self._name_obj = name
+        self.species = species
+        self.gender = gender
+        self.birth_time = float(birth_time) if birth_time is not None else time.time()
+        self.life_stage = LifeStage.BABY
+        self.genome = dict(self._DEFAULT_GENOME, **genome) if genome else dict(self._DEFAULT_GENOME)
+
+    def _init_physical_state(self) -> None:
+        self.energy = 80.0
+        self.health = 100.0
+        self.hunger = 20.0
+        self.mood = "neutral"
+        self.current_action = ActionState.REST
+        self.sleeping = False
+        self.sleep_start_time = None
+
+    def _init_relationships(self) -> None:
+        self.parents = []
+        self.children = []
+
+    def _init_memory_core(self) -> None:
+        self.memory_recent = deque(maxlen=100)
+        self.memory_long_term = []
+        self.core_memory = []
+        self.life_summary = ""
+        self.last_words = ""
+
+    def _init_fondness_and_zone(self) -> None:
+        self.fondness = 50
+        self.current_zone_id = ""
+        self.resting_until = None
+
+    def _init_emotion_score(self) -> None:
+        self.mood_score = 50.0
+
+    def _init_skills(self) -> None:
+        self.skills = []
+
+    def _init_behavior_state(self) -> None:
+        self._behavior_state = {}
+        self.current_behavior = None
+        self.current_behavior_cfg = None
+        self.current_behavior_end = None
+
+    def _init_runtime(self) -> None:
+        self._alive = True
+        self._tick_count = 0
+        self._stop_event = threading.Event()
+        self._environment = None
+        self._lock = threading.RLock()
+
+    def _init_emotional_system(self) -> None:
+        self.emotional_state = {
+            "joy": 0.5,
+            "sadness": 0.1,
+            "anxiety": 0.2,
+            "contentment": 0.6,
+            "loneliness": 0.3,
+            "curiosity": 0.7,
+        }
+        self._last_social_ts = time.time()
+        self._last_monologue_ts = 0.0
+        self._propagation_partners = {}
+        self._emotion_memory_cooldown = 0.0
+
+    def _init_relationship_network(self) -> None:
+        self.relationships = {}
+        self.relationship_tags = {}
+        self._cold_war_until = {}
+
+    def _init_long_term_memory(self) -> None:
+        self.wisdom = 0.0
+        self.childhood_imprint = True
+        self.childhood_done = False
+        self.trauma_events = []
+        self._witnessed_deaths = []
+
+    def _init_life_narrative(self) -> None:
+        self.retirement_wish = ""
+        self.wish_fulfilled = False
+        self.hire_anniversary = self.birth_time
+        self._last_anniversary_check = 0
+
+    def _init_active_messaging(self) -> None:
+        self._active_msg_cooldowns = {}
+        self._last_supervisor_interact_ts = time.time()
+        self._last_active_msg_check_tick = 0
+
+    def _init_illness_persistence(self) -> None:
+        self.illness = None
+        self._work_continuous_start_ts = 0.0
+        self._immunity = {}
+        self.persistent_memory_ref = None
+        self._last_memory_sync_ts = 0.0
+
+    def _init_self_cognition(self) -> None:
+        self.self_description = ""
+        self.values = ""
+        self.life_goal = ""
+        self.contradiction = ""
+        self._last_self_cognition_sync_ts = 0.0
+        self._diary_discovered = False
+        self._artifact_ref = None
+
+    def _init_tools_and_pipeline(self) -> None:
+        self.bound_tools = []
+        self._pipeline_task_inbox = []
+        self._tool_call_status = ""
+        self._tool_call_meta = {}
+        try:
+            from core.digital_life.tool_registry import get_tool_registry
+            self.bound_tools = get_tool_registry().list_tool_names_for_species(self.species)
+        except Exception:
+            self.bound_tools = []
+
+    def _init_goals_and_evolution(self) -> None:
+        self.informal_roles = []
+        self.project_contributions = {}
+        self._help_count = 0
+        self._social_count = 0
+        self._supervisor_interact_count = 0
+        self._teach_count = 0
+        self._crisis_resolved_count = 0
+        self._work_output = 0.0
+        self.mutations = []
+        self.appearance_modifiers = {}
+
+    def _init_thread_and_register(self, environment) -> None:
+        super().__init__(daemon=True)
+        try:
+            super().__init__(name=f"life-{self.species}-{self._name_obj}", daemon=True)
+        except TypeError:
+            pass
+        if environment is not None:
+            self._environment = environment
+            environment.register(self)
+            environment.birth_log.append(
+                {
+                    "time": time.time(),
+                    "species": self.species,
+                    "name": self._name_obj,
+                    "gender": self.gender,
+                }
+            )
+            environment.broadcast_event(
+                "birth",
+                {
+                    "species": self.species,
+                    "name": self._name_obj,
+                    "gender": self.gender,
+                },
+            )
+
     def __init__(
         self,
         name: str,

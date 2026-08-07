@@ -17,7 +17,9 @@
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import threading
@@ -118,7 +120,6 @@ class Observer:
                     affected += 1
             except Exception:
                 logger.exception("Exception in block")
-                pass
 
         result = {
             "action": "cold_wave",

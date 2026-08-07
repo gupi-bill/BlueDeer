@@ -15,7 +15,9 @@
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import random
@@ -476,7 +478,6 @@ def update_atmosphere(population: list, dt: float = 1.0) -> None:
         get_atmosphere().update(population, dt)
     except Exception:
         logger.exception("Exception in block")
-        pass
 
 
 def snapshot_atmosphere() -> dict:

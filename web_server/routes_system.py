@@ -1,5 +1,6 @@
 # 自动拆分自 web_server.py（路由域: system）
 import logging
+
 logger = logging.getLogger(__name__)
 from fastapi import APIRouter
 
@@ -32,7 +33,6 @@ async def system_health() -> dict[str, Any]:
         threads = proc.num_threads()
     except Exception:
         logger.exception("Exception in block")
-        pass
     return {
         "status": "ok" if rate > 80 else "degraded" if rate > 50 else "critical",
         "uptime": f"{time.time() - stats.get('started_at', time.time()):.0f}s",

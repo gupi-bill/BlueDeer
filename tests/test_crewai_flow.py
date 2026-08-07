@@ -1,6 +1,7 @@
 """P1-3 CrewAI Flow: EventBus-based state machine tests."""
 
 import logging
+
 logger = logging.getLogger(__name__)
 import asyncio
 
@@ -109,7 +110,6 @@ def test_sync_run_bound_agent_raises():
         assert False, "expected RuntimeError"
     except RuntimeError:
         logger.exception("Exception in block")
-        pass
 
 
 def test_run_async_state_machine_completed():

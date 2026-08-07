@@ -6,7 +6,9 @@ AuditLogger 用 JSON Lines 落盘，可回查、可统计。
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import hashlib
@@ -181,7 +183,6 @@ class AuditLogger:
                 open(self._log_path, "w").close()
         except OSError:
             logger.exception("Exception in block")
-            pass
 
 
 # ============== MCPClient：统一工具调用入口 ==============

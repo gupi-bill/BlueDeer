@@ -19,7 +19,9 @@
 """
 
 from __future__ import annotations
+
 import logging
+
 logger = logging.getLogger(__name__)
 
 import argparse
@@ -765,7 +767,6 @@ def main() -> None:
         argcomplete.autocomplete(parser)
     except ImportError:
         logger.exception("Exception in block")
-        pass
 
     web_p = sub.add_parser("web", help="启动 Web 仪表盘")
     web_p.add_argument("--host", default="0.0.0.0")
