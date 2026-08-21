@@ -47,3 +47,4 @@ _backup_*/
 .ruff_cache/
 .workbuddy/
 .coverage
+*.tmp
