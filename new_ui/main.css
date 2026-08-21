@@ -180,3 +180,12 @@ textarea { resize: vertical; }
 .wf-edge { stroke:var(--text-mute); stroke-width:1.4; fill:none; }
 .run-item { border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:10px; }
 .run-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:6px; }
+/* ============ 监控仪表盘 ============ */
+.stat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; }
+.stat-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:16px; }
+.stat-num { font-size:30px; font-weight:700; line-height:1.1; }
+.stat-label { font-size:13px; font-weight:600; margin-top:6px; color:var(--text); }
+.eb-state { padding:12px 14px; border-radius:10px; margin-bottom:12px; font-size:13.5px; }
+.eb-state.on { background:var(--red-soft); border:1px solid #f3c2c3; color:var(--red); }
+.eb-state.off { background:var(--green-soft); border:1px solid #bfe8d6; color:var(--green); }
+.eb-state b { display:block; margin-bottom:2px; }

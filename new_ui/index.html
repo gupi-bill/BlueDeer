@@ -16,7 +16,9 @@
     <button class="tab" data-page="approvals" onclick="switchPage('approvals')">审批中心</button>
     <button class="tab" data-page="messages" onclick="switchPage('messages')">消息调试</button>
     <button class="tab" data-page="memories" onclick="switchPage('memories')">记忆池</button>
+    <button class="tab" data-page="skills" onclick="switchPage('skills')">技能注册表</button>
     <button class="tab" data-page="workflows" onclick="switchPage('workflows')">工作流</button>
+    <button class="tab" data-page="monitor" onclick="switchPage('monitor')">监控</button>
   </nav>
   <div class="right"><span class="dot" id="api-dot"></span><span id="api-status">检测中…</span></div>
 </div>
@@ -148,6 +150,49 @@
     </div>
   </div>
 
+  <!-- ============ 页面 6：技能注册表 ============ -->
+  <div class="page" id="page-skills">
+    <div class="page-head">
+      <h2>技能注册表</h2>
+      <span class="sub">MCP-Skill 全局技能注册表（/skills · status=active 可见）</span>
+      <div class="page-actions"><button class="btn sm" onclick="loadSkills()">刷新</button></div>
+    </div>
+    <div class="card">
+      <div class="card-title">注册新技能</div>
+      <div class="card-sub">param_schema 为 JSON 对象（参数名 → 描述），如 {"query": "搜索关键词"}</div>
+      <div class="mem-toolbar">
+        <div class="field"><label>技能 ID</label><input id="sk-id" placeholder="如 web_search" style="width:140px"></div>
+        <div class="field"><label>名称</label><input id="sk-name" placeholder="技能名称" style="width:140px"></div>
+        <div class="field"><label>描述</label><input id="sk-desc" placeholder="可选" style="width:170px"></div>
+        <div class="field"><label>endpoint_url</label><input id="sk-url" placeholder="http://... 技能端点" style="width:190px"></div>
+        <div class="field"><label>提供节点</label><input id="sk-provider" placeholder="toolnode id" style="width:110px"></div>
+      </div>
+      <div class="field" style="margin-top:8px"><label>param_schema JSON</label><input id="sk-params" placeholder='如 {"query": "搜索关键词"}' style="width:100%"></div>
+      <div style="margin-top:10px"><button class="btn primary" onclick="registerSkill()">注册技能</button></div>
+    </div>
+    <div class="card">
+      <div class="card-title">已注册技能（active）<span class="cnt" id="sk-count">…</span></div>
+      <div id="sk-list"><div class="loading">加载中…</div></div>
+    </div>
+  </div>
+
+  <!-- ============ 页面 7：监控仪表盘 ============ -->
+  <div class="page" id="page-monitor">
+    <div class="page-head">
+      <h2>监控仪表盘</h2>
+      <span class="sub">全部统计来自底座 /system/stats，前端零计算</span>
+      <div class="page-actions"><span class="muted" id="mon-time"></span><button class="btn sm" onclick="loadDashboard()">刷新</button></div>
+    </div>
+    <div class="card">
+      <div class="card-title">实时统计</div>
+      <div class="stat-grid" id="mon-cards"><div class="loading">加载中…</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">紧急刹车（人类最高拦截）</div>
+      <div id="mon-eb"><div class="loading">加载中…</div></div>
+    </div>
+  </div>
+
 </div>
 
 <div class="toast" id="toast"></div>
@@ -158,7 +203,9 @@
   <script src="js/approvals.js"></script>
   <script src="js/messages.js"></script>
   <script src="js/memories.js"></script>
+  <script src="js/skills.js"></script>
   <script src="js/workflows.js"></script>
+  <script src="js/dashboard.js"></script>
   <script>checkApi(); loadAgents();</script>
 
 </body>

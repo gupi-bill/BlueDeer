@@ -18,5 +18,7 @@ function switchPage(name) {
   else if (name === 'approvals') loadApprovals();
   else if (name === 'messages') loadMessages();
   else if (name === 'memories') loadMemories();
+  else if (name === 'skills') loadSkills();
   else if (name === 'workflows') loadWorkflows();
+  else if (name === 'monitor') loadDashboard();
 }
