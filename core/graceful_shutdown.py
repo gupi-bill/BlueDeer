@@ -30,7 +30,9 @@ def drain(connections: list, timeout: float = 30.0) -> bool:
         active = (
             conn.active
             if hasattr(conn, "active")
-            else conn.is_active() if hasattr(conn, "is_active") else 0
+            else conn.is_active()
+            if hasattr(conn, "is_active")
+            else 0
         )
         while active > 0 and remaining > 0:
             time.sleep(0.1)
@@ -38,7 +40,9 @@ def drain(connections: list, timeout: float = 30.0) -> bool:
             active = (
                 conn.active
                 if hasattr(conn, "active")
-                else conn.is_active() if hasattr(conn, "is_active") else 0
+                else conn.is_active()
+                if hasattr(conn, "is_active")
+                else 0
             )
     return True
 

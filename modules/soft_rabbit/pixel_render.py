@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 # ============== 色彩系统 ==============
 
@@ -47,7 +47,7 @@ class Color:
 
 
 # 16 色复古主色板（跨端统一）
-PALETTE_16: dict[str, Color] = {
+PALETTE_16: ClassVar[ClassVar[ClassVar[dict[str, Color]]]] = {
     "bg": Color(15, 15, 25),  # 深夜底色
     "panel": Color(25, 25, 40),  # 面板底
     "border": Color(80, 80, 110),  # 边框
@@ -81,7 +81,7 @@ class ColorDowngradePipeline:
     """
 
     # 16 色基础色映射（ANSI 0-15）
-    _ANSI16 = [
+    _ANSI16: ClassVar[list[tuple[int, int, int]]] = [
         (0, 0, 0),
         (128, 0, 0),
         (0, 128, 0),
@@ -247,7 +247,7 @@ class AnsiTerminalBackend(RenderBackend):
         self._pipeline = ColorDowngradePipeline()
 
     def render(self) -> str:
-        lines: list[str] = []
+        lines: ClassVar[ClassVar[ClassVar[list[str]]]] = []
         prev_fg: Any = None
         for row in self._buffer:
             line = []
@@ -281,7 +281,7 @@ class HtmlCanvasBackend(RenderBackend):
     def render(self) -> str:
         """渲染为 HTML + Canvas 脚本。"""
         cell = 8  # 每像素 8px
-        cmds: list[str] = [
+        cmds: ClassVar[ClassVar[ClassVar[list[str]]]] = [
             (f'const c=document.getElementById("bd");c.width={self.width*cell};'
             f'c.height={self.height*cell};const ctx=c.getContext("2d");')
         ]
@@ -312,7 +312,7 @@ class PyxelBackend(RenderBackend):
 
     def render(self) -> str:
         """渲染为 Pyxel 指令列表（每行一条）。"""
-        cmds: list[str] = [f"pyxel.init({self.width}, {self.height})"]
+        cmds: ClassVar[ClassVar[ClassVar[list[str]]]] = [f"pyxel.init({self.width}, {self.height})"]
         for y, row in enumerate(self._buffer):
             for x, (color, char) in enumerate(row):
                 hex_col = color.to_hex()
@@ -333,7 +333,7 @@ class RenderRouter:
     一套 UI 配置全平台复用，无需分平台重写界面代码。
     """
 
-    _BACKENDS = {
+    _BACKENDS: ClassVar[dict[str, type]] = {
         "ansi": AnsiTerminalBackend,
         "html": HtmlCanvasBackend,
         "pyxel": PyxelBackend,
@@ -459,7 +459,7 @@ class PixelRenderEngine:
         return self._pipeline.downgrade(color, self._color_level)
 
 
-_RENDER_CACHE: dict[str, str] = {}
+_RENDER_CACHE: ClassVar[ClassVar[ClassVar[dict[str, str]]]] = {}
 _RENDER_CACHE_ENABLED = True
 
 

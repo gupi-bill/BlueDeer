@@ -4,6 +4,8 @@ import logging
 # ruff: noqa: F821
 
 logger = logging.getLogger(__name__)
+from typing import Any
+
 from fastapi import APIRouter
 
 router = APIRouter()

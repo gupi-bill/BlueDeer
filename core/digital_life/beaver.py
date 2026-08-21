@@ -7,6 +7,7 @@ commit 28：行为池——修补水坝 / 游泳 / 啃咬磨牙
 from __future__ import annotations
 
 import random
+from typing import ClassVar
 
 from .digital_life_form import DigitalLifeForm
 
@@ -14,7 +15,7 @@ from .digital_life_form import DigitalLifeForm
 class Beaver(DigitalLifeForm):
     """勤恳海狸。"""
 
-    SPECIES_TEMPLATE: dict = {
+    SPECIES_TEMPLATE: ClassVar[dict] = {
         "species": "beaver",
         "default_name": "勤恳海狸",
         "metabolic_rate": 0.5,
@@ -32,7 +33,7 @@ class Beaver(DigitalLifeForm):
     # 1. 修补水坝：每天检查加固水坝，添加新木料像素
     # 2. 游泳：夏天炎热时跳进溪流游泳，拍水花
     # 3. 啃咬磨牙：能量充足但无事时啃咬木制家具磨牙
-    BEHAVIOR_POOL: list[dict] = [
+    BEHAVIOR_POOL: ClassVar[list[dict]] = [
         {
             "name": "repair_dam",
             "label": "修补水坝",

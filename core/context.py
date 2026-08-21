@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from typing import Any
 
 from core.task import Task
+
+logger = logging.getLogger(__name__)
 
 
 class ContextManager:
@@ -16,9 +19,30 @@ class ContextManager:
         self._task_ts: dict[str, float] = {}
         self._nested: dict[str, list[dict[str, Any]]] = {}
         self._lock = threading.RLock()
+        self._cleanup_thread: threading.Thread | None = None
+        self._cleanup_stop = threading.Event()
+        self._start_cleanup_thread()
+
+    def _start_cleanup_thread(self) -> None:
+        def _run() -> None:
+            while not self._cleanup_stop.wait(60.0):
+                try:
+                    self.clear_expired()
+                except Exception:
+                    logger.exception("Context 清理线程异常（已恢复）")
+
+        self._cleanup_thread = threading.Thread(target=_run, daemon=True)
+        self._cleanup_thread.start()
+
+    def shutdown(self) -> None:
+        """停止后台清理线程。"""
+        self._cleanup_stop.set()
+        if self._cleanup_thread is not None:
+            self._cleanup_thread.join(timeout=5.0)
 
     def set_global(self, key: str, value: Any) -> None:
-        self._global[key] = value
+        with self._lock:
+            self._global[key] = value
 
     def get_global(self, key: str, default: Any = None) -> Any:
         return self._global.get(key, default)
@@ -30,7 +54,8 @@ class ContextManager:
             self._agent[agent_id][key] = value
 
     def get_agent(self, agent_id: str, key: str, default: Any = None) -> Any:
-        return self._agent.get(agent_id, {}).get(key, default)
+        with self._lock:
+            return self._agent.get(agent_id, {}).get(key, default)
 
     def set_task(self, task_id: str, key: str, value: Any) -> None:
         with self._lock:
@@ -40,8 +65,9 @@ class ContextManager:
             self._task_ts[task_id] = time.monotonic()
 
     def get_task(self, task_id: str, key: str, default: Any = None) -> Any:
-        self._expire_task(task_id)
-        return self._task.get(task_id, {}).get(key, default)
+        with self._lock:
+            self._expire_task(task_id)
+            return self._task.get(task_id, {}).get(key, default)
 
     def clear_task(self, task_id: str) -> None:
         with self._lock:
@@ -72,7 +98,8 @@ class ContextManager:
             return None
 
     def get_nested(self, task_id: str) -> list[dict[str, Any]]:
-        return list(self._nested.get(task_id, []))
+        with self._lock:
+            return [dict(scope) for scope in self._nested.get(task_id, [])]
 
     def clear_expired(self) -> int:
         with self._lock:
@@ -85,11 +112,12 @@ class ContextManager:
             return len(expired)
 
     def get_context(self, agent_id: str, task: Task) -> dict[str, Any]:
-        self._expire_task(task.id)
-        merged: dict[str, Any] = {}
-        merged.update(self._global)
-        merged.update(self._agent.get(agent_id, {}))
-        merged.update(self._task.get(task.id, {}))
-        for n in self._nested.get(task.id, []):
-            merged.update(n)
-        return merged
+        with self._lock:
+            self._expire_task(task.id)
+            merged: dict[str, Any] = {}
+            merged.update(self._global)
+            merged.update(self._agent.get(agent_id, {}))
+            merged.update(self._task.get(task.id, {}))
+            for n in self._nested.get(task.id, []):
+                merged.update(n)
+            return merged

@@ -38,7 +38,9 @@ class DeveloperAgent(BaseAgent):
 
     async def run_dev_loop(self, goal: str, max_steps: int = 10) -> list[DevTask]:
         plan = await self._plan(goal)
-        tasks = [DevTask(step=f"step-{i+1}", description=t) for i, t in enumerate(plan)]
+        tasks = [
+            DevTask(step=f"step-{i + 1}", description=t) for i, t in enumerate(plan)
+        ]
         for task in tasks[:max_steps]:
             task.status = "running"
             task_obj = Task(

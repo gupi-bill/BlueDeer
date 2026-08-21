@@ -90,91 +90,92 @@ class BeaverAgent(BaseAgent, RagCapable):
         total_tokens = TokenUsage()
 
         try:
-            test_path = task.payload.get("test_path", "tests/")
-            commit_message = task.payload.get("commit_message")
-            do_push = task.payload.get("push", False)
-            do_pr = task.payload.get("pr", False)
-            repo = task.payload.get("repo", "")
-            pr_base = task.payload.get("pr_base", "main")
+            async with self.with_budget_check(task):
+                test_path = task.payload.get("test_path", "tests/")
+                commit_message = task.payload.get("commit_message")
+                do_push = task.payload.get("push", False)
+                do_pr = task.payload.get("pr", False)
+                repo = task.payload.get("repo", "")
+                pr_base = task.payload.get("pr_base", "main")
 
-            # 1. 构建 prompt + 注入风格指令（用于 LLM 辅助生成 commit message）
-            prompt = self._apply_style(self._build_prompt(task))
+                # 1. 构建 prompt + 注入风格指令（用于 LLM 辅助生成 commit message）
+                prompt = self._apply_style(self._build_prompt(task))
 
-            # 2. 调 LLM 生成提交建议
-            model_client = self._router.route(task.type)
-            model_response = await model_client.complete(prompt)
-            total_tokens.tokens_in += model_response.tokens_in
-            total_tokens.tokens_out += model_response.tokens_out
-
-            if self._tracer:
-                self._tracer.span(
-                    task.trace_id,
-                    component="BeaverAgent",
-                    action="model_complete",
-                    model=model_client.model_name,
-                )
-
-            # 3. 跑测试
-            build_skill = BuildSkill(self._tools, self._git)
-            test_result = await build_skill.run_tests(str(test_path))
-
-            if self._tracer:
-                self._tracer.span(
-                    task.trace_id,
-                    component="BeaverAgent",
-                    action="test_run",
-                    passed=test_result.get("passed"),
-                )
-
-            # 4. 测试失败 → 不提交
-            if not test_result.get("passed"):
-                output = {
-                    "test_result": test_result,
-                    "commit_result": None,
-                    "push_result": None,
-                    "pr_result": None,
-                    "model_advice": model_response.content,
-                    "model_used": model_client.model_name,
-                }
-                self._self_check(task, output)
+                # 2. 调 LLM 生成提交建议
+                model_client = self._router.route(task.type)
+                model_response = await model_client.complete(prompt)
+                total_tokens.tokens_in += model_response.tokens_in
+                total_tokens.tokens_out += model_response.tokens_out
 
                 if self._tracer:
                     self._tracer.span(
                         task.trace_id,
                         component="BeaverAgent",
-                        action="handle_failed",
-                        task_id=task.id,
-                        reason="tests_failed",
+                        action="model_complete",
+                        model=model_client.model_name,
                     )
 
-                return TaskResult(
-                    trace_id=task.trace_id,
-                    task_id=task.id,
-                    status=TaskStatus.FAILED,
-                    output=output,
-                    error=f"测试未通过: {test_result.get('failed_count', 0)} 个失败，不提交",
-                    token_usage=total_tokens,
-                )
+                # 3. 跑测试
+                build_skill = BuildSkill(self._tools, self._git)
+                test_result = await build_skill.run_tests(str(test_path))
 
-            # 5. 测试通过 → Git 提交
-            if not commit_message:
-                summary = task.payload.get("description", "自动提交")
-                commit_message = generate_commit_message(task.type, summary)
+                if self._tracer:
+                    self._tracer.span(
+                        task.trace_id,
+                        component="BeaverAgent",
+                        action="test_run",
+                        passed=test_result.get("passed"),
+                    )
 
-            commit_result = build_skill.git_commit(commit_message)
+                # 4. 测试失败 → 不提交
+                if not test_result.get("passed"):
+                    output = {
+                        "test_result": test_result,
+                        "commit_result": None,
+                        "push_result": None,
+                        "pr_result": None,
+                        "model_advice": model_response.content,
+                        "model_used": model_client.model_name,
+                    }
+                    self._self_check(task, output)
 
-            if self._tracer:
-                self._tracer.span(
-                    task.trace_id,
-                    component="BeaverAgent",
-                    action="committed",
-                    success=commit_result.get("success"),
-                    sha=commit_result.get("sha", ""),
-                )
+                    if self._tracer:
+                        self._tracer.span(
+                            task.trace_id,
+                            component="BeaverAgent",
+                            action="handle_failed",
+                            task_id=task.id,
+                            reason="tests_failed",
+                        )
 
-            # 6. 可选推送
-            push_result = None
-            if do_push and commit_result.get("success"):
+                    return TaskResult(
+                        trace_id=task.trace_id,
+                        task_id=task.id,
+                        status=TaskStatus.FAILED,
+                        output=output,
+                        error=f"测试未通过: {test_result.get('failed_count', 0)} 个失败，不提交",
+                        token_usage=total_tokens,
+                    )
+
+                # 5. 测试通过 → Git 提交
+                if not commit_message:
+                    summary = task.payload.get("description", "自动提交")
+                    commit_message = generate_commit_message(task.type, summary)
+
+                commit_result = build_skill.git_commit(commit_message)
+
+                if self._tracer:
+                    self._tracer.span(
+                        task.trace_id,
+                        component="BeaverAgent",
+                        action="committed",
+                        success=commit_result.get("success"),
+                        sha=commit_result.get("sha", ""),
+                    )
+
+                # 6. 可选推送
+                push_result = None
+                if do_push and commit_result.get("success"):
                 ok, msg = self._git.push()
                 push_result = {"success": ok, "message": msg}
 

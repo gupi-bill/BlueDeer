@@ -27,7 +27,7 @@ from core.reward import RewardSystem
 from core.scene import CEOOffice
 from core.task import RESULT_TOPIC
 from core.task_board import TaskBoardMixin
-from core.task_dispatcher import TaskDispatcherMixin
+from core.task_dispatcher import HarnessResult, TaskDispatcherMixin
 from core.token_auditor import TokenAuditor
 from core.tracer import Tracer
 

@@ -1,14 +1,15 @@
 # 自动拆分自 web_server.py（路由域: agents）
 import logging
 
-# ruff: noqa: F821
-
 logger = logging.getLogger(__name__)
+from typing import Any
+
 from fastapi import APIRouter
 
 from web_server.app import (
     app,
 )
+from web_server.routes_plugins import _ensure_agent_registry
 
 router = APIRouter()
 
@@ -100,7 +101,7 @@ async def disable_agent(name: str) -> dict[str, Any]:
 _agent_monitor = None
 
 
-def _get_agent_monitor():
+def _get_agent_monitor() -> Any:
     global _agent_monitor
     if _agent_monitor is None:
         from core.agent_monitor import AgentMonitor
@@ -176,7 +177,7 @@ async def agent_health_detail(
 _comm_log = None
 
 
-def _get_comm_log():
+def _get_comm_log() -> Any:
     global _comm_log
     if _comm_log is None:
         from core.comm_log import CommLog

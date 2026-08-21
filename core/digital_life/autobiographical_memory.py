@@ -19,7 +19,7 @@ import threading
 import time
 from typing import Any
 
-# ruff: noqa: S110, S112
+# ruff: noqa: S110
 
 # ----------------------------------------------------------------------
 # 配置
@@ -670,7 +670,7 @@ def _collect_life_events(agent: Any) -> str:
         for e in long:
             events.append(e.get("text", "")[:50])
         return "；".join(events) if events else "一生平凡"
-    except Exception:
+    except Exception as e:
         return "一生平凡"
 
 

@@ -69,49 +69,50 @@ class ButterflyAgent(BaseAgent, RagCapable):
             )
         total_tokens = TokenUsage()
         try:
-            operation = task.payload.get("operation", "expand_prompt")
-            if not operation:
-                raise ValueError("缺 operation 参数")
+            async with self.with_budget_check(task):
+                operation = task.payload.get("operation", "expand_prompt")
+                if not operation:
+                    raise ValueError("缺 operation 参数")
 
-            prompt = self._apply_style(self._build_prompt(task))
-            model_client = self._router.route(task.type)
-            model_response = await model_client.complete(prompt)
-            total_tokens.tokens_in += model_response.tokens_in
-            total_tokens.tokens_out += model_response.tokens_out
+                prompt = self._apply_style(self._build_prompt(task))
+                model_client = self._router.route(task.type)
+                model_response = await model_client.complete(prompt)
+                total_tokens.tokens_in += model_response.tokens_in
+                total_tokens.tokens_out += model_response.tokens_out
 
-            if operation == "expand_prompt":
-                output = await self._prompt_skill.expand_prompt(
-                    task.payload.get("idea", ""),
-                    task.payload.get("style_hint", ""),
-                )
-            elif operation == "layout":
-                output = await self._layout_skill.design_layout(
-                    task.payload.get("elements", []),
-                    task.payload.get("canvas", "16:9"),
-                )
-            elif operation == "style_transfer":
-                output = await self._style_skill.transfer_style(
-                    task.payload.get("source", ""),
-                    task.payload.get("target_style", ""),
-                )
-            elif operation == "pixel":
-                output = await self._pixel_skill.draw_pixel(
-                    task.payload.get("subject", ""),
-                    task.payload.get("palette", []),
-                )
-            else:
-                raise ValueError(f"未知操作: {operation}")
+                if operation == "expand_prompt":
+                    output = await self._prompt_skill.expand_prompt(
+                        task.payload.get("idea", ""),
+                        task.payload.get("style_hint", ""),
+                    )
+                elif operation == "layout":
+                    output = await self._layout_skill.design_layout(
+                        task.payload.get("elements", []),
+                        task.payload.get("canvas", "16:9"),
+                    )
+                elif operation == "style_transfer":
+                    output = await self._style_skill.transfer_style(
+                        task.payload.get("source", ""),
+                        task.payload.get("target_style", ""),
+                    )
+                elif operation == "pixel":
+                    output = await self._pixel_skill.draw_pixel(
+                        task.payload.get("subject", ""),
+                        task.payload.get("palette", []),
+                    )
+                else:
+                    raise ValueError(f"未知操作: {operation}")
 
-            self._self_check(task, output)
-            return TaskResult(
-                trace_id=task.trace_id,
-                task_id=task.id,
-                status=TaskStatus.SUCCESS,
-                output=output,
-                token_usage=total_tokens,
-            )
+                self._self_check(task, output)
+                return TaskResult(
+                    trace_id=task.trace_id,
+                    task_id=task.id,
+                    status=TaskStatus.SUCCESS,
+                    output=output,
+                    token_usage=total_tokens,
+                )
         except Exception as e:
-            logger.exception("ButterflyAgent 处理任务失败: %s", e)
+            logger.exception("ButterflyAgent 处理任务失败")
             healed = await self._try_self_heal(task, e)
             if healed is not None:
                 return healed

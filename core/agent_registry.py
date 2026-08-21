@@ -14,6 +14,7 @@ import importlib
 import inspect
 import logging
 import sys
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -57,6 +58,7 @@ class AgentRegistry:
     def __init__(self) -> None:
         self._agents: dict[str, AgentInfo] = {}
         self._classes: dict[str, type[BaseAgent]] = {}
+        self._lock = threading.Lock()
 
     def register(
         self,
@@ -82,27 +84,29 @@ class AgentRegistry:
 
         base_cls = agent_cls.__bases__[0].__name__ if agent_cls.__bases__ else ""
 
-        self._agents[name] = AgentInfo(
-            name=name,
-            qualified_name=qual,
-            module=mod.__name__ if mod else "",
-            role=role,
-            description=doc,
-            capabilities=caps,
-            base_class=base_cls,
-            enabled=True,
-            source=source,
-            source_url=source_url,
-        )
-        self._classes[name] = agent_cls
+        with self._lock:
+            self._agents[name] = AgentInfo(
+                name=name,
+                qualified_name=qual,
+                module=mod.__name__ if mod else "",
+                role=role,
+                description=doc,
+                capabilities=caps,
+                base_class=base_cls,
+                enabled=True,
+                source=source,
+                source_url=source_url,
+            )
+            self._classes[name] = agent_cls
         logger.info("Agent 已注册: %s (%s)", name, qual)
 
     def unregister(self, name: str) -> bool:
-        if name in self._agents:
-            del self._agents[name]
-            self._classes.pop(name, None)
-            return True
-        return False
+        with self._lock:
+            if name in self._agents:
+                del self._agents[name]
+                self._classes.pop(name, None)
+                return True
+            return False
 
     def list_agents(self) -> list[AgentInfo]:
         return list(self._agents.values())
@@ -141,11 +145,12 @@ class AgentRegistry:
         return [a for a in self._agents.values() if a.module.startswith(module_name)]
 
     def set_enabled(self, name: str, enabled: bool) -> bool:
-        info = self._agents.get(name)
-        if info is None:
-            return False
-        info.enabled = enabled
-        return True
+        with self._lock:
+            info = self._agents.get(name)
+            if info is None:
+                return False
+            info.enabled = enabled
+            return True
 
     def scan_package(self, package: str) -> None:
         """扫描一个包，自动注册模块内所有 BaseAgent 子类。"""
@@ -156,10 +161,12 @@ class AgentRegistry:
             return
         for name, cls in inspect.getmembers(
             sys.modules[package],
-            lambda o: inspect.isclass(o)
-            and issubclass(o, object)
-            and o.__module__.startswith(package)
-            and "BaseAgent" in [b.__name__ for b in o.__mro__],
+            lambda o: (
+                inspect.isclass(o)
+                and issubclass(o, object)
+                and o.__module__.startswith(package)
+                and "BaseAgent" in [b.__name__ for b in o.__mro__]
+            ),
         ):
             self.register(cls)
 
@@ -187,9 +194,11 @@ class AgentRegistry:
                     importlib.import_module(mod_name)
                     for _, cls in inspect.getmembers(
                         sys.modules[mod_name],
-                        lambda o: inspect.isclass(o)
-                        and "BaseAgent"
-                        in [b.__name__ for b in getattr(o, "__mro__", [])],
+                        lambda o: (
+                            inspect.isclass(o)
+                            and "BaseAgent"
+                            in [b.__name__ for b in getattr(o, "__mro__", [])]
+                        ),
                     ):
                         name = cls.__name__
                         if name not in self._agents:

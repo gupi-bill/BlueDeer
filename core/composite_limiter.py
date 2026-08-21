@@ -118,17 +118,17 @@ class CompositeLimiter:
         self, key: str = "default", priority: Priority = Priority.NORMAL
     ) -> bool:
         with self._lock:
-            if self._use_semaphore:
+            if self._use_semaphore:  # noqa: SIM102
                 if not self._limit_for(self._semaphore, self._pq_sem, priority, key):
                     self._rejected_concurrent += 1
                     return False
-            if self._use_token:
+            if self._use_token:  # noqa: SIM102
                 if not self._limit_for(self._token, self._pq_token, priority, key):
                     if self._use_semaphore:
                         self._release_for(self._semaphore, self._pq_sem, priority, key)
                     self._rejected_token += 1
                     return False
-            if self._use_window:
+            if self._use_window:  # noqa: SIM102
                 if not self._limit_for(self._window, self._pq_window, priority, key):
                     if self._use_semaphore:
                         self._release_for(self._semaphore, self._pq_sem, priority, key)

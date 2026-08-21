@@ -1,9 +1,13 @@
 # 自动拆分自 web_server.py（路由域: misc）
+import asyncio
 import logging
+import time
 
 # ruff: noqa: F821
 
 logger = logging.getLogger(__name__)
+from typing import Any
+
 from fastapi import APIRouter
 
 from web_server.app import (
@@ -145,7 +149,7 @@ async def comm_log_summary() -> dict[str, Any]:
 _plugin_repo = None
 
 
-def _get_plugin_repo():
+def _get_plugin_repo() -> Any:
     global _plugin_repo
     if _plugin_repo is None:
         from core.plugin_repo import PluginRepo

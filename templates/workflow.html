@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlueDeer 员工工作流</title>
+<style>
+  :root {
+    --bg: #f5f8fc;
+    --panel: #ffffff;
+    --panel-2: #eef3fa;
+    --border: #d6e0ee;
+    --border-strong: #b8c9de;
+    --text: #2a3546;
+    --text-dim: #6b7a90;
+    --text-faint: #9aa7b8;
+    --accent: #4a8fdc;
+    --accent-ink: #ffffff;
+    --danger: #c05b4d;
+    --port: #8aa0b8;
+    --shadow: 0 2px 10px rgba(40,70,110,0.08);
+    --shadow-lg: 0 6px 24px rgba(40,70,110,0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text); height: 100vh;
+    display: flex; flex-direction: column; overflow: hidden; font-size: 13px;
+  }
+
+  #toolbar {
+    display: flex; align-items: center; gap: 6px; padding: 10px 16px;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    flex-shrink: 0; flex-wrap: wrap; user-select: none;
+  }
+  #toolbar .title { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; margin-right: 8px; white-space: nowrap; color: var(--text); }
+  #toolbar .title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .btn {
+    background: var(--panel); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 12px; font-size: 12.5px; cursor: pointer;
+    white-space: nowrap; transition: background 0.12s, border-color 0.12s;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .btn:hover { background: var(--panel-2); border-color: var(--border-strong); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+  .btn.primary:hover { background: #3d7fc7; }
+  .btn.danger { color: var(--danger); }
+  .btn.danger:hover { background: #faf0ee; border-color: #e0c5c0; }
+  .sep { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
+
+  #main { display: flex; flex: 1; min-height: 0; }
+  #canvas-wrap {
+    flex: 1; position: relative; overflow: hidden;
+    background-color: #f0f5fb;
+    background-image: radial-gradient(circle, #dce6f2 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  #svg { display: block; width: 100%; height: 100%; cursor: grab; }
+  #svg.grabbing { cursor: grabbing; }
+
+  .node { cursor: move; }
+  .node .body { fill: #ffffff; stroke: #c3d2e4; stroke-width: 1.5; rx: 8; ry: 8; }
+  .node:hover .body { stroke: #9db8d4; }
+  .node.selected .body { stroke: var(--accent); stroke-width: 2.2; }
+  .node .title-text { font-size: 13px; font-weight: 600; fill: var(--text); pointer-events: none; user-select: none; }
+  .node .sub-text { font-size: 11px; fill: var(--text-dim); pointer-events: none; user-select: none; }
+  .node .port-label { font-size: 10px; fill: var(--text-dim); pointer-events: none; user-select: none; }
+
+  .port circle { fill: var(--port); stroke: #fff; stroke-width: 2; transition: fill 0.1s, r 0.1s; }
+  .port:hover circle { fill: var(--accent); r: 8; }
+
+  .edge { stroke: #9db4cc; stroke-width: 2; fill: none; transition: stroke 0.1s; }
+  .edge:hover { stroke: var(--accent); }
+  .edge.selected { stroke: var(--accent); stroke-width: 2.8; }
+  .edge-hit { stroke: transparent; stroke-width: 14; fill: none; cursor: pointer; }
+  .temp-edge { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 6 4; fill: none; pointer-events: none; }
+
+  #aside {
+    width: 292px; flex-shrink: 0; background: var(--panel);
+    border-left: 1px solid var(--border); display: none; flex-direction: column; overflow-y: auto;
+  }
+  #aside.visible { display: flex; }
+  #aside .aside-head { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--panel); z-index: 2; }
+  #aside .aside-head h3 { font-size: 14px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+  #aside .aside-head h3 .close-btn { background: none; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; line-height: 1; padding: 0 2px; }
+  #aside .kind-badge { font-size: 11px; padding: 3px 10px; border-radius: 12px; display: inline-block; font-weight: 500; }
+  #aside .field { padding: 10px 16px; }
+  #aside label { display: block; font-size: 11.5px; color: var(--text-dim); margin-bottom: 4px; font-weight: 500; }
+  #aside input, #aside textarea, #aside select {
+    width: 100%; background: var(--panel); color: var(--text);
+    border: 1px solid var(--border); border-radius: 5px; padding: 7px 9px;
+    font-size: 12.5px; font-family: inherit; outline: none;
+  }
+  #aside input:focus, #aside textarea:focus, #aside select:focus { border-color: var(--accent); }
+  #aside textarea { resize: vertical; min-height: 60px; line-height: 1.5; }
+
+  #zoom-controls {
+    position: absolute; left: 12px; bottom: 12px; display: flex; align-items: center; gap: 2px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 7px;
+    padding: 3px; box-shadow: var(--shadow); user-select: none;
+  }
+  #zoom-controls button { background: none; border: none; color: var(--text-dim); width: 28px; height: 26px; font-size: 15px; cursor: pointer; border-radius: 5px; }
+  #zoom-controls button:hover { background: var(--panel-2); color: var(--text); }
+  #zoom-level { min-width: 52px; text-align: center; font-size: 12px; color: var(--text-dim); cursor: pointer; }
+  #hint {
+    position: absolute; bottom: 13px; left: 50%; transform: translateX(-50%);
+    font-size: 11.5px; color: var(--text-faint); pointer-events: none;
+    background: rgba(255,255,255,0.75); padding: 4px 12px; border-radius: 20px;
+    border: 1px solid var(--border); white-space: nowrap;
+  }
+
+  #add-menu {
+    position: absolute; background: var(--panel); border: 1px solid var(--border-strong);
+    border-radius: 10px; box-shadow: var(--shadow-lg); padding: 8px; z-index: 20;
+    display: none; min-width: 220px; max-height: 400px; overflow-y: auto;
+  }
+  #add-menu.visible { display: block; }
+  #add-menu .menu-title { font-size: 11px; color: var(--text-dim); padding: 4px 10px 6px; letter-spacing: 0.5px; }
+  #add-menu .menu-item {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 6px 10px; border: none; background: none; color: var(--text);
+    border-radius: 6px; cursor: pointer; text-align: left; font-size: 12.5px;
+  }
+  #add-menu .menu-item:hover { background: var(--panel-2); }
+  #add-menu .menu-item .swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <span class="title"><span class="dot"></span>BlueDeer 员工工作流</span>
+  <button class="btn primary" id="btn-add">+ 添加节点</button>
+  <button class="btn danger" id="btn-delete">删除选中</button>
+  <span class="sep"></span>
+  <button class="btn" id="btn-preset">重置示例流水线</button>
+  <button class="btn" id="btn-clear">清空</button>
+  <span class="sep"></span>
+  <button class="btn" id="btn-export-json">导出 JSON</button>
+  <button class="btn" id="btn-import-json">导入</button>
+  <button class="btn" id="btn-export-md">导出任务书</button>
+  <input type="file" id="file-input" accept=".json,application/json" style="display:none;">
+</div>
+
+<div id="main">
+  <div id="canvas-wrap">
+    <svg id="svg"></svg>
+    <div id="add-menu"></div>
+    <div id="zoom-controls">
+      <button id="zoom-out">−</button>
+      <span id="zoom-level">100%</span>
+      <button id="zoom-in">+</button>
+    </div>
+    <div id="hint">拖动节点 · 空白平移 · 滚轮缩放 · 输出口→输入口连线 · 点选编辑 · Delete 删除</div>
+  </div>
+  <aside id="aside">
+    <div class="aside-head">
+      <h3>节点属性 <button class="close-btn" id="aside-close">×</button></h3>
+      <span class="kind-badge" id="aside-kind"></span>
+    </div>
+    <div class="field"><label>名称</label><input type="text" id="aside-title"></div>
+    <div class="field"><label>副标题 / 岗位</label><input type="text" id="aside-subtitle"></div>
+    <div class="field"><label>任务指令 / 说明</label><textarea id="aside-notes"></textarea></div>
+    <div class="field">
+      <label>条件（判断 / 循环节点用）</label>
+      <input type="text" id="aside-cond" placeholder="如：测试通过 / 重试次数 < 3">
+    </div>
+  </aside>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var STORAGE_KEY = 'bluedeer.employee_workflow';
+  var NODE_W = 210, NODE_H = 60, PORT_R = 7;
+
+  // 节点类型配色
+  var TYPE_COLORS = {
+    start: '#D4A574', end: '#A8A095',
+    broadcast: '#6B8F71', check: '#C97B5A', loop: '#C97B5A',
+    deer: '#A3826E', squirrel: '#9C7B5E', butterfly: '#A07AA5', fox: '#B86E4E',
+    hedgehog: '#7A5D44', beaver: '#85603F', raven: '#4A5560', hare: '#C8BFB0',
+    badger: '#5A5550', lark: '#C9925A', kite: '#6B7A95'
+  };
+  var TYPE_CN = {
+    start: '开始', end: '结束', broadcast: '播报', check: '检查', loop: '循环',
+    deer: '忧郁鹿', squirrel: '机灵鼠', butterfly: '绘羽蝶', fox: '赤谋狐', hedgehog: '针客猬',
+    beaver: '大坝狸', raven: '黑卷鸦', hare: '霜耳兔', badger: '土工獾', lark: '清音雀', kite: '天瞰鸢'
+  };
+
+  var EMPLOYEES = [
+    ['deer','忧郁鹿','调度官','忧郁沉稳，掌控全局'],
+    ['squirrel','机灵鼠','前端工程师','机敏灵活，手速飞快'],
+    ['butterfly','绘羽蝶','视觉设计师','审美细腻，追求美感'],
+    ['fox','赤谋狐','测试工程师','狡黠多谋，专挑毛病'],
+    ['hedgehog','针客猬','安全工程师','严谨审慎，针针见血'],
+    ['beaver','大坝狸','基建工程师','踏实肯干，构筑地基'],
+    ['raven','黑卷鸦','记忆管理员','深沉记性好，归档成卷'],
+    ['hare','霜耳兔','快递员','敏捷利落，使命必达'],
+    ['badger','土工獾','矿工','勤劳坚韧，深耕不辍'],
+    ['lark','清音雀','播音员','活泼清脆，播报四方'],
+    ['kite','天瞰鸢','瞭望员','敏锐警觉，俯瞰全局']
+  ];
+  var CONTROL_NODES = [
+    ['broadcast','播报','向全员/指定对象播报'], ['check','检查','条件判断，两个输出口'], ['loop','循环','重复执行，带回环口']
+  ];
+
+  var PRESET = {
+    nodes: [
+      { id: 'start', kind: 'start', x: 40, y: 360, title: '任务入口', subtitle: '监工下达任务', notes: '', cond: '' },
+      { id: 'deer', kind: 'deer', x: 300, y: 360, title: '忧郁鹿', subtitle: '调度官 · 拆解任务', notes: '接任务，拆成子任务分发。', cond: '' },
+      { id: 'squirrel', kind: 'squirrel', x: 560, y: 140, title: '机灵鼠', subtitle: '前端工程师 · 写代码', notes: '负责实现。', cond: '' },
+      { id: 'butterfly', kind: 'butterfly', x: 560, y: 300, title: '绘羽蝶', subtitle: '视觉设计师 · 设计', notes: '负责视觉。', cond: '' },
+      { id: 'hare', kind: 'hare', x: 560, y: 460, title: '霜耳兔', subtitle: '快递员 · 交付', notes: '把产物送到下游。', cond: '' },
+      { id: 'badger', kind: 'badger', x: 560, y: 620, title: '土工獾', subtitle: '矿工 · 资源', notes: '准备资源与工具。', cond: '' },
+      { id: 'fox', kind: 'fox', x: 820, y: 300, title: '赤谋狐', subtitle: '测试工程师 · 测试', notes: '测试验证。', cond: '' },
+      { id: 'check', kind: 'check', x: 1080, y: 300, title: '检查', subtitle: '测试是否通过？', notes: '通过→安全审计，不通过→打回。', cond: '测试通过' },
+      { id: 'hedgehog', kind: 'hedgehog', x: 1340, y: 140, title: '针客猬', subtitle: '安全工程师 · 审计', notes: '安全审计。', cond: '' },
+      { id: 'lark', kind: 'lark', x: 1340, y: 300, title: '清音雀', subtitle: '播音员 · 播报', notes: '把进展播报给全公司。', cond: '' },
+      { id: 'kite', kind: 'kite', x: 1340, y: 460, title: '天瞰鸢', subtitle: '瞭望员 · 监控', notes: '盯住流程与风险。', cond: '' },
+      { id: 'beaver', kind: 'beaver', x: 1600, y: 300, title: '大坝狸', subtitle: '基建工程师 · 部署', notes: '构建部署。', cond: '' },
+      { id: 'raven', kind: 'raven', x: 1860, y: 300, title: '黑卷鸦', subtitle: '记忆管理员 · 归档', notes: '沉淀知识库。', cond: '' },
+      { id: 'end', kind: 'end', x: 2120, y: 300, title: '任务完成', subtitle: '回执给监工', notes: '', cond: '' }
+    ],
+    edges: [
+      { from: 'start', to: 'deer' },
+      { from: 'deer', to: 'squirrel' }, { from: 'deer', to: 'butterfly' }, { from: 'deer', to: 'hare' }, { from: 'deer', to: 'badger' },
+      { from: 'squirrel', to: 'fox' }, { from: 'butterfly', to: 'fox' }, { from: 'hare', to: 'fox' }, { from: 'badger', to: 'fox' },
+      { from: 'fox', to: 'check' },
+      { from: 'check', to: 'hedgehog', fromPort: 'true' },
+      { from: 'check', to: 'fox', fromPort: 'false' },
+      { from: 'hedgehog', to: 'lark' }, { from: 'lark', to: 'kite' },
+      { from: 'kite', to: 'beaver' },
+      { from: 'beaver', to: 'raven' },
+      { from: 'raven', to: 'end' }
+    ]
+  };
+
+var state = { nodes: [], edges: [], view: { x: 0, y: 0, k: 1 } };
+  var selection = { type: null, id: null };
+  var svg = document.getElementById('svg');
+  var aside = document.getElementById('aside');
+
+  function toWorld(sx, sy) {
+    var r = svg.getBoundingClientRect();
+    return { x: (sx - r.left - state.view.x) / state.view.k, y: (sy - r.top - state.view.y) / state.view.k };
+  }
+  function toScreen(wx, wy) { return { x: wx * state.view.k + state.view.x, y: wy * state.view.k + state.view.y }; }
+  function findNode(id) { for (var i=0;i<state.nodes.length;i++) if (state.nodes[i].id===id) return state.nodes[i]; return null; }
+
+  // 端口位置：kind=check 有两个输出口（true/false）
+  function outPorts(node) {
+    if (node.kind === 'check') {
+      return [{ name: 'true', label: '是', x: node.x + NODE_W, y: node.y + NODE_H/2 - 10 },
+              { name: 'false', label: '否', x: node.x + NODE_W, y: node.y + NODE_H/2 + 10 }];
+    }
+    return [{ name: 'out', label: '', x: node.x + NODE_W, y: node.y + NODE_H/2 }];
+  }
+  function inPort(node) { return { name: 'in', x: node.x, y: node.y + NODE_H/2 }; }
+
+  function render() {
+    var html = '<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5b6472"></path></marker></defs>';
+    html += '<g id="viewport" transform="translate(' + state.view.x + ',' + state.view.y + ') scale(' + state.view.k + ')">';
+    for (var i=0;i<state.edges.length;i++) {
+      var e = state.edges[i];
+      var from = findNode(e.from), to = findNode(e.to);
+      if (!from || !to) continue;
+      var p1 = findOutPort(from, e.fromPort);
+      var p2 = inPort(to);
+      var path = bezier(p1, p2);
+      var key = e.from + '->' + e.to + (e.fromPort ? ':'+e.fromPort : '');
+      var sel = (selection.type==='edge' && selection.id===key) ? ' selected' : '';
+      html += '<path class="edge'+sel+'" data-edge="'+key+'" d="'+path+'" marker-end="url(#arrow)"></path>';
+      html += '<path class="edge-hit" data-edge="'+key+'" d="'+path+'"></path>';
+    }
+    for (var j=0;j<state.nodes.length;j++) html += renderNode(state.nodes[j]);
+    html += '</g>';
+    svg.innerHTML = html;
+    updateZoomLabel();
+  }
+
+  function findOutPort(node, portName) {
+    var ports = outPorts(node);
+    for (var i=0;i<ports.length;i++) if (ports[i].name === (portName||'out')) return ports[i];
+    return ports[0];
+  }
+  function bezier(p1, p2) {
+    var dx = Math.max(50, Math.abs(p2.x-p1.x)*0.5);
+    return 'M '+p1.x+' '+p1.y+' C '+(p1.x+dx)+' '+p1.y+', '+(p2.x-dx)+' '+p2.y+', '+p2.x+' '+p2.y;
+  }
+
+  function renderNode(n) {
+    var color = TYPE_COLORS[n.kind] || '#58a6ff';
+    var isSel = (selection.type==='node' && selection.id===n.id);
+    var s = '<g class="node'+(isSel?' selected':'')+'" data-node="'+n.id+'" transform="translate('+n.x+','+n.y+')">';
+    s += '<rect class="body" x="0" y="0" width="'+NODE_W+'" height="'+NODE_H+'" stroke="'+color+'"></rect>';
+    s += '<rect x="0" y="0" width="4" height="'+NODE_H+'" rx="2" fill="'+color+'"></rect>';
+    var t = n.title || '(未命名)'; t = t.length>13 ? t.slice(0,13)+'…' : t;
+    s += '<text class="title-text" x="16" y="26">'+esc(t)+'</text>';
+    var st = n.subtitle || ''; st = st.length>22 ? st.slice(0,22)+'…' : st;
+    s += '<text class="sub-text" x="16" y="46">'+esc(st)+'</text>';
+    // 输入口
+    s += '<g class="port" data-port="in" data-node="'+n.id+'" transform="translate(0,'+(NODE_H/2)+')"><circle r="'+PORT_R+'"></circle></g>';
+    // 输出口（check 有两个）
+    var outs = outPorts(n);
+    for (var i=0;i<outs.length;i++) {
+      var o = outs[i];
+      s += '<g class="port" data-port="out" data-port-name="'+o.name+'" data-node="'+n.id+'" transform="translate('+NODE_W+','+(o.y-n.y)+')"><circle r="'+PORT_R+'"></circle></g>';
+      if (o.label) s += '<text class="port-label" x="'+(NODE_W+9)+'" y="'+(o.y-n.y+3)+'">'+o.label+'</text>';
+    }
+    s += '</g>';
+    return s;
+  }
+
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function updateZoomLabel() { document.getElementById('zoom-level').textContent = Math.round(state.view.k*100)+'%'; }
+
+  function save() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify({nodes:state.nodes, edges:state.edges})); } catch(e){} }
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      var d = JSON.parse(raw);
+      if (d && Array.isArray(d.nodes)) { state.nodes=d.nodes; state.edges=d.edges||[]; return true; }
+    } catch(e) {}
+    return false;
+  }
+
+  function showAside(n) {
+    aside.classList.add('visible');
+    var badge = document.getElementById('aside-kind');
+    badge.textContent = TYPE_CN[n.kind] || n.kind;
+    badge.style.background = (TYPE_COLORS[n.kind]||'#888')+'33';
+    badge.style.color = '#d5d9e0';
+    badge.style.border = '1px solid '+(TYPE_COLORS[n.kind]||'#888');
+    document.getElementById('aside-title').value = n.title||'';
+    document.getElementById('aside-subtitle').value = n.subtitle||'';
+    document.getElementById('aside-notes').value = n.notes||'';
+    document.getElementById('aside-cond').value = n.cond||'';
+  }
+  function hideAside() { aside.classList.remove('visible'); }
+
+  // ---------- 添加节点菜单 ----------
+  var addMenu = document.getElementById('add-menu');
+  function showAddMenu(sx, sy) {
+    var rect = document.getElementById('canvas-wrap').getBoundingClientRect();
+    addMenu.style.left = Math.min(sx, rect.width-240) + 'px';
+    addMenu.style.top = Math.min(sy, rect.height-360) + 'px';
+    var html = '<div class="menu-title">流程控制</div>';
+    html += '<button class="menu-item" data-kind="start"><span class="swatch" style="background:#3fb950"></span>开始</button>';
+    html += '<button class="menu-item" data-kind="end"><span class="swatch" style="background:#bc8cff"></span>结束</button>';
+    html += '<button class="menu-item" data-kind="broadcast"><span class="swatch" style="background:#39c5cf"></span>播报</button>';
+    html += '<button class="menu-item" data-kind="check"><span class="swatch" style="background:#d29922"></span>检查（判断）</button>';
+    html += '<button class="menu-item" data-kind="loop"><span class="swatch" style="background:#f778ba"></span>循环</button>';
+    html += '<div class="menu-title">员工</div>';
+    for (var i=0;i<EMPLOYEES.length;i++) {
+      var e = EMPLOYEES[i];
+      html += '<button class="menu-item" data-kind="'+e[0]+'"><span class="swatch" style="background:'+(TYPE_COLORS[e[0]]||'#888')+'"></span>'+e[1]+' · '+e[2]+'</button>';
+    }
+    addMenu.innerHTML = html;
+    addMenu.classList.add('visible');
+  }
+  function hideAddMenu() { addMenu.classList.remove('visible'); }
+
+  addMenu.addEventListener('click', function(ev) {
+    var item = ev.target.closest ? ev.target.closest('.menu-item') : null;
+    if (!item) return;
+    var kind = item.getAttribute('data-kind');
+    addNode(kind);
+    hideAddMenu();
+  });
+
+  function addNode(kind) {
+    var id = kind + '_' + Date.now();
+    var title = '', subtitle = '';
+    if (kind === 'start') { title='任务入口'; subtitle='监工下达任务'; }
+    else if (kind === 'end') { title='任务完成'; subtitle='回执给监工'; }
+    else if (kind === 'broadcast') { title='播报'; subtitle='状态播报'; }
+    else if (kind === 'check') { title='检查'; subtitle='条件判断'; }
+    else if (kind === 'loop') { title='循环'; subtitle='重复执行'; }
+    else {
+      for (var i=0;i<EMPLOYEES.length;i++) if (EMPLOYEES[i][0]===kind) { title=EMPLOYEES[i][1]; subtitle=EMPLOYEES[i][2]; }
+    }
+    state.nodes.push({ id:id, kind:kind, x:200+state.nodes.length*24, y:100+state.nodes.length*24, title:title, subtitle:subtitle, notes:'', cond:'' });
+    selection = { type:'node', id:id };
+    showAside(findNode(id)); save(); render();
+  }
+
+  // ---------- 拖拽/连线 ----------
+  var drag = null;
+  svg.addEventListener('mousedown', function(ev) {
+    var target = ev.target;
+    var portEl = target.closest ? target.closest('.port') : null;
+    var nodeEl = target.closest ? target.closest('.node') : null;
+    var edgeEl = target.closest ? target.closest('.edge-hit') : null;
+    if (portEl) {
+      var nodeId = portEl.getAttribute('data-node');
+      var side = portEl.getAttribute('data-port');
+      var node = findNode(nodeId);
+      if (!node) return;
+      if (side === 'out') {
+        var pname = portEl.getAttribute('data-port-name') || 'out';
+        var sp = findOutPort(node, pname);
+        drag = { mode:'link', fromNode:nodeId, fromPort:pname, start:sp };
+        selection = { type:'node', id:nodeId };
+        render(); drawTemp(sp, sp); ev.preventDefault();
+      }
+      return;
+    }
+    if (edgeEl) { selection={type:'edge',id:edgeEl.getAttribute('data-edge')}; hideAside(); render(); ev.preventDefault(); return; }
+    if (nodeEl) {
+      var nid = nodeEl.getAttribute('data-node');
+      var n2 = findNode(nid); if (!n2) return;
+      selection={type:'node',id:nid}; showAside(n2);
+      var r = svg.getBoundingClientRect();
+      var w = toWorld(ev.clientX-r.left, ev.clientY-r.top);
+      drag={mode:'node',id:nid,offsetX:w.x-n2.x,offsetY:w.y-n2.y};
+      render(); ev.preventDefault(); return;
+    }
+    selection={type:null,id:null}; hideAside(); hideAddMenu();
+    var r2 = svg.getBoundingClientRect();
+    drag={mode:'pan',startX:ev.clientX-r2.left,startY:ev.clientY-r2.top,viewX:state.view.x,viewY:state.view.y};
+    svg.classList.add('grabbing'); render();
+  });
+
+  window.addEventListener('mousemove', function(ev) {
+    if (!drag) return;
+    var r = svg.getBoundingClientRect();
+    var sx = ev.clientX-r.left, sy = ev.clientY-r.top;
+    if (drag.mode==='pan') { state.view.x=drag.viewX+(sx-drag.startX); state.view.y=drag.viewY+(sy-drag.startY); render(); }
+    else if (drag.mode==='node') { var w=toWorld(sx,sy); var n=findNode(drag.id); if(n){n.x=w.x-drag.offsetX;n.y=w.y-drag.offsetY;render();} }
+    else if (drag.mode==='link') { drawTemp(drag.start, toWorld(sx,sy)); }
+  });
+
+  window.addEventListener('mouseup', function(ev) {
+    if (!drag) return;
+    if (drag.mode==='link') {
+      var target = document.elementFromPoint(ev.clientX, ev.clientY);
+      var portEl = target && target.closest ? target.closest('.port[data-port="in"]') : null;
+      if (portEl) {
+        var toId = portEl.getAttribute('data-node');
+        var fromNode = findNode(drag.fromNode), toNode = findNode(toId);
+        if (fromNode && toNode && fromNode.id !== toNode.id) {
+          var dup = false;
+          for (var i=0;i<state.edges.length;i++) {
+            var e = state.edges[i];
+            if (e.from===fromNode.id && e.to===toNode.id && (e.fromPort||'out')===(drag.fromPort||'out')) dup=true;
+          }
+          if (!dup) { state.edges.push({from:fromNode.id, to:toNode.id, fromPort:drag.fromPort}); save(); }
+        }
+      }
+      removeTemp(); render();
+    } else { svg.classList.remove('grabbing'); }
+    drag = null;
+  });
+
+  svg.addEventListener('wheel', function(ev) {
+    ev.preventDefault();
+    var r = svg.getBoundingClientRect();
+    var sx = ev.clientX-r.left, sy = ev.clientY-r.top;
+    var before = toWorld(sx,sy);
+    var f = ev.deltaY<0 ? 1.1 : 0.9;
+    var nk = Math.min(2.5, Math.max(0.25, state.view.k*f));
+    state.view.k = nk; state.view.x = sx-before.x*nk; state.view.y = sy-before.y*nk;
+    render();
+  }, {passive:false});
+
+  function drawTemp(p1,p2) {
+    removeTemp();
+    var a=toScreen(p1.x,p1.y), b=toScreen(p2.x,p2.y);
+    var ns='http://www.w3.org/2000/svg'; var p=document.createElementNS(ns,'path');
+    p.setAttribute('class','temp-edge');
+    var dx=Math.max(50,Math.abs(b.x-a.x)*0.5);
+    p.setAttribute('d','M '+a.x+' '+a.y+' C '+(a.x+dx)+' '+a.y+', '+(b.x-dx)+' '+b.y+', '+b.x+' '+b.y);
+    svg.appendChild(p);
+  }
+  function removeTemp(){ var t=svg.querySelector('.temp-edge'); if(t)t.remove(); }
+
+  window.addEventListener('keydown', function(ev) {
+    if (ev.target && (ev.target.tagName==='INPUT'||ev.target.tagName==='TEXTAREA')) return;
+    if (ev.key==='Delete'||ev.key==='Backspace') {
+      if (selection.type==='node'&&selection.id) deleteNode(selection.id);
+      else if (selection.type==='edge'&&selection.id) {
+        var parts = selection.id.split('->');
+        var fromPart = parts[0], toPart = parts[1];
+        deleteEdge(fromPart, toPart);
+      }
+    }
+    if (ev.key==='Escape') { selection={type:null,id:null}; hideAside(); hideAddMenu(); render(); }
+  });
+
+  function deleteNode(id) {
+    state.nodes = state.nodes.filter(function(n){return n.id!==id;});
+    state.edges = state.edges.filter(function(e){return e.from!==id && e.to!==id;});
+    selection={type:null,id:null}; hideAside(); save(); render();
+  }
+  function deleteEdge(from, to) {
+    state.edges = state.edges.filter(function(e){return !(e.from===from && e.to===to);});
+    selection={type:null,id:null}; save(); render();
+  }
+
+  // ---------- 工具栏 ----------
+  document.getElementById('btn-add').addEventListener('click', function(ev) {
+    var r = document.getElementById('canvas-wrap').getBoundingClientRect();
+    showAddMenu(ev.clientX-r.left, ev.clientY-r.top);
+  });
+  document.getElementById('btn-delete').addEventListener('click', function() {
+    if (selection.type==='node'&&selection.id) deleteNode(selection.id);
+    else if (selection.type==='edge'&&selection.id) {
+      var parts=selection.id.split('->'); deleteEdge(parts[0], parts[1]);
+    }
+  });
+  document.getElementById('btn-preset').addEventListener('click', function() {
+    state.nodes=JSON.parse(JSON.stringify(PRESET.nodes));
+    state.edges=JSON.parse(JSON.stringify(PRESET.edges));
+    state.view={x:30,y:80,k:0.7};
+    selection={type:null,id:null}; hideAside(); save(); render();
+  });
+  document.getElementById('btn-clear').addEventListener('click', function() {
+    state.nodes=[]; state.edges=[]; selection={type:null,id:null}; hideAside(); save(); render();
+  });
+  document.getElementById('btn-export-json').addEventListener('click', function() {
+    var blob=new Blob([JSON.stringify({nodes:state.nodes,edges:state.edges},null,2)],{type:'application/json'});
+    download(blob,'bluedeer-employee-workflow.json');
+  });
+  document.getElementById('btn-import-json').addEventListener('click', function(){ document.getElementById('file-input').click(); });
+  document.getElementById('file-input').addEventListener('change', function(ev) {
+    var f=ev.target.files[0]; if(!f)return;
+    var reader=new FileReader();
+    reader.onload=function(){ try{ var d=JSON.parse(reader.result); if(d&&Array.isArray(d.nodes)){state.nodes=d.nodes;state.edges=d.edges||[];selection={type:null,id:null};hideAside();save();render();} }catch(e){alert('JSON 解析失败');} };
+    reader.readAsText(f); ev.target.value='';
+  });
+  document.getElementById('btn-export-md').addEventListener('click', function() {
+    var blob=new Blob([buildTaskMd()],{type:'text/markdown;charset=utf-8'});
+    download(blob,'bluedeer-employee-task.md');
+  });
+  function download(blob,fn) {
+    var url=URL.createObjectURL(blob); var a=document.createElement('a');
+    a.href=url; a.download=fn; document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  }
+  function buildTaskMd() {
+    var lines=['# BlueDeer 员工任务流转书','','> 由员工工作流编辑器导出。','','## 流转链路'];
+    if (state.edges.length===0) lines.push('（无连线）');
+    else {
+      for (var i=0;i<state.edges.length;i++) {
+        var e=state.edges[i];
+        var fn=findNode(e.from), tn=findNode(e.to);
+        var fname=fn?(fn.title+'（'+(TYPE_CN[fn.kind]||fn.kind)+'）'):e.from;
+        var tname=tn?(tn.title+'（'+(TYPE_CN[tn.kind]||tn.kind)+'）'):e.to;
+        var cond = e.fromPort==='true'?' [是]':e.fromPort==='false'?' [否]':'';
+        lines.push('- '+fname+' → '+tname+cond);
+      }
+    }
+    lines.push('','## 员工职责');
+    for (var j=0;j<state.nodes.length;j++) {
+      var n=state.nodes[j];
+      if (n.kind==='start'||n.kind==='end') continue;
+      lines.push('### '+n.title+'（'+(TYPE_CN[n.kind]||n.kind)+'）');
+      if (n.subtitle) lines.push('- 岗位：'+n.subtitle);
+      if (n.notes) lines.push('- 任务指令：'+n.notes);
+      if (n.cond) lines.push('- 条件：'+n.cond);
+      lines.push('');
+    }
+    return lines.join('\n');
+  }
+
+  // ---------- 缩放 ----------
+  function zoomAt(f) {
+    var r=svg.getBoundingClientRect(); var sx=r.width/2, sy=r.height/2;
+    var before=toWorld(sx,sy); var nk=Math.min(2.5,Math.max(0.25,state.view.k*f));
+    state.view.k=nk; state.view.x=sx-before.x*nk; state.view.y=sy-before.y*nk; render();
+  }
+  document.getElementById('zoom-in').addEventListener('click',function(){zoomAt(1.15);});
+  document.getElementById('zoom-out').addEventListener('click',function(){zoomAt(0.87);});
+  document.getElementById('zoom-level').addEventListener('click',function(){state.view.k=1;render();});
+
+  // ---------- 属性面板 ----------
+  function curNode(){ return (selection.type==='node'&&selection.id)?findNode(selection.id):null; }
+  function bind(id,prop){ document.getElementById(id).addEventListener('input',function(ev){var n=curNode(); if(n){n[prop]=ev.target.value;save();if(prop!=='notes'&&prop!=='cond')render();}}); }
+  bind('aside-title','title'); bind('aside-subtitle','subtitle'); bind('aside-notes','notes'); bind('aside-cond','cond');
+  document.getElementById('aside-close').addEventListener('click',function(){selection={type:null,id:null};hideAside();render();});
+
+  (function init() {
+    if (!load()) {
+      state.nodes=JSON.parse(JSON.stringify(PRESET.nodes));
+      state.edges=JSON.parse(JSON.stringify(PRESET.edges));
+      state.view={x:30,y:80,k:0.7};
+    }
+    render();
+  })();
+})();
+</script>
+</body>
+</html>

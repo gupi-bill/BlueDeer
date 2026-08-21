@@ -19,6 +19,7 @@ from fastapi.responses import HTMLResponse
 _server_loads: dict[str, float] = {}  # server_id -> 当前负载因子
 _server_capacity: dict[str, int] = {}  # server_id -> 最大玩家数
 _backup_servers: list[str] = []  # 备用 server id 列表
+_server_lock = threading.Lock()
 
 logger = logging.getLogger("bluedeer.game")
 
@@ -38,7 +39,7 @@ def init_biosphere(biosphere: Any) -> None:
 
 
 def get_biosphere() -> Any:
-    if _biosphere is None:
+    if not _biosphere_ready.is_set() or _biosphere is None:
         raise HTTPException(status_code=503, detail="生物圈尚未初始化")
     return _biosphere
 
@@ -71,6 +72,22 @@ async def game_console() -> Any:
     return HTMLResponse(content=render_index())
 
 
+@router.get("/workflow", response_class=HTMLResponse)
+async def game_workflow() -> Any:
+    """可视化工作流编辑器页面（零依赖，独立文件）。"""
+    from workflow_frontend import render_workflow
+
+    return HTMLResponse(content=render_workflow())
+
+
+@router.get("/hub", response_class=HTMLResponse)
+async def game_hub() -> Any:
+    """BlueDeer 总控台：统一框架入口，内嵌各子模块。"""
+    from hub_frontend import render_hub
+
+    return HTMLResponse(content=render_hub())
+
+
 @router.get("/report", response_class=HTMLResponse)
 async def game_report() -> Any:
     """进化报告页面。"""
@@ -100,7 +117,7 @@ async def game_snap() -> Any:
     snap_html = (
         f"<pre>{_escape_html(json.dumps(snap, ensure_ascii=False, indent=2))}</pre>"
     )
-    save_html = f"<p>存档: {'✅' if save_result.get('ok') else '❌'} {save_result.get('path','')}</p>"
+    save_html = f"<p>存档: {'✅' if save_result.get('ok') else '❌'} {save_result.get('path', '')}</p>"
     return HTMLResponse(
         content=_make_text_page("生态快照", "Snapshot", snap_html + save_html)
     )
@@ -119,7 +136,7 @@ async def api_status() -> Any:
 
 @router.get("/api/story")
 async def api_story(
-    since: float = Query(0.0, description="只返回此时间戳之后的故事")
+    since: float = Query(0.0, description="只返回此时间戳之后的故事"),
 ) -> Any:
     bio = get_biosphere()
     stories = bio.story_text(n=50)
@@ -294,26 +311,30 @@ async def api_health() -> Any:
 
 def register_server(server_id: str, capacity: int = 100, load: float = 0.0) -> None:
     """注册游戏服务器。"""
-    _server_capacity[server_id] = capacity
-    _server_loads[server_id] = load
+    with _server_lock:
+        _server_capacity[server_id] = capacity
+        _server_loads[server_id] = load
 
 
 def update_load(server_id: str, load: float) -> None:
     """更新服务器负载因子（0.0 ~ 1.0）。"""
-    _server_loads[server_id] = load
+    with _server_lock:
+        _server_loads[server_id] = load
 
 
 def set_backups(backups: list[str]) -> None:
     """设置备用服务器列表。"""
-    _backup_servers.clear()
-    _backup_servers.extend(backups)
+    with _server_lock:
+        _backup_servers.clear()
+        _backup_servers.extend(backups)
 
 
 def clear_servers() -> None:
     """清空所有已注册服务器（测试用）。"""
-    _server_loads.clear()
-    _server_capacity.clear()
-    _backup_servers.clear()
+    with _server_lock:
+        _server_loads.clear()
+        _server_capacity.clear()
+        _backup_servers.clear()
 
 
 def route_to_best(game_id: str, players: int) -> str | None:
@@ -327,13 +348,14 @@ def route_to_best(game_id: str, players: int) -> str | None:
     _ = game_id
     best: str | None = None
     best_load: float = 1.0
-    for sid, load in _server_loads.items():
-        cap = _server_capacity.get(sid, 100)
-        if players > cap:
-            continue
-        if load < best_load:
-            best_load = load
-            best = sid
+    with _server_lock:
+        for sid, load in _server_loads.items():
+            cap = _server_capacity.get(sid, 100)
+            if players > cap:
+                continue
+            if load < best_load:
+                best_load = load
+                best = sid
     return best
 
 

@@ -20,7 +20,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, ClassVar
 
 from modules.sparrow.status_center import StatusCenter, SystemSnapshot
 
@@ -41,7 +41,7 @@ class AlertLevel(Enum):
 # ============== 播报模板 ==============
 
 # 基础 6 套播报文案模板
-_BROADCAST_TEMPLATES: dict[str, str] = {
+_BROADCAST_TEMPLATES: ClassVar[ClassVar[dict[str, str]]] = {
     "task_start": "🚀 任务启动: {task_id} | 类型: {task_type} | 指派: {assignee}",
     "code_generated": "✍️ 代码生成完成: {task_id} | 模型: {model} | Token: {tokens}",
     "test_passed": "✅ 测试通过: {test_path} | 通过数: {passed_count}",
@@ -51,7 +51,7 @@ _BROADCAST_TEMPLATES: dict[str, str] = {
 }
 
 # 扩充 32 套分场景播报模板（代码/美术/安全/运维/梦境/成本 6 专项）
-_BROADCAST_TEMPLATES_EXTENDED: dict[str, str] = {
+_BROADCAST_TEMPLATES_EXTENDED: ClassVar[ClassVar[dict[str, str]]] = {
     # 代码专项
     "code_review": "🔍 代码评审: {file} | 问题数: {issues}",
     "code_merge": "🔀 代码合并: {branch} → main",
@@ -334,8 +334,8 @@ class SparrowAnnouncer:
                 await self.run_light_inspection()
             except asyncio.CancelledError:
                 break
-            except Exception as e:
-                logger.exception("轻度巡检异常: %s", e)
+            except Exception:
+                logger.exception("轻度巡检异常")
                 await asyncio.sleep(self._light_interval)
 
     async def _deep_loop(self) -> None:
@@ -346,8 +346,8 @@ class SparrowAnnouncer:
                 await self.run_deep_inspection()
             except asyncio.CancelledError:
                 break
-            except Exception as e:
-                logger.exception("深度巡检异常: %s", e)
+            except Exception:
+                logger.exception("深度巡检异常")
                 await asyncio.sleep(self._deep_interval)
 
     def set_intervals(
@@ -406,7 +406,7 @@ class SparrowAnnouncer:
         """
         if snapshot is None:
             snapshot = self._status.collect()
-        records: list[InspectionRecord] = []
+        records: ClassVar[ClassVar[list[InspectionRecord]]] = []
         alerts = snapshot.alerts
 
         # 重度告警
@@ -583,7 +583,7 @@ class SparrowAnnouncer:
 
     # ============== 优先级队列播报 ==============
 
-    _priority_queue: list[dict[str, Any]] = []
+    _priority_queue: ClassVar[list[dict[str, Any]]] = []
 
     def broadcast_priority(self, msg: str, priority: int = 0) -> None:
         """按优先级加入队列（priority 越高越优先）。"""

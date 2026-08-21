@@ -7,6 +7,7 @@ commit 28：行为池——洗澡 / 学舌 / 午间小睡
 from __future__ import annotations
 
 import random
+from typing import ClassVar
 
 from .digital_life_form import DigitalLifeForm
 
@@ -14,7 +15,7 @@ from .digital_life_form import DigitalLifeForm
 class Lark(DigitalLifeForm):
     """灵音雀。"""
 
-    SPECIES_TEMPLATE: dict = {
+    SPECIES_TEMPLATE: ClassVar[dict] = {
         "species": "lark",
         "default_name": "灵音雀",
         "metabolic_rate": 0.38,
@@ -32,7 +33,7 @@ class Lark(DigitalLifeForm):
     # 1. 洗澡：每天下午在溪流或水盆扑腾洗澡，甩水花
     # 2. 学舌：听到其他同事叫声后模仿一遍，然后得意跳一跳
     # 3. 午间小睡：每天 13-14 固定小憩，头缩进胸羽
-    BEHAVIOR_POOL: list[dict] = [
+    BEHAVIOR_POOL: ClassVar[list[dict]] = [
         {
             "name": "bath",
             "label": "洗澡",

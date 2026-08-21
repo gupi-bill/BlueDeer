@@ -16,14 +16,14 @@ from __future__ import annotations
 import logging
 import sys
 from collections.abc import Callable
-from typing import Any
+from typing import Any, ClassVar
 
 from core.tui_renderer import TUIRenderer
 
 logger = logging.getLogger("bluedeer.cli_tui")
 
 # sort_mode → 12 维榜单索引映射（由渲染器统一排序，避免双重排序冲突）
-_SORT_MODE_TO_LB_INDEX: dict[str, int] = {
+_SORT_MODE_TO_LB_INDEX: ClassVar[ClassVar[dict[str, int]]] = {
     "composite": 0,  # 综合
     "coins": 1,  # 金币
     "achievements": 5,  # 成就
@@ -50,7 +50,7 @@ class CLITUI:
         tui.run(state_provider)
     """
 
-    _THEMES: dict[str, dict[str, str]] = {
+    _THEMES: ClassVar[dict[str, dict[str, str]]] = {
         "default": {"fg": "", "bg": "", "accent": "\x1b[36m", "border": "\x1b[37m"},
         "dark": {
             "fg": "\x1b[37m",

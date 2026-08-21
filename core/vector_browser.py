@@ -228,7 +228,9 @@ class VectorBrowser:
             matrix.append(row)
         return matrix, all_tokens
 
-    def _project_pca(self, matrix: list[list[float]], docs: list) -> list[dict[str, Any]]:
+    def _project_pca(
+        self, matrix: list[list[float]], docs: list
+    ) -> list[dict[str, Any]]:
         n = len(matrix)
         m = len(matrix[0]) if n else 0
         if not n or not m:
@@ -238,9 +240,9 @@ class VectorBrowser:
         cov = [[0.0] * m for _ in range(m)]
         for i in range(m):
             for j in range(m):
-                cov[i][j] = sum(
-                    centered[k][i] * centered[k][j] for k in range(n)
-                ) / (n - 1 if n > 1 else 1)
+                cov[i][j] = sum(centered[k][i] * centered[k][j] for k in range(n)) / (
+                    n - 1 if n > 1 else 1
+                )
         _eig_vals, eig_vecs = self._power_iteration(cov, 2)
         result_2d = []
         for i in range(n):
@@ -257,7 +259,9 @@ class VectorBrowser:
             )
         return result_2d
 
-    def _project_tsne(self, matrix: list[list[float]], docs: list) -> list[dict[str, Any]]:
+    def _project_tsne(
+        self, matrix: list[list[float]], docs: list
+    ) -> list[dict[str, Any]]:
         n = len(matrix)
         m = len(matrix[0]) if n else 0
         if not n or not m:
@@ -275,9 +279,7 @@ class VectorBrowser:
         for i in range(n):
             dists = [(j, 1.0 - sim_matrix[i][j]) for j in range(n) if j != i]
             dists.sort(key=lambda x: x[1])
-            sigma = (
-                dists[min(perplexity, len(dists)) - 1][1] + eps if dists else 1.0
-            )
+            sigma = dists[min(perplexity, len(dists)) - 1][1] + eps if dists else 1.0
             row_sum = 0.0
             for j in range(n):
                 if i == j:
@@ -302,8 +304,7 @@ class VectorBrowser:
                         continue
                     dij = (
                         math.sqrt(
-                            (pos[i][0] - pos[j][0]) ** 2
-                            + (pos[i][1] - pos[j][1]) ** 2
+                            (pos[i][0] - pos[j][0]) ** 2 + (pos[i][1] - pos[j][1]) ** 2
                         )
                         + eps
                     )

@@ -168,9 +168,7 @@ class BloomFilter:
         bf = cls.__new__(cls)
         bf._capacity = capacity
         bf._error_rate = error_rate
-        bf._m = max(
-            8, math.ceil(-capacity * math.log(error_rate) / (math.log(2) ** 2))
-        )
+        bf._m = max(8, math.ceil(-capacity * math.log(error_rate) / (math.log(2) ** 2)))
         bf._k = max(1, round((bf._m / capacity) * math.log(2)))
         bits_len = (bf._m + 7) // 8
         bf._bits = bytearray(data[20 : 20 + bits_len])

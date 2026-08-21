@@ -7,6 +7,7 @@ commit 28：行为池——挖新地道 / 倒着走 / 冲洗爪子
 from __future__ import annotations
 
 import random
+from typing import ClassVar
 
 from .digital_life_form import DigitalLifeForm
 
@@ -14,7 +15,7 @@ from .digital_life_form import DigitalLifeForm
 class Badger(DigitalLifeForm):
     """小獾。"""
 
-    SPECIES_TEMPLATE: dict = {
+    SPECIES_TEMPLATE: ClassVar[dict] = {
         "species": "badger",
         "default_name": "小獾",
         "metabolic_rate": 0.42,
@@ -32,7 +33,7 @@ class Badger(DigitalLifeForm):
     # 1. 挖新地道：空闲时随机选软地面挖掘，可能连通或死胡同
     # 2. 倒着走：偶尔倒着走几步（天性）
     # 3. 冲洗爪子：在溪流或饮水机旁用水冲洗前爪
-    BEHAVIOR_POOL: list[dict] = [
+    BEHAVIOR_POOL: ClassVar[list[dict]] = [
         {
             "name": "dig_new_tunnel",
             "label": "挖新地道",

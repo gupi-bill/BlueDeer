@@ -320,9 +320,9 @@ class LayeredSceneRenderer:
         self._canvas = LayeredCanvas(width, height)
         self._anims = AnimationRegistry()
         self._scaler = AdaptiveScaler()
-        self._active_anims: list[tuple[DepthLayer, int, int, MicroAnimation, float]] = (
-            []
-        )
+        self._active_anims: list[
+            tuple[DepthLayer, int, int, MicroAnimation, float]
+        ] = []
         # (layer, x, y, animation, start_time)
 
     @property

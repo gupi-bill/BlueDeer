@@ -7,6 +7,7 @@ commit 28：行为池——藏坚果 / 忘记藏哪儿了 / 炫耀代码
 from __future__ import annotations
 
 import logging
+from typing import ClassVar
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ from .digital_life_form import DigitalLifeForm
 class Squirrel(DigitalLifeForm):
     """较真松鼠。"""
 
-    SPECIES_TEMPLATE: dict = {
+    SPECIES_TEMPLATE: ClassVar[dict] = {
         "species": "squirrel",
         "default_name": "较真松鼠",
         "metabolic_rate": 0.6,
@@ -37,7 +38,7 @@ class Squirrel(DigitalLifeForm):
     # 1. 藏坚果：能量充足时埋代码坚果（每秒 +0.1 food_cache）
     # 2. 忘记藏哪儿了：20% 概率翻找无果（消耗能量但不加 food_cache）
     # 3. 炫耀代码：工作完成后向同事展示，提升双方 mood_score
-    BEHAVIOR_POOL: list[dict] = [
+    BEHAVIOR_POOL: ClassVar[list[dict]] = [
         {
             "name": "cache_food",
             "label": "藏坚果",
@@ -135,7 +136,7 @@ class Squirrel(DigitalLifeForm):
         elif bname == "forget_cache":
             # 翻找：消耗能量，不加 food_cache
             self.energy = max(0.0, self.energy - 0.2)
-        elif bname == "show_off_code":
+        elif bname == "show_off_code":  # noqa: SIM102
             # 炫耀：每 10 秒找一位同事 +mood
             if int(time.time()) % 10 == 0 and self._environment is not None:
                 others = [

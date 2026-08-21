@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, ClassVar
 
 from modules.soft_rabbit.pixel_render import PALETTE_16, Color
 
@@ -66,7 +66,7 @@ class HardwarePreset:
 
 
 # 6 套预设定义
-_HARDWARE_PRESETS: dict[str, HardwarePreset] = {
+_HARDWARE_PRESETS: ClassVar[ClassVar[ClassVar[dict[str, HardwarePreset]]]] = {
     "nes": HardwarePreset(
         "nes",
         "NES 红白机",
@@ -163,7 +163,7 @@ class ScanlineFilter:
     ) -> list[str]:
         if intensity <= 0:
             return list(lines)
-        result: list[str] = []
+        result: ClassVar[ClassVar[ClassVar[list[str]]]] = []
         for i, line in enumerate(lines):
             if (i + 1) % line_spacing == 0:
                 # 暗行：非空格字符降级为半亮
@@ -193,9 +193,9 @@ class GrainFilter:
             return list(lines)
         # 颗粒密度 = intensity × 20%
         threshold = intensity * 0.2
-        result: list[str] = []
+        result: ClassVar[ClassVar[ClassVar[list[str]]]] = []
         for y, line in enumerate(lines):
-            new_chars: list[str] = []
+            new_chars: ClassVar[ClassVar[ClassVar[list[str]]]] = []
             for x, c in enumerate(line):
                 if c == " ":
                     new_chars.append(c)
@@ -229,7 +229,7 @@ class ChromaticShiftFilter:
         shift = 1 if intensity > 0.4 else 0
         if shift == 0:
             return list(lines)
-        result: list[str] = []
+        result: ClassVar[ClassVar[ClassVar[list[str]]]] = []
         for line in lines:
             # 右移 shift 位，左侧补空格
             shifted = (
@@ -279,7 +279,7 @@ class RoundCornerFilter:
     终端模拟：四角字符替换为 ╭╮╰╯。
     """
 
-    CORNER_CHARS = {
+    CORNER_CHARS: ClassVar[dict[str, str]] = {
         "tl": "╭",
         "tr": "╮",
         "bl": "╰",
@@ -304,7 +304,7 @@ class RoundCornerFilter:
 # ============== 滤镜管线 ==============
 
 # 滤镜类型 → 实现类映射
-_FILTER_IMPLEMENTATIONS: dict[str, Any] = {
+_FILTER_IMPLEMENTATIONS: ClassVar[ClassVar[ClassVar[dict[str, Any]]]] = {
     "scanline": ScanlineFilter,
     "grain": GrainFilter,
     "chromatic_shift": ChromaticShiftFilter,
@@ -353,7 +353,7 @@ class CRTFilterPipeline:
         return "\n".join(result)
 
 
-_FILTER_PARAM_CACHE: dict[str, FilterParams] = {}
+_FILTER_PARAM_CACHE: ClassVar[ClassVar[ClassVar[dict[str, FilterParams]]]] = {}
 
 
 def register_filter_param(name: str, params: FilterParams) -> None:

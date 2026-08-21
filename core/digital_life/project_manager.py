@@ -19,7 +19,7 @@ import time
 import uuid
 from typing import Any
 
-# ruff: noqa: S110, S112
+# ruff: noqa: S110
 
 _PROJECTS_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -484,7 +484,7 @@ class ProjectManager:
         if upcoming:
             names = ", ".join(m.name for m in upcoming)
             deer_summary = (
-                f"项目整体进度 {progress:.0f}%。" f"未来 3 天内到期的里程碑：{names}。"
+                f"项目整体进度 {progress:.0f}%。未来 3 天内到期的里程碑：{names}。"
             )
 
         standup = {
@@ -559,8 +559,7 @@ class ProjectManager:
                                 "type": RISK_BLOCKED,
                                 "level": RISK_MEDIUM,
                                 "description": (
-                                    f"里程碑「{m.name}」依赖「{dep_id}」"
-                                    f"未完成，已阻塞"
+                                    f"里程碑「{m.name}」依赖「{dep_id}」未完成，已阻塞"
                                 ),
                                 "ts": time.time(),
                             }

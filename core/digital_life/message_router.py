@@ -25,7 +25,7 @@ from typing import Any
 
 from typing_extensions import Self
 
-# ruff: noqa: S110, S112
+# ruff: noqa: S110
 
 
 # ====================================================================
@@ -374,13 +374,16 @@ class MessageRouter:
 # ====================================================================
 
 _router_singleton: MessageRouter | None = None
+_router_lock = threading.Lock()
 
 
 def get_router() -> MessageRouter:
     """获取全局 MessageRouter 单例。"""
     global _router_singleton
     if _router_singleton is None:
-        _router_singleton = MessageRouter()
+        with _router_lock:
+            if _router_singleton is None:
+                _router_singleton = MessageRouter()
     return _router_singleton
 
 

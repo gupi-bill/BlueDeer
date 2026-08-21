@@ -71,9 +71,9 @@ def test_request_with_retry_sleeps_backoff() -> None:
     async def fake_sleep(seconds: float) -> None:
         sleeps.append(seconds)
 
-    with mock.patch("urllib.request.urlopen", side_effect=fake_urlopen):
-        with mock.patch("asyncio.sleep", side_effect=fake_sleep):
-            with mock.patch("core.retry.random.random", return_value=0.7):
+    with mock.patch("urllib.request.urlopen", side_effect=fake_urlopen), mock.patch(
+        "asyncio.sleep", side_effect=fake_sleep
+    ), mock.patch("core.retry.random.random", return_value=0.7):
                 result = asyncio.run(
                     request_with_retry("GET", "http://x/", retries=3, timeout=5)
                 )
@@ -96,9 +96,9 @@ def test_request_with_retry_exhausted_raises() -> None:
     def fake_urlopen(req, timeout):
         raise OSError("always down")
 
-    with mock.patch("urllib.request.urlopen", side_effect=fake_urlopen):
-        with mock.patch("asyncio.sleep", side_effect=lambda s: None):
-            with pytest.raises(RuntimeError, match="请求重试耗尽"):
+    with mock.patch("urllib.request.urlopen", side_effect=fake_urlopen), mock.patch(
+        "asyncio.sleep", side_effect=lambda s: None
+    ), pytest.raises(RuntimeError, match="请求重试耗尽"):
                 asyncio.run(
                     request_with_retry("GET", "http://x/", retries=2, timeout=5)
                 )
@@ -110,8 +110,9 @@ def test_request_with_retry_success_first_try() -> None:
     def fake_urlopen(req, timeout):
         return _FakeResp(b'{"ok": true}')
 
-    with mock.patch("urllib.request.urlopen", side_effect=fake_urlopen):
-        with mock.patch("asyncio.sleep", side_effect=lambda s: sleeps.append(s)):
+    with mock.patch("urllib.request.urlopen", side_effect=fake_urlopen), mock.patch(
+        "asyncio.sleep", side_effect=lambda s: sleeps.append(s)
+    ):
             result = asyncio.run(
                 request_with_retry("GET", "http://x/", retries=3, timeout=5)
             )

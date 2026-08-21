@@ -7,6 +7,7 @@ commit 28：行为池——晒太阳 / 访花 / 求偶舞
 from __future__ import annotations
 
 import random
+from typing import ClassVar
 
 from .digital_life_form import DigitalLifeForm
 
@@ -14,7 +15,7 @@ from .digital_life_form import DigitalLifeForm
 class Butterfly(DigitalLifeForm):
     """彩纹蝶。"""
 
-    SPECIES_TEMPLATE: dict = {
+    SPECIES_TEMPLATE: ClassVar[dict] = {
         "species": "butterfly",
         "default_name": "彩纹蝶",
         "metabolic_rate": 0.3,
@@ -32,7 +33,7 @@ class Butterfly(DigitalLifeForm):
     # 1. 晒太阳：白天 10-14，飞到穹顶最亮处展翅，加速能量恢复
     # 2. 访花：在花丛飞舞，传播鳞粉，偶尔触发"配色灵感"
     # 3. 求偶舞：春季成年蝶随机触发，跳 8 字舞释放彩色鳞粉
-    BEHAVIOR_POOL: list[dict] = [
+    BEHAVIOR_POOL: ClassVar[list[dict]] = [
         {
             "name": "sun_bathe",
             "label": "晒太阳",

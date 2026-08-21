@@ -17,7 +17,7 @@ import urllib.request
 import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 logger = logging.getLogger("bluedeer.plugin_repo")
 
@@ -192,7 +192,7 @@ class PluginRepo:
 
             os.makedirs(self._plugin_dir, exist_ok=True)
             with tempfile.TemporaryDirectory() as tmpdir:
-                result = subprocess.run(
+                result = subprocess.run(  # noqa: PLW1510
                     ["git", "clone", "--depth", "1", "-b", ref, clone_url, str(tmpdir)],
                     capture_output=True,
                     text=True,
@@ -269,7 +269,7 @@ class PluginRepo:
         except Exception as e:
             return False, f"卸载失败: {e}"
 
-    _PLUGIN_DEPS: dict[str, list[str]] = {
+    _PLUGIN_DEPS: ClassVar[dict[str, list[str]]] = {
         # 插件名称 -> 依赖的插件名称列表
     }
 
@@ -315,7 +315,7 @@ class PluginRepo:
         dfs(plugin_name)
         return order
 
-    @lru_cache(maxsize=32)
+    @lru_cache(maxsize=32)  # noqa: B019
     def cached_search(self, query: str) -> PluginRepoResult:
         """带 LRU 缓存的搜索（缓存最近 32 个查询）。"""
         return self.search_github(query)

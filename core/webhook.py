@@ -13,6 +13,7 @@ import asyncio
 import hashlib
 import hmac
 import logging
+import threading
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
@@ -66,23 +67,26 @@ class WebhookDispatcher:
         self._hooks: dict[str, WebhookDef] = {}
         self._session: Any | None = None  # aiohttp.ClientSession
         self._handler_registered = False
+        self._lock = threading.Lock()
         self._load_hooks()
 
     # ---- 钩子管理 ----
 
     def add_hook(self, hook: WebhookDef) -> str:
-        self._hooks[hook.id] = hook
-        self._save_hooks()
+        with self._lock:
+            self._hooks[hook.id] = hook
+            self._save_hooks()
         logger.info("Webhook 已添加: %s → %s (%s)", hook.id, hook.url, hook.events)
         return hook.id
 
     def remove_hook(self, hook_id: str) -> bool:
-        if hook_id in self._hooks:
-            del self._hooks[hook_id]
-            self._save_hooks()
-            logger.info("Webhook 已删除: %s", hook_id)
-            return True
-        return False
+        with self._lock:
+            if hook_id in self._hooks:
+                del self._hooks[hook_id]
+                self._save_hooks()
+                logger.info("Webhook 已删除: %s", hook_id)
+                return True
+            return False
 
     def get_hook(self, hook_id: str) -> WebhookDef | None:
         return self._hooks.get(hook_id)
@@ -91,20 +95,22 @@ class WebhookDispatcher:
         return dict(self._hooks)
 
     def enable_hook(self, hook_id: str) -> bool:
-        hook = self._hooks.get(hook_id)
-        if hook is None:
-            return False
-        hook.enabled = True
-        self._save_hooks()
-        return True
+        with self._lock:
+            hook = self._hooks.get(hook_id)
+            if hook is None:
+                return False
+            hook.enabled = True
+            self._save_hooks()
+            return True
 
     def disable_hook(self, hook_id: str) -> bool:
-        hook = self._hooks.get(hook_id)
-        if hook is None:
-            return False
-        hook.enabled = False
-        self._save_hooks()
-        return True
+        with self._lock:
+            hook = self._hooks.get(hook_id)
+            if hook is None:
+                return False
+            hook.enabled = False
+            self._save_hooks()
+            return True
 
     # ---- 启动/停止 ----
 
@@ -259,8 +265,7 @@ class WebhookDispatcher:
 
         for attempt in range(1, max_retries + 1):
             try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(
+                async with aiohttp.ClientSession() as session, session.post(
                         url,
                         json={"event": event},
                         timeout=aiohttp.ClientTimeout(total=10),

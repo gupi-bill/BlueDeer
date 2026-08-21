@@ -99,7 +99,7 @@ def build_langgraph_from_spec(
     """
     graph = StateGraph()
     for name in spec.get("nodes", []):
-        graph.add_node(name, (lambda n: lambda s: node_fn(n, s))(name))
+        graph.add_node(name, (lambda n: lambda s: node_fn(n, s))(name))  # noqa: PLC3002
     for src, dst in spec.get("edges", {}).items():
         graph.add_edge(src, dst)
     for src, fn in spec.get("conditional", {}).items():

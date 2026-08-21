@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -112,39 +111,27 @@ class GanttGenerator:
         except (json.JSONDecodeError, ValueError):
             return None
 
-    def generate(
-        self,
-        *,
-        harness_aggregate: dict[str, Any] | None = None,
-        scheduler_jobs: dict[str, Any] | None = None,
-        since: float = 0.0,
-        upto: float | None = None,
-    ) -> GanttData:
-        entries: list[GanttEntry] = []
-        seen: set[str] = set()
+    def _parse_trace_entries(
+        self, since: float, upto: float | None
+    ) -> tuple[list, set, int]:
+        entries = []
+        seen = set()
         tid_counter = 0
-
-        if not os.path.exists(self._trace_log):
-            return GanttData()
-
         try:
             with open(self._trace_log, "r", encoding="utf-8") as f:
                 for line in f:
                     record = self._parse_line(line)
                     if record is None:
                         continue
-
                     ts = record.get("ts", 0)
                     if since and ts < since:
                         continue
                     if upto and ts > upto:
                         continue
-
                     action = record.get("action", "")
                     comp = record.get("component", "")
                     task_id = record.get("task_id", "")
                     duration = float(record.get("duration_ms", 0)) / 1000.0
-
                     if (
                         action
                         in (
@@ -160,7 +147,6 @@ class GanttGenerator:
                             if "start" in action
                             else ("success" if "success" in action else "failed")
                         )
-
                         if task_id not in seen:
                             seen.add(task_id)
                             tid_counter += 1
@@ -186,7 +172,6 @@ class GanttGenerator:
                                 existing.end = ts + max(duration, 1)
                                 existing.duration_sec = max(duration, 1)
                                 existing.status = status
-
                     elif action == "model_complete" and comp and not task_id:
                         model_key = f"model_{comp}_{ts}"
                         entries.append(
@@ -201,61 +186,81 @@ class GanttGenerator:
                                 layer=len(entries) + 1,
                             )
                         )
-
         except (OSError, json.JSONDecodeError) as e:
             logger.warning("读取 trace 日志失败: %s", e)
+        return entries, seen, tid_counter
 
-        if harness_aggregate:
-            tasks = harness_aggregate.get("tasks", {})
-            for tid, tdata in tasks.items():
-                if tid not in seen:
-                    seen.add(tid)
-                    entries.append(
-                        GanttEntry(
-                            id=tid,
-                            label=f"任务/{tid[:8]}",
-                            start=time.time() - 60,
-                            end=time.time(),
-                            duration_sec=60,
-                            status=tdata.get("status", "unknown"),
-                            agent=tdata.get("agent_id", "?"),
-                            layer=len(entries) + 1,
-                        )
-                    )
-
-        if scheduler_jobs:
-            for jid, jdata in scheduler_jobs.items():
+    def _add_harness_entries(
+        self, entries: list, seen: set, harness_aggregate: dict | None
+    ) -> None:
+        if not harness_aggregate:
+            return
+        tasks = harness_aggregate.get("tasks", {})
+        for tid, tdata in tasks.items():
+            if tid not in seen:
+                seen.add(tid)
                 entries.append(
                     GanttEntry(
-                        id=f"sched_{jid}",
-                        label=f"⏰ {jid}",
-                        start=time.time(),
-                        end=time.time() + 10,
-                        duration_sec=10,
-                        status="scheduled",
-                        agent="Scheduler",
+                        id=tid,
+                        label=f"任务/{tid[:8]}",
+                        start=time.time() - 60,
+                        end=time.time(),
+                        duration_sec=60,
+                        status=tdata.get("status", "unknown"),
+                        agent=tdata.get("agent_id", "?"),
                         layer=len(entries) + 1,
-                        dependencies=(
-                            [f"dag_{d}" for d in jdata.get("depends_on", [])]
-                            if isinstance(jdata, dict)
-                            else []
-                        ),
                     )
                 )
 
+    def _add_scheduler_entries(
+        self, entries: list, scheduler_jobs: dict | None
+    ) -> None:
+        if not scheduler_jobs:
+            return
+        for jid, jdata in scheduler_jobs.items():
+            entries.append(
+                GanttEntry(
+                    id=f"sched_{jid}",
+                    label=f"⏰ {jid}",
+                    start=time.time(),
+                    end=time.time() + 10,
+                    duration_sec=10,
+                    status="scheduled",
+                    agent="Scheduler",
+                    layer=len(entries) + 1,
+                    dependencies=(
+                        [f"dag_{d}" for d in jdata.get("depends_on", [])]
+                        if isinstance(jdata, dict)
+                        else []
+                    ),
+                )
+            )
+
+    def _build_gantt_data(self, entries: list) -> GanttData:
         if not entries:
             return GanttData()
-
         entries.sort(key=lambda e: e.start)
         start_t = min(e.start for e in entries)
         end_t = max(e.end for e in entries)
-
         return GanttData(
             entries=entries,
             start_time=start_t,
             end_time=end_t,
             total_span_sec=max(end_t - start_t, 1),
         )
+
+    def generate(
+        self,
+        *,
+        harness_aggregate: dict[str, Any] | None = None,
+        scheduler_jobs: dict[str, Any] | None = None,
+        since: float = 0.0,
+        upto: float | None = None,
+    ) -> GanttData:
+        entries, seen, _ = self._parse_trace_entries(since, upto)
+        self._add_harness_entries(entries, seen, harness_aggregate)
+        self._add_scheduler_entries(entries, scheduler_jobs)
+        return self._build_gantt_data(entries)
 
 
 class GanttFormatter:

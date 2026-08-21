@@ -18,7 +18,7 @@ import threading
 import time
 from typing import Any
 
-# ruff: noqa: S110, S112
+# ruff: noqa: S110
 
 _EVOLUTION_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -166,9 +166,9 @@ class EvolutionSystem:
         self._lock = threading.RLock()
         self._biosphere_ref: Any = None
         self._mutation_log: list[dict] = []  # 所有突变历史
-        self._genetic_traits: dict[str, dict] = (
-            {}
-        )  # 遗传特征 {species: {trait_key: generation_count}}
+        self._genetic_traits: dict[
+            str, dict
+        ] = {}  # 遗传特征 {species: {trait_key: generation_count}}
         self._last_check_ts: float = 0.0
         self._check_thread: threading.Thread | None = None
         self._stop_event = threading.Event()
@@ -385,7 +385,7 @@ class EvolutionSystem:
             if gen == -1:
                 # 固定特征，100% 遗传
                 result.append({"key": key, "fixed": True})
-            elif gen > 0:
+            elif gen > 0:  # noqa: SIM102
                 # 非固定，40% 概率遗传
                 if random.random() < 0.4:
                     result.append({"key": key, "fixed": False})

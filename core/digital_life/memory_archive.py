@@ -20,7 +20,7 @@ import threading
 import time
 from typing import Any
 
-# ruff: noqa: S110, S112
+# ruff: noqa: S110
 
 
 class MemoryArchive:

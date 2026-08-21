@@ -227,12 +227,7 @@ class TaskBoardMixin:
         logger.info("任务状态已保存: %s (%d 条)", path, count)
         return count
 
-    def load_state(self, path: str = "data/task_state.json") -> int:
-        """从数据库恢复任务看板（优先），找不到则回退 JSON。
-
-        Returns:
-            恢复的任务记录数。
-        """
+    def _load_state_from_db(self) -> int:
         loaded = 0
         try:
             from core.database import Database
@@ -273,14 +268,10 @@ class TaskBoardMixin:
                     self._pending[t["task_id"]] = task
         except Exception as e:
             logger.warning("从数据库恢复失败，尝试 JSON: %s", e)
+        return loaded
 
-        if loaded > 0:
-            logger.info("任务状态已从数据库恢复 (%d 条)", loaded)
-            return loaded
-
-        if not os.path.exists(path):
-            logger.info("无存档文件可恢复: %s", path)
-            return 0
+    def _load_state_from_json(self, path: str) -> int:
+        count = 0
         with open(path, "r", encoding="utf-8") as f:
             state = json.load(f)
         for tid, rd in state.get("board", {}).items():
@@ -315,3 +306,18 @@ class TaskBoardMixin:
         count = len(state.get("board", {}))
         logger.info("任务状态已从 JSON 恢复: %s (%d 条)", path, count)
         return count
+
+    def load_state(self, path: str = "data/task_state.json") -> int:
+        """从数据库恢复任务看板（优先），找不到则回退 JSON。
+
+        Returns:
+            恢复的任务记录数。
+        """
+        loaded = self._load_state_from_db()
+        if loaded > 0:
+            logger.info("任务状态已从数据库恢复 (%d 条)", loaded)
+            return loaded
+        if not os.path.exists(path):
+            logger.info("无存档文件可恢复: %s", path)
+            return 0
+        return self._load_state_from_json(path)

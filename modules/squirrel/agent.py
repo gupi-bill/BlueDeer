@@ -92,92 +92,92 @@ class SquirrelAgent(BaseAgent, RagCapable):
         total_tokens = TokenUsage()
 
         try:
-            # 1. 构建代码生成 prompt + 注入风格指令
-            prompt = self._apply_style(self._build_prompt(task))
+            async with self.with_budget_check(task):
+                prompt = self._apply_style(self._build_prompt(task))
 
-            # 2. 调 LLM 生成代码
-            model_client = self._router.route(task.type)
-            code_gen = CodeGenSkill(model_client)
-            generated_code = await code_gen.generate(task, prompt)
-            total_tokens.tokens_in += len(prompt) // _TOKEN_ESTIMATE_DIVISOR  # 估算
-            total_tokens.tokens_out += len(generated_code) // _TOKEN_ESTIMATE_DIVISOR
+                # 2. 调 LLM 生成代码
+                model_client = self._router.route(task.type)
+                code_gen = CodeGenSkill(model_client)
+                generated_code = await code_gen.generate(task, prompt)
+                total_tokens.tokens_in += len(prompt) // _TOKEN_ESTIMATE_DIVISOR  # 估算
+                total_tokens.tokens_out += len(generated_code) // _TOKEN_ESTIMATE_DIVISOR
 
-            if self._tracer:
-                self._tracer.span(
-                    task.trace_id,
-                    component="SquirrelAgent",
-                    action="code_generated",
-                    model=model_client.model_name,
-                    code_len=len(generated_code),
+                if self._tracer:
+                    self._tracer.span(
+                        task.trace_id,
+                        component="SquirrelAgent",
+                        action="code_generated",
+                        model=model_client.model_name,
+                        code_len=len(generated_code),
+                    )
+
+                # 3. 写入文件
+                target_file = task.payload.get("target_file", "output/generated.py")
+                file_write = FileWriteSkill(self._tools)
+                write_result = await file_write.write(target_file, generated_code)
+
+                if self._tracer:
+                    self._tracer.span(
+                        task.trace_id,
+                        component="SquirrelAgent",
+                        action="file_written",
+                        path=write_result.get("path"),
+                        bytes_written=write_result.get("bytes"),
+                    )
+
+                # 4. 语法校验
+                syntax_check = SyntaxCheckSkill(self._tools)
+                check_result = await syntax_check.check_file(target_file)
+
+                if self._tracer:
+                    self._tracer.span(
+                        task.trace_id,
+                        component="SquirrelAgent",
+                        action="syntax_checked",
+                        valid=check_result.get("valid"),
+                    )
+
+                # 5. 组装输出并自检
+                output = {
+                    "generated_code": generated_code,
+                    "write_result": write_result,
+                    "syntax_check": check_result,
+                    "model_used": model_client.model_name,
+                }
+                self._self_check(task, output)
+
+                # P3: 任务成功后将方案写入岗位私有 RAG 库
+                self.rag_ingest(
+                    id=f"code_{task.id}",
+                    text=generated_code,
+                    metadata={
+                        "task_type": task.type,
+                        "description": task.payload.get("description", ""),
+                        "target_file": target_file,
+                    },
                 )
+                if self._tracer:
+                    self._tracer.span(
+                        task.trace_id,
+                        component="SquirrelAgent",
+                        action="rag_ingested",
+                        scope=SCOPE_AGENT,
+                        sub_id=self.agent_id,
+                    )
 
-            # 3. 写入文件
-            target_file = task.payload.get("target_file", "output/generated.py")
-            file_write = FileWriteSkill(self._tools)
-            write_result = await file_write.write(target_file, generated_code)
+                if self._tracer:
+                    self._tracer.span(
+                        task.trace_id,
+                        component="SquirrelAgent",
+                        action="handle_success",
+                        task_id=task.id,
+                    )
 
-            if self._tracer:
-                self._tracer.span(
-                    task.trace_id,
-                    component="SquirrelAgent",
-                    action="file_written",
-                    path=write_result.get("path"),
-                    bytes_written=write_result.get("bytes"),
-                )
-
-            # 4. 语法校验
-            syntax_check = SyntaxCheckSkill(self._tools)
-            check_result = await syntax_check.check_file(target_file)
-
-            if self._tracer:
-                self._tracer.span(
-                    task.trace_id,
-                    component="SquirrelAgent",
-                    action="syntax_checked",
-                    valid=check_result.get("valid"),
-                )
-
-            # 5. 组装输出并自检
-            output = {
-                "generated_code": generated_code,
-                "write_result": write_result,
-                "syntax_check": check_result,
-                "model_used": model_client.model_name,
-            }
-            self._self_check(task, output)
-
-            # P3: 任务成功后将方案写入岗位私有 RAG 库
-            self.rag_ingest(
-                id=f"code_{task.id}",
-                text=generated_code,
-                metadata={
-                    "task_type": task.type,
-                    "description": task.payload.get("description", ""),
-                    "target_file": target_file,
-                },
-            )
-            if self._tracer:
-                self._tracer.span(
-                    task.trace_id,
-                    component="SquirrelAgent",
-                    action="rag_ingested",
-                    scope=SCOPE_AGENT,
-                    sub_id=self.agent_id,
-                )
-
-            if self._tracer:
-                self._tracer.span(
-                    task.trace_id,
-                    component="SquirrelAgent",
-                    action="handle_success",
+                return TaskResult(
+                    trace_id=task.trace_id,
                     task_id=task.id,
-                )
-
-            return TaskResult(
-                trace_id=task.trace_id,
-                task_id=task.id,
-                status=TaskStatus.SUCCESS,
-                output=output,
+                    status=TaskStatus.SUCCESS,
+                    output=output,
                 token_usage=total_tokens,
             )
 

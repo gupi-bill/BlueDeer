@@ -111,9 +111,7 @@ class Debugger:
         span_key = f"{trace_id}:{component}:{action}"
         if action.endswith("_start") or action == "handle_start":
             self._active_spans[span_key] = now
-        elif (
-            action.endswith(("_success", "_failed")) or action == "handle_success"
-        ):
+        elif action.endswith(("_success", "_failed")) or action == "handle_success":
             start = self._active_spans.pop(span_key, None)
             if start is not None:
                 span.duration_ms = (now - start) * 1000

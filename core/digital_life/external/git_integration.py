@@ -167,6 +167,21 @@ class GitIntegration:
             )
         # 拼完整命令
         full_cmd = ["git"] + list(args)
+        # 禁止路径遍历参数（如 -A /etc/passwd）
+        for arg in full_cmd:
+            if arg.startswith("-"):
+                continue
+            if arg in ("status", "log", "diff", "show", "branch", "remote", "rev-parse", "config", "tag"):
+                continue
+            if ".." in arg or arg.startswith("/") or (len(arg) > 2 and arg[1] == ":"):
+                return GitResult(
+                    False,
+                    command=" ".join(full_cmd),
+                    stderr=f"检测到路径遍历参数: {arg}",
+                    returncode=-1,
+                    duration_ms=0,
+                    repo_path=self._repo_path,
+                )
         start = time.time()
         try:
             proc = subprocess.run(

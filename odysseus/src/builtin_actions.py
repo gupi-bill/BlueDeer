@@ -8,6 +8,7 @@ scheduler without needing an LLM call.
 import json
 import logging
 import os
+import shlex
 from datetime import UTC, datetime
 
 from core.constants import internal_api_base
@@ -454,7 +455,7 @@ async def action_ssh_command(
                     [bash, "-c", command], timeout=120, label="Command"
                 )
             return await _run_subprocess(
-                command, shell=True, timeout=120, label="Command"
+                shlex.split(command), timeout=120, label="Command"
             )
         return await _run_subprocess(
             ["bash", "-c", command], timeout=120, label="Command"
@@ -478,7 +479,7 @@ async def action_run_script(
             return await _run_subprocess(
                 [find_bash(), "-c", script], timeout=300, label="Script"
             )
-        return await _run_subprocess(script, shell=True, timeout=300, label="Script")
+        return await _run_subprocess(shlex.split(script), timeout=300, label="Script")
     return await _run_subprocess(
         ["ssh", target_host, script], timeout=300, label="Script"
     )
@@ -492,7 +493,7 @@ async def action_run_local(owner: str, script: str = "", **kwargs) -> tuple[str,
         return await _run_subprocess(
             [find_bash(), "-c", script], timeout=300, label="Script"
         )
-    return await _run_subprocess(script, shell=True, timeout=300, label="Script")
+    return await _run_subprocess(shlex.split(script), timeout=300, label="Script")
 
 
 async def action_tidy_research(owner: str, **kwargs) -> tuple[str, bool]:

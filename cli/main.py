@@ -29,7 +29,10 @@ logger = logging.getLogger(__name__)
 import argparse
 import os
 import sys
+import threading
 import time
+import socket
+import webbrowser
 
 
 class Color:
@@ -78,14 +81,36 @@ if _project_root not in sys.path:
 from core.logger import init_logging
 
 
+def _open_browser_when_ready(host: str, port: int, path: str = "") -> None:
+    """后台等待端口就绪后，自动用本地浏览器打开 BlueDeer。"""
+
+    def _wait() -> None:
+        url = f"http://{host}:{port}{path}"
+        deadline = time.time() + 15.0
+        while time.time() < deadline:
+            try:
+                with socket.create_connection(
+                    (host if host != "0.0.0.0" else "127.0.0.1", port), timeout=0.5
+                ):
+                    webbrowser.open(url)
+                    print(f"{Color.G}✅ 已自动在浏览器打开 → {url}{Color.N}")
+                    return
+            except OSError:
+                time.sleep(0.3)
+        print(f"{Color.Y}⚠️ 未能自动打开浏览器，请手动访问：{url}{Color.N}")
+
+    threading.Thread(target=_wait, daemon=True).start()
+
+
 def cmd_web(args: argparse.Namespace) -> None:
     import uvicorn
 
-    host = args.host or "0.0.0.0"
+    host = args.host or "127.0.0.1"
     port = args.port or 8080
     print(
         f"{Color.B}🌲{Color.N} BlueDeer {Color.C}Web{Color.N} 仪表盘 → http://{host}:{port}"
     )
+    _open_browser_when_ready(host, port)
     uvicorn.run("web_server:app", host=host, port=port, reload=args.reload)
 
 
@@ -93,7 +118,7 @@ def cmd_serve(args: argparse.Namespace) -> None:
     """一键启动（web + ws + admin，开发模式默认关闭登录认证）。"""
     import uvicorn
 
-    host = args.host or "0.0.0.0"
+    host = args.host or "127.0.0.1"
     port = args.port or 8080
     if args.dev:
         os.environ["BLUEDEER_AUTH"] = "false"
@@ -102,6 +127,7 @@ def cmd_serve(args: argparse.Namespace) -> None:
     print(f"   Admin 面板 → http://{host}:{port}/admin")
     print(f"   API 文档   → http://{host}:{port}/docs")
     print(f"   WebSocket  → ws://{host}:{port}/ws")
+    _open_browser_when_ready(host, port)
     uvicorn.run("web_server:app", host=host, port=port, reload=args.reload)
 
 
@@ -771,12 +797,12 @@ def main() -> None:
         logger.exception("Exception in block")
 
     web_p = sub.add_parser("web", help="启动 Web 仪表盘")
-    web_p.add_argument("--host", default="0.0.0.0")
+    web_p.add_argument("--host", default="127.0.0.1")
     web_p.add_argument("--port", type=int, default=8080)
     web_p.add_argument("--reload", action="store_true", help="热重载")
 
     serve_p = sub.add_parser("serve", help="一键启动全栈服务（web + ws + admin）")
-    serve_p.add_argument("--host", default="0.0.0.0")
+    serve_p.add_argument("--host", default="127.0.0.1")
     serve_p.add_argument("--port", type=int, default=8080)
     serve_p.add_argument(
         "--dev", action="store_true", help="开发模式（关闭 admin 认证）"
@@ -876,7 +902,7 @@ def main() -> None:
     alert_p.add_argument("--limit", type=int, default=20, help="事件条数")
 
     game_p = sub.add_parser("game", help="启动森林生物圈游戏")
-    game_p.add_argument("--host", default="0.0.0.0")
+    game_p.add_argument("--host", default="127.0.0.1")
     game_p.add_argument("--port", type=int, default=9090)
     game_p.add_argument("--password", default="", help="访问密码")
     game_p.add_argument(

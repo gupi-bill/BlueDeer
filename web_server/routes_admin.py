@@ -4,9 +4,11 @@ import logging
 # ruff: noqa: F821
 
 logger = logging.getLogger(__name__)
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from web_server.app import (
+    ADMIN_AUTH_ENABLED,
     app,
 )
 
@@ -28,7 +30,11 @@ async def admin_login(request: Request) -> HTMLResponse:
     if session:
         resp = RedirectResponse(url="/admin", status_code=302)
         resp.set_cookie(
-            key="bluedeer_token", value=session.token, max_age=86400, httponly=True
+            key="bluedeer_token",
+            value=session.token,
+            max_age=86400,
+            httponly=True,
+            secure=True,  # 生产环境必须部署 HTTPS，否则浏览器不会发送 secure cookie
         )
         return resp
     return HTMLResponse(

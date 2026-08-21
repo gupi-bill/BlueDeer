@@ -1,6 +1,3 @@
-import logging
-
-logger = logging.getLogger(__name__)
 """BlueDeer 外部集成渠道包。
 
 零基础读者可以这样理解：
@@ -8,3 +5,7 @@ logger = logging.getLogger(__name__)
 - 每个渠道模块都暴露一个 send(message_dict) 函数，统一接口。
 - MessageRouter 根据消息优先级 + 用户配置，决定走哪些渠道。
 """
+
+import logging
+
+logger = logging.getLogger(__name__)

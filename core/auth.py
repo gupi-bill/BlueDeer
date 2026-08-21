@@ -1,43 +1,74 @@
-"""用户认证 + 角色权限（RBAC）系统。
+"""用户认证 + 角色权限（RBAC）系统（企业版）。
 
 数据模型：
-    - User：用户名、密码（加盐哈希）、角色、API Token、状态
-    - Role：admin / operator / viewer 三级
-    - SessionToken：登录会话管理
-存储：users.jsonl + sessions.jsonl
+    - User：用户名、bcrypt 密码哈希、五级角色、状态、强制改密标记
+    - Role：superadmin(5) / admin(4) / operator(3) / viewer(2) / guest(1)
+    - SessionToken：登录会话管理（SQLite 持久化，断点续用）
+存储：data/iam.db（SQLite），首次启动自动从 logs/users.jsonl 迁移（旧密码失效，强制改密）
+兼容说明：保留 AuthSystem / get_auth / role_required / ROLE_HIERARCHY /
+VALID_ROLES / User / ApiToken / SessionToken 公共接口。
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import os
 import secrets
+import sqlite3
+import threading
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Any
 
 logger = logging.getLogger("bluedeer.auth")
 
-_USERS_FILE = "logs/users.jsonl"
-_SESSIONS_FILE = "logs/sessions.jsonl"
+_DB_FILE = "data/iam.db"
+_LEGACY_USERS_FILE = "logs/users.jsonl"
 
-ROLE_HIERARCHY = {"admin": 3, "operator": 2, "viewer": 1}
-VALID_ROLES = ("admin", "operator", "viewer")
+ROLE_HIERARCHY = {
+    "superadmin": 5,
+    "admin": 4,
+    "operator": 3,
+    "viewer": 2,
+    "guest": 1,
+}
+VALID_ROLES = tuple(ROLE_HIERARCHY.keys())
+
+_LOGIN_MAX_FAILURES = 5
+_LOGIN_LOCK_SECONDS = 15 * 60
+_SESSION_TTL = 24 * 60 * 60
+_SESSION_REFRESH_THRESHOLD = 6 * 60 * 60
+_WEAK_PASSWORD_MIN = 8
+
+try:
+    import bcrypt as _bcrypt
+    _HAS_BCRYPT = True
+except Exception:
+    _bcrypt = None
+    _HAS_BCRYPT = False
 
 
 @dataclass
 class User:
     username: str
     password_hash: str
-    password_salt: str
     role: str = "viewer"
     display_name: str = ""
     email: str = ""
     enabled: bool = True
+    must_change_password: bool = False
     created_at: float = field(default_factory=time.time)
-    last_login: float = 0
+    last_login: float = 0.0
+
+    def to_dict(self):
+        return {
+            "username": self.username, "role": self.role,
+            "display_name": self.display_name, "email": self.email,
+            "enabled": self.enabled,
+            "must_change_password": self.must_change_password,
+            "created_at": self.created_at, "last_login": self.last_login,
+        }
 
 
 @dataclass
@@ -46,7 +77,7 @@ class ApiToken:
     name: str
     username: str
     created_at: float = field(default_factory=time.time)
-    last_used: float = 0
+    last_used: float = 0.0
     enabled: bool = True
 
 
@@ -54,16 +85,50 @@ class ApiToken:
 class SessionToken:
     token: str
     username: str
-    created_at: float = field(default_factory=time.time)
-    expires_at: float = field(default_factory=lambda: time.time() + 86400)
     role: str = "viewer"
+    created_at: float = field(default_factory=time.time)
+    expires_at: float = field(default_factory=lambda: time.time() + _SESSION_TTL)
+
+    def to_dict(self):
+        return {
+            "token": self.token, "username": self.username, "role": self.role,
+            "created_at": self.created_at, "expires_at": self.expires_at,
+        }
 
 
-def _hash_password(password: str, salt: str | None = None) -> tuple[str, str]:
-    if salt is None:
-        salt = secrets.token_hex(16)
-    h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 100000)
-    return h.hex(), salt
+def _hash_password(password: str) -> str:
+    if _HAS_BCRYPT:
+        return _bcrypt.hashpw(password.encode("utf-8"), _bcrypt.gensalt()).decode("ascii")
+    import hashlib
+    salt = secrets.token_hex(16)
+    h = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 200_000)
+    return "PBKDF2:sha256:200000:$%s$%s" % (salt, h.hex())
+
+
+def _verify_password(password: str, password_hash: str) -> bool:
+    try:
+        if password_hash.startswith("PBKDF2:"):
+            import hashlib
+            _, algo, iterations, rest = password_hash.split(":", 3)
+            salt, hx = rest.split("$", 1)
+            h = hashlib.pbkdf2_hmac(algo, password.encode(), salt.encode(), int(iterations))
+            return secrets.compare_digest(h.hex(), hx)
+        if _HAS_BCRYPT:
+            return _bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("ascii"))
+    except Exception:
+        return False
+    return False
+
+
+def is_weak_password(password: str) -> bool:
+    if len(password) < _WEAK_PASSWORD_MIN:
+        return True
+    cat = 0
+    if any(c.islower() for c in password): cat += 1
+    if any(c.isupper() for c in password): cat += 1
+    if any(c.isdigit() for c in password): cat += 1
+    if any(not c.isalnum() for c in password): cat += 1
+    return cat < 2
 
 
 def _generate_token() -> str:
@@ -71,389 +136,406 @@ def _generate_token() -> str:
 
 
 class AuthSystem:
-    def __init__(
-        self, users_file: str = _USERS_FILE, sessions_file: str = _SESSIONS_FILE
-    ) -> None:
-        self._users_file = users_file
-        self._sessions_file = sessions_file
-        self._users: dict[str, User] = {}
-        self._sessions: dict[str, SessionToken] = {}
-        self._api_tokens: dict[str, ApiToken] = {}
-        self._grace_tokens: dict[str, float] = {}  # token -> grace_until_ts
-        os.makedirs(os.path.dirname(self._users_file) or ".", exist_ok=True)
-        os.makedirs(os.path.dirname(self._sessions_file) or ".", exist_ok=True)
-        self._load()
+    def __init__(self, db_file: str = _DB_FILE, legacy_users_file: str = _LEGACY_USERS_FILE) -> None:
+        self._db_file = db_file
+        self._legacy_users_file = legacy_users_file
+        self._lock = threading.RLock()
+        os.makedirs(os.path.dirname(db_file) or ".", exist_ok=True)
+        self._conn = sqlite3.connect(db_file, check_same_thread=False)
+        self._conn.row_factory = sqlite3.Row
+        self._init_schema()
+        self._migrate_legacy()
         self._ensure_admin()
 
-    def _ensure_admin(self) -> None:
-        if "admin" not in self._users:
-            h, s = _hash_password("bluedeer888")
-            self._users["admin"] = User(
-                username="admin",
-                password_hash=h,
-                password_salt=s,
-                role="admin",
-                display_name="管理员",
+    def _init_schema(self) -> None:
+        with self._lock, self._conn:
+            self._conn.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                    username TEXT PRIMARY KEY,
+                    password_hash TEXT NOT NULL,
+                    role TEXT NOT NULL DEFAULT 'viewer',
+                    display_name TEXT NOT NULL DEFAULT '',
+                    email TEXT NOT NULL DEFAULT '',
+                    enabled INTEGER NOT NULL DEFAULT 1,
+                    must_change_password INTEGER NOT NULL DEFAULT 0,
+                    created_at REAL NOT NULL DEFAULT 0,
+                    last_login REAL NOT NULL DEFAULT 0
+                );
+                CREATE TABLE IF NOT EXISTS sessions (
+                    token TEXT PRIMARY KEY,
+                    username TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    created_at REAL NOT NULL,
+                    expires_at REAL NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_sessions_username ON sessions(username);
+                CREATE TABLE IF NOT EXISTS api_tokens (
+                    token TEXT PRIMARY KEY,
+                    name TEXT NOT NULL DEFAULT '',
+                    username TEXT NOT NULL,
+                    created_at REAL NOT NULL,
+                    last_used REAL NOT NULL DEFAULT 0,
+                    enabled INTEGER NOT NULL DEFAULT 1
+                );
+                CREATE TABLE IF NOT EXISTS login_failures (
+                    username TEXT PRIMARY KEY,
+                    fail_count INTEGER NOT NULL DEFAULT 0,
+                    first_fail_at REAL NOT NULL DEFAULT 0,
+                    locked_until REAL NOT NULL DEFAULT 0
+                );
+                """
             )
-            self._save_users()
 
-    def authenticate(self, username: str, password: str) -> SessionToken | None:
-        user = self._users.get(username)
-        if not user or not user.enabled:
-            return None
-        h, _ = _hash_password(password, user.password_salt)
-        if h != user.password_hash:
-            return None
-        token = SessionToken(token=_generate_token(), username=username, role=user.role)
-        self._sessions[token.token] = token
-        user.last_login = time.time()
-        self._save_users()
-        self._save_sessions()
-        return token
+    def _migrate_legacy(self) -> None:
+        if not os.path.exists(self._legacy_users_file):
+            return
+        cur = self._conn.execute("SELECT COUNT(*) AS c FROM users")
+        if cur.fetchone()["c"] > 0:
+            return
+        imported = 0
+        try:
+            with open(self._legacy_users_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        obj = json.loads(line)
+                    except (json.JSONDecodeError, ValueError):
+                        continue
+                    username = obj.get("username", "")
+                    if not username:
+                        continue
+                    role = obj.get("role", "viewer")
+                    if role not in VALID_ROLES:
+                        role = "viewer"
+                    self._conn.execute(
+                        "INSERT OR IGNORE INTO users"
+                        "(username, password_hash, role, display_name, email,"
+                        " enabled, must_change_password, created_at, last_login)"
+                        " VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?)",
+                        (username, "LEGACY:" + str(obj.get("password_hash", "")),
+                         role, obj.get("display_name", username),
+                         obj.get("email", ""),
+                         float(obj.get("created_at", time.time())),
+                         float(obj.get("last_login", 0))),
+                    )
+                    imported += 1
+            self._conn.commit()
+        except OSError as e:
+            logger.warning("旧用户迁移失败: %s", e)
+        if imported:
+            logger.info("已迁移 %d 个旧用户（旧密码失效，需强制改密）", imported)
+            try:
+                os.replace(self._legacy_users_file, self._legacy_users_file + ".migrated")
+            except OSError:
+                pass
 
-    def authenticate_api(self, token_str: str) -> User | None:
-        token = self._api_tokens.get(token_str)
-        if not token:
-            return None
-        # 正常 enabled token
-        if token.enabled:
-            user = self._users.get(token.username)
-            if not user or not user.enabled:
-                return None
-            token.last_used = time.time()
-            self._save_users()
-            return user
-        # 已停用的 token：检查 grace 期
-        grace_until = self._grace_tokens.get(token_str, 0)
-        if time.time() < grace_until:
-            user = self._users.get(token.username)
-            if not user or not user.enabled:
-                return None
-            return user
-        return None
-
-    def get_session(self, token_str: str) -> SessionToken | None:
-        s = self._sessions.get(token_str)
-        if not s:
-            return None
-        if time.time() > s.expires_at:
-            del self._sessions[token_str]
-            self._save_sessions()
-            return None
-        return s
-
-    def logout(self, token_str: str) -> None:
-        self._sessions.pop(token_str, None)
-        self._save_sessions()
-
-    def create_user(
-        self,
-        username: str,
-        password: str,
-        role: str = "viewer",
-        display_name: str = "",
-        email: str = "",
-    ) -> User:
-        if username in self._users:
-            raise ValueError(f"用户 {username} 已存在")
-        if role not in VALID_ROLES:
-            raise ValueError(f"无效角色: {role}")
-        h, s = _hash_password(password)
-        user = User(
-            username=username,
-            password_hash=h,
-            password_salt=s,
-            role=role,
-            display_name=display_name or username,
-            email=email,
+    def _ensure_admin(self) -> None:
+        cur = self._conn.execute("SELECT 1 FROM users WHERE username='admin' LIMIT 1")
+        if cur.fetchone():
+            return
+        self._conn.execute(
+            "INSERT INTO users"
+            "(username, password_hash, role, display_name, email, enabled,"
+            " must_change_password, created_at, last_login)"
+            " VALUES ('admin', ?, 'superadmin', '超级管理员', '', 1, 1, ?, 0)",
+            (_hash_password("bluedeer888"), time.time()),
         )
-        self._users[username] = user
-        self._save_users()
-        return user
+        self._conn.commit()
+        logger.warning("已创建默认超级管理员 admin（初始密码 bluedeer888，首次登录必须改密）")
 
-    def update_user(
-        self,
-        username: str,
-        *,
-        role: str | None = None,
-        display_name: str | None = None,
-        email: str | None = None,
-        enabled: bool | None = None,
-        password: str | None = None,
-    ) -> bool:
-        user = self._users.get(username)
+    def create_user(self, username, password, role="viewer", display_name="", email=""):
+        username = username.strip()
+        if not username:
+            raise ValueError("用户名不能为空")
+        if role not in VALID_ROLES:
+            raise ValueError("无效角色: %s" % role)
+        if is_weak_password(password):
+            raise ValueError("密码强度不足：至少 %d 位，且包含两类字符" % _WEAK_PASSWORD_MIN)
+        with self._lock, self._conn:
+            cur = self._conn.execute("SELECT 1 FROM users WHERE username=?", (username,))
+            if cur.fetchone():
+                raise ValueError("用户 %s 已存在" % username)
+            now = time.time()
+            self._conn.execute(
+                "INSERT INTO users"
+                "(username, password_hash, role, display_name, email, enabled,"
+                " must_change_password, created_at, last_login)"
+                " VALUES (?, ?, ?, ?, ?, 1, 1, ?, 0)",
+                (username, _hash_password(password), role,
+                 display_name or username, email, now),
+            )
+        return self.get_user(username)
+
+    def update_user(self, username, *, role=None, display_name=None, email=None, enabled=None, password=None):
+        user = self.get_user(username)
         if not user:
             return False
-        if role is not None:
-            if role not in VALID_ROLES:
-                return False
-            user.role = role
-        if display_name is not None:
-            user.display_name = display_name
-        if email is not None:
-            user.email = email
-        if enabled is not None:
-            user.enabled = enabled
-        if password is not None:
-            h, s = _hash_password(password)
-            user.password_hash = h
-            user.password_salt = s
-        self._save_users()
+        if role is not None and role not in VALID_ROLES:
+            return False
+        if password is not None and is_weak_password(password):
+            return False
+        with self._lock, self._conn:
+            if role is not None:
+                self._conn.execute("UPDATE users SET role=? WHERE username=?", (role, username))
+            if display_name is not None:
+                self._conn.execute("UPDATE users SET display_name=? WHERE username=?", (display_name, username))
+            if email is not None:
+                self._conn.execute("UPDATE users SET email=? WHERE username=?", (email, username))
+            if enabled is not None:
+                self._conn.execute("UPDATE users SET enabled=? WHERE username=?", (1 if enabled else 0, username))
+            if password is not None:
+                self._conn.execute(
+                    "UPDATE users SET password_hash=?, must_change_password=0 WHERE username=?",
+                    (_hash_password(password), username))
+                self._conn.execute("DELETE FROM login_failures WHERE username=?", (username,))
+                self._conn.execute("DELETE FROM sessions WHERE username=?", (username,))
         return True
 
-    def delete_user(self, username: str) -> bool:
+    def delete_user(self, username):
         if username == "admin":
             return False
-        if username in self._users:
-            del self._users[username]
-            # 清理该用户的 API token
-            self._api_tokens = {
-                k: v for k, v in self._api_tokens.items() if v.username != username
-            }
-            self._save_users()
-            self._save_sessions()
-            return True
-        return False
+        with self._lock, self._conn:
+            cur = self._conn.execute("DELETE FROM users WHERE username=?", (username,))
+            deleted = cur.rowcount > 0
+            self._conn.execute("DELETE FROM sessions WHERE username=?", (username,))
+            self._conn.execute("DELETE FROM api_tokens WHERE username=?", (username,))
+            self._conn.execute("DELETE FROM login_failures WHERE username=?", (username,))
+        return deleted
 
-    def list_users(self) -> list[dict[str, Any]]:
+    def list_users(self):
+        rows = self._conn.execute("SELECT * FROM users ORDER BY created_at ASC").fetchall()
         return [
             {
-                "username": u.username,
-                "role": u.role,
-                "display_name": u.display_name,
-                "email": u.email,
-                "enabled": u.enabled,
-                "created_at": u.created_at,
-                "last_login": u.last_login,
+                "username": r["username"], "role": r["role"],
+                "display_name": r["display_name"], "email": r["email"],
+                "enabled": bool(r["enabled"]),
+                "must_change_password": bool(r["must_change_password"]),
+                "created_at": r["created_at"], "last_login": r["last_login"],
             }
-            for u in self._users.values()
+            for r in rows
         ]
 
-    def get_user(self, username: str) -> User | None:
-        return self._users.get(username)
+    def get_user(self, username):
+        row = self._conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+        if not row:
+            return None
+        return User(
+            username=row["username"], password_hash=row["password_hash"],
+            role=row["role"], display_name=row["display_name"], email=row["email"],
+            enabled=bool(row["enabled"]),
+            must_change_password=bool(row["must_change_password"]),
+            created_at=row["created_at"], last_login=row["last_login"],
+        )
 
-    def create_api_token(self, username: str, name: str) -> ApiToken:
-        if username not in self._users:
-            raise ValueError(f"用户 {username} 不存在")
-        token_str = _generate_token()
-        at = ApiToken(token=token_str, name=name, username=username)
-        self._api_tokens[token_str] = at
-        self._save_users()
-        return at
+    def _is_locked(self, username):
+        row = self._conn.execute(
+            "SELECT locked_until FROM login_failures WHERE username=?", (username,)).fetchone()
+        if not row:
+            return False, 0
+        locked_until = row["locked_until"]
+        if locked_until > 0:
+            remaining = int(locked_until - time.time())
+            if remaining > 0:
+                return True, remaining
+            with self._lock, self._conn:
+                self._conn.execute("DELETE FROM login_failures WHERE username=?", (username,))
+        return False, 0
 
-    def list_api_tokens(self, username: str = "") -> list[dict[str, Any]]:
-        tokens = self._api_tokens.values()
+    def _record_failure(self, username):
+        now = time.time()
+        with self._lock, self._conn:
+            row = self._conn.execute(
+                "SELECT fail_count, first_fail_at FROM login_failures WHERE username=?",
+                (username,)).fetchone()
+            if not row:
+                self._conn.execute(
+                    "INSERT INTO login_failures(username, fail_count, first_fail_at, locked_until)"
+                    " VALUES (?, 1, ?, 0)", (username, now))
+            else:
+                count = row["fail_count"] + 1
+                if count >= _LOGIN_MAX_FAILURES:
+                    self._conn.execute(
+                        "UPDATE login_failures SET fail_count=?, locked_until=? WHERE username=?",
+                        (count, now + _LOGIN_LOCK_SECONDS, username))
+                    logger.warning("用户 %s 连续登录失败 %d 次，已锁定 15 分钟", username, count)
+                else:
+                    first = row["first_fail_at"] or now
+                    self._conn.execute(
+                        "UPDATE login_failures SET fail_count=?, first_fail_at=? WHERE username=?",
+                        (count, first, username))
+
+    def _clear_failures(self, username):
+        with self._lock, self._conn:
+            self._conn.execute("DELETE FROM login_failures WHERE username=?", (username,))
+
+    def authenticate(self, username, password):
+        user = self.get_user(username)
+        if not user or not user.enabled:
+            return None
+        locked, _ = self._is_locked(username)
+        if locked:
+            logger.warning("用户 %s 处于锁定状态，拒绝登录", username)
+            return None
+        if user.password_hash.startswith("LEGACY:"):
+            return None
+        if not _verify_password(password, user.password_hash):
+            self._record_failure(username)
+            return None
+        self._clear_failures(username)
+        token = SessionToken(token=_generate_token(), username=username, role=user.role)
+        with self._lock, self._conn:
+            self._conn.execute(
+                "INSERT INTO sessions(token, username, role, created_at, expires_at)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (token.token, token.username, token.role, token.created_at, token.expires_at))
+            self._conn.execute("UPDATE users SET last_login=? WHERE username=?", (time.time(), username))
+        return token
+
+    def get_session(self, token_str):
+        row = self._conn.execute("SELECT * FROM sessions WHERE token=?", (token_str,)).fetchone()
+        if not row:
+            return None
+        if time.time() > row["expires_at"]:
+            with self._lock, self._conn:
+                self._conn.execute("DELETE FROM sessions WHERE token=?", (token_str,))
+            return None
+        return SessionToken(
+            token=row["token"], username=row["username"], role=row["role"],
+            created_at=row["created_at"], expires_at=row["expires_at"])
+
+    def logout(self, token_str):
+        with self._lock, self._conn:
+            self._conn.execute("DELETE FROM sessions WHERE token=?", (token_str,))
+
+    def refresh_token(self, expired_token):
+        row = self._conn.execute("SELECT * FROM sessions WHERE token=?", (expired_token,)).fetchone()
+        if not row:
+            return None
+        now = time.time()
+        if now > row["expires_at"] + _SESSION_REFRESH_THRESHOLD:
+            return None
+        token = SessionToken(token=_generate_token(), username=row["username"], role=row["role"])
+        with self._lock, self._conn:
+            self._conn.execute("DELETE FROM sessions WHERE token=?", (expired_token,))
+            self._conn.execute(
+                "INSERT INTO sessions(token, username, role, created_at, expires_at)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (token.token, token.username, token.role, token.created_at, token.expires_at))
+        return token
+
+    def change_password(self, username, old_password, new_password):
+        user = self.get_user(username)
+        if not user:
+            return False, "用户不存在"
+        if not user.password_hash.startswith("LEGACY:"):
+            if not _verify_password(old_password, user.password_hash):
+                return False, "旧密码错误"
+        if is_weak_password(new_password):
+            return False, "新密码强度不足：至少 %d 位，且包含两类字符" % _WEAK_PASSWORD_MIN
+        if _verify_password(new_password, user.password_hash):
+            return False, "新密码不能与旧密码相同"
+        with self._lock, self._conn:
+            self._conn.execute(
+                "UPDATE users SET password_hash=?, must_change_password=0 WHERE username=?",
+                (_hash_password(new_password), username))
+            self._conn.execute("DELETE FROM login_failures WHERE username=?", (username,))
+            self._conn.execute("DELETE FROM sessions WHERE username=?", (username,))
+        return True, "密码修改成功"
+
+    def create_api_token(self, username, name):
+        token = ApiToken(token="bd_" + _generate_token(), name=name or "default", username=username)
+        with self._lock, self._conn:
+            self._conn.execute(
+                "INSERT INTO api_tokens(token, name, username, created_at, last_used, enabled)"
+                " VALUES (?, ?, ?, ?, 0, 1)",
+                (token.token, token.name, token.username, token.created_at))
+        return token
+
+    def list_api_tokens(self, username=""):
         if username:
-            tokens = [t for t in tokens if t.username == username]
+            rows = self._conn.execute(
+                "SELECT * FROM api_tokens WHERE username=? ORDER BY created_at DESC", (username,)).fetchall()
+        else:
+            rows = self._conn.execute("SELECT * FROM api_tokens ORDER BY created_at DESC").fetchall()
         return [
             {
-                "token": t.token[:12] + "...",
-                "name": t.name,
-                "username": t.username,
-                "created_at": t.created_at,
-                "last_used": t.last_used,
-                "enabled": t.enabled,
+                "token": r["token"], "name": r["name"], "username": r["username"],
+                "created_at": r["created_at"], "last_used": r["last_used"],
+                "enabled": bool(r["enabled"]),
             }
-            for t in tokens
+            for r in rows
         ]
 
-    # ---- JWT 刷新 + API Key 轮换 ----
-
-    def refresh_token(self, expired_token: str) -> SessionToken | None:
-        """JWT 风格 token 刷新：用过期但可识别的 token 换取新 token。
-
-        校验旧 token 的 username/role 信息仍然有效，颁发新 SessionToken。
-        旧 token 被删除。
-        """
-        s = self._sessions.get(expired_token)
-        if not s:
+    def authenticate_api(self, token_str):
+        row = self._conn.execute(
+            "SELECT * FROM api_tokens WHERE token=? AND enabled=1", (token_str,)).fetchone()
+        if not row:
             return None
-        # 只要用户仍然存在且启用，就允许刷新
-        user = self._users.get(s.username)
+        user = self.get_user(row["username"])
         if not user or not user.enabled:
             return None
-        # 删除旧 token，颁发新 token
-        del self._sessions[expired_token]
-        new_token = SessionToken(
-            token=_generate_token(),
-            username=s.username,
-            role=s.role,
-        )
-        self._sessions[new_token.token] = new_token
-        self._save_sessions()
-        return new_token
+        with self._lock, self._conn:
+            self._conn.execute("UPDATE api_tokens SET last_used=? WHERE token=?", (time.time(), token_str))
+        return user
 
-    def rotate_api_key(self, old_key: str, grace_sec: int = 86400) -> ApiToken | None:
-        """轮换 API Key：生成新 key 并保留旧 key 在 grace 期内仍有效。
+    def revoke_api_token(self, token_str):
+        with self._lock, self._conn:
+            cur = self._conn.execute("UPDATE api_tokens SET enabled=0 WHERE token=?", (token_str,))
+        return cur.rowcount > 0
 
-        将旧 key 标记 enabled=False 并注册 grace 期，
-        grace 期内 authenticate_api 仍然放行旧 key。
-        返回新 ApiToken（含新 token 串）。
-        """
-        old = self._api_tokens.get(old_key)
-        if not old:
-            # 前缀匹配
-            for k, v in list(self._api_tokens.items()):
-                if k.startswith(old_key):
-                    old = v
-                    old_key = k
-                    break
-        if not old:
-            return None
-        # 旧 key 停用 + 注册 grace 期
-        old.enabled = False
-        self._grace_tokens[old_key] = time.time() + grace_sec
-        # 创建新 key
-        new_token_str = _generate_token()
-        new_at = ApiToken(
-            token=new_token_str,
-            name=old.name,
-            username=old.username,
-        )
-        self._api_tokens[new_token_str] = new_at
-        self._save_users()
-        logger.info(
-            "API Key 轮换: %s -> %s (grace=%ds)",
-            old_key[:12],
-            new_token_str[:12],
-            grace_sec,
-        )
-        return new_at
-
-    def revoke_api_token(self, token_str: str) -> bool:
-        if token_str in self._api_tokens:
-            del self._api_tokens[token_str]
-            self._save_users()
-            return True
-        # 支持用前缀匹配
-        for k in list(self._api_tokens.keys()):
-            if k.startswith(token_str):
-                del self._api_tokens[k]
-                self._save_users()
-                return True
-        return False
-
-    def check_permission(self, username: str, required_role: str) -> bool:
-        user = self._users.get(username)
+    def check_permission(self, username, required_role):
+        user = self.get_user(username)
         if not user or not user.enabled:
+            return False
+        if user.must_change_password:
             return False
         return ROLE_HIERARCHY.get(user.role, 0) >= ROLE_HIERARCHY.get(required_role, 0)
 
-    def _load(self) -> None:
-        self._load_users()
-        self._load_sessions()
-
-    def _load_users(self) -> None:
-        try:
-            if os.path.exists(self._users_file):
-                with open(self._users_file, "r", encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if not line:
-                            continue
-                        try:
-                            d = json.loads(line)
-                            u = User(**d)
-                            self._users[u.username] = u
-                            # 加载 API token
-                            for t in d.get("api_tokens", []):
-                                at = ApiToken(**t)
-                                self._api_tokens[at.token] = at
-                        except Exception:
-                            continue
-        except Exception as e:
-            logger.warning("加载用户数据失败: %s", e)
-
-    def _load_sessions(self) -> None:
-        try:
-            if os.path.exists(self._sessions_file):
-                with open(self._sessions_file, "r", encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if not line:
-                            continue
-                        try:
-                            s = SessionToken(**json.loads(line))
-                            if time.time() < s.expires_at:
-                                self._sessions[s.token] = s
-                        except Exception:
-                            continue
-        except Exception as e:
-            logger.warning("加载会话数据失败: %s", e)
-
-    def _save_users(self) -> None:
-        try:
-            with open(self._users_file, "w", encoding="utf-8") as f:
-                for u in self._users.values():
-                    d = asdict(u)
-                    d["api_tokens"] = [
-                        {
-                            "token": at.token,
-                            "name": at.name,
-                            "username": at.username,
-                            "created_at": at.created_at,
-                            "last_used": at.last_used,
-                            "enabled": at.enabled,
-                        }
-                        for at in self._api_tokens.values()
-                        if at.username == u.username
-                    ]
-                    f.write(json.dumps(d, ensure_ascii=False) + "\n")
-        except Exception as e:
-            logger.warning("保存用户数据失败: %s", e)
-
-    def _save_sessions(self) -> None:
-        try:
-            with open(self._sessions_file, "w", encoding="utf-8") as f:
-                f.writelines(
-                    json.dumps(asdict(s), ensure_ascii=False) + "\n"
-                    for s in self._sessions.values()
-                )
-        except Exception as e:
-            logger.warning("保存会话数据失败: %s", e)
+    def role_of(self, username):
+        user = self.get_user(username)
+        return user.role if user else "guest"
 
 
-# 全局单例
-_auth: AuthSystem | None = None
+_auth_singleton = None
+_auth_lock = threading.Lock()
 
 
-def get_auth() -> AuthSystem:
-    global _auth
-    if _auth is None:
-        _auth = AuthSystem()
-    return _auth
+def get_auth():
+    global _auth_singleton
+    with _auth_lock:
+        if _auth_singleton is None:
+            _auth_singleton = AuthSystem()
+        return _auth_singleton
 
 
-def role_required(required_role: str) -> Any:
-    """路由级权限装饰器（用法：装饰 API 路由函数）。
-    要求 request.state 中已设置 user 和 role。
-    """
-    from functools import wraps
+def role_required(required_role):
+    def decorator(func):
+        import functools
 
-    def decorator(func) -> Any:
-        @wraps(func)
-        async def wrapper(*args: Any, **kwargs: Any) -> Any:
-            # 找 request 参数
-            request = None
-            for arg in args:
-                if hasattr(arg, "state") and hasattr(arg.state, "user"):
-                    request = arg
-                    break
-            if not request:
-                for v in kwargs.values():
-                    if hasattr(v, "state") and hasattr(v.state, "user"):
-                        request = v
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            from fastapi import Request
+            from fastapi.responses import JSONResponse
+
+            request = kwargs.get("request")
+            if request is None:
+                for arg in args:
+                    if isinstance(arg, Request):
+                        request = arg
                         break
-            if not request or not request.state.user:
-                from fastapi.responses import JSONResponse
-
-                return JSONResponse({"error": "未认证"}, status_code=401)
-            if ROLE_HIERARCHY.get(request.state.role, 0) < ROLE_HIERARCHY.get(
-                required_role, 0
-            ):
-                from fastapi.responses import JSONResponse
-
+            if request is None:
+                return JSONResponse({"error": "无法获取请求上下文"}, status_code=401)
+            token = request.cookies.get("bluedeer_token", "")
+            session = get_auth().get_session(token) if token else None
+            if not session:
+                return JSONResponse({"error": "未登录"}, status_code=401)
+            if not get_auth().check_permission(session.username, required_role):
                 return JSONResponse({"error": "权限不足"}, status_code=403)
+            request.state.user = session.username
+            request.state.role = session.role
             return await func(*args, **kwargs)
 
         return wrapper

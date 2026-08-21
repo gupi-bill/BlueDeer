@@ -31,33 +31,43 @@ from collections import deque
 _STORY_TEMPLATES = {
     "birth": lambda d: (
         f"新生命：{d.get('name', '?')}",
-        (f"{d.get('name', '?')} 在此刻降临森林，"
-        f"它是 {d.get('species', '?')} 家族的新成员，性别 {d.get('gender', '?')}。"),
+        (
+            f"{d.get('name', '?')} 在此刻降临森林，"
+            f"它是 {d.get('species', '?')} 家族的新成员，性别 {d.get('gender', '?')}。"
+        ),
         [d.get("name", "?")],
     ),
     "death": lambda d: (
         f"离世：{d.get('name', '?')}",
-        (f"{d.get('name', '?')} 因 {d.get('reason', '未知')} 永远离开了森林，"
-        f"它是一只 {d.get('species', '?')}。"),
+        (
+            f"{d.get('name', '?')} 因 {d.get('reason', '未知')} 永远离开了森林，"
+            f"它是一只 {d.get('species', '?')}。"
+        ),
         [d.get("name", "?")],
     ),
     "reproduction": lambda d: (
         f"喜得贵子：{d.get('child', '?')}",
-        (f"{d.get('parents', ['?', '?'])[0]} 与 "
-        f"{d.get('parents', ['?', '?'])[1]} 共同孕育了 {d.get('child', '?')}，"
-        f"种群 {d.get('species', '?')} 又添新血。"),
+        (
+            f"{d.get('parents', ['?', '?'])[0]} 与 "
+            f"{d.get('parents', ['?', '?'])[1]} 共同孕育了 {d.get('child', '?')}，"
+            f"种群 {d.get('species', '?')} 又添新血。"
+        ),
         d.get("parents", []) + [d.get("child", "?")],
     ),
     "task_injected": lambda d: (
         f"新差事：{d.get('task_id', '?')}",
-        (f"外部世界送来一份新活计 {d.get('task_id', '?')}，"
-        f"类型 {d.get('task_type', '?')}，等待员工接单。"),
+        (
+            f"外部世界送来一份新活计 {d.get('task_id', '?')}，"
+            f"类型 {d.get('task_type', '?')}，等待员工接单。"
+        ),
         [],
     ),
     "task_assigned": lambda d: (
         f"接单：{d.get('worker', '?')}",
-        (f"{d.get('worker', '?')} 接下了 {d.get('task_id', '?')} "
-        f"（{d.get('task_type', '?')}），开始干活。"),
+        (
+            f"{d.get('worker', '?')} 接下了 {d.get('task_id', '?')} "
+            f"（{d.get('task_type', '?')}），开始干活。"
+        ),
         [d.get("worker", "?")],
     ),
     "task_completed": lambda d: (
@@ -82,26 +92,34 @@ _STORY_TEMPLATES = {
     ),
     "intervene_feed": lambda d: (
         "饲养员：投食",
-        (f"饲养员向森林投放了 {d.get('amount', 0)} 单位食物，"
-        f"饥肠辘辘的动物们纷纷前来觅食。"),
+        (
+            f"饲养员向森林投放了 {d.get('amount', 0)} 单位食物，"
+            f"饥肠辘辘的动物们纷纷前来觅食。"
+        ),
         [],
     ),
     "intervene_drought": lambda d: (
         "干旱来袭",
-        (f"一场 {d.get('severity', '?')} 级干旱席卷森林，"
-        f"食物再生大幅放缓，动物们要做好过苦日子的准备。"),
+        (
+            f"一场 {d.get('severity', '?')} 级干旱席卷森林，"
+            f"食物再生大幅放缓，动物们要做好过苦日子的准备。"
+        ),
         [],
     ),
     "intervene_cold_wave": lambda d: (
         "寒潮预警",
-        (f"寒潮来袭，预计持续 {d.get('duration_hours', '?')} 小时，"
-        f"动物们纷纷躲进巢穴取暖。"),
+        (
+            f"寒潮来袭，预计持续 {d.get('duration_hours', '?')} 小时，"
+            f"动物们纷纷躲进巢穴取暖。"
+        ),
         [],
     ),
     "intervene_force_breed": lambda d: (
         "饲养员：撮合",
-        (f"饲养员撮合 {d.get('parent_a', '?')} 与 {d.get('parent_b', '?')}，"
-        f"{'成功' if d.get('ok') else '但未能成功'}繁育后代。"),
+        (
+            f"饲养员撮合 {d.get('parent_a', '?')} 与 {d.get('parent_b', '?')}，"
+            f"{'成功' if d.get('ok') else '但未能成功'}繁育后代。"
+        ),
         [d.get("parent_a", "?"), d.get("parent_b", "?")],
     ),
     "intervene_isolate": lambda d: (
@@ -116,8 +134,10 @@ _STORY_TEMPLATES = {
     ),
     "lark_sing": lambda d: (
         "雀鸣清晨",
-        (f"{d.get('singer', '?')} 唱起清晨的歌，森林中其他同伴受到鼓舞，"
-        f"能量得到恢复。"),
+        (
+            f"{d.get('singer', '?')} 唱起清晨的歌，森林中其他同伴受到鼓舞，"
+            f"能量得到恢复。"
+        ),
         [d.get("singer", "?")],
     ),
 }
@@ -375,7 +395,7 @@ class Storyteller:
         chapters = self.tell_recent(n)
         if not chapters:
             return "=== 森林故事 ===\n  (暂无)\n"
-        lines = ["=== 森林故事（最近 %d 条） ===" % len(chapters)]
+        lines = [f"=== 森林故事（最近 {len(chapters)} 条） ==="]
         for c in chapters:
             t = _human_time(c["time"])
             lines.append(f"  [{t}] {c['title']}")

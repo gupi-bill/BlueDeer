@@ -12,9 +12,7 @@ import os
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
-
-# ruff: noqa: S110, S112
+from typing import Any, ClassVar
 
 logger = logging.getLogger("bluedeer.alert")
 
@@ -105,7 +103,7 @@ class AlertEngine:
 
     # ---- 升级策略 ----
 
-    _ESCALATION_MAP: dict[str, str] = {
+    _ESCALATION_MAP: ClassVar[dict[str, str]] = {
         "info": "warning",
         "warning": "critical",
         "critical": "critical",
@@ -273,7 +271,7 @@ class AlertEngine:
             for r in getattr(cfg, "default_rules", []):
                 self.add_rule(AlertRule(**r))
         except Exception:
-            pass
+            logger.warning("告警引擎初始化异常", exc_info=True)
 
 
 # 全局单例

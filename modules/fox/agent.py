@@ -84,90 +84,91 @@ class FoxAgent(BaseAgent, RagCapable):
         total_tokens = TokenUsage()
 
         try:
-            test_path = task.payload.get("test_path")
-            target_file = task.payload.get("target_file")
-            if not test_path:
-                raise ValueError("fox 任务 payload 必须包含 test_path")
+            async with self.with_budget_check(task):
+                test_path = task.payload.get("test_path")
+                target_file = task.payload.get("target_file")
+                if not test_path:
+                    raise ValueError("fox 任务 payload 必须包含 test_path")
 
-            # P7 扩容：从 payload 读 test_type（默认 UNIT）
-            test_type = self._resolve_test_type(task)
+                # P7 扩容：从 payload 读 test_type（默认 UNIT）
+                test_type = self._resolve_test_type(task)
 
-            # 1. 构建 prompt + 注入风格指令（用于 LLM 辅助分析，P7 mock 下非关键路径）
-            prompt = self._apply_style(self._build_prompt(task))
+                # 1. 构建 prompt + 注入风格指令（用于 LLM 辅助分析，P7 mock 下非关键路径）
+                prompt = self._apply_style(self._build_prompt(task))
 
-            # 2. 调 LLM 生成测试分析建议
-            model_client = self._router.route(task.type)
-            model_response = await model_client.complete(prompt)
-            total_tokens.tokens_in += model_response.tokens_in
-            total_tokens.tokens_out += model_response.tokens_out
-
-            if self._tracer:
-                self._tracer.span(
-                    task.trace_id,
-                    component="FoxAgent",
-                    action="model_complete",
-                    model=model_client.model_name,
-                )
-
-            # 3. 调测试技能跑测试（P7 扩容：按 test_type 选 skill）
-            test_skill = self._build_test_skill(test_type)
-            run_result = await test_skill.run_tests(str(test_path))
-
-            if self._tracer:
-                self._tracer.span(
-                    task.trace_id,
-                    component="FoxAgent",
-                    action="test_run",
-                    passed=run_result.get("passed"),
-                    failed_count=run_result.get("failed_count", 0),
-                    test_type=test_type.value,
-                )
-
-            # 4. 全通过 → 直接成功
-            if run_result.get("passed"):
-                output = {
-                    "initial_result": run_result,
-                    "heal_result": None,
-                    "model_advice": model_response.content,
-                    "model_used": model_client.model_name,
-                    "test_path": test_path,
-                }
-                self._self_check(task, output)
-
-                # P3: 测试全通过经验写入岗位 RAG 库
-                self.rag_ingest(
-                    id=f"test_pass_{task.id}",
-                    text=f"测试通过 {test_path} 通过数 {run_result.get('passed_count', 0)}",
-                    metadata={
-                        "task_type": task.type,
-                        "test_path": str(test_path),
-                        "healed": False,
-                    },
-                )
+                # 2. 调 LLM 生成测试分析建议
+                model_client = self._router.route(task.type)
+                model_response = await model_client.complete(prompt)
+                total_tokens.tokens_in += model_response.tokens_in
+                total_tokens.tokens_out += model_response.tokens_out
 
                 if self._tracer:
                     self._tracer.span(
                         task.trace_id,
                         component="FoxAgent",
-                        action="handle_success",
-                        task_id=task.id,
-                        healed=False,
+                        action="model_complete",
+                        model=model_client.model_name,
                     )
 
-                return TaskResult(
-                    trace_id=task.trace_id,
-                    task_id=task.id,
-                    status=TaskStatus.SUCCESS,
-                    output=output,
-                    token_usage=total_tokens,
-                )
+                # 3. 调测试技能跑测试（P7 扩容：按 test_type 选 skill）
+                test_skill = self._build_test_skill(test_type)
+                run_result = await test_skill.run_tests(str(test_path))
 
-            # 5. 有失败 → 触发修复闭环
-            heal_skill = HealSkill(self._healer)
-            heal_result = await heal_skill.heal(
-                str(test_path),
-                target_file=str(target_file) if target_file else None,
-            )
+                if self._tracer:
+                    self._tracer.span(
+                        task.trace_id,
+                        component="FoxAgent",
+                        action="test_run",
+                        passed=run_result.get("passed"),
+                        failed_count=run_result.get("failed_count", 0),
+                        test_type=test_type.value,
+                    )
+
+                # 4. 全通过 → 直接成功
+                if run_result.get("passed"):
+                    output = {
+                        "initial_result": run_result,
+                        "heal_result": None,
+                        "model_advice": model_response.content,
+                        "model_used": model_client.model_name,
+                        "test_path": test_path,
+                    }
+                    self._self_check(task, output)
+
+                    # P3: 测试全通过经验写入岗位 RAG 库
+                    self.rag_ingest(
+                        id=f"test_pass_{task.id}",
+                        text=f"测试通过 {test_path} 通过数 {run_result.get('passed_count', 0)}",
+                        metadata={
+                            "task_type": task.type,
+                            "test_path": str(test_path),
+                            "healed": False,
+                        },
+                    )
+
+                    if self._tracer:
+                        self._tracer.span(
+                            task.trace_id,
+                            component="FoxAgent",
+                            action="handle_success",
+                            task_id=task.id,
+                            healed=False,
+                        )
+
+                    return TaskResult(
+                        trace_id=task.trace_id,
+                        task_id=task.id,
+                        status=TaskStatus.SUCCESS,
+                        output=output,
+                        token_usage=total_tokens,
+                    )
+
+                # 5. 有失败 → 触发修复闭环
+                heal_skill = HealSkill(self._healer)
+                heal_result = await heal_skill.heal(
+                    str(test_path),
+                    target_file=str(target_file) if target_file else None,
+                )
 
             if self._tracer:
                 self._tracer.span(

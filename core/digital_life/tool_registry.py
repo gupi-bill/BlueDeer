@@ -22,19 +22,24 @@
 from __future__ import annotations
 
 import logging
+from typing import ClassVar
 
 logger = logging.getLogger(__name__)
 
 import ast
+import math
 import os
+import random
+import string
 import threading
 import time
+from collections import defaultdict, deque
 
 # ----------------------------------------------------------------------
 # 物种 → 工具白名单映射（手工配置，决定每个物种擅长哪些工具）
 # ----------------------------------------------------------------------
 
-SPECIES_TOOL_MAP: dict[str, list[str]] = {
+SPECIES_TOOL_MAP: ClassVar[ClassVar[dict[str, list[str]]]] = {
     "squirrel": [
         "code_completion_lite",
         "project_scaffold",
@@ -115,7 +120,7 @@ SPECIES_TOOL_MAP: dict[str, list[str]] = {
 }
 
 # 反向映射：tool_name → species
-TOOL_TO_SPECIES: dict[str, str] = {}
+TOOL_TO_SPECIES: ClassVar[ClassVar[ClassVar[dict[str, str]]]] = {}
 for _sp, _tools in SPECIES_TOOL_MAP.items():
     for _t in _tools:
         TOOL_TO_SPECIES[_t] = _sp
@@ -126,7 +131,7 @@ for _sp, _tools in SPECIES_TOOL_MAP.items():
 # 每条记录告诉 LLM：这个工具能做什么、需要什么参数、返回什么类型
 # ----------------------------------------------------------------------
 
-PREDEFINED_TOOLS: list[dict] = [
+PREDEFINED_TOOLS: ClassVar[ClassVar[ClassVar[list[dict]]]] = [
     # ---------- 松鼠（代码工程） ----------
     {
         "tool_name": "code_completion_lite",
@@ -903,8 +908,6 @@ def _fallback_linear_fit(x: list, y: list) -> dict:
 
 def _fallback_topo_sort(nodes: list, edges: list) -> list:
     """拓扑排序兜底。"""
-    from collections import defaultdict, deque
-
     graph = defaultdict(list)
     indeg = {n: 0 for n in nodes}
     for u, v in edges:
@@ -930,8 +933,6 @@ def _fallback_critical_path(tasks: list) -> dict:
     task_map = {t["id"]: t for t in tasks}
     # 拓扑排序
     indeg = {t["id"]: len(t.get("deps", [])) for t in tasks}
-    from collections import deque
-
     q = deque([tid for tid, d in indeg.items() if d == 0])
     order = []
     while q:
@@ -1013,7 +1014,6 @@ def _fallback_vector_search(vectors: list, query: list, k: int = 5) -> list:
     """向量最近邻搜索兜底（余弦相似度）。"""
     if not vectors or not query:
         return []
-    import math
 
     q_norm = math.sqrt(sum(x * x for x in query))
     if q_norm == 0:
@@ -1042,14 +1042,12 @@ def _fallback_render_dashboard(title: str, panels: list) -> str:
 
 def _fallback_collect_metrics(sources: list | None = None) -> dict:
     """指标收集兜底：返回模拟指标。"""
-    import random as _r
-
     return {
-        "cpu": round(_r.uniform(0.1, 0.9), 3),
-        "memory": round(_r.uniform(0.3, 0.8), 3),
-        "qps": _r.randint(100, 5000),
-        "error_rate": round(_r.uniform(0, 0.05), 4),
-        "latency_p99_ms": _r.randint(20, 200),
+        "cpu": round(random.uniform(0.1, 0.9), 3),
+        "memory": round(random.uniform(0.3, 0.8), 3),
+        "qps": random.randint(100, 5000),
+        "error_rate": round(random.uniform(0, 0.05), 4),
+        "latency_p99_ms": random.randint(20, 200),
     }
 
 
@@ -1109,13 +1107,10 @@ def _fallback_fuzzer_run(
     target: str = "", iterations: int = 100, max_len: int = 32
 ) -> dict:
     """模糊测试兜底：随机生成 N 个输入模拟 fuzz。"""
-    import random as _r
-    import string as _s
-
-    findings: list = []
+    findings: ClassVar[ClassVar[ClassVar[list]]] = []
     for i in range(int(iterations)):
-        n = _r.randint(1, max(int(max_len), 1))
-        sample = "".join(_r.choice(_s.printable[:80]) for _ in range(n))
+        n = random.randint(1, max(int(max_len), 1))
+        sample = "".join(random.choice(string.printable[:80]) for _ in range(n))
         # 模拟：包含特定字符的样本视为"触发崩溃"
         if "\x00" in sample or sample.count("(") != sample.count(")"):
             findings.append(
@@ -1140,7 +1135,7 @@ def _fallback_fuzzer_run(
 
 def _fallback_code_reviewer(code: str = "", language: str = "python") -> dict:
     """代码审查兜底：基于规则的简单检查。"""
-    issues: list = []
+    issues: ClassVar[ClassVar[ClassVar[list]]] = []
     if not code:
         return {"issues": [], "summary": "未提供代码"}
     lines = code.split("\n")
@@ -1193,15 +1188,13 @@ def _fallback_hypothesis_test(
     samples: list | None = None, property_name: str = "", runs: int = 100
 ) -> dict:
     """假设测试兜底：基于随机输入验证简单属性。"""
-    import random as _r
-
     if samples is None:
-        samples = [_r.randint(-100, 100) for _ in range(20)]
-    failures: list = []
+        samples = [random.randint(-100, 100) for _ in range(20)]
+    failures: ClassVar[ClassVar[ClassVar[list]]] = []
     for r in range(int(runs)):
-        x = _r.choice(samples) if samples else _r.randint(-100, 100)
+        x = random.choice(samples) if samples else random.randint(-100, 100)
         # 简单不变量：x == x
-        if x != x:
+        if x != x:  # noqa: PLR0124
             failures.append({"run": r, "input": x, "reason": "identity violated"})
     return {
         "property": property_name or "identity",
@@ -1244,7 +1237,6 @@ def _fallback_file_system_op(
             "simulated": True,
             "summary": f"模拟 {op}（默认路径，未真实执行）",
         }
-    import os
 
     if op == "ls":
         try:
@@ -1352,7 +1344,7 @@ def _fallback_pipeline_plan(goal: str = "", steps: list | None = None) -> dict:
 # 工具名 → 兜底实现 映射
 # ----------------------------------------------------------------------
 
-FALLBACK_IMPLEMENTATIONS: dict = {
+FALLBACK_IMPLEMENTATIONS: ClassVar[ClassVar[ClassVar[dict]]] = {
     "code_completion_lite": _fallback_complete_code,
     "descriptive_stats": _fallback_describe,
     "anomaly_detect": _fallback_anomaly,
@@ -1501,8 +1493,8 @@ class ToolRegistry:
     # commit 42：discover_tools / get_tool_cached / tool_dependencies
     # ------------------------------------------------------------
 
-    _discovered_paths: set = set()
-    _cache: dict[str, tuple[dict, float]] = {}
+    _discovered_paths: ClassVar[set] = set()
+    _cache: ClassVar[ClassVar[dict[str, tuple[dict, float]]]] = {}
 
     def discover_tools(self, path: str, recursive: bool = True) -> list[str]:
         if path in self._discovered_paths:
@@ -1510,7 +1502,7 @@ class ToolRegistry:
                 k for k, v in self._tools.items() if v.get("_discovered_from") == path
             ]
         self._discovered_paths.add(path)
-        discovered: list[str] = []
+        discovered: ClassVar[ClassVar[ClassVar[list[str]]]] = []
         try:
             for f in os.listdir(path):
                 full = os.path.join(path, f)
@@ -1541,7 +1533,7 @@ class ToolRegistry:
 
     @staticmethod
     def _extract_imports(tree: ast.AST) -> list[str]:
-        deps: list[str] = []
+        deps: ClassVar[ClassVar[ClassVar[list[str]]]] = []
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
@@ -1567,7 +1559,7 @@ class ToolRegistry:
         if not info:
             return []
         deps = info.get("dependencies", [])
-        results: list[dict] = []
+        results: ClassVar[ClassVar[ClassVar[list[dict]]]] = []
         seen: set = set()
         queue = list(deps)
         while queue:

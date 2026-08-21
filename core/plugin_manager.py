@@ -17,7 +17,6 @@ from core.exceptions import PluginLoadError
 from core.plugin import PluginBase, PluginContext
 
 if TYPE_CHECKING:
-
     from core.event_bus import EventBus
 
 logger = logging.getLogger("bluedeer.plugin_manager")
@@ -129,8 +128,8 @@ class PluginManager:
             try:
                 await self._load_single(name)
                 loaded.append(name)
-            except PluginLoadError as e:
-                logger.error("插件 %s 加载失败: %s", name, e)
+            except PluginLoadError:
+                logger.exception("插件 %s 加载失败: %s")
 
         return loaded
 
@@ -138,8 +137,8 @@ class PluginManager:
         try:
             await self._load_single(name)
             return True
-        except PluginLoadError as e:
-            logger.error("插件 %s 加载失败: %s", name, e)
+        except PluginLoadError:
+            logger.exception("插件 %s 加载失败: %s")
             return False
 
     # ============== 生命周期 ==============
@@ -158,9 +157,9 @@ class PluginManager:
                 await p.on_init()
             logger.info("插件 %s 已初始化", name)
             return True
-        except Exception as e:
+        except Exception:
             self._lifecycles[name] = LifecycleStage.FAILED
-            logger.error("插件 %s 初始化异常: %s", name, e)
+            logger.exception("插件 %s 初始化异常: %s")
             return False
 
     async def start_plugin(self, name: str) -> bool:
@@ -175,9 +174,9 @@ class PluginManager:
             self._lifecycles[name] = LifecycleStage.RUNNING
             logger.info("插件 %s 已启动", name)
             return True
-        except Exception as e:
+        except Exception:
             self._lifecycles[name] = LifecycleStage.FAILED
-            logger.error("插件 %s 启动异常: %s", name, e)
+            logger.exception("插件 %s 启动异常: %s")
             return False
 
     async def stop_plugin(self, name: str) -> bool:
@@ -192,9 +191,9 @@ class PluginManager:
             self._lifecycles[name] = LifecycleStage.STOPPED
             logger.info("插件 %s 已停止", name)
             return True
-        except Exception as e:
+        except Exception:
             self._lifecycles[name] = LifecycleStage.FAILED
-            logger.error("插件 %s 停止异常: %s", name, e)
+            logger.exception("插件 %s 停止异常: %s")
             return False
 
     async def ready_all(self) -> None:
@@ -205,8 +204,8 @@ class PluginManager:
                     await plugin.on_ready()
                     await self.init_plugin(name)
                     await self.start_plugin(name)
-                except Exception as e:
-                    logger.error("插件 %s on_ready 异常: %s", name, e)
+                except Exception:
+                    logger.exception("插件 %s on_ready 异常: %s")
 
     async def shutdown(self) -> None:
         """卸载所有插件。"""
@@ -216,8 +215,8 @@ class PluginManager:
                 plugin = self._plugins[name]
                 await plugin.on_unload()
                 logger.info("插件 %s 已卸载", name)
-            except Exception as e:
-                logger.error("插件 %s 卸载异常: %s", name, e)
+            except Exception:
+                logger.exception("插件 %s 卸载异常: %s")
         self._plugins.clear()
         self._contexts.clear()
         self._lifecycles.clear()

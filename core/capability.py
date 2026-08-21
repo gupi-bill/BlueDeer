@@ -35,6 +35,11 @@ class Capability(Enum):
     RAG_INGEST = "rag.ingest"
     AGENT_COMMUNICATE = "agent.communicate"
     TOOL_MANAGE = "tool.manage"
+    # 010 系列新增：大厂 Agent 能力映射（本地优先，云端可选）
+    DESKTOP_CONTROL = "desktop.control"  # Anthropic Computer Use 思路
+    BROWSER_WEB = "browser.web"          # Perplexity Comet 思路
+    BACKGROUND_TASK = "background.task"  # Google Spark 思路
+    SUBAGENT_SPAWN = "subagent.spawn"    # Google Antigravity 思路
 
 
 _CAPABILITY_STR_MAP: dict[str, Capability] = {e.value: e for e in Capability}
@@ -150,6 +155,8 @@ DEFAULT_ROLE_CAPABILITIES: dict[str, set[Capability]] = {
         "rag.query",
         "rag.ingest",
         "agent.communicate",
+        "subagent.spawn",
+        "background.task",
     ),
     "测试质量": parse_capabilities(
         "file.read",
@@ -167,6 +174,9 @@ DEFAULT_ROLE_CAPABILITIES: dict[str, set[Capability]] = {
         "rag.ingest",
         "network.http",
         "agent.communicate",
+        "desktop.control",
+        "browser.web",
+        "background.task",
     ),
     "安全审计": parse_capabilities(
         "file.read",

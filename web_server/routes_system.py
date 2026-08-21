@@ -4,9 +4,12 @@ import logging
 # ruff: noqa: F821
 
 logger = logging.getLogger(__name__)
-from fastapi import APIRouter
+from typing import Any
+
+from fastapi import APIRouter, Request
 
 from web_server.app import (
+    github,
     harness,
     jarvis,
     scene,

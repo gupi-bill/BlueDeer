@@ -69,46 +69,47 @@ class DeerAgent(BaseAgent, RagCapable):
             )
         total_tokens = TokenUsage()
         try:
-            operation = task.payload.get("operation", "orchestrate")
-            if not operation:
-                raise ValueError("缺 operation 参数")
+            async with self.with_budget_check(task):
+                operation = task.payload.get("operation", "orchestrate")
+                if not operation:
+                    raise ValueError("缺 operation 参数")
 
-            prompt = self._apply_style(self._build_prompt(task))
-            model_client = self._router.route(task.type)
-            model_response = await model_client.complete(prompt)
-            total_tokens.tokens_in += model_response.tokens_in
-            total_tokens.tokens_out += model_response.tokens_out
+                prompt = self._apply_style(self._build_prompt(task))
+                model_client = self._router.route(task.type)
+                model_response = await model_client.complete(prompt)
+                total_tokens.tokens_in += model_response.tokens_in
+                total_tokens.tokens_out += model_response.tokens_out
 
-            if operation == "orchestrate":
-                output = await self._orchestrate_skill.orchestrate(
-                    task.payload.get("goal", ""),
-                    task.payload.get("subtasks", []),
-                )
-            elif operation == "vote":
-                output = await self._vote_skill.vote(
-                    task.payload.get("topic", ""),
-                    task.payload.get("options", []),
-                )
-            elif operation == "publish":
-                output = await self._publish_skill.publish(
-                    task.payload.get("event_type", ""),
-                    task.payload.get("data", {}),
-                )
-            elif operation == "plan":
-                output = await self._plan_skill.plan(task.payload.get("stages", []))
-            else:
-                raise ValueError(f"未知操作: {operation}")
+                if operation == "orchestrate":
+                    output = await self._orchestrate_skill.orchestrate(
+                        task.payload.get("goal", ""),
+                        task.payload.get("subtasks", []),
+                    )
+                elif operation == "vote":
+                    output = await self._vote_skill.vote(
+                        task.payload.get("topic", ""),
+                        task.payload.get("options", []),
+                    )
+                elif operation == "publish":
+                    output = await self._publish_skill.publish(
+                        task.payload.get("event_type", ""),
+                        task.payload.get("data", {}),
+                    )
+                elif operation == "plan":
+                    output = await self._plan_skill.plan(task.payload.get("stages", []))
+                else:
+                    raise ValueError(f"未知操作: {operation}")
 
-            self._self_check(task, output)
-            return TaskResult(
-                trace_id=task.trace_id,
-                task_id=task.id,
-                status=TaskStatus.SUCCESS,
-                output=output,
-                token_usage=total_tokens,
-            )
+                self._self_check(task, output)
+                return TaskResult(
+                    trace_id=task.trace_id,
+                    task_id=task.id,
+                    status=TaskStatus.SUCCESS,
+                    output=output,
+                    token_usage=total_tokens,
+                )
         except Exception as e:
-            logger.exception("DeerAgent 处理任务失败: %s", e)
+            logger.exception("DeerAgent 处理任务失败")
             healed = await self._try_self_heal(task, e)
             if healed is not None:
                 return healed

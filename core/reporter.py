@@ -165,8 +165,8 @@ class ReportGenerator:
                 lines.append("|-------|------|------|------|")
                 for entry in aggregate_stats["rewards"]:
                     lines.append(
-                        f"| {entry.get('agent_id','?')} | {entry.get('level','?')} "
-                        f"| {entry.get('coins','?')} | {entry.get('exp','?')} |"
+                        f"| {entry.get('agent_id', '?')} | {entry.get('level', '?')} "
+                        f"| {entry.get('coins', '?')} | {entry.get('exp', '?')} |"
                     )
             lines.append("")
 

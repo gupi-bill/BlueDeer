@@ -20,7 +20,7 @@ import time
 import uuid
 from typing import Any
 
-# ruff: noqa: S110, S112
+# ruff: noqa: S110
 
 # ----------------------------------------------------------------------
 # 存储路径
@@ -164,10 +164,49 @@ def generate_retrospect(
          "summary", "improvement", "ok", "duration_sec",
          "tool_call_count", "task_type", "ts"}
     """
-    experience_adopted = experience_adopted or []
-    tool_count = len(tool_calls or [])
+    tool_count = len(tool_calls)
+    lesson, summary, improvement, used_llm = _retrospect_from_llm(
+        router,
+        agent_species,
+        agent_name,
+        task,
+        result_ok,
+        duration_sec,
+        tool_count,
+        experience_adopted,
+    )
+    if not lesson:
+        lesson, summary, improvement = _retrospect_from_template(
+            agent_species, task, result_ok, duration_sec
+        )
+    task_type = _classify_retro_task_type(task)
+    retro = _build_retro_dict(
+        agent_species,
+        agent_name,
+        task,
+        lesson,
+        summary,
+        improvement,
+        result_ok,
+        duration_sec,
+        tool_count,
+        task_type,
+        used_llm,
+    )
+    _persist_retrospect(retro, agent_species, task, lesson, task_type, improvement)
+    return retro
 
-    # 尝试 LLM 复盘
+
+def _retrospect_from_llm(
+    router,
+    agent_species: str,
+    agent_name: str,
+    task: str,
+    result_ok: bool,
+    duration_sec: float,
+    tool_count: int,
+    experience_adopted: list,
+) -> tuple[str, str, str, bool]:
     lesson = ""
     summary = ""
     improvement = ""
@@ -192,22 +231,41 @@ def generate_retrospect(
                 used_llm = True
         except Exception:
             pass
+    return lesson, summary, improvement, used_llm
 
-    # 模板降级
-    if not lesson:
-        lesson = _template_lesson(agent_species, result_ok)
-        summary = _template_summary(agent_species, task, result_ok, duration_sec)
-        improvement = _template_improvement(agent_species, result_ok)
 
-    # 任务类型分类
+def _retrospect_from_template(
+    agent_species: str, task: str, result_ok: bool, duration_sec: float
+) -> tuple[str, str, str]:
+    lesson = _template_lesson(agent_species, result_ok)
+    summary = _template_summary(agent_species, task, result_ok, duration_sec)
+    improvement = _template_improvement(agent_species, result_ok)
+    return lesson, summary, improvement
+
+
+def _classify_retro_task_type(task: str) -> str:
     try:
         from core.digital_life.experience_library import classify_task_type
 
-        task_type = classify_task_type(task)
+        return classify_task_type(task)
     except Exception:
-        task_type = "其他"
+        return "其他"
 
-    retro = {
+
+def _build_retro_dict(
+    agent_species: str,
+    agent_name: str,
+    task: str,
+    lesson: str,
+    summary: str,
+    improvement: str,
+    result_ok: bool,
+    duration_sec: float,
+    tool_count: int,
+    task_type: str,
+    used_llm: bool,
+) -> dict:
+    return {
         "id": "retro-" + uuid.uuid4().hex[:8],
         "agent_species": agent_species,
         "agent_name": agent_name,
@@ -223,10 +281,16 @@ def generate_retrospect(
         "ts": time.time(),
     }
 
-    # 持久化
-    _save_retrospect(retro)
 
-    # 写入经验库
+def _persist_retrospect(
+    retro: dict,
+    agent_species: str,
+    task: str,
+    lesson: str,
+    task_type: str,
+    improvement: str,
+) -> None:
+    _save_retrospect(retro)
     if lesson:
         try:
             from core.digital_life.experience_library import get_experience_library
@@ -240,8 +304,6 @@ def generate_retrospect(
             )
         except Exception:
             pass
-
-    return retro
 
 
 # ----------------------------------------------------------------------

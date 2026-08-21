@@ -9,10 +9,6 @@
 
 from __future__ import annotations
 
-import logging
-
-logger = logging.getLogger(__name__)
-
 import gzip
 import json
 import logging
@@ -22,6 +18,8 @@ import sys
 import threading
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
 DEFAULT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -85,8 +83,7 @@ class _CompressedRotatingHandler(RotatingFileHandler):
             dst = f"{base}.{i}.gz"
             if os.path.exists(src) and not os.path.exists(dst):
                 try:
-                    with open(src, "rb") as fin:
-                        with gzip.open(dst, "wb") as fout:
+                    with open(src, "rb") as fin, gzip.open(dst, "wb") as fout:
                             shutil.copyfileobj(fin, fout)
                     os.remove(src)
                 except OSError:
@@ -115,9 +112,12 @@ class _AsyncLogWriter:
 
     def _run(self) -> None:
         while not self._stop:
-            self._flush_event.wait(0.5)
-            self._flush_event.clear()
-            self._flush()
+            try:
+                self._flush_event.wait(0.5)
+                self._flush_event.clear()
+                self._flush()
+            except Exception:
+                logger.exception("日志写入线程异常（已恢复）")
 
     def _flush(self) -> None:
         with self._lock:

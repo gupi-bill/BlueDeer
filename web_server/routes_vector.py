@@ -1,9 +1,9 @@
 # 自动拆分自 web_server.py（路由域: vector）
 import logging
 
-# ruff: noqa: F821
-
 logger = logging.getLogger(__name__)
+from typing import Any
+
 from fastapi import APIRouter
 
 from web_server.app import (

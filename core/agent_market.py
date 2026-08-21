@@ -138,6 +138,7 @@ class AgentMarket:
             self._save()
             return True
         except Exception:
+            logger.exception("卸载 Agent %s 失败", name)
             return False
 
     def refresh_from_registry(self) -> None:

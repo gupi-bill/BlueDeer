@@ -11,7 +11,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, ClassVar
 
 from core.library import Library, LibraryScope
 
@@ -52,7 +52,7 @@ class GitHubKnowledge:
     """
 
     # 内置的精选实用项目（按分类组织）
-    _BUILTIN_PROJECTS: list[dict[str, Any]] = [
+    _BUILTIN_PROJECTS: ClassVar[list[dict[str, Any]]] = [
         # ---- 框架类 ----
         {
             "name": "FastAPI",
@@ -241,7 +241,7 @@ class GitHubKnowledge:
     def search(self, query: str, top_k: int = 5) -> list[GitHubProject]:
         """搜索项目。"""
         query_lower = query.lower()
-        scored: list[tuple[float, GitHubProject]] = []
+        scored: ClassVar[list[tuple[float, GitHubProject]]] = []
 
         for project in self._projects.values():
             score = 0.0
@@ -273,8 +273,8 @@ class GitHubKnowledge:
 
     def stats(self) -> dict[str, Any]:
         """知识融合统计。"""
-        categories: dict[str, int] = {}
-        languages: dict[str, int] = {}
+        categories: ClassVar[ClassVar[dict[str, int]]] = {}
+        languages: ClassVar[ClassVar[dict[str, int]]] = {}
         for p in self._projects.values():
             categories[p.category.value] = categories.get(p.category.value, 0) + 1
             if p.language:

@@ -3,10 +3,6 @@
 from __future__ import annotations
 
 import logging
-
-logger = logging.getLogger(__name__)
-
-import logging
 import re
 from dataclasses import dataclass
 from typing import Any
@@ -108,8 +104,8 @@ class RAGSystem:
             if persist:
                 self._save_store(scope, sub_id)
             logger.info("RAG 注入: scope=%s, id=%s, sub_id=%s", scope, id, sub_id)
-        except Exception as e:
-            logger.error("RAG 注入失败: %s", e)
+        except Exception:
+            logger.exception("RAG 注入失败: %s")
 
     def retrieve(
         self,
@@ -135,8 +131,8 @@ class RAGSystem:
             store = self._get_store(scope, sub_id)
             results = store.search(query, top_k=top_k)
             return self._apply_confidence(results, confidence_threshold)
-        except Exception as e:
-            logger.error("RAG 检索失败: %s", e)
+        except Exception:
+            logger.exception("RAG 检索失败: %s")
             return []
 
     @staticmethod
@@ -186,6 +182,119 @@ class RAGSystem:
         all_results.sort(key=lambda r: r.score, reverse=True)
         return all_results[:top_k]
 
+    @staticmethod
+    def _add_fused_result(
+        fused: dict[str, Any],
+        source: str,
+        rid: str,
+        text: str,
+        meta: dict,
+        score: float,
+        w_vec: float,
+        w_kw: float,
+        w_kg: float,
+    ) -> None:
+        if rid not in fused:
+            fused[rid] = FusedResult(id=rid, text=text, metadata=meta)
+        fr = fused[rid]
+        if source == "vector":
+            fr.vector_score = max(fr.vector_score, score)
+        elif source == "keyword":
+            fr.keyword_score = max(fr.keyword_score, score)
+        elif source == "kg":
+            fr.kg_score = max(fr.kg_score, score)
+        fr.ensemble_score = (
+            w_vec * fr.vector_score + w_kw * fr.keyword_score + w_kg * fr.kg_score
+        )
+
+    def _retrieve_vector(
+        self,
+        store: Any,
+        query: str,
+        top_k: int,
+        fused: dict[str, Any],
+        w_vec: float,
+        w_kw: float,
+        w_kg: float,
+    ) -> None:
+        for r in store.search(query, top_k=top_k):
+            self._add_fused_result(
+                fused,
+                "vector",
+                r.id,
+                r.text,
+                r.metadata or {},
+                r.score,
+                w_vec,
+                w_kw,
+                w_kg,
+            )
+
+    def _retrieve_keyword(
+        self,
+        store: Any,
+        query: str,
+        fused: dict[str, Any],
+        w_vec: float,
+        w_kw: float,
+        w_kg: float,
+    ) -> None:
+        kw_tokens = set(re.findall(r"[a-zA-Z_]\w*|[\u4e00-\u9fff]", query.lower()))
+        for doc_id in store.list_ids():
+            doc = store.get(doc_id)
+            if not doc:
+                continue
+            doc_tokens = set(
+                re.findall(r"[a-zA-Z_]\w*|[\u4e00-\u9fff]", doc.text.lower())
+            )
+            overlap = len(kw_tokens & doc_tokens)
+            if overlap == 0:
+                continue
+            score = overlap / (len(kw_tokens) + len(doc_tokens) - overlap + 1e-8)
+            self._add_fused_result(
+                fused,
+                "keyword",
+                doc.id,
+                doc.text,
+                doc.metadata,
+                score,
+                w_vec,
+                w_kw,
+                w_kg,
+            )
+
+    def _retrieve_kg(
+        self,
+        store: Any,
+        kg_entities: list[str],
+        fused: dict[str, Any],
+        w_vec: float,
+        w_kw: float,
+        w_kg: float,
+    ) -> None:
+        for doc_id in store.list_ids():
+            doc = store.get(doc_id)
+            if not doc:
+                continue
+            doc_text_lower = doc.text.lower()
+            kg_score = 0.0
+            for ent in kg_entities:
+                if ent.lower() in doc_text_lower:
+                    kg_score += 1.0
+            if kg_score > 0:
+                kg_score /= max(len(kg_entities), 1)
+                self._add_fused_result(
+                    fused,
+                    "kg",
+                    doc.id,
+                    doc.text,
+                    doc.metadata,
+                    kg_score,
+                    w_vec,
+                    w_kw,
+                    w_kg,
+                )
+
     def retrieve_multi_source(
         self,
         query: str,
@@ -214,64 +323,14 @@ class RAGSystem:
         """
         w_vec, w_kw, w_kg = ensemble_weights
         fused: dict[str, FusedResult] = {}
-
-        def _add(source: str, rid: str, text: str, meta: dict, score: float) -> None:
-            if rid not in fused:
-                fused[rid] = FusedResult(id=rid, text=text, metadata=meta)
-            fr = fused[rid]
-            if source == "vector":
-                fr.vector_score = max(fr.vector_score, score)
-            elif source == "keyword":
-                fr.keyword_score = max(fr.keyword_score, score)
-            elif source == "kg":
-                fr.kg_score = max(fr.kg_score, score)
-            fr.ensemble_score = (
-                w_vec * fr.vector_score + w_kw * fr.keyword_score + w_kg * fr.kg_score
-            )
-
         for scope, sub_id in scopes:
             store = self._get_store(scope, sub_id)
-
-            # —— 向量召回 ——
             if use_vector:
-                for r in store.search(query, top_k=top_k):
-                    _add("vector", r.id, r.text, r.metadata or {}, r.score)
-
-            # —— 关键词召回（BM25 风格） ——
+                self._retrieve_vector(store, query, top_k, fused, w_vec, w_kw, w_kg)
             if use_keyword:
-                kw_tokens = set(
-                    re.findall(r"[a-zA-Z_]\w*|[\u4e00-\u9fff]", query.lower())
-                )
-                for doc_id in store.list_ids():
-                    doc = store.get(doc_id)
-                    if not doc:
-                        continue
-                    doc_tokens = set(
-                        re.findall(r"[a-zA-Z_]\w*|[\u4e00-\u9fff]", doc.text.lower())
-                    )
-                    overlap = len(kw_tokens & doc_tokens)
-                    if overlap == 0:
-                        continue
-                    score = overlap / (
-                        len(kw_tokens) + len(doc_tokens) - overlap + 1e-8
-                    )
-                    _add("keyword", doc.id, doc.text, doc.metadata, score)
-
-            # —— 知识图谱召回 ——
+                self._retrieve_keyword(store, query, fused, w_vec, w_kw, w_kg)
             if use_kg and kg_entities:
-                for doc_id in store.list_ids():
-                    doc = store.get(doc_id)
-                    if not doc:
-                        continue
-                    doc_text_lower = doc.text.lower()
-                    kg_score = 0.0
-                    for ent in kg_entities:
-                        if ent.lower() in doc_text_lower:
-                            kg_score += 1.0
-                    if kg_score > 0:
-                        kg_score /= max(len(kg_entities), 1)
-                        _add("kg", doc.id, doc.text, doc.metadata, kg_score)
-
+                self._retrieve_kg(store, kg_entities, fused, w_vec, w_kw, w_kg)
         results = sorted(fused.values(), key=lambda x: -x.ensemble_score)
         return results[:top_k]
 
@@ -370,8 +429,8 @@ class RAGSystem:
             now = time.time()
         try:
             store = self._get_store(scope, sub_id)
-        except Exception as e:
-            logger.error("RAG purge_expired 获取库失败: %s", e)
+        except Exception:
+            logger.exception("RAG purge_expired 获取库失败: %s")
             return 0
 
         expired_ids: list[str] = []
@@ -393,7 +452,7 @@ class RAGSystem:
             store.delete(doc_id)
 
         if expired_ids:
-            self._save_store(scope, sub_id)
+            self._save_store(scope)
             logger.info(
                 "RAG 过期清理: scope=%s, sub_id=%s, 清理 %d 条",
                 scope,
@@ -506,7 +565,6 @@ class RagCapable:
             tags = {"high": "✓", "medium": "~", "low": "⚠"}
             tag = tags.get(conf, "?")
             parts.append(
-                f"方案{i}（相似度 {r.score:.2f} [{tag} {conf}]）：\n"
-                f"{r.text[:200]}\n\n"
+                f"方案{i}（相似度 {r.score:.2f} [{tag} {conf}]）：\n{r.text[:200]}\n\n"
             )
         return "".join(parts)

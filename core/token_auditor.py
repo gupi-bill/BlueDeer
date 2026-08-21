@@ -11,7 +11,9 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 import time
+import uuid
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -34,6 +36,9 @@ class TokenRecord:
     tokens_in: int = 0
     tokens_out: int = 0
     timestamp: float = field(default_factory=time.time)
+    turn_id: str = ""
+    cache_hit: bool = False
+    cost_usd: float = 0.0
 
     @property
     def total(self) -> int:
@@ -53,6 +58,7 @@ class TokenAuditor:
         # P0 修复：超限回调（agent_id, task_id）→ None，用于触发上下文压缩
         self._overload_callback: Callable[[str, str], None] | None = None
         self._budgets: dict[str, int] = {}
+        self._lock = threading.Lock()
 
     def set_overload_callback(self, callback: Callable[[str, str], None]) -> None:
         """P0 修复：注入超限回调。
@@ -69,10 +75,14 @@ class TokenAuditor:
         model: str,
         tokens_in: int,
         tokens_out: int,
+        turn_id: str = "",
+        cache_hit: bool = False,
+        cost_usd: float = 0.0,
     ) -> TokenRecord:
         """记录一次 Token 消耗。
 
         P0 修复：若超限且已注入 overload callback，自动触发回调（典型用途：清理任务临时上下文）。
+        P1 新增：支持 turn_id / cache_hit / cost_usd 字段，用于 per-turn 预算监控。
         """
         rec = TokenRecord(
             agent_id=agent_id,
@@ -80,8 +90,12 @@ class TokenAuditor:
             model=model,
             tokens_in=tokens_in,
             tokens_out=tokens_out,
+            turn_id=turn_id or uuid.uuid4().hex[:12],
+            cache_hit=cache_hit,
+            cost_usd=cost_usd,
         )
-        self._records.append(rec)
+        with self._lock:
+            self._records.append(rec)
         logger.info(
             "Token 记录: agent=%s, task=%s, model=%s, in=%d, out=%d",
             agent_id,
@@ -187,7 +201,8 @@ class TokenAuditor:
             user_id: 员工 ID。
             limit: Token 限额。
         """
-        self._budgets[user_id] = limit
+        with self._lock:
+            self._budgets[user_id] = limit
 
     def budget_remaining(self, user_id: str) -> int:
         """计算用户剩余 Token 额度。
@@ -200,6 +215,76 @@ class TokenAuditor:
             return -1
         used = sum(r.total for r in self._records if r.agent_id == user_id)
         return max(0, self._budgets[user_id] - used)
+
+    # ============== P1 新增：per-turn 预算监控 ==============
+
+    def get_turn_stats(self, task_id: str) -> dict[str, Any]:
+        """获取单任务 per-turn Token 明细。"""
+        recs = [r for r in self._records if r.task_id == task_id]
+        turns: dict[str, list[TokenRecord]] = {}
+        for r in recs:
+            turns.setdefault(r.turn_id, []).append(r)
+        turn_summaries = []
+        for tid, trs in sorted(turns.items()):
+            tin = sum(r.tokens_in for r in trs)
+            tout = sum(r.tokens_out for r in trs)
+            cache = sum(1 for r in trs if r.cache_hit)
+            turn_summaries.append({
+                "turn_id": tid,
+                "calls": len(trs),
+                "tokens_in": tin,
+                "tokens_out": tout,
+                "tokens_total": tin + tout,
+                "cache_hits": cache,
+                "cost_usd": round(sum(r.cost_usd for r in trs), 4),
+                "models": list({r.model for r in trs}),
+            })
+        return {
+            "task_id": task_id,
+            "turns": len(turn_summaries),
+            "total_tokens": sum(t["tokens_total"] for t in turn_summaries),
+            "total_cost_usd": round(sum(t["cost_usd"] for t in turn_summaries), 4),
+            "turn_details": turn_summaries,
+        }
+
+    def get_agent_turn_stats(self, agent_id: str) -> dict[str, Any]:
+        """获取员工 per-turn 汇总统计。"""
+        recs = [r for r in self._records if r.agent_id == agent_id]
+        turns: dict[str, list[TokenRecord]] = {}
+        for r in recs:
+            turns.setdefault(r.turn_id, []).append(r)
+        turn_totals = [sum(r.total for r in trs) for trs in turns.values()]
+        if not turn_totals:
+            return {"agent_id": agent_id, "avg_turn_tokens": 0, "max_turn_tokens": 0}
+        return {
+            "agent_id": agent_id,
+            "total_turns": len(turn_totals),
+            "avg_turn_tokens": round(sum(turn_totals) / len(turn_totals)),
+            "max_turn_tokens": max(turn_totals),
+            "total_tokens": sum(turn_totals),
+        }
+
+    def check_budget_alert(self, agent_id: str, warning_ratio: float = 0.8) -> dict[str, Any] | None:
+        """预算告警：当已用额度超过 warning_ratio 时返回告警信息。"""
+        if agent_id not in self._budgets:
+            return None
+        budget = self._budgets[agent_id]
+        used = sum(r.total for r in self._records if r.agent_id == agent_id)
+        ratio = used / budget if budget > 0 else 0.0
+        if ratio >= warning_ratio:
+            return {
+                "agent_id": agent_id,
+                "budget": budget,
+                "used": used,
+                "remaining": max(0, budget - used),
+                "ratio": round(ratio * 100, 2),
+                "level": "critical" if ratio >= 1.0 else "warning",
+                "message": (
+                    f"Agent {agent_id} Token 预算使用率 {ratio * 100:.1f}%"
+                    f"（已用 {used:,} / 预算 {budget:,}）"
+                ),
+            }
+        return None
 
     def top_consumers(self, k: int = 5) -> list[dict[str, Any]]:
         """返回用 Token 最多的前 k 个用户。
@@ -300,38 +385,23 @@ class TokenAuditor:
         reward_system.add_token_saved(agent_id, savings["total_saved"])
         reward_system.update_lowcost_ratio(agent_id, ratio)
 
-    def export_monthly_report(self, year_month: str = "") -> str:
-        """生成月度成本报表 Markdown。
-
-        Args:
-            year_month: 格式 YYYY-MM，默认当月。
-
-        Returns:
-            Markdown 格式报表字符串。
-        """
-        if not year_month:
-            year_month = time.strftime("%Y-%m", time.localtime())
-
-        # 过滤当月记录
-        month_records = [
+    def _filter_month_records(self, year_month: str) -> list:
+        return [
             r
             for r in self._records
             if time.strftime("%Y-%m", time.localtime(r.timestamp)) == year_month
         ]
 
-        total_in = sum(r.tokens_in for r in month_records)
-        total_out = sum(r.tokens_out for r in month_records)
-
-        # P6 新增：节省统计
-        savings = self.get_savings()
-        month_lowcost = sum(
-            1 for r in month_records if r.model in get_config().model.lowcost_models
-        )
-        lowcost_ratio = (
-            round(month_lowcost / len(month_records) * 100, 2) if month_records else 0.0
-        )
-
-        lines = [
+    def _build_report_header(
+        self,
+        year_month: str,
+        month_records: list,
+        total_in: int,
+        total_out: int,
+        savings: dict,
+        lowcost_ratio: float,
+    ) -> list[str]:
+        return [
             "# BlueDeer 月度 Token 成本报表",
             "",
             f"**统计月份**: {year_month}",
@@ -348,7 +418,8 @@ class TokenAuditor:
             "|------|----------|-----------|-----------|---------|-----------|-----------|",
         ]
 
-        agent_ids = {r.agent_id for r in month_records}
+    def _build_agent_stats_section(self, agent_ids: set) -> list[str]:
+        lines = []
         for agent_id in sorted(agent_ids):
             stats = self.get_agent_stats(agent_id)
             agent_savings = self.get_savings(agent_id)
@@ -360,37 +431,68 @@ class TokenAuditor:
                 f"{agent_savings['total_saved']:,} | "
                 f"{agent_ratio}% |"
             )
+        return lines
 
-        lines.extend(
-            [
-                "",
-                "## 按模型统计",
-                "",
-                "| 模型 | 调用次数 | 总 Token |",
-                "|------|----------|---------|",
-            ]
-        )
-
+    def _build_model_stats_section(self, month_records: list) -> list[str]:
+        lines = [
+            "",
+            "## 按模型统计",
+            "",
+            "| 模型 | 调用次数 | 总 Token |",
+            "|------|----------|---------|",
+        ]
         model_stats = self._by_model(month_records)
         for model, stats in sorted(model_stats.items()):
             lines.append(f"| {model} | {stats['calls']} | {stats['tokens']:,} |")
+        return lines
 
-        lines.extend(
-            [
-                "",
-                "## 详细记录",
-                "",
-                "| 时间 | 员工 | 任务 | 模型 | 输入 | 输出 |",
-                "|------|------|------|------|------|------|",
-            ]
-        )
+    def _build_detailed_records_section(self, month_records: list) -> list[str]:
+        lines = [
+            "",
+            "## 详细记录",
+            "",
+            "| 时间 | 员工 | 任务 | 模型 | 输入 | 输出 |",
+            "|------|------|------|------|------|------|",
+        ]
         for r in month_records:
             ts = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(r.timestamp))
             lines.append(
                 f"| {ts} | {r.agent_id} | {r.task_id} | {r.model} | "
                 f"{r.tokens_in} | {r.tokens_out} |"
             )
+        return lines
 
+    def export_monthly_report(self, year_month: str = "") -> str:
+        """生成月度成本报表 Markdown。
+
+        Args:
+            year_month: 格式 YYYY-MM，默认当月。
+
+        Returns:
+            Markdown 格式报表字符串。
+        """
+        if not year_month:
+            year_month = time.strftime("%Y-%m", time.localtime())
+
+        month_records = self._filter_month_records(year_month)
+        total_in = sum(r.tokens_in for r in month_records)
+        total_out = sum(r.tokens_out for r in month_records)
+        savings = self.get_savings()
+        month_lowcost = sum(
+            1 for r in month_records if r.model in get_config().model.lowcost_models
+        )
+        lowcost_ratio = (
+            round(month_lowcost / len(month_records) * 100, 2) if month_records else 0.0
+        )
+
+        lines = self._build_report_header(
+            year_month, month_records, total_in, total_out, savings, lowcost_ratio
+        )
+        lines.extend(
+            self._build_agent_stats_section({r.agent_id for r in month_records})
+        )
+        lines.extend(self._build_model_stats_section(month_records))
+        lines.extend(self._build_detailed_records_section(month_records))
         return "\n".join(lines)
 
     def save(self, path: str) -> None:
@@ -522,7 +624,7 @@ class TokenAuditor:
             sv = self.get_savings(agent_id)["total_saved"]
             lr = self.get_lowcost_ratio(agent_id)
             lines.append(
-                f"| {agent_id} | {len(agent_recs)} | {ai:,} | {ao:,} | {ai+ao:,} | {sv:,} | {lr}% |"
+                f"| {agent_id} | {len(agent_recs)} | {ai:,} | {ao:,} | {ai + ao:,} | {sv:,} | {lr}% |"
             )
 
         lines.extend(

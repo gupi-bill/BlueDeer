@@ -17,13 +17,15 @@
 
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import random
 import threading
 import time
 
 from typing_extensions import Self
 
-# ruff: noqa: S110, S112
+# ruff: noqa: S110
 
 # ====================================================================
 # 触发参数
@@ -143,7 +145,7 @@ def pick_dialogue_template(tags: list[str]) -> dict:
     """根据关系标签挑选对话模板。优先匹配标签，无匹配则通用。"""
     # 优先找带匹配标签的
     for tpl in DIALOGUE_TEMPLATES:
-        if tpl["tags"] and any(t in tags for t in tpl["tags"]):
+        if tpl["tags"] and any(t in tags for t in tpl["tags"]):  # noqa: SIM102
             if random.random() < 0.7:  # 70% 概率用第一个匹配的
                 return tpl
     # 否则用通用的
@@ -343,8 +345,6 @@ class SpontaneousSocialSystem:
 
     def _generate_via_llm(self, a, b, router) -> list[dict] | None:
         """通过 LLM 生成对话。返回 [{speaker, text}, ...] 或 None。"""
-        import asyncio
-
         prompt = self._build_llm_prompt(a, b)
         try:
             loop = asyncio.new_event_loop()
@@ -386,9 +386,9 @@ class SpontaneousSocialSystem:
         zone = getattr(a, "current_zone_id", "outdoor")
         return f"""你是 {a._name_obj}（{a.species}）和 {b._name_obj}（{b.species}），你们在 {zone} 区域偶遇了。
 
-{a._name_obj} 当前情感：joy={a_emo.get('joy',0):.2f}, sadness={a_emo.get('sadness',0):.2f}, anxiety={a_emo.get('anxiety',0):.2f}
-{b._name_obj} 当前情感：joy={b_emo.get('joy',0):.2f}, sadness={b_emo.get('sadness',0):.2f}, anxiety={b_emo.get('anxiety',0):.2f}
-关系：好感={rel.get('affection',0):.2f}, 信任={rel.get('trust',0):.2f}, 标签={tags}
+{a._name_obj} 当前情感：joy={a_emo.get("joy", 0):.2f}, sadness={a_emo.get("sadness", 0):.2f}, anxiety={a_emo.get("anxiety", 0):.2f}
+{b._name_obj} 当前情感：joy={b_emo.get("joy", 0):.2f}, sadness={b_emo.get("sadness", 0):.2f}, anxiety={b_emo.get("anxiety", 0):.2f}
+关系：好感={rel.get("affection", 0):.2f}, 信任={rel.get("trust", 0):.2f}, 标签={tags}
 
 请生成 2-4 轮简短对话（每轮一行，格式："名字：内容"），自然、口语化，体现双方性格和当前情感。
 不要解释，直接输出对话。"""
@@ -534,8 +534,6 @@ class SpontaneousSocialSystem:
             # 用 a 的当前 zone 作为坐标（简化处理，前端会在 zone 中心附近显示）
             zone_id = getattr(a, "current_zone_id", "outdoor")
             # 坐标用 zone 哈希生成伪坐标（实际显示由前端按 zone 中心+随机偏移）
-            import hashlib
-
             hash_val = int(hashlib.md5(zone_id.encode()).hexdigest()[:8], 16)
             fx = (hash_val % 100) * 0.5
             fy = ((hash_val >> 8) % 100) * 0.5

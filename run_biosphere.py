@@ -18,6 +18,7 @@ import asyncio
 import datetime
 import json
 import os
+import platform
 import random
 import signal
 import sys
@@ -26,6 +27,8 @@ import time
 from collections import deque
 
 # ruff: noqa: S110, S112
+
+IS_WINDOWS = platform.system() == "Windows"
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -77,6 +80,72 @@ DEFAULT_ARCHIVE_DIR = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "memory_archive"
 )
 
+DEFAULT_PID_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "biosphere.pid"
+)
+
+
+def _is_process_alive(pid: int) -> bool:
+    """检查 PID 对应的进程是否存活（跨平台）。"""
+    if IS_WINDOWS:
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["tasklist", "/FI", f"PID eq {pid}"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            return str(pid) in result.stdout
+        except Exception:
+            return False
+    else:
+        try:
+            os.kill(pid, 0)
+            return True
+        except (ProcessLookupError, PermissionError):
+            return False
+        except Exception:
+            return False
+
+
+def _acquire_single_instance_lock(pid_path: str) -> bool:
+    """获取单实例锁：写 PID 文件，检查是否已有实例在运行。
+
+    Returns:
+        True 表示获取锁成功（可以启动），False 表示已有实例在运行。
+    """
+    if os.path.exists(pid_path):
+        try:
+            with open(pid_path, "r", encoding="utf-8") as f:
+                existing_pid = int(f.read().strip())
+            if existing_pid > 0 and _is_process_alive(existing_pid):
+                return False
+        except (ValueError, OSError):
+            pass
+        try:
+            os.remove(pid_path)
+        except OSError:
+            pass
+    try:
+        with open(pid_path, "w", encoding="utf-8") as f:
+            f.write(str(os.getpid()))
+        return True
+    except OSError:
+        return False
+
+
+def _release_single_instance_lock(pid_path: str) -> None:
+    """释放单实例锁：删除 PID 文件。"""
+    try:
+        if os.path.exists(pid_path):
+            with open(pid_path, "r", encoding="utf-8") as f:
+                current_pid = int(f.read().strip())
+            if current_pid == os.getpid():
+                os.remove(pid_path)
+    except (ValueError, OSError):
+        pass
+
 
 class Biosphere:
     """森林公司总管：把所有子系统粘合在一起。"""
@@ -91,6 +160,7 @@ class Biosphere:
         "_internal_events",
         "_last_death_processed",
         "_lock",
+        "_pid_path",
         "_raven_agent",
         "_router",
         "_running",
@@ -112,9 +182,11 @@ class Biosphere:
     ]
 
     def __init__(
-        self, save_path: str | None = None, archive_dir: str | None = None, router=None
+        self, save_path: str | None = None, archive_dir: str | None = None, router=None,
+        pid_path: str | None = None,
     ) -> None:
         self._save_path = save_path or DEFAULT_SAVE_PATH
+        self._pid_path = pid_path or DEFAULT_PID_PATH
         self._lock = threading.RLock()
         self._stop_event = threading.Event()
         self._save_thread = None
@@ -186,6 +258,11 @@ class Biosphere:
         with self._lock:
             if self._running:
                 return
+            if not _acquire_single_instance_lock(self._pid_path):
+                raise RuntimeError(
+                    f"已有 BlueDeer 实例在运行（PID 文件：{self._pid_path}）。"
+                    "请先停止旧实例，或删除 PID 文件后再试。"
+                )
             self._running = True
             self._stop_event.clear()
         # 启动每只生命
@@ -250,13 +327,26 @@ class Biosphere:
                 lf._stop_event.set()
             except Exception:
                 pass
-        # 等线程退出
+        # 等线程退出（延长超时，确保 daemon 线程有机会清理）
         for lf in self.employees:
             try:
                 if lf.is_alive():
-                    lf.join(timeout=1.0)
+                    lf.join(timeout=5.0)
             except Exception:
                 pass
+        # 等后台线程退出
+        for thread in (
+            self._snapshot_thread,
+            self._save_thread,
+            self._death_watcher_thread,
+            self._daily_events_thread,
+            self._eco_tick_thread,
+        ):
+            if thread is not None and thread.is_alive():
+                try:
+                    thread.join(timeout=5.0)
+                except Exception:
+                    pass
         # 最后存一次档
         try:
             self.save()
@@ -264,6 +354,8 @@ class Biosphere:
             pass
         with self._lock:
             self._running = False
+        # 释放单实例锁
+        _release_single_instance_lock(self._pid_path)
 
     # ------------------------------------------------------------------
     # 后台循环
@@ -1003,7 +1095,7 @@ async def _async_run_loop(bio: Biosphere, duration: float) -> None:
 
 def cmd_run(args) -> int:
     """启动森林公司（异步主循环）。"""
-    bio = Biosphere(save_path=args.save_path)
+    bio = Biosphere(save_path=args.save_path, pid_path=getattr(args, "pid_path", None) or DEFAULT_PID_PATH)
     loaded = bio.bootstrap(load=not args.no_load)
     bio.start()
     print(
@@ -1011,11 +1103,20 @@ def cmd_run(args) -> int:
         f"（{'从存档恢复' if loaded else '全新创建'}）"
     )
     print(f"[*] 存档路径：{bio._save_path}")
+    print(f"[*] PID 文件：{bio._pid_path}")
     print("[*] Ctrl+C 停止")
     try:
         asyncio.run(_async_run_loop(bio, args.duration))
     except KeyboardInterrupt:
-        bio.stop()
+        pass
+    except Exception as e:
+        print(f"[!] 运行异常：{e}")
+    finally:
+        try:
+            bio.stop()
+        except Exception as e:
+            print(f"[!] 停止时异常：{e}")
+        _release_single_instance_lock(bio._pid_path)
     return 0
 
 
@@ -1067,12 +1168,16 @@ def cmd_inject(args) -> int:
     """注入一个任务。"""
     bio = Biosphere(save_path=args.save_path)
     bio.bootstrap(load=True)
-    bio.start()
-    result = bio.inject_task(args.task_type, description=args.desc)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
-    # 给一点时间让任务跑完
-    time.sleep(2.0)
-    bio.stop()
+    try:
+        bio.start()
+        result = bio.inject_task(args.task_type, description=args.desc)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        # 给一点时间让任务跑完
+        time.sleep(2.0)
+    except Exception as e:
+        print(f"[!] 注入任务异常：{e}")
+    finally:
+        bio.stop()
     return 0
 
 
@@ -1116,6 +1221,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--duration", type=float, default=0, help="运行时长（秒），0=持续运行"
     )
     p_run.add_argument("--no-load", action="store_true", help="不加载存档，全新启动")
+    p_run.add_argument(
+        "--pid-path",
+        default=DEFAULT_PID_PATH,
+        help=f"PID 文件路径（默认 {DEFAULT_PID_PATH}）",
+    )
     p_run.set_defaults(func=cmd_run)
 
     p_status = sub.add_parser("status", help="打印当前状态")

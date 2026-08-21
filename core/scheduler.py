@@ -8,10 +8,6 @@
 
 from __future__ import annotations
 
-import logging
-
-logger = logging.getLogger(__name__)
-
 import asyncio
 import json
 import logging
@@ -299,8 +295,8 @@ class Scheduler:
             t.tm_mon,
             t.tm_wday,
         ]
-        for i, (field, val) in enumerate(zip(parts, now_vals)):
-            if not self._match_field(field, val):
+        for i, (cron_field, val) in enumerate(zip(parts, now_vals)):
+            if not self._match_field(cron_field, val):
                 return False
         return True
 

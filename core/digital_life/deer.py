@@ -13,18 +13,19 @@ commit 28：行为池——巡视领地 / 月光冥想 / 鹿鸣
 from __future__ import annotations
 
 import random
+from typing import ClassVar
 
 from .digital_life_form import DigitalLifeForm
 from .environment import Environment
 
-# ruff: noqa: S110, S112
+# ruff: noqa: S110
 
 
 class Deer(DigitalLifeForm):
     """忧郁鹿：BlueDeer 总经理原型，第一个示范物种。"""
 
     # 物种模板：所有鹿的"出厂设置"。具体个体的 genome 是它的拷贝 + ±5% 变异 + override。
-    SPECIES_TEMPLATE: dict = {
+    SPECIES_TEMPLATE: ClassVar[dict] = {
         "species": "deer",
         "default_name": "忧郁鹿",
         "metabolic_rate": 0.5,  # 每小时能量消耗
@@ -42,7 +43,7 @@ class Deer(DigitalLifeForm):
     # 1. 巡视领地：早晚各一次（6-9 / 18-21），沿固定路线走一圈，途中遇同事点头致意
     # 2. 月光冥想：晴夜 22-02（跨夜），鹿角发微光，能量缓慢恢复
     # 3. 鹿鸣：检测到两员工冲突时鸣叫，冲突双方冷静（简化为：低 mood 时随机触发）
-    BEHAVIOR_POOL: list[dict] = [
+    BEHAVIOR_POOL: ClassVar[list[dict]] = [
         {
             "name": "patrol_territory_morning",
             "label": "巡视领地",

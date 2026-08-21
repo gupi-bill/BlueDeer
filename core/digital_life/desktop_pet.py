@@ -403,8 +403,8 @@ def run_tray_server(
     try:
         icon.run()
         return 0
-    except Exception as e:
-        logger.error("[tray] 启动失败：%s", e)
+    except Exception:
+        logger.exception("[tray] 启动失败：%s")
         return 2
 
 

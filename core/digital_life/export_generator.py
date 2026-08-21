@@ -64,6 +64,23 @@ SPECIES_ROLE = {
 }
 
 
+
+def _build_avatar(species: str) -> str:
+    """读取物种参考图并以 base64 内嵌到 SVG；失败返回空串。"""
+    import base64 as _b64
+    from pathlib import Path as _P
+    chars = _P(__file__).resolve().parent.parent.parent / "static" / "assets" / "characters"
+    img = chars / f"{species}.png"
+    if not img.exists():
+        return ""
+    data = _b64.b64encode(img.read_bytes()).decode("ascii")
+    return (
+        '<image x="40" y="40" width="128" height="128" '
+        'preserveAspectRatio="xMidYMid slice" '
+        f'href="data:image/png;base64,{data}"/>'
+    )
+
+
 def _pinyin(name: str) -> str:
     """把中文名字粗略转拼音（只处理已知名字，未知的返回空）。"""
     PINYIN_MAP = {
@@ -109,6 +126,34 @@ def _escape_svg(text: str) -> str:
     )
 
 
+def _build_skill_items(skills: Any) -> str:
+    skill_items = ""
+    if isinstance(skills, list):
+        for i, k in enumerate(skills[:6]):
+            y = 280 + i * 22
+            skill_items += f'<text x="40" y="{y}" font-size="14" fill="#aaa">★ {_escape_svg(str(k))}</text>'
+    elif isinstance(skills, dict):
+        for i, (k, v) in enumerate(list(skills.items())[:6]):
+            y = 280 + i * 22
+            level = int(v) if isinstance(v, (int, float)) else 0
+            level_str = "★" * min(5, level) + "☆" * max(0, 5 - level)
+            skill_items += f'<text x="40" y="{y}" font-size="14" fill="#aaa">{_escape_svg(k)}: {level_str}</text>'
+    return skill_items
+
+
+def _build_mutation_badge(mutations: list) -> str:
+    if mutations:
+        return f'<text x="380" y="120" font-size="20" fill="#ffd700">✨ 突变×{len(mutations)}</text>'
+    return ""
+
+
+def _build_role_badge(informal_roles: list) -> str:
+    if informal_roles:
+        role_text = "·".join(informal_roles[:2])
+        return f'<text x="40" y="245" font-size="13" fill="#b488ff">🎭 {_escape_svg(role_text)}</text>'
+    return ""
+
+
 def generate_agent_card_svg(agent_dict: dict) -> str:
     """生成智能体分享卡片 SVG。
 
@@ -133,29 +178,10 @@ def generate_agent_card_svg(agent_dict: dict) -> str:
     role_desc = SPECIES_ROLE.get(species, "")
     pinyin = _pinyin(name)
 
-    # 技能列表（取前 6 项；skills 可能是 list[str] 或 dict）
-    skill_items = ""
-    if isinstance(skills, list):
-        for i, k in enumerate(skills[:6]):
-            y = 280 + i * 22
-            skill_items += f'<text x="40" y="{y}" font-size="14" fill="#aaa">★ {_escape_svg(str(k))}</text>'
-    elif isinstance(skills, dict):
-        for i, (k, v) in enumerate(list(skills.items())[:6]):
-            y = 280 + i * 22
-            level = int(v) if isinstance(v, (int, float)) else 0
-            level_str = "★" * min(5, level) + "☆" * max(0, 5 - level)
-            skill_items += f'<text x="40" y="{y}" font-size="14" fill="#aaa">{_escape_svg(k)}: {level_str}</text>'
-
-    # 突变标记
-    mutation_badge = ""
-    if mutations:
-        mutation_badge = f'<text x="380" y="120" font-size="20" fill="#ffd700">✨ 突变×{len(mutations)}</text>'
-
-    # 角色徽章
-    role_badge = ""
-    if informal_roles:
-        role_text = "·".join(informal_roles[:2])
-        role_badge = f'<text x="40" y="245" font-size="13" fill="#b488ff">🎭 {_escape_svg(role_text)}</text>'
+    skill_items = _build_skill_items(skills)
+    mutation_badge = _build_mutation_badge(mutations)
+    role_badge = _build_role_badge(informal_roles)
+    avatar_image = _build_avatar(species)
 
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="480" height="640" viewBox="0 0 480 640">
@@ -169,13 +195,7 @@ def generate_agent_card_svg(agent_dict: dict) -> str:
   <!-- 头像区（128×128 像素方框） -->
   <rect x="40" y="40" width="128" height="128" fill="#000" opacity="0.3"/>
   <rect x="40" y="40" width="128" height="128" fill="none" stroke="{theme_color}" stroke-width="2"/>
-  <!-- 简化的像素头像（用色块表示） -->
-  <rect x="60" y="60" width="88" height="88" fill="{theme_color}" opacity="0.6"/>
-  <rect x="80" y="80" width="20" height="20" fill="#fff" opacity="0.8"/>
-  <rect x="108" y="80" width="20" height="20" fill="#fff" opacity="0.8"/>
-  <rect x="85" y="85" width="10" height="10" fill="#000"/>
-  <rect x="113" y="85" width="10" height="10" fill="#000"/>
-  <rect x="90" y="120" width="28" height="6" fill="#000" opacity="0.6"/>
+  {avatar_image}
 
   <!-- 名字 -->
   <text x="180" y="80" font-size="28" font-weight="bold" fill="#fff" font-family="sans-serif">{_escape_svg(name)}</text>
@@ -210,35 +230,27 @@ def generate_agent_card_svg(agent_dict: dict) -> str:
 </svg>"""
 
 
-def generate_snapshot_markdown(biosphere: Any) -> str:
-    """生成公司状态快照（Markdown 格式）。
-
-    Args:
-        biosphere: Biosphere 实例
-
-    Returns:
-        Markdown 字符串。
-    """
+def _build_snapshot_header(now: str) -> list[str]:
     lines = []
-    now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-
     lines.append("# 🌲 BlueDeer 森林公司状态快照")
     lines.append("")
     lines.append(f"**导出时间**：{now}")
     lines.append("")
+    return lines
 
-    # 监工信息
-    env = getattr(biosphere, "env", None)
-    if env:
-        marks = float(getattr(env, "marks", 0.0))
-        lines.append("## 监工档案")
-        lines.append("")
-        lines.append(f"- 森林印记余额：{marks:.0f}")
-        lines.append("")
 
-    # 员工列表
-    employees = getattr(biosphere, "employees", [])
-    alive = [lf for lf in employees if getattr(lf, "_alive", False)]
+def _build_supervisor_info(env: Any) -> list[str]:
+    lines = []
+    marks = float(getattr(env, "marks", 0.0))
+    lines.append("## 监工档案")
+    lines.append("")
+    lines.append(f"- 森林印记余额：{marks:.0f}")
+    lines.append("")
+    return lines
+
+
+def _build_employee_table(alive: list) -> list[str]:
+    lines = []
     lines.append(f"## 当前员工（{len(alive)} 人）")
     lines.append("")
     lines.append("| 名字 | 物种 | 年龄 | 健康 | 情绪 | 岗位 |")
@@ -264,40 +276,47 @@ def generate_snapshot_markdown(biosphere: Any) -> str:
             f"| {name} | {species_cn} | {age:.1f}天 | {health:.0f} | {mood:.2f} | {role} |"
         )
     lines.append("")
+    return lines
 
-    # 技能矩阵
-    lines.append("## 技能矩阵")
-    lines.append("")
-    if alive:
-        all_skills = set()
+
+def _build_skill_matrix(alive: list) -> list[str]:
+    lines = []
+    if not alive:
+        return lines
+    all_skills = set()
+    for lf in alive:
+        sk = getattr(lf, "skills", [])
+        if isinstance(sk, list):
+            all_skills.update(sk)
+        elif isinstance(sk, dict):
+            all_skills.update(sk.keys())
+    all_skills = sorted(all_skills)[:10]
+    if all_skills:
+        lines.append("## 技能矩阵")
+        lines.append("")
+        header = "| 名字 | " + " | ".join(all_skills) + " |"
+        sep = "|------|" + "|".join(["------"] * len(all_skills)) + "|"
+        lines.append(header)
+        lines.append(sep)
         for lf in alive:
+            name = getattr(lf, "_name_obj", "")
             sk = getattr(lf, "skills", [])
-            if isinstance(sk, list):
-                all_skills.update(sk)
-            elif isinstance(sk, dict):
-                all_skills.update(sk.keys())
-        all_skills = sorted(all_skills)[:10]
-        if all_skills:
-            header = "| 名字 | " + " | ".join(all_skills) + " |"
-            sep = "|------|" + "|".join(["------"] * len(all_skills)) + "|"
-            lines.append(header)
-            lines.append(sep)
-            for lf in alive:
-                name = getattr(lf, "_name_obj", "")
-                sk = getattr(lf, "skills", [])
-                row = [name]
-                for s in all_skills:
-                    if isinstance(sk, list):
-                        row.append("✓" if s in sk else "-")
-                    elif isinstance(sk, dict):
-                        v = sk.get(s, 0)
-                        row.append(str(int(v)) if isinstance(v, (int, float)) else "-")
-                    else:
-                        row.append("-")
-                lines.append("| " + " | ".join(row) + " |")
-            lines.append("")
+            row = [name]
+            for s in all_skills:
+                if isinstance(sk, list):
+                    row.append("✓" if s in sk else "-")
+                elif isinstance(sk, dict):
+                    v = sk.get(s, 0)
+                    row.append(str(int(v)) if isinstance(v, (int, float)) else "-")
+                else:
+                    row.append("-")
+            lines.append("| " + " | ".join(row) + " |")
+        lines.append("")
+    return lines
 
-    # 已故员工
+
+def _build_deceased_section(employees: list) -> list[str]:
+    lines = []
     deceased = [lf for lf in employees if not getattr(lf, "_alive", False)]
     if deceased:
         lines.append(f"## 已故员工纪念（{len(deceased)} 位）")
@@ -309,8 +328,11 @@ def generate_snapshot_markdown(biosphere: Any) -> str:
             summary = getattr(lf, "life_summary", "") or "曾为公司默默奉献"
             lines.append(f"- **{name}**（{species_cn}）：{summary}")
         lines.append("")
+    return lines
 
-    # 资源
+
+def _build_resources_section(env: Any) -> list[str]:
+    lines = []
     if env:
         food = float(getattr(env, "food_available", 0.0))
         lines.append("## 资源状态")
@@ -318,8 +340,11 @@ def generate_snapshot_markdown(biosphere: Any) -> str:
         lines.append(f"- 食物资源：{food:.0f}")
         lines.append(f"- 森林印记：{float(getattr(env, 'marks', 0)):.0f}")
         lines.append("")
+    return lines
 
-    # 本月事件
+
+def _build_events_section(env: Any) -> list[str]:
+    lines = []
     event_log = getattr(env, "event_log", []) if env else []
     if event_log:
         month_ago = time.time() - 30 * 86400
@@ -329,12 +354,12 @@ def generate_snapshot_markdown(biosphere: Any) -> str:
                 t_val = float(e.get("time", 0)) if isinstance(e, dict) else 0
                 if t_val > month_ago:
                     recent.append(e)
-            except Exception:
+            except Exception as e:
                 continue
         if recent:
             lines.append(f"## 本月关键事件（{len(recent)} 条）")
             lines.append("")
-            for e in recent[-10:]:  # 最近 10 条
+            for e in recent[-10:]:
                 try:
                     t_val = float(e.get("time", 0)) if isinstance(e, dict) else 0
                     t = time.strftime("%m-%d %H:%M", time.localtime(t_val))
@@ -344,11 +369,14 @@ def generate_snapshot_markdown(biosphere: Any) -> str:
                         else str(e)
                     )
                     lines.append(f"- `{t}` {desc}")
-                except Exception:
+                except Exception as e:
                     continue
             lines.append("")
+    return lines
 
-    # 站会摘要
+
+def _build_standup_section() -> list[str]:
+    lines = []
     try:
         from core.digital_life.project_manager import ProjectManager
 
@@ -369,10 +397,40 @@ def generate_snapshot_markdown(biosphere: Any) -> str:
             lines.append("")
     except Exception:
         pass
+    return lines
+
+
+def generate_snapshot_markdown(biosphere: Any) -> str:
+    """生成公司状态快照（Markdown 格式）。
+
+    Args:
+        biosphere: Biosphere 实例
+
+    Returns:
+        Markdown 字符串。
+    """
+    now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    lines: list[str] = []
+    lines.extend(_build_snapshot_header(now))
+
+    env = getattr(biosphere, "env", None)
+    if env:
+        lines.extend(_build_supervisor_info(env))
+
+    employees = getattr(biosphere, "employees", [])
+    alive = [lf for lf in employees if getattr(lf, "_alive", False)]
+    lines.extend(_build_employee_table(alive))
+    lines.extend(_build_skill_matrix(alive))
+    lines.extend(_build_deceased_section(employees))
+
+    if env:
+        lines.extend(_build_resources_section(env))
+        lines.extend(_build_events_section(env))
+
+    lines.extend(_build_standup_section())
 
     lines.append("---")
     lines.append("*由 BlueDeer 森林公司自动生成*")
-
     return "\n".join(lines)
 
 

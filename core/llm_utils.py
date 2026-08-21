@@ -111,4 +111,5 @@ def extract_token_usage(response: Any) -> TokenUsage:
             tokens_out=getattr(response, "tokens_out", 0),
         )
     except Exception:
+        logger.debug("提取 TokenUsage 失败，返回默认值", exc_info=True)
         return TokenUsage()

@@ -7,6 +7,7 @@ commit 28：行为池——高空盘旋 / 整理羽毛 / 俯冲假动作
 from __future__ import annotations
 
 import logging
+from typing import ClassVar
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ from .digital_life_form import DigitalLifeForm
 class Kite(DigitalLifeForm):
     """青鸢。"""
 
-    SPECIES_TEMPLATE: dict = {
+    SPECIES_TEMPLATE: ClassVar[dict] = {
         "species": "kite",
         "default_name": "青鸢",
         "metabolic_rate": 0.4,
@@ -36,7 +37,7 @@ class Kite(DigitalLifeForm):
     # 1. 高空盘旋：每隔 2 小时飞到最高空盘旋 5 分钟，纯粹享受气流
     # 2. 整理羽毛：停在高枝用喙整理翼下羽毛，偶尔扯下旧羽
     # 3. 俯冲假动作：突然收翅俯冲，快触地时猛然拉起（纯粹好玩）
-    BEHAVIOR_POOL: list[dict] = [
+    BEHAVIOR_POOL: ClassVar[list[dict]] = [
         {
             "name": "hover_high",
             "label": "高空盘旋",

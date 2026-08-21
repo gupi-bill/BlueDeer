@@ -7,6 +7,7 @@ commit 28：行为池——巡视安全 / 缩球晒太阳 / 收集小物件
 from __future__ import annotations
 
 import random
+from typing import ClassVar
 
 from .digital_life_form import DigitalLifeForm
 
@@ -14,7 +15,7 @@ from .digital_life_form import DigitalLifeForm
 class Hedgehog(DigitalLifeForm):
     """戒备猬。"""
 
-    SPECIES_TEMPLATE: dict = {
+    SPECIES_TEMPLATE: ClassVar[dict] = {
         "species": "hedgehog",
         "default_name": "戒备猬",
         "metabolic_rate": 0.4,
@@ -32,7 +33,7 @@ class Hedgehog(DigitalLifeForm):
     # 1. 巡视安全：每隔 4 小时沿围墙走一圈，背刺半竖，遇异常全竖
     # 2. 缩球晒太阳：堡垒门口阳光足时，缩成刺球晒太阳，轻微滚动
     # 3. 收集小物件：随机捡起地上小东西（笔/回形针/螺丝），用刺叉起来带回堡垒
-    BEHAVIOR_POOL: list[dict] = [
+    BEHAVIOR_POOL: ClassVar[list[dict]] = [
         {
             "name": "patrol_safety",
             "label": "巡视安全",

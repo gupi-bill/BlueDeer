@@ -24,8 +24,9 @@ import random
 import threading
 import time
 from collections import deque
+from typing import ClassVar
 
-# ruff: noqa: S110, S112
+# ruff: noqa: S110
 
 # ----------------------------------------------------------------------
 # 枚举
@@ -105,7 +106,7 @@ class DigitalLifeForm(threading.Thread):
     """
 
     # 默认 genome（子类 SPECIES_TEMPLATE 会覆盖这些键）
-    _DEFAULT_GENOME: dict = {
+    _DEFAULT_GENOME: ClassVar[ClassVar[ClassVar[dict]]] = {
         "species": "unknown",
         "default_name": "未命名",
         "metabolic_rate": 0.5,  # 每小时能量消耗
@@ -121,7 +122,7 @@ class DigitalLifeForm(threading.Thread):
 
     # commit 19 P0-2：技能成长树（年龄天数, 技能名）。
     # 子类可覆盖此列表实现物种专属技能。
-    SKILL_TREE: list[tuple[float, str]] = [
+    SKILL_TREE: ClassVar[list[tuple[float, str]]] = [
         (365 * 2, "初阶岗位"),  # 2 岁解锁
         (365 * 5, "中阶岗位"),  # 5 岁解锁
         (365 * 10, "高阶岗位"),  # 10 岁解锁
@@ -146,7 +147,7 @@ class DigitalLifeForm(threading.Thread):
     #     "animation": "work",           # 使用的动画帧 idle/walk/work/react
     #     "particles": "nut_bury",       # 粒子效果名（前端解析）
     #   }
-    BEHAVIOR_POOL: list[dict] = []
+    BEHAVIOR_POOL: ClassVar[ClassVar[list[dict]]] = []
 
     __slots__ = [
         # commit 31：主动消息系统
@@ -688,61 +689,14 @@ class DigitalLifeForm(threading.Thread):
 
             # 7. 决策与行为（非睡眠时）
             if not self.sleeping:
-                # commit 29：大雨/雷暴/极低温 → 全员缩室内（强制 REST，除非在室内 zone）
-                if env_modifier["force_indoor"]:
-                    # 强制休息（除非在室内 zone）
-                    indoor_zones = (
-                        "deer",
-                        "butterfly",
-                        "beaver",
-                    )  # 大厅/花房/水坝机房算室内
-                    if self.current_zone_id not in indoor_zones:
-                        self.current_action = ActionState.REST
-                        self._perform_action()
-                    else:
-                        # 室内仍可正常活动
-                        self._tick_behavior(now_dt)
-                        if self.current_behavior is None:
-                            self.current_action = self._decide_action()
-                            self._perform_action()
-                        else:
-                            anim = (self.current_behavior_cfg or {}).get(
-                                "animation", "idle"
-                            )
-                            self.current_action = {
-                                "idle": ActionState.REST,
-                                "walk": ActionState.EXPLORE,
-                                "work": ActionState.WORK,
-                                "react": ActionState.SOCIALIZE,
-                            }.get(anim, ActionState.REST)
-                            self._perform_action()
-                else:
-                    # commit 28：先调度行为池（特有行为覆盖普通决策）
-                    self._tick_behavior(now_dt)
-                    if self.current_behavior is None:
-                        # 没有特有行为在跑 → 走普通决策
-                        self.current_action = self._decide_action()
-                        self._perform_action()
-                    else:
-                        # 特有行为进行中：动画帧映射到 ActionState，仍执行 _perform_action
-                        anim = (self.current_behavior_cfg or {}).get(
-                            "animation", "idle"
-                        )
-                        self.current_action = {
-                            "idle": ActionState.REST,
-                            "walk": ActionState.EXPLORE,
-                            "work": ActionState.WORK,
-                            "react": ActionState.SOCIALIZE,
-                        }.get(anim, ActionState.REST)
-                        self._perform_action()
+                self._tick_behavior_decision(env_modifier, now_dt)
 
                 # commit 29：通用社交行为（每 5 tick 检查一次近距离同事）
                 if self._tick_count % 5 == 0:
                     self._tick_social_behaviors()
 
                 # commit 29：灵感事件（每小时检查一次）
-                if self._tick_count % 3600 == 0 and self._environment is not None:
-                    if self.current_action == ActionState.WORK:
+                if self._tick_count % 3600 == 0 and self._environment is not None and self.current_action == ActionState.WORK:
                         self._environment.trigger_inspiration(self)
 
                 # commit 34：连续工作起始时间追踪（用于过劳判定）
@@ -762,33 +716,60 @@ class DigitalLifeForm(threading.Thread):
             if self._alive:
                 self.tick_fondness_decay()
                 self._tick_foraging()
-                # commit 19 P0-1：每 10 tick 做一次情绪传染
-                if self._tick_count % 10 == 0:
-                    self._tick_mood_contagion()
-                # commit 19 P0-2：每 30 tick 检查一次技能解锁
-                if self._tick_count % 30 == 0:
-                    self._tick_skill_unlock()
-                # commit 29：每 30 秒记录一次区域停留时间
-                if self._tick_count % 30 == 0 and self._environment is not None:
-                    self._record_zone_stay(env_modifier)
-                # commit 30：情感系统调度
-                # - 每 5 秒：情感传播 + 对话触发
-                # - 每 30 秒：情感峰值记忆 + 关系衰减 + 智慧增长 + 周年/退休愿望
-                # - 每 1 小时：内心独白（10% 概率）
-                if self._tick_count % 5 == 0:
-                    self._tick_emotion_propagation()
-                    self._maybe_trigger_dialogue()
-                if self._tick_count % 30 == 0:
-                    self._tick_emotional_memory()
-                    self._tick_relationship_decay()
-                    self._tick_wisdom()
-                    self._check_retirement_wish()
-                    self._check_anniversary()
-                if self._tick_count % 3600 == 0:
-                    self._maybe_inner_monologue()
-                # commit 31：每 60 秒扫描主动消息触发条件
-                if self._tick_count % 60 == 0:
-                    self._tick_active_messaging()
+                self._tick_periodic_tasks(env_modifier)
+
+    def _resolve_behavior_action(self) -> None:
+        """将当前 behavior 动画映射为 ActionState 并执行。"""
+        anim = (self.current_behavior_cfg or {}).get("animation", "idle")
+        self.current_action = {
+            "idle": ActionState.REST,
+            "walk": ActionState.EXPLORE,
+            "work": ActionState.WORK,
+            "react": ActionState.SOCIALIZE,
+        }.get(anim, ActionState.REST)
+        self._perform_action()
+
+    def _tick_behavior_decision(self, env_modifier: dict, now_dt: datetime.datetime) -> None:
+        """处理 tick 中的行为决策分支（降低 tick() 圈复杂度）。"""
+        if env_modifier["force_indoor"]:
+            indoor_zones = ("deer", "butterfly", "beaver")
+            if self.current_zone_id not in indoor_zones:
+                self.current_action = ActionState.REST
+                self._perform_action()
+                return
+        self._tick_behavior(now_dt)
+        if self.current_behavior is None:
+            self.current_action = self._decide_action()
+            self._perform_action()
+        else:
+            self._resolve_behavior_action()
+
+    def _tick_periodic_tasks(self, env_modifier: dict) -> None:
+        """处理 tick 中的周期性任务（社交/灵感/情感/觅食等）。"""
+        # commit 19 P0-1：每 10 tick 做一次情绪传染
+        if self._tick_count % 10 == 0:
+            self._tick_mood_contagion()
+        # commit 19 P0-2：每 30 tick 检查一次技能解锁
+        if self._tick_count % 30 == 0:
+            self._tick_skill_unlock()
+        # commit 29：每 30 秒记录一次区域停留时间
+        if self._tick_count % 30 == 0 and self._environment is not None:
+            self._record_zone_stay(env_modifier)
+        # commit 30：情感系统调度
+        if self._tick_count % 5 == 0:
+            self._tick_emotion_propagation()
+            self._maybe_trigger_dialogue()
+        if self._tick_count % 30 == 0:
+            self._tick_emotional_memory()
+            self._tick_relationship_decay()
+            self._tick_wisdom()
+            self._check_retirement_wish()
+            self._check_anniversary()
+        if self._tick_count % 3600 == 0:
+            self._maybe_inner_monologue()
+        # commit 31：每 60 秒扫描主动消息触发条件
+        if self._tick_count % 60 == 0:
+            self._tick_active_messaging()
 
     def _compute_env_modifier(self, now_ts: float) -> dict:
         """计算当前环境对自身的修正系数。
@@ -1076,7 +1057,7 @@ class DigitalLifeForm(threading.Thread):
         emo["curiosity"] = max(0.0, emo["curiosity"] - 0.0002)
 
         # commit 30：童年烙印基线加成（前 3 天）
-        if self.childhood_imprint and not self.childhood_done:
+        if self.childhood_imprint and not self.childhood_done:  # noqa: SIM102
             if self.age >= 3.0:
                 # 适应期结束，根据情感快照决定基线
                 self.childhood_done = True
@@ -1843,7 +1824,7 @@ class DigitalLifeForm(threading.Thread):
         if not pool:
             return None
         now_ts = time.time()
-        candidates: list[dict] = []
+        candidates: ClassVar[ClassVar[list[dict]]] = []
         for cfg in pool:
             # 冷却检查
             st = self._behavior_state.get(cfg["name"], {})
@@ -1890,7 +1871,7 @@ class DigitalLifeForm(threading.Thread):
         if "min_age_days" in cond and self.age < cond["min_age_days"]:
             return False
         # 生命阶段白名单
-        if "life_stages" in cond:
+        if "life_stages" in cond:  # noqa: SIM102
             if self.life_stage.value not in cond["life_stages"]:
                 return False
         # 概率（每次检查独立掷骰）
@@ -2152,7 +2133,7 @@ class DigitalLifeForm(threading.Thread):
 
     def _crossover(self, partner: DigitalLifeForm) -> dict:
         """基因重组：每个基因随机取父母一方，加 ±5% 变异。"""
-        child_genome: dict = {}
+        child_genome: ClassVar[ClassVar[dict]] = {}
         keys = set(self.genome.keys()) | set(partner.genome.keys())
         for k in keys:
             if k == "temperament":
@@ -2265,7 +2246,7 @@ class DigitalLifeForm(threading.Thread):
         Returns:
             list[dict]：每个任务的结果 {"task", "ok", "answer", "tool_calls"}
         """
-        results: list[dict] = []
+        results: ClassVar[ClassVar[list[dict]]] = []
         with self._lock:
             todo = self._pipeline_task_inbox[:max_count]
             self._pipeline_task_inbox = self._pipeline_task_inbox[max_count:]
@@ -2350,7 +2331,7 @@ class DigitalLifeForm(threading.Thread):
 
         # 可用性判定：能量过低 / 生病 / 任务队列满 都不可接
         available = True
-        special_notes_parts: list[str] = []
+        special_notes_parts: ClassVar[ClassVar[list[str]]] = []
         if energy < 20:
             available = False
             special_notes_parts.append(f"能量过低({energy:.0f})")
@@ -2524,7 +2505,7 @@ class DigitalLifeForm(threading.Thread):
             f"继续推进项目「{pname}」相关任务，当前待办 {pending} 项，"
             f"能量 {energy:.0f}、情绪 {mood_score:.0f}。"
         )
-        blockers_parts: list[str] = []
+        blockers_parts: ClassVar[ClassVar[list[str]]] = []
         if energy < 30:
             blockers_parts.append(f"能量偏低({energy:.0f})")
         if mood_score < 30:
@@ -2792,13 +2773,13 @@ class DigitalLifeForm(threading.Thread):
             notifier = None
             with self._environment._lock:
                 for lf in self._environment.population:
-                    if lf is not self and getattr(lf, "_alive", False):
+                    if lf is not self and getattr(lf, "_alive", False):  # noqa: SIM102
                         if lf.species == "raven":
                             notifier = lf
                             break
                 if notifier is None:
                     for lf in self._environment.population:
-                        if lf is not self and getattr(lf, "_alive", False):
+                        if lf is not self and getattr(lf, "_alive", False):  # noqa: SIM102
                             if lf.species == "deer":
                                 notifier = lf
                                 break

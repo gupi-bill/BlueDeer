@@ -1,6 +1,3 @@
-import logging
-
-logger = logging.getLogger(__name__)
 """软耳兔美术技能包：跨全平台通用像素复古 UI 美学。
 
 P-UI 板块划分：
@@ -23,3 +20,7 @@ P-UI 板块划分：
 - 独立模块化解耦，可单独开关、单独迭代
 - 对标成就系统优化逻辑：分梯次、可批量扩展
 """
+
+import logging
+
+logger = logging.getLogger(__name__)

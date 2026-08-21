@@ -1,14 +1,15 @@
 # 自动拆分自 web_server.py（路由域: pages）
+import asyncio
 import logging
 
-# ruff: noqa: F821
-
 logger = logging.getLogger(__name__)
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse
 
 from web_server.app import (
     app,
     debugger,
+    github,
     scene,
 )
 
@@ -17,12 +18,16 @@ router = APIRouter()
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request) -> str:
-    """2.5D 平面图仪表盘页面。"""
-    status = scene.status()
-    offices_data = scene.office_manager.to_dict()
-    github_data = github.stats()
-    scene.breakroom.recent(count=5, msg_type=None)
+    """BlueDeer 控制台（OpenClaw 风格，内含办公室平面图视图）。"""
+    html = await asyncio.to_thread(
+        lambda: open("templates/project_hub.html", "r", encoding="utf-8").read()
+    )
+    return html
 
+
+@router.get("/floorplan", response_class=HTMLResponse)
+async def floorplan_page(request: Request) -> str:
+    """2.5D 办公室平面图（供首页 iframe 嵌入）。"""
     html = (
         """<!DOCTYPE html>
 <html lang="zh-CN">
@@ -34,7 +39,7 @@ async def dashboard(request: Request) -> str:
 * { margin:0; padding:0; box-sizing:border-box; }
 body {
     font-family: 'Segoe UI','Microsoft YaHei',system-ui,sans-serif;
-    background: #0d1a12;
+    background: #efe5d8;
     color: #d8f0d8;
     min-height: 100vh;
     overflow-x: auto;
@@ -91,30 +96,12 @@ body {
     100% { transform: translateY(30px) rotate(45deg); opacity: 0; }
 }
 
-.header {
-    background: linear-gradient(135deg,#1b3a1e,#2e5a35);
-    padding: 18px 30px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 2px solid #4caf50;
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-}
-.header h1 { font-size: 24px; color: #e8f5e9; letter-spacing: 2px; }
-.header .subtitle { font-size: 12px; color: #a5d6a7; margin-top: 4px; }
-.header .stats-mini {
-    display: flex;
-    gap: 20px;
-    font-size: 12px;
-}
-.header .stats-mini span { color: #c8e6c9; }
-.header .stats-mini b { color: #81c784; margin-right: 4px; }
-
 .floorplan-wrapper {
     padding: 30px;
     min-width: 1200px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 .floorplan {
     position: relative;
@@ -129,6 +116,7 @@ body {
     border-radius: 8px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 0 120px rgba(0,0,0,0.15);
     overflow: hidden;
+    flex-shrink: 0;
 }
 
 /* 墙体 */
@@ -175,10 +163,6 @@ body {
     letter-spacing: 1px;
     z-index: 20;
 }
-.room-icon {
-    font-size: 22px;
-    margin-right: 6px;
-}
 
 /* ==================== 资料库 Library ==================== */
 #library { left: 30px; top: 30px; width: 260px; height: 240px; background: #efebe9; }
@@ -186,9 +170,19 @@ body {
 /* 三面书墙 */
 .book-wall {
     position: absolute;
-    background: #5d4037;
+    background:
+        repeating-linear-gradient(0deg, #4e342e 0 3px, transparent 3px 56px),
+        #5d4037;
     border-radius: 3px;
-    box-shadow: 3px 3px 0 rgba(0,0,0,0.12);
+    box-shadow: 3px 3px 0 rgba(0,0,0,0.12), inset 0 0 10px rgba(0,0,0,0.3);
+}
+.book-wall::before {
+    content: "";
+    position: absolute;
+    left: -3px; right: -3px; top: 0; bottom: 0;
+    border: 2px solid #4e342e;
+    border-radius: 3px;
+    pointer-events: none;
 }
 .book-wall-left {
     left: 12px; top: 35px;
@@ -214,8 +208,9 @@ body {
 .book-spine {
     width: 100%;
     height: 14px;
-    border-radius: 1px;
+    border-radius: 1px 1px 0 0;
     border-left: 3px solid rgba(255,255,255,0.3);
+    box-shadow: inset -2px 0 0 rgba(0,0,0,0.2), inset 0 2px 0 rgba(255,255,255,0.18);
     position: relative;
 }
 .book-spine::after {
@@ -407,6 +402,11 @@ body {
     margin-top: 4px;
     font-weight: 700;
 }
+#ceo .deer-badge img {
+    width: 85%; height: 70%;
+    object-fit: contain;
+    image-rendering: pixelated;
+}
 #ceo .window {
     position: absolute;
     right: 0; top: 25px;
@@ -415,18 +415,22 @@ body {
     border-left: 3px solid #5d4037;
 }
 #ceo .window::before {
-    content: "🌲";
+    content: "";
     position: absolute;
     right: 4px; top: 25px;
-    font-size: 16px;
-    opacity: 0.7;
+    width: 24px; height: 24px;
+    background: radial-gradient(circle at 30% 70%, rgba(255,255,255,0.7), transparent 50%);
+    border-radius: 50%;
+    opacity: 0.5;
 }
 #ceo .window::after {
-    content: "☁️";
+    content: "";
     position: absolute;
     right: 2px; top: 60px;
-    font-size: 12px;
-    opacity: 0.6;
+    width: 18px; height: 12px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.6), transparent);
+    border-radius: 50%;
+    opacity: 0.4;
     animation: floatCloud 8s ease-in-out infinite;
 }
 #ceo .bookshelf-small {
@@ -468,151 +472,176 @@ body {
     color: #5d4037;
 }
 
-/* ==================== 开放办公区 ==================== */
-#office-area { left: 30px; top: 300px; width: 700px; height: 320px; background: #d7ccc8; }
-.desk {
+/* ==================== 调度室 Dispatch ==================== */
+#dispatch { left: 310px; top: 35px; width: 400px; height: 230px; background: #efebe9; }
+#dispatch .dispatch-desk {
     position: absolute;
-    width: 120px; height: 85px;
-    background: #a1887f;
-    border-radius: 4px;
-    box-shadow: 4px 4px 0 rgba(0,0,0,0.12);
-    cursor: pointer;
-    transition: transform 0.2s;
+    left: 50px; top: 92px;
+    width: 200px; height: 104px;
+    background: #ffffff;
+    border: 1px solid #e6eaf0;
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(31,41,55,0.12);
 }
-.desk:hover { transform: translateY(-3px); z-index: 50; }
-.desk-top {
+#dispatch .dispatch-screen {
     position: absolute;
-    left: 8px; top: -10px;
-    width: 104px; height: 55px;
-    background: #8d6e63;
-    border-radius: 3px;
-}
-.monitor {
-    position: absolute;
-    left: 22px; top: -40px;
-    width: 55px; height: 35px;
     background: #263238;
     border-radius: 3px;
     border: 2px solid #455a64;
-    overflow: hidden;
-    animation: screenGlow 3s ease-in-out infinite;
+    animation: screenGlow 4s ease-in-out infinite;
 }
-.monitor::after {
+#dispatch .dispatch-screen.main {
+    left: 16px; top: -58px;
+    width: 86px; height: 56px;
+    box-shadow: 0 0 14px rgba(105,240,174,0.3);
+}
+#dispatch .dispatch-screen.main::after {
     content: "</>";
     position: absolute;
-    left: 10px; top: 9px;
-    font-size: 11px;
-    color: #69f0ae;
+    left: 22px; top: 18px;
+    font-size: 12px; color: #69f0ae;
     font-family: monospace;
 }
-.keyboard {
-    position: absolute;
-    left: 20px; top: 12px;
-    width: 60px; height: 15px;
-    background: #5d4037;
-    border-radius: 2px;
+#dispatch .dispatch-screen.side {
+    right: 14px; top: -44px;
+    width: 54px; height: 40px;
+    background: #1a237e;
+    border-color: #3949ab;
+    animation-delay: 1.2s;
 }
-.mouse {
-    position: absolute;
-    right: 14px; top: 14px;
-    width: 11px; height: 15px;
-    background: #5d4037;
-    border-radius: 50%;
-}
-.cup {
-    position: absolute;
-    right: 12px; bottom: 12px;
-    width: 13px; height: 15px;
-    background: #fff;
-    border-radius: 0 0 6px 6px;
-    border: 1px solid #d7ccc8;
-}
-.cup::before {
+#dispatch .dispatch-screen.side::after {
     content: "";
     position: absolute;
-    right: -5px; top: 2px;
-    width: 6px; height: 8px;
-    border: 2px solid #fff;
-    border-radius: 0 6px 6px 0;
-    border-left: none;
-}
-.steam {
-    position: absolute;
-    right: 14px; bottom: 26px;
-    width: 6px; height: 10px;
-    background: rgba(255,255,255,0.6);
-    border-radius: 50%;
-    animation: floatSteam 2.5s ease-out infinite;
-}
-.steam:nth-child(2) { animation-delay: 0.6s; }
-.steam:nth-child(3) { animation-delay: 1.2s; }
-.plant {
-    position: absolute;
-    left: 10px; bottom: 8px;
-    width: 18px; height: 26px;
-    font-size: 20px;
-    line-height: 1;
-}
-.chair {
-    position: absolute;
-    width: 38px; height: 38px;
-    background: #5d4037;
-    border-radius: 50%;
-    box-shadow: 2px 2px 0 rgba(0,0,0,0.12);
-}
-.employee-name {
-    position: absolute;
-    left: 50%;
-    bottom: -22px;
-    transform: translateX(-50%);
-    font-size: 11px;
-    color: #3e2723;
-    font-weight: 700;
-    white-space: nowrap;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.5);
-}
-.status-dot {
-    position: absolute;
-    right: 6px; top: -55px;
-    width: 8px; height: 8px;
-    background: #4caf50;
-    border-radius: 50%;
-    animation: statusPulse 2s ease-in-out infinite;
-}
-.status-dot.busy { background: #ff9100; }
-.status-dot.idle { background: #9e9e9e; }
-.headphones {
-    position: absolute;
-    left: 8px; top: -6px;
-    font-size: 16px;
-}
-.phone {
-    position: absolute;
-    right: 32px; top: 18px;
-    width: 10px; height: 16px;
-    background: #37474f;
+    left: 8px; top: 6px;
+    width: 38px; height: 28px;
+    background:
+        linear-gradient(90deg, rgba(129,199,132,0.6) 0 25%, transparent 25% 50%, rgba(255,167,38,0.6) 50% 75%, transparent 75% 100%),
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.2) 0 2px, transparent 2px 6px);
     border-radius: 2px;
 }
-.sticky-note {
+#dispatch .dispatch-keyboard {
     position: absolute;
-    right: 2px; top: -32px;
-    width: 14px; height: 14px;
-    background: #fff59d;
-    border-radius: 1px;
-    transform: rotate(8deg);
-    box-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    left: 18px; top: 14px;
+    width: 90px; height: 16px;
+    background: #5d4037;
+    border-radius: 2px;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.2);
 }
-.photo-frame {
+#dispatch .dispatch-chair {
     position: absolute;
-    left: 4px; top: -34px;
-    width: 14px; height: 16px;
-    background: #6d4c41;
-    border-radius: 1px;
+    left: 113px; bottom: -30px;
+    width: 48px; height: 48px;
+    background: #3e2723;
+    border-radius: 50% 50% 10px 10px;
+    box-shadow: 3px 3px 0 rgba(0,0,0,0.15);
+}
+#dispatch .dispatch-board {
+    position: absolute;
+    right: 16px; top: 26px;
+    width: 96px; height: 64px;
+    background: #fafafa;
+    border: 3px solid #6d4c41;
+    border-radius: 3px;
+    box-shadow: 2px 2px 0 rgba(0,0,0,0.1);
+}
+#dispatch .dispatch-board::after {
+    content: "排期看板";
+    position: absolute;
+    bottom: 2px; right: 3px;
+    font-size: 8px; color: #5d4037;
+}
+#dispatch .task-strip {
+    position: absolute;
+    height: 4px;
+    border-radius: 2px;
+}
+#dispatch .world-pin {
+    position: absolute;
+    left: 18px; top: 30px;
+    width: 40px; height: 40px;
+    background: radial-gradient(circle at 50% 40%, #a5d6a7 0 60%, #81c784 61% 100%);
+    border: 2px solid #4e342e;
+    border-radius: 50%;
+    box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
+}
+#dispatch .world-pin::after {
+    content: "";
+    position: absolute;
+    left: 8px; top: 6px;
+    width: 24px; height: 24px;
+    background:
+        linear-gradient(135deg, transparent 45%, rgba(76,175,80,0.6) 45% 55%, transparent 55%),
+        linear-gradient(45deg, transparent 45%, rgba(76,175,80,0.6) 45% 55%, transparent 55%),
+        radial-gradient(circle at 50% 50%, rgba(255,255,255,0.4), transparent 70%);
+    border-radius: 50%;
+}
+
+/* ==================== 开放办公区 ==================== */
+#office-area { left: 30px; top: 300px; width: 700px; height: 340px; background: #eef1f4; }
+.emp-card {
+    position: absolute;
+    width: 140px; height: 150px;
+    background: #ffffff;
+    border: 1px solid #eef1f6;
+    border-radius: 18px;
+    box-shadow: 0 1px 2px rgba(16,24,40,0.05), 0 8px 20px rgba(16,24,40,0.07);
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(.2,.7,.3,1), box-shadow 0.2s ease;
+    overflow: hidden;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    font-size: 9px;
 }
+.emp-card:hover { transform: translateY(-6px); box-shadow: 0 6px 12px rgba(16,24,40,0.08), 0 20px 40px rgba(16,24,40,0.14); z-index: 60; }
+.desk-stage { width: 140px; height: 108px; }
+.desk-svg { width: 140px; height: 108px; display: block; }
+.emp-card .ename { margin-top: 1px; font-size: 12.5px; font-weight: 700; color: #0f172a; letter-spacing: 0.2px; }
+.emp-card .erole { margin-top: 1px; font-size: 9px; color: #94a3b8; font-weight: 500; }
+@keyframes lampPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.32; } }
+.lamp { animation: lampPulse 2.4s ease-in-out infinite; }
+.lamp.online { fill: #22c55e; }
+.lamp.busy { fill: #f59e0b; }
+.lamp.idle { fill: #94a3b8; }
+.lamp.onduty { fill: #60a5fa; }
+.desk-photo {
+    width: 100%; height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+}
+
+.room-char {
+    position: absolute;
+    width: 58px; height: 72px;
+    background: #ffffff;
+    border: 1px solid #eef1f6;
+    border-radius: 14px;
+    box-shadow: 0 3px 10px rgba(16,24,40,0.10);
+    cursor: pointer;
+    overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; padding-top: 7px;
+}
+.room-char .desk-photo {
+    width: 42px; height: 42px;
+    object-fit: contain; image-rendering: pixelated;
+}
+.room-char-cap {
+    position: static;
+    margin-top: 4px;
+    text-align: center;
+    font-size: 9px;
+    color: #0f172a;
+    font-weight: 700;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+.room-char-cap span {
+    font-size: 8px;
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+/* 工位空闲态：人仍在工位待命，仅整体阴影更轻表示安静 */
+.emp-card.idle { box-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 4px 12px rgba(16,24,40,0.04); }
 
 /* ==================== 茶水间 ==================== */
 #breakroom { left: 30px; top: 650px; width: 360px; height: 120px; background: #efebe9; }
@@ -716,21 +745,27 @@ body {
     border-radius: 0 0 12px 12px;
 }
 .fruit-bowl::before {
-    content: "🍎";
+    content: "";
     position: absolute;
-    left: 3px; top: -10px;
-    font-size: 12px;
+    left: 5px; top: -8px;
+    width: 9px; height: 9px;
+    background: radial-gradient(circle at 35% 35%, #ef5350, #c62828);
+    border-radius: 50%;
+    box-shadow: inset -1px -1px 2px rgba(0,0,0,0.25);
 }
 .fruit-bowl::after {
-    content: "🍌";
+    content: "";
     position: absolute;
-    right: 2px; top: -8px;
-    font-size: 10px;
+    right: 6px; top: -6px;
+    width: 11px; height: 7px;
+    background: linear-gradient(135deg, #fff176 0 40%, #fdd835 40% 100%);
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    box-shadow: inset -1px -1px 2px rgba(0,0,0,0.2);
 }
 .clock {
     position: absolute;
-    right: 160px; top: 10px;
-    width: 20px; height: 20px;
+    right: 32px; bottom: 12px;
+    width: 18px; height: 18px;
     background: #fff;
     border: 2px solid #5d4037;
     border-radius: 50%;
@@ -745,7 +780,7 @@ body {
 }
 
 /* ==================== 休息区 ==================== */
-#restarea { right: 30px; top: 650px; width: 360px; height: 120px; background: #efebe9; }
+#restarea { left: 735px; top: 300px; width: 375px; height: 470px; background: #efebe9; }
 .sofa {
     position: absolute;
     left: 20px; top: 30px;
@@ -794,15 +829,19 @@ body {
     border-radius: 0 0 8px 8px;
 }
 .coffee-table::after {
-    content: "📓";
+    content: "";
     position: absolute;
-    right: 6px; top: 4px;
-    font-size: 12px;
+    right: 8px; top: 5px;
+    width: 14px; height: 10px;
+    background: linear-gradient(180deg, #fff 0 60%, transparent 60%);
+    border: 1px solid #8d6e63;
+    border-radius: 2px;
+    box-shadow: 1px 1px 0 rgba(0,0,0,0.15);
 }
 .fish-tank {
     position: absolute;
-    right: 22px; top: 22px;
-    width: 95px; height: 58px;
+    right: 18px; bottom: 18px;
+    width: 80px; height: 50px;
     background: linear-gradient(180deg, #b3e5fc 0%, #4fc3f7 100%);
     border: 3px solid #6d4c41;
     border-radius: 4px;
@@ -874,48 +913,6 @@ body {
 .dream-photo:nth-child(3) { background: #ffccbc; }
 .dream-photo:nth-child(4) { background: #b3e5fc; }
 
-/* 信息面板 */
-.info-panel {
-    position: fixed;
-    right: 30px;
-    top: 110px;
-    width: 320px;
-    background: rgba(13,26,18,0.95);
-    border: 1px solid #4caf50;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-    backdrop-filter: blur(10px);
-    z-index: 2000;
-    max-height: calc(100vh - 140px);
-    overflow-y: auto;
-}
-.info-panel h3 {
-    color: #81c784;
-    font-size: 16px;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #2e7d32;
-}
-.info-panel p, .info-panel li {
-    font-size: 13px;
-    color: #c8e6c9;
-    line-height: 1.7;
-}
-.info-panel ul { padding-left: 18px; margin: 8px 0; }
-.info-panel .close-btn {
-    position: absolute;
-    right: 12px; top: 12px;
-    width: 24px; height: 24px;
-    background: #2e7d32;
-    border: none;
-    border-radius: 50%;
-    color: #fff;
-    cursor: pointer;
-    font-size: 14px;
-}
-.info-panel .close-btn:hover { background: #4caf50; }
-
 .footer-tip {
     text-align: center;
     padding: 16px;
@@ -975,27 +972,6 @@ body {
 </style>
 </head>
 <body>
-<div class="header">
-    <div>
-        <h1>🦌 BlueDeer 森林公司</h1>
-        <div class="subtitle">2.5D 平面户型图 · 点击房间查看详情</div>
-    </div>
-    <div class="stats-mini">
-        <span><b>"""
-        + str(status["library"]["total_entries"])
-        + """</b>资料库</span>
-        <span><b>"""
-        + str(status["breakroom"]["total_messages"])
-        + """</b>茶水间</span>
-        <span><b>"""
-        + str(status["offices"]["total_offices"])
-        + """</b>办公室</span>
-        <span><b>"""
-        + str(github_data["total_projects"])
-        + """</b>GitHub项目</span>
-    </div>
-</div>
-
 <div class="floorplan-wrapper">
     <div class="floorplan">
         <!-- 阳光 -->
@@ -1003,8 +979,8 @@ body {
         <div class="window-light" style="top:-80px;left:60px;animation-delay:3s;"></div>
 
         <!-- 资料库 -->
-        <div class="room" id="library" onclick="showRoom('library')">
-            <div class="room-label" style="left:15px;top:12px;"><span class="room-icon">📚</span>资料库</div>
+        <div class="room" id="library">
+            <div class="room-label" style="left:15px;top:12px;">资料库</div>
             
             <!-- 三面书墙 -->
             <div class="book-wall book-wall-left">
@@ -1043,11 +1019,7 @@ body {
                 </div>
             </div>
             
-            <!-- 分类标签 -->
-            <div class="shelf-label" style="left:20px;top:42px;">架构</div>
-            <div class="shelf-label" style="left:20px;top:80px;">算法</div>
-            <div class="shelf-label" style="left:20px;top:118px;">GitHub</div>
-            <div class="shelf-label" style="left:80px;top:42px;">最佳实践</div>
+            <!-- 分类标签（已按需求移除文字） -->
             
             <!-- 阅读桌 -->
             <div class="reading-table">
@@ -1065,84 +1037,118 @@ body {
             <div class="ladder"></div>
             
             <!-- 知识树挂画 -->
-            <div class="knowledge-tree">🌳</div>
+            <div class="knowledge-tree"></div>
             
             <!-- 盆栽 -->
-            <div class="pot-plant" style="left:80px;bottom:8px;">🪴</div>
-            <div class="pot-plant" style="right:8px;bottom:8px;animation-delay:1s;">🌿</div>
+            <div class="pot-plant" style="left:80px;bottom:8px;"></div>
+            <div class="pot-plant" style="right:8px;bottom:8px;animation-delay:1s;"></div>
             
+            <div class="room-char" style="left:150px;top:135px;">
+                <img class="desk-photo" src="/sprites/raven.png?v=2" alt="黑卷鸦">
+                <div class="room-char-cap">黑卷鸦<br><span>记忆管理员 · 在岗</span></div>
+            </div>
             <div class="door" style="right:20px;bottom:2px;"></div>
         </div>
 
         <!-- 总经理办公室 -->
-        <div class="room" id="ceo" onclick="showRoom('ceo')">
-            <div class="room-label" style="left:15px;top:12px;"><span class="room-icon">🫎</span>总经理办公室</div>
-            <div class="deer-badge">🦌</div>
+        <div class="room" id="ceo">
+            <div class="room-label" style="left:15px;top:12px;">总经理办公室</div>
+            <div class="deer-badge"><img src="/sprites/deer.png?v=2" alt="忧郁鹿"></div>
             <div class="window"></div>
             <div class="bookshelf-small">
-                <div class="trophy">🏆</div>
+                <div class="trophy"></div>
             </div>
-            <div class="strategy-board">📈</div>
+            <div class="strategy-board"></div>
             <div class="ceo-desk"></div>
             <div class="ceo-chair"></div>
-            <div class="pot-plant" style="left:180px;bottom:12px;">🌵</div>
+            <div class="pot-plant" style="left:180px;bottom:12px;"></div>
             <div class="door" style="left:20px;bottom:2px;"></div>
         </div>
 
+        <!-- 调度室 -->
+        <div class="room" id="dispatch">
+            <div class="room-label" style="left:15px;top:12px;">调度室</div>
+
+            <!-- 墙上排期看板 -->
+            <div class="dispatch-board">
+                <div class="task-strip" style="left:6px;top:9px;width:42px;background:#66bb6a;"></div>
+                <div class="task-strip" style="left:22px;top:20px;width:54px;background:#ffa726;"></div>
+                <div class="task-strip" style="left:12px;top:32px;width:50px;background:#42a5f5;"></div>
+            </div>
+
+            <!-- 世界地图（统筹全局） -->
+            <div class="world-pin"></div>
+
+            <!-- 指挥工位 -->
+            <div class="dispatch-desk">
+                <div class="dispatch-screen main"></div>
+                <div class="dispatch-screen side"></div>
+                <div class="dispatch-keyboard"></div>
+                <div class="dispatch-chair"></div>
+                <div class="cup" style="right:8px;bottom:6px;">
+                    <div class="steam"></div>
+                    <div class="steam"></div>
+                </div>
+            </div>
+
+            <!-- 调度工程师 -->
+            <div class="room-char" style="left:113px;top:30px;">
+                <img class="desk-photo" src="/sprites/kite.png?v=2" alt="天瞰鸢">
+                <div class="room-char-cap">天瞰鸢<br><span>调度工程师 · 在岗</span></div>
+            </div>
+            <div class="door" style="right:20px;bottom:2px;"></div>
+        </div>
+
         <!-- 开放办公区 -->
-        <div class="room" id="office-area" onclick="showRoom('office')">
-            <div class="room-label" style="left:15px;top:12px;"><span class="room-icon">🏢</span>开放办公区</div>
+        <div class="room" id="office-area">
+            <div class="room-label" style="left:15px;top:12px;">开放办公区</div>
             <div class="rug"></div>
 """
     )
 
-    # 工位布局
+    # 工位布局（开放办公区 8 个坐班工位，2 行 × 4 列，等距书桌风格）
+    # 注：黑卷鸦(记忆管理员)常驻资料库、天瞰鸢(调度工程师)在调度室、忧郁鹿(总经理)在总经理办公室，均不在本区
     positions = [
-        (60, 60, "squirrel", "较真松鼠", "online"),
-        (210, 60, "hedgehog", "戒备猬", "busy"),
-        (360, 60, "owl", "夜枭猫头鹰", "online"),
-        (510, 60, "beaver", "勤恳海狸", "idle"),
-        (130, 200, "fox", "狡黠狐狸", "online"),
-        (340, 200, "desk6", "待招岗位", "idle"),
+        (50, 34, "squirrel", "机灵鼠", "idle", "工程师", 3, ["🎧", "🖼️", "📝"], "代码如松鼠囤松果，严谨到每个分号。"),
+        (200, 34, "butterfly", "绘羽蝶", "idle", "设计师", 2, ["🎨", "🌸", "📝"], "把冰冷界面雕成会呼吸的翅膀。"),
+        (350, 34, "fox", "赤谋狐", "idle", "测试工程师", 3, ["🧪", "🔍", "📝"], "专挑别人忘测的角落下嘴。"),
+        (500, 34, "hedgehog", "针客猬", "idle", "安全工程师", 4, ["🔒", "🛡️", "📝"], "浑身是刺，漏洞扎手就缩。"),
+        (50, 188, "beaver", "大坝狸", "idle", "运维工程师", 2, ["🔧", "📦", "🖼️"], "把烂摊子筑成稳如大坝的流水线。"),
+        (200, 188, "hare", "霜耳兔", "idle", "数据分析师", 2, ["📊", "📈", "🖼️"], "数字里跑最快，异常先一步察觉。"),
+        (350, 188, "badger", "土工獾", "idle", "网络工程师", 3, ["🔌", "🌐", "📝"], "地下打洞接管线，接口从不断。"),
+        (500, 188, "lark", "清音雀", "idle", "监控工程师", 2, ["🔔", "📟", "🖼️"], "清晨第一声啼，告警从不漏。"),
     ]
-    personal_items = [
-        ["🎧", "🖼️", "📝"],
-        ["🔒", "🖼️", ""],
-        ["🧠", "🖼️", "📝"],
-        ["🔧", "🖼️", ""],
-        ["🧪", "🖼️", "📝"],
-        ["", "", ""],
-    ]
-    for idx, (x, y, aid, name, st) in enumerate(positions):
-        office_info = offices_data.get("offices", {}).get(aid, {})
-        badge = office_info.get("badge", {})
-        level = badge.get("level", 1)
-        role = badge.get("role", "")
-        status_class = f"status-dot {st}"
-        items = personal_items[idx]
-        headphone = f'<div class="headphones">{items[0]}</div>' if items[0] else ""
-        photo = f'<div class="photo-frame">{items[1]}</div>' if items[1] else ""
-        sticky = '<div class="sticky-note"></div>' if items[2] else ""
-        click_attr = (
-            f"onclick=\"event.stopPropagation();showDesk('{aid}','{name}','{role}',{level})\""
-            if aid != "desk6"
-            else ""
-        )
+    STATUS_TEXT = {"online": "在线", "busy": "忙碌", "idle": "空闲"}
+    ACCENT = {
+        "squirrel": "#a87238", "butterfly": "#e8a8c8", "fox": "#e87048",
+        "hedgehog": "#8a7a5a", "beaver": "#9a6840", "hare": "#c9b6e0",
+        "badger": "#8a7a6a", "lark": "#7fb0d8",
+    }
+    for (x, y, aid, name, st, role, level, items, blurb) in positions:
+        accent = ACCENT.get(aid, "#1e6fff")
+        stext = STATUS_TEXT.get(st, st)
+        desk_svg = f'''<svg class="desk-svg" viewBox="0 0 160 128" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="80" cy="106" rx="66" ry="13" fill="rgba(15,23,42,0.08)"/>
+      <path d="M80,82 L146,100 L80,118 L14,100 Z" fill="{accent}" fill-opacity="0.14"/>
+      <path d="M14,100 L80,118 L146,100 L146,106 L80,124 L14,106 Z" fill="{accent}" fill-opacity="0.22"/>
+      <path d="M80,90 L114,102 L80,114 L46,102 Z" fill="#e2e8f0"/>
+      <path d="M46,102 L80,114 L114,102 L114,108 L80,120 L46,108 Z" fill="#cbd5e1"/>
+      <image href="/sprites/{aid}.png?v=2" x="52" y="36" width="56" height="56" preserveAspectRatio="xMidYMid meet"/>
+      <path d="M80,88 L142,106 L80,124 L18,106 Z" fill="#f8fafc"/>
+      <path d="M18,106 L80,124 L142,106 L142,112 L80,130 L18,112 Z" fill="#e8edf3"/>
+      <rect x="18" y="106" width="5" height="18" fill="#cbd5e1"/>
+      <rect x="137" y="106" width="5" height="18" fill="#cbd5e1"/>
+      <rect x="78" y="124" width="5" height="14" fill="#cbd5e1"/>
+      <rect x="66" y="62" width="28" height="22" rx="2" fill="#0f172a"/>
+      <rect x="69" y="65" width="22" height="16" rx="1" fill="#1e293b"/>
+      <rect x="78" y="84" width="4" height="6" fill="#475569"/>
+      <circle class="lamp {st}" cx="128" cy="110" r="4"/>
+    </svg>'''
         html += f"""
-            <div class="desk" style="left:{x}px;top:{y}px;" {click_attr}>
-                <div class="desk-top"></div>
-                <div class="monitor"></div>
-                {photo}
-                {sticky}
-                <div class="keyboard"></div>
-                <div class="mouse"></div>
-                <div class="phone"></div>
-                <div class="cup"><div class="steam"></div><div class="steam"></div><div class="steam"></div></div>
-                {headphone}
-                <div class="plant">🪴</div>
-                <div class="chair" style="bottom:-32px;left:38px;"></div>
-                <div class="{status_class}"></div>
-                <div class="employee-name">{name}</div>
+            <div class="emp-card {st}" style="left:{x}px;top:{y}px;">
+                <div class="desk-stage">{desk_svg}</div>
+                <div class="ename">{name}</div>
+                <div class="erole">{role}</div>
             </div>
 """
 
@@ -1151,8 +1157,8 @@ body {
         </div>
 
         <!-- 茶水间 -->
-        <div class="room" id="breakroom" onclick="showRoom('breakroom')">
-            <div class="room-label" style="left:15px;top:12px;"><span class="room-icon">☕</span>茶水间</div>
+        <div class="room" id="breakroom">
+            <div class="room-label" style="left:15px;top:12px;">茶水间</div>
             <div class="counter">
                 <div class="coffee-machine"></div>
                 <div class="microwave"></div>
@@ -1176,111 +1182,32 @@ body {
             </div>
         </div>
 
-        <!-- 休息区 -->
-        <div class="room" id="restarea" onclick="showRoom('restarea')">
-            <div class="room-label" style="left:15px;top:12px;"><span class="room-icon">🧘</span>休息区</div>
-            <div class="sofa">
+        <!-- 休息区（放大） -->
+        <div class="room" id="restarea">
+            <div class="room-label" style="left:15px;top:12px;">休息区</div>
+            <div class="dream-wall" style="left:15px;top:42px;"></div>
+            <div class="fish-tank" style="right:18px;top:30px;"></div>
+            <div class="floor-lamp" style="right:140px;top:22px;"></div>
+            <div class="sofa" style="left:20px;top:390px;width:220px;height:70px;">
                 <div class="pillow"></div>
                 <div class="pillow" style="left:55px;background:#c5e1a5;"></div>
                 <div class="pillow" style="left:88px;background:#b3e5fc;"></div>
             </div>
-            <div class="coffee-table"></div>
-            <div class="floor-lamp"></div>
-            <div class="dream-wall">
-                <div class="dream-photo"></div>
-                <div class="dream-photo"></div>
-                <div class="dream-photo"></div>
-                <div class="dream-photo"></div>
-                <div class="dream-photo" style="width:100%;height:10px;background:#e1bee7;"></div>
-            </div>
-            <div class="fish-tank">
-                <div class="ripple"></div>
-                <div class="ripple"></div>
-                <div class="ripple"></div>
-                <div class="fish"></div>
-            </div>
-            <div class="pot-plant" style="left:12px;bottom:8px;">🌿</div>
+            <div class="coffee-table" style="left:262px;top:410px;"></div>
+            <div class="pot-plant" style="left:12px;bottom:8px;"></div>
         </div>
 
         <!-- 墙体分隔 -->
         <div class="wall wall-h" style="left:30px;top:290px;width:700px;"></div>
+        <div class="wall wall-v" style="left:730px;top:300px;height:470px;"></div>
         <div class="wall wall-h" style="left:30px;top:640px;width:360px;"></div>
-        <div class="wall wall-h" style="right:30px;top:640px;width:360px;"></div>
         <div class="wall wall-v" style="left:300px;top:30px;height:260px;"></div>
         <div class="wall wall-v" style="right:420px;top:30px;height:260px;"></div>
     </div>
+
 </div>
 
-<!-- 信息面板 -->
-<div class="info-panel" id="infoPanel">
-    <button class="close-btn" onclick="closePanel()">×</button>
-    <h3>🏢 欢迎来到 BlueDeer 森林公司</h3>
-    <p>点击任意房间或员工工位查看详情。</p>
-    <ul>
-        <li>📚 资料库：三面书墙、彩色书脊、阅读桌、地球仪、知识树挂画</li>
-        <li>🫎 总经理办公室：忧郁鹿全局调度中心</li>
-        <li>🏢 开放办公区：6 个独立工位，每个都有独特个人物品</li>
-        <li>☕ 茶水间：咖啡机、微波炉、饮水机、水果、公告板</li>
-        <li>🧘 休息区：沙发、落地灯、鱼缸、梦境照片墙</li>
-    </ul>
-</div>
-
-<div class="footer-tip">
-    BlueDeer 森林公司 · 多智能体协同办公系统 · 认知架构 v2.5D+
-</div>
-
-<script>
-const roomData = {
-    library: {
-        title: "📚 资料库",
-        content: "公司拥有三面书墙，收录 <b>"""
-        + str(status["library"]["total_entries"])
-        + """</b> 条知识条目，整合 <b>"""
-        + str(github_data["total_projects"])
-        + """</b> 个 GitHub 精选项目。阅读桌上摊开的书、地球仪、眼镜和热茶，知识的香气扑面而来。"
-    },
-    ceo: {
-        title: "🫎 总经理办公室",
-        content: "忧郁鹿的调度中心。负责任务分发、负载均衡、熔断重分配、Token 审计与奖惩结算。窗外就是森林，墙上挂着战略图。"
-    },
-    office: {
-        title: "🏢 开放办公区",
-        content: "6 个独立工位，员工状态实时显示。绿点在线、橙点忙碌、灰点空闲。每个工位都有显示器、键盘、热茶杯、绿植和独特的个人物品。"
-    },
-    breakroom: {
-        title: "☕ 茶水间",
-        content: "员工自由交流区。当前有 <b>"""
-        + str(status["breakroom"]["total_messages"])
-        + """</b> 条消息。咖啡机、微波炉、饮水机一应俱全，公告板贴着最新通知。"
-    },
-    restarea: {
-        title: "🧘 休息区",
-        content: "放松与梦境回放空间。舒适的沙发、落地灯、游着金鱼的鱼缸，还有记录成功与失败记忆的梦境照片墙。"
-    }
-};
-
-function showRoom(room) {
-    const panel = document.getElementById('infoPanel');
-    const data = roomData[room];
-    panel.innerHTML = '<button class="close-btn" onclick="closePanel()">×</button><h3>' + data.title + '</h3><p>' + data.content + '</p>';
-    panel.style.display = 'block';
-}
-
-function showDesk(aid, name, role, level) {
-    const panel = document.getElementById('infoPanel');
-    panel.innerHTML = '<button class="close-btn" onclick="closePanel()">×</button>' +
-        '<h3>🧑‍💻 ' + name + '</h3>' +
-        '<p><b>岗位：</b>' + (role || '工程师') + '</p>' +
-        '<p><b>等级：</b>Lv' + level + '</p>' +
-        '<p><b>工号：</b>' + aid + '</p>' +
-        '<p>正在使用高性能工作站，显示器上运行着代码。桌上一杯热茶正冒着袅袅热气。</p>';
-    panel.style.display = 'block';
-}
-
-function closePanel() {
-    document.getElementById('infoPanel').style.display = 'none';
-}
-</script>
+<!-- 信息面板（已移除弹窗） -->
 </body>
 </html>"""
     )
@@ -1289,8 +1216,9 @@ function closePanel() {
 
 @router.get("/vector", response_class=HTMLResponse)
 async def vector_page(request: Request) -> str:
-    with open("static/vector.html", "r", encoding="utf-8") as f:
-        return f.read()
+    return await asyncio.to_thread(
+        lambda: open("static/vector.html", "r", encoding="utf-8").read()
+    )
 
 
 @router.get("/debug", response_class=HTMLResponse)

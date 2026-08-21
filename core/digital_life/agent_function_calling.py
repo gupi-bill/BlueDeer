@@ -24,7 +24,7 @@ import threading
 import time
 from typing import Any
 
-# ruff: noqa: S110, S112
+# ruff: noqa: S110
 
 # 单轮工具调用的最大轮数（防止 LLM 死循环）
 MAX_TOOL_ROUNDS = 5
@@ -200,26 +200,7 @@ class FunctionCaller:
 
     # ---------------- 主入口 ----------------
 
-    def run_task(
-        self,
-        task: str,
-        max_rounds: int = MAX_TOOL_ROUNDS,
-        enable_retrospect: bool = True,
-    ) -> dict:
-        """执行一个任务，可能多轮调用工具。
-
-        返回：
-            {
-                "ok": bool,
-                "answer": str,           # 最终答复
-                "tool_calls": list[dict], # 工具调用记录
-                "rounds": int,            # 总轮数
-                "fallback": bool,         # 是否走了降级路径
-                "retrospect": dict,       # commit 38：复盘记录
-                "adopted_experiences": list,  # 本次采用的经验
-            }
-        """
-        # commit 38：执行前检索相关经验
+    def _run_task_retrieve_experiences(self, task: str) -> tuple[list[str], list[str]]:
         adopted_exp_ids: list[str] = []
         adopted_exp_strs: list[str] = []
         try:
@@ -231,26 +212,36 @@ class FunctionCaller:
             experiences = lib.search_by_task(task, agent_species=self.species, limit=3)
             if experiences:
                 adopted_exp_strs = [
-                    f"[{e.get('task_type','')}] {e.get('lesson','')}"
+                    f"[{e.get('task_type', '')}] {e.get('lesson', '')}"
                     for e in experiences
                 ]
                 adopted_exp_ids = [e.get("id", "") for e in experiences if e.get("id")]
         except Exception:
             pass
+        return adopted_exp_ids, adopted_exp_strs
 
+    def _run_task_execute(
+        self, task: str, max_rounds: int, adopted_exp_strs: list[str]
+    ) -> dict:
         start_ts = time.time()
-        result: dict
-        # 路径 1：尝试 LLM 路由
         try:
             result = self._run_with_llm(
                 task, max_rounds, adopted_exp_strs=adopted_exp_strs
             )
         except Exception as e:
-            # 路径 2：降级到关键词路由
             result = self._run_fallback(task, str(e), adopted_exp_strs=adopted_exp_strs)
-        duration_sec = time.time() - start_ts
+        result["duration_sec"] = time.time() - start_ts
+        return result
 
-        # commit 38：执行后触发复盘
+    def _run_task_retrospect(
+        self,
+        task: str,
+        result: dict,
+        duration_sec: float,
+        adopted_exp_ids: list[str],
+        adopted_exp_strs: list[str],
+        enable_retrospect: bool,
+    ) -> tuple[dict, list[str]]:
         retro: dict = {}
         if enable_retrospect:
             try:
@@ -267,7 +258,6 @@ class FunctionCaller:
                     experience_adopted=adopted_exp_strs,
                     router=router,
                 )
-                # 更新经验权重（采用过的经验）
                 if adopted_exp_ids and retro.get("lesson"):
                     better = retrospect.evaluate_experience_outcome(
                         prev_ok_rate=0.7,
@@ -286,12 +276,80 @@ class FunctionCaller:
                             pass
             except Exception:
                 pass
+        return retro, adopted_exp_strs
 
+    def run_task(
+        self,
+        task: str,
+        max_rounds: int = MAX_TOOL_ROUNDS,
+        enable_retrospect: bool = True,
+    ) -> dict:
+        """执行一个任务，可能多轮调用工具。
+
+        返回：
+             {
+                 "ok": bool,
+                 "answer": str,           # 最终答复
+                 "tool_calls": list[dict], # 工具调用记录
+                 "rounds": int,            # 总轮数
+                 "fallback": bool,         # 是否走了降级路径
+                 "retrospect": dict,       # commit 38：复盘记录
+                 "adopted_experiences": list,  # 本次采用的经验
+             }
+        """
+        adopted_exp_ids, adopted_exp_strs = self._run_task_retrieve_experiences(task)
+        result = self._run_task_execute(task, max_rounds, adopted_exp_strs)
+        retro, adopted_exp_strs = self._run_task_retrospect(
+            task,
+            result,
+            result.get("duration_sec", 0.0),
+            adopted_exp_ids,
+            adopted_exp_strs,
+            enable_retrospect,
+        )
         result["retrospect"] = retro
         result["adopted_experiences"] = adopted_exp_strs
         return result
 
     # ---------------- LLM 路径 ----------------
+
+    def _run_with_llm_build_system_prompt(self, tool_list_str: str) -> str:
+        return SYSTEM_PROMPT_TEMPLATE.format(
+            role_name=self.role_name,
+            species_zh=self.species_zh,
+            tool_list=tool_list_str,
+        )
+
+    def _run_with_llm_build_user_content(
+        self, task: str, adopted_exp_strs: list | None
+    ) -> str:
+        if adopted_exp_strs:
+            exp_block = "\n\n【历史经验】\n" + "\n".join(
+                f"- {s}" for s in adopted_exp_strs
+            )
+            return task + exp_block
+        return task
+
+    def _run_with_llm_execute_tool(
+        self, tool_call: dict, round_idx: int, tool_calls: list[dict]
+    ) -> str:
+        tool_name = tool_call.get("tool", "")
+        params = tool_call.get("params", {}) or {}
+        if not isinstance(params, dict):
+            params = {}
+        if tool_name not in self.bound_tools:
+            return f"错误：工具 {tool_name} 不在你的可用工具列表中。"
+        result = self._executor.execute(self.agent, tool_name, params)
+        tool_calls.append(
+            {
+                "round": round_idx,
+                "tool": tool_name,
+                "params": params,
+                "result": result.to_dict(),
+            }
+        )
+        self._memorize_tool_call(tool_name, params, result)
+        return self._format_tool_result(result)
 
     def _run_with_llm(
         self, task: str, max_rounds: int, adopted_exp_strs: list | None = None
@@ -299,40 +357,21 @@ class FunctionCaller:
         router = self._get_router()
         if router is None:
             raise RuntimeError("no llm router available")
-
         tool_list_str = self._format_tool_list()
-        system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
-            role_name=self.role_name,
-            species_zh=self.species_zh,
-            tool_list=tool_list_str,
-        )
-
-        # commit 38：把历史经验注入 user prompt
-        user_content = task
-        if adopted_exp_strs:
-            exp_block = "\n\n【历史经验】\n" + "\n".join(
-                f"- {s}" for s in adopted_exp_strs
-            )
-            user_content = task + exp_block
-
-        # 多轮对话历史
+        system_prompt = self._run_with_llm_build_system_prompt(tool_list_str)
+        user_content = self._run_with_llm_build_user_content(task, adopted_exp_strs)
         messages: list[dict] = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content},
         ]
         tool_calls: list[dict] = []
-
         for round_idx in range(1, max_rounds + 1):
-            # 把 messages 拼成单个 prompt（我们的 LLM 接口是单 prompt 的）
             prompt = self._messages_to_prompt(messages)
             response = self._call_llm(router, prompt)
             assistant_text = response or ""
             messages.append({"role": "assistant", "content": assistant_text})
-
-            # 解析是否要调工具
             tool_call = self._parse_tool_call(assistant_text)
             if tool_call is None:
-                # 不调工具，任务结束
                 return {
                     "ok": True,
                     "answer": assistant_text.strip(),
@@ -340,35 +379,12 @@ class FunctionCaller:
                     "rounds": round_idx,
                     "fallback": False,
                 }
-
-            # 执行工具
-            tool_name = tool_call.get("tool", "")
-            params = tool_call.get("params", {}) or {}
-            if not isinstance(params, dict):
-                params = {}
-
-            # 校验工具是否在白名单
-            if tool_name not in self.bound_tools:
-                tool_result_str = f"错误：工具 {tool_name} 不在你的可用工具列表中。"
-            else:
-                result = self._executor.execute(self.agent, tool_name, params)
-                tool_calls.append(
-                    {
-                        "round": round_idx,
-                        "tool": tool_name,
-                        "params": params,
-                        "result": result.to_dict(),
-                    }
-                )
-                # 写入智能体短期记忆
-                self._memorize_tool_call(tool_name, params, result)
-                tool_result_str = self._format_tool_result(result)
-
+            tool_result_str = self._run_with_llm_execute_tool(
+                tool_call, round_idx, tool_calls
+            )
             messages.append(
                 {"role": "user", "content": "工具结果：\n" + tool_result_str}
             )
-
-        # 达到最大轮数仍未完成
         return {
             "ok": False,
             "answer": "达到最大工具调用轮数仍未完成",

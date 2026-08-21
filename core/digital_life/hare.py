@@ -7,6 +7,7 @@ commit 28：行为池——挖雪洞 / 蹬后腿 / 数数
 from __future__ import annotations
 
 import random
+from typing import ClassVar
 
 from .digital_life_form import DigitalLifeForm
 
@@ -14,7 +15,7 @@ from .digital_life_form import DigitalLifeForm
 class Hare(DigitalLifeForm):
     """雪兔。"""
 
-    SPECIES_TEMPLATE: dict = {
+    SPECIES_TEMPLATE: ClassVar[dict] = {
         "species": "hare",
         "default_name": "雪兔",
         "metabolic_rate": 0.45,
@@ -32,7 +33,7 @@ class Hare(DigitalLifeForm):
     # 1. 挖雪洞：冬季在算盘雪原挖洞钻进去只露耳朵，保暖同时监听数据
     # 2. 蹬后腿：开心时突然高高跳起，空中转体（即时动作）
     # 3. 数数：空闲时耳朵微抖，吐小数字气泡默默统计资源
-    BEHAVIOR_POOL: list[dict] = [
+    BEHAVIOR_POOL: ClassVar[list[dict]] = [
         {
             "name": "dig_snow_hole",
             "label": "挖雪洞",

@@ -318,3 +318,31 @@ class SchedulePolicy:
         except Exception as e:
             logger.error("定时备份失败: %s", e)
         self._schedule_next()
+
+
+
+def prune_backups(keep: int = 7):
+    """按修改时间保留最近 keep 份备份，删除更早的。返回被删除文件名。"""
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    zips = sorted(
+        [f for f in Path(BACKUP_DIR).iterdir() if f.suffix == ".zip"],
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    removed = []
+    for f in zips[keep:]:
+        try:
+            f.unlink()
+            removed.append(f.name)
+        except OSError as e:
+            logger.warning("删除旧备份失败 %s: %s", f.name, e)
+    if removed:
+        logger.info("清理旧备份 %d 份（保留最近 %d 份）", len(removed), keep)
+    return removed
+
+
+def create_backup_with_retention(name="", db_only=False, keep=7):
+    """创建备份并执行保留策略（默认保留最近 7 份）。"""
+    path = create_backup(name=name, db_only=db_only)
+    prune_backups(keep=keep)
+    return path

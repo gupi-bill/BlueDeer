@@ -18,7 +18,7 @@ import time
 import uuid
 from typing import Any
 
-# ruff: noqa: S110, S112
+# ruff: noqa: S110
 
 # ----------------------------------------------------------------------
 # 存储路径与常量
@@ -427,7 +427,7 @@ class TaskScout:
                         "message": f"{len(low_energy)} 个智能体能量偏低",
                     }
                 )
-        except Exception:
+        except Exception as e:
             pass
         return findings
 

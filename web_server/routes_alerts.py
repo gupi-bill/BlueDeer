@@ -1,10 +1,10 @@
 # 自动拆分自 web_server.py（路由域: alerts）
 import logging
 
-# ruff: noqa: F821
-
 logger = logging.getLogger(__name__)
-from fastapi import APIRouter
+from typing import Any
+
+from fastapi import APIRouter, Request
 
 router = APIRouter()
 

@@ -7,10 +7,6 @@ AuditLogger 用 JSON Lines 落盘，可回查、可统计。
 
 from __future__ import annotations
 
-import logging
-
-logger = logging.getLogger(__name__)
-
 import hashlib
 import json
 import logging
@@ -20,6 +16,7 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+from core.policy_engine import PolicyEngine
 from core.security import (
     SecurityGuard,
     SecurityReport,
@@ -180,7 +177,8 @@ class AuditLogger:
         self._buffer.clear()
         try:
             if os.path.exists(self._log_path):
-                open(self._log_path, "w").close()
+                with open(self._log_path, "w", encoding="utf-8"):
+                    pass
         except OSError:
             logger.exception("Exception in block")
 
@@ -215,10 +213,12 @@ class MCPClient:
         self,
         guard: SecurityGuard | None = None,
         audit_logger: AuditLogger | None = None,
+        policy_engine: PolicyEngine | None = None,
     ) -> None:
         self._guard = guard or SecurityGuard()
         self._audit = audit_logger or AuditLogger()
         self._tools: dict[str, BaseTool] = {}
+        self._policy_engine = policy_engine
 
     def register_tool(self, tool: BaseTool) -> None:
         """注册工具。"""
@@ -278,32 +278,10 @@ class MCPClient:
             raise KeyError(f"MCP 工具 '{name}' 未注册")
         return self._tools[name]
 
-    async def call(
-        self,
-        agent_id: str,
-        tool_name: str,
-        params: dict[str, Any],
-    ) -> dict[str, Any]:
-        """统一调用入口。
-
-        Args:
-            agent_id: 调用方 Agent ID。
-            tool_name: 工具名。
-            params: 工具参数。
-
-        Returns:
-            {
-                "ok": bool,
-                "result": Any,        # 工具执行结果（成功时）
-                "reason": str,        # 拒绝/失败原因
-                "report": dict|None,  # 安全扫描报告
-            }
-        """
-        t0 = time.time()
-        params_sanitized = sanitize_log(params)
+    def _call_check_tool(
+        self, agent_id: str, tool_name: str, params_sanitized: dict[str, Any], t0: float
+    ) -> dict[str, Any] | None:
         tool = self._tools.get(tool_name)
-
-        # 1. 工具存在性
         if tool is None:
             self._write_audit(
                 agent_id,
@@ -321,11 +299,20 @@ class MCPClient:
                 "result": None,
                 "report": None,
             }
+        return None
 
-        category = tool.category
-
-        # 2. Agent 权限校验
-        allowed, reason = self._guard.check_permission(agent_id, tool_name)
+    def _call_check_permission(
+        self,
+        agent_id: str,
+        tool_name: str,
+        category: Any,
+        params_sanitized: dict[str, Any],
+        t0: float,
+    ) -> tuple[bool, str]:
+        if self._policy_engine is not None:
+            allowed, reason = self._policy_engine.check_permission(agent_id, tool_name)
+        else:
+            allowed, reason = self._guard.check_permission(agent_id, tool_name)
         if not allowed:
             self._write_audit(
                 agent_id,
@@ -337,14 +324,29 @@ class MCPClient:
                 None,
                 t0,
             )
-            return {"ok": False, "reason": reason, "result": None, "report": None}
+        return allowed, reason
 
-        # 3. 操作安全校验（HAZARDOUS 白名单 + 静态扫描）
-        allowed, report, reason = self._guard.check_operation(
-            tool_name,
-            params,
-            category,
-        )
+    def _call_check_operation(
+        self,
+        tool_name: str,
+        params: dict[str, Any],
+        category: Any,
+        agent_id: str,
+        params_sanitized: dict[str, Any],
+        t0: float,
+    ) -> tuple[bool, SecurityReport | None, str, dict[str, Any] | None]:
+        if self._policy_engine is not None:
+            allowed, report, reason = self._policy_engine.check_operation(
+                tool_name,
+                params,
+                category,
+            )
+        else:
+            allowed, report, reason = self._guard.check_operation(
+                tool_name,
+                params,
+                category,
+            )
         report_dict = report.to_dict() if report else None
         if not allowed:
             self._write_audit(
@@ -358,14 +360,20 @@ class MCPClient:
                 t0,
                 report_dict,
             )
-            return {
-                "ok": False,
-                "reason": reason,
-                "result": None,
-                "report": report_dict,
-            }
+        return allowed, report, reason, report_dict
 
-        # 4. 执行工具
+    async def _call_execute(
+        self,
+        tool: Any,
+        params: dict[str, Any],
+        agent_id: str,
+        tool_name: str,
+        category: Any,
+        params_sanitized: dict[str, Any],
+        t0: float,
+        report: SecurityReport | None,
+        report_dict: dict[str, Any] | None,
+    ) -> dict[str, Any]:
         try:
             result = await tool.execute(params)
             self._write_audit(
@@ -405,6 +413,66 @@ class MCPClient:
                 "result": None,
                 "report": report_dict,
             }
+
+    async def call(
+        self,
+        agent_id: str,
+        tool_name: str,
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
+        """统一调用入口。
+
+        Args:
+            agent_id: 调用方 Agent ID。
+            tool_name: 工具名。
+            params: 工具参数。
+
+        Returns:
+            {
+                "ok": bool,
+                "result": Any,        # 工具执行结果（成功时）
+                "reason": str,        # 拒绝/失败原因
+                "report": dict|None,  # 安全扫描报告
+            }
+        """
+        t0 = time.time()
+        params_sanitized = sanitize_log(params)
+
+        not_found = self._call_check_tool(agent_id, tool_name, params_sanitized, t0)
+        if not_found is not None:
+            return not_found
+
+        tool = self._tools[tool_name]
+        category = tool.category
+
+        allowed, reason = self._call_check_permission(
+            agent_id, tool_name, category, params_sanitized, t0
+        )
+        if not allowed:
+            return {"ok": False, "reason": reason, "result": None, "report": None}
+
+        allowed, report, reason, report_dict = self._call_check_operation(
+            tool_name, params, category, agent_id, params_sanitized, t0
+        )
+        if not allowed:
+            return {
+                "ok": False,
+                "reason": reason,
+                "result": None,
+                "report": report_dict,
+            }
+
+        return await self._call_execute(
+            tool,
+            params,
+            agent_id,
+            tool_name,
+            category,
+            params_sanitized,
+            t0,
+            report,
+            report_dict,
+        )
 
     # ---- 便捷访问 ----
 
@@ -452,6 +520,7 @@ def _summarize(result: Any, max_len: int = 200) -> str:
     try:
         text = json.dumps(result, ensure_ascii=False, default=str)
     except Exception:
+        logger.warning("工具结果 JSON 序列化失败，回退 str", exc_info=True)
         text = str(result)
     text = sanitize_log(text) if isinstance(text, str) else text  # type: ignore
     return text[:max_len] + ("..." if len(text) > max_len else "")

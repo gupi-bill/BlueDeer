@@ -354,7 +354,7 @@ class TaskDAG:
                         completed[nid] = fut.result()
                     except Exception as e:
                         errors[nid] = e
-                        logger.error("并行执行节点 %s 失败: %s", nid, e)
+                        logger.exception("并行执行节点 %s 失败: %s")
 
         if errors:
             raise RuntimeError(f"以下节点执行失败: {list(errors.keys())}") from next(

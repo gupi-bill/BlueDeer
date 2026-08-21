@@ -37,7 +37,7 @@ class TaskStatus(Enum):
     RUNNING = "running"
     COMPLETED = "completed"
     #: SUCCESS 是 COMPLETED 的别名（大量调用方用 SUCCESS 判断成功）
-    SUCCESS = "completed"
+    SUCCESS = "completed"  # noqa: PIE796
     FAILED = "failed"
     CANCELLED = "cancelled"
 

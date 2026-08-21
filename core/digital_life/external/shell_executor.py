@@ -191,9 +191,18 @@ class ShellExecutor:
         actual_timeout = float(timeout if timeout is not None else self._timeout)
         start = time.time()
         try:
+            parts = shlex.split(command)
+            if not parts:
+                return ShellResult(
+                    False,
+                    command=command,
+                    stderr="命令解析失败",
+                    returncode=-1,
+                    duration_ms=(time.time() - start) * 1000,
+                    workdir=self._workdir,
+                )
             proc = subprocess.run(
-                command,
-                shell=True,
+                parts,
                 cwd=self._workdir,
                 capture_output=True,
                 text=True,

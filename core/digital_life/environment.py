@@ -27,16 +27,19 @@ commit 29：动态生态系统
 from __future__ import annotations
 
 import datetime
+import logging
 import random
 import threading
 import time
 from collections import deque
-from typing import Any
+from typing import Any, ClassVar
+
+logger = logging.getLogger(__name__)
 
 # ==================== commit 29：微气候区域定义 ====================
 # 每个区域：温度修正 / 湿度修正 / 物种偏好（在该区域的额外能量恢复倍率）
 # zone_id 与 run_biosphere.EMPLOYEES 的 species 一致（用于 set_zone）
-MICROCLIMATE_ZONES: dict[str, dict] = {
+MICROCLIMATE_ZONES: ClassVar[dict[str, dict]] = {
     "beaver": {  # 水坝机房
         "label": "水坝机房",
         "temp_delta": 0,
@@ -71,7 +74,7 @@ MICROCLIMATE_ZONES: dict[str, dict] = {
 
 # ==================== commit 29：天气类型 ====================
 # weather_key: {label, 户外活动倍率, 能量消耗倍率, 户外能量恢复倍率}
-WEATHER_TYPES: dict[str, dict] = {
+WEATHER_TYPES: ClassVar[dict[str, dict]] = {
     "sunny": {
         "label": "晴天",
         "outdoor_act_mult": 1.30,
@@ -119,7 +122,7 @@ WEATHER_TYPES: dict[str, dict] = {
 
 # ==================== commit 29：生态事件池 ====================
 # 每个事件：name / label / probability（每天触发概率）/ duration_sec / effect_type
-ECO_EVENTS: list[dict] = [
+ECO_EVENTS: ClassVar[list[dict]] = [
     {
         "name": "bug_invasion",
         "label": "真·虫子入侵",
@@ -181,7 +184,7 @@ class Environment:
     """数字生命共享环境（Borg 模式单例）。"""
 
     # Borg：所有实例共享 __dict__
-    __shared_state: dict = {
+    __shared_state: ClassVar[ClassVar[dict]] = {
         "food_available": 1000.0,
         "population": [],  # list[DigitalLifeForm]
         "event_log": None,  # 后续在 __init__ 中初始化为 deque
@@ -504,7 +507,7 @@ class Environment:
             if "day_of_month" in ev_def and now.day != ev_def["day_of_month"]:
                 continue
             # 天气限制
-            if "requires_weather" in ev_def:
+            if "requires_weather" in ev_def:  # noqa: SIM102
                 if self.current_weather != ev_def["requires_weather"]:
                     continue
             # 已经在活跃中？
@@ -1013,6 +1016,7 @@ class Environment:
                     emo_sum[k] += emo.get(k, 0)
                 n += 1
             except Exception:
+                logger.debug("情绪聚合跳过异常条目", exc_info=True)
                 continue
         global_emo = {k: round(v / n, 2) for k, v in emo_sum.items()} if n > 0 else {}
         return {"employees": employees, "global": global_emo, "count": n}
@@ -1136,9 +1140,9 @@ class Environment:
     def population_status(self) -> dict:
         """按物种/性别/阶段分组统计。"""
         with self._lock:
-            by_species: dict[str, int] = {}
-            by_gender: dict[str, int] = {}
-            by_stage: dict[str, int] = {}
+            by_species: ClassVar[dict[str, int]] = {}
+            by_gender: ClassVar[dict[str, int]] = {}
+            by_stage: ClassVar[dict[str, int]] = {}
             alive_count = 0
             for lf in self.population:
                 sp = getattr(lf, "species", "unknown")

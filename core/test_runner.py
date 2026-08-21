@@ -167,6 +167,14 @@ class TestRunner:
         Returns:
             TestRunResult。
         """
+        # 禁止路径遍历
+        if ".." in test_path or test_path.startswith("/") or (len(test_path) > 2 and test_path[1] == ":" and test_path[0].isalpha() and test_path[1] == ":" and test_path[2] == "\\" and not test_path.startswith("C:\\") and not test_path.startswith("D:\\")):
+            logger.error("检测到路径遍历 test_path: %s", test_path)
+            return TestRunResult(
+                passed=False,
+                stderr="无效的测试路径",
+                returncode=-3,
+            )
         cmd = [
             "python",
             "-m",
@@ -187,7 +195,7 @@ class TestRunner:
         t0 = time.time()
 
         try:
-            proc = subprocess.run(
+            proc = subprocess.run(  # noqa: PLW1510
                 cmd,
                 capture_output=True,
                 text=True,
@@ -206,7 +214,7 @@ class TestRunner:
                 returncode=-1,
             )
         except FileNotFoundError:
-            logger.error("pytest 未安装或 python 不在 PATH")
+            logger.exception("pytest 未安装或 python 不在 PATH")
             return TestRunResult(
                 passed=False,
                 stderr="pytest 未安装",

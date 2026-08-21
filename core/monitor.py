@@ -9,10 +9,6 @@
 
 from __future__ import annotations
 
-import logging
-
-logger = logging.getLogger(__name__)
-
 import asyncio
 import logging
 import os
@@ -259,16 +255,22 @@ class SystemMonitor:
 
     async def _run_loop(self) -> None:
         while self._running:
-            usage = self.resource_usage()
-            alerts = self._alert_evaluator.evaluate(usage)
-            record = {"timestamp": time.time(), "usage": usage, "alerts": alerts}
-            self._history.append(record)
-            if len(self._history) > self._max_history:
-                self._history = self._history[-self._max_history :]
-            if alerts:
-                for a in alerts:
-                    logger.warning("[监控告警] %s: %s", a["level"], a["message"])
-            await asyncio.sleep(self._interval)
+            try:
+                usage = self.resource_usage()
+                alerts = self._alert_evaluator.evaluate(usage)
+                record = {"timestamp": time.time(), "usage": usage, "alerts": alerts}
+                self._history.append(record)
+                if len(self._history) > self._max_history:
+                    self._history = self._history[-self._max_history :]
+                if alerts:
+                    for a in alerts:
+                        logger.warning("[监控告警] %s: %s", a["level"], a["message"])
+                await asyncio.sleep(self._interval)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception("监控循环异常（已恢复）")
+                await asyncio.sleep(self._interval)
 
     def get_history(self, limit: int = 10) -> list[dict[str, Any]]:
         return self._history[-limit:]

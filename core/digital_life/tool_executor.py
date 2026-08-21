@@ -339,30 +339,7 @@ class ToolExecutor:
 
     # ---------------- commit 39：外部集成（git/shell/api）----------------
 
-    def execute_external(self, agent: Any, op_type: str, params: dict) -> ToolResult:
-        """执行外部集成工具调用（git / shell / api）。
-
-        零基础理解：本方法把 git/shell/api 三类外部操作统一交给
-        ExternalManager 处理。ExternalManager 内部自带审批工作流
-        （读类放行、写类挂审批、30 分钟超时自动拒绝），不与本类的
-        ApprovalRequest 重复审批。
-
-        Args:
-            agent: 调用方智能体实例
-            op_type: "git" / "shell" / "api"
-            params: {
-                git:   {"args": ["status"], "summary": "...", "risk_level": "low"}
-                shell: {"command": "pytest -x", "summary": "...", "risk_level": "medium"}
-                api:   {"endpoint": "github_api", "method": "GET",
-                        "path": "/repos/...", "summary": "...", "risk_level": "low"}
-            }
-
-        Returns:
-            ToolResult（ok=True 表示外部集成受理并执行成功；
-                       ok=False 表示被拒绝/超时/执行出错，error 字段说明原因）
-        """
-        from core.digital_life.external import get_external_manager
-
+    def _get_external_agent_id(self, agent: Any) -> str:
         agent_id = ""
         if agent is not None:
             try:
@@ -371,9 +348,14 @@ class ToolExecutor:
                 agent_id = ""
             getattr(agent, "_name_obj", "") or ""
             getattr(agent, "species", "") or ""
+        return agent_id
+
+    def _execute_external_op(
+        self, op_type: str, params: dict, agent: Any
+    ) -> tuple[Any, str]:
+        from core.digital_life.external import get_external_manager
 
         mgr = get_external_manager()
-        start = time.time()
         summary = params.get("summary", "") or f"{op_type} op"
         risk_level = params.get("risk_level", "medium")
         result_obj: Any = None
@@ -415,10 +397,11 @@ class ToolExecutor:
                 error_msg = f"unknown external op_type: {op_type}"
         except Exception as e:
             error_msg = f"execute_external 异常: {e}\n{traceback.format_exc()}"
+        return result_obj, error_msg
 
-        duration_ms = (time.time() - start) * 1000
-
-        # ExternalManager 返回的对象可能是 GitResult/ShellResult/ApiResult/ApprovalRequest/dict
+    def _normalize_external_result(
+        self, result_obj: Any, error_msg: str
+    ) -> tuple[bool, Any, str, str]:
         ok = False
         output: Any = None
         stdout = ""
@@ -428,9 +411,7 @@ class ToolExecutor:
         elif result_obj is None:
             stderr = "external manager returned None"
         else:
-            # 各种 Result 对象都有 .ok 字段
             ok = bool(getattr(result_obj, "ok", False))
-            # 优先取 stdout/stderr（git/shell），其次取 response_body（api）
             stdout = (
                 getattr(result_obj, "stdout", "")
                 or getattr(result_obj, "response_body", "")
@@ -441,7 +422,6 @@ class ToolExecutor:
                 or getattr(result_obj, "error", "")
                 or ""
             )
-            # 如果是 ApprovalRequest（写类挂审批中），result_obj.decision 决定 ok
             decision = getattr(result_obj, "decision", "")
             if decision == "rejected":
                 ok = False
@@ -451,7 +431,6 @@ class ToolExecutor:
                     or "approval rejected"
                 )
             elif decision == "approved":
-                # 已审批通过：result_obj 实际是 ApprovalRequest，需取 result 字段
                 actual = getattr(result_obj, "result", None)
                 if actual is not None:
                     ok = bool(getattr(actual, "ok", False))
@@ -468,17 +447,45 @@ class ToolExecutor:
                 else:
                     ok = True
             elif decision == "":
-                # 还在等待审批 → 视为挂起，不算成功
                 ok = False
                 stderr = "approval still pending or timeout"
             output = result_obj
+        return ok, output, stdout, stderr
 
+    def execute_external(self, agent: Any, op_type: str, params: dict) -> ToolResult:
+        """执行外部集成工具调用（git / shell / api）。
+
+        零基础理解：本方法把 git/shell/api 三类外部操作统一交给
+        ExternalManager 处理。ExternalManager 内部自带审批工作流
+        （读类放行、写类挂审批、30 分钟超时自动拒绝），不与本类的
+        ApprovalRequest 重复审批。
+
+        Args:
+            agent: 调用方智能体实例
+            op_type: "git" / "shell" / "api"
+            params: {
+                git:   {"args": ["status"], "summary": "...", "risk_level": "low"}
+                shell: {"command": "pytest -x", "summary": "...", "risk_level": "medium"}
+                api:   {"endpoint": "github_api", "method": "GET",
+                        "path": "/repos/...", "summary": "...", "risk_level": "low"}
+            }
+
+        Returns:
+            ToolResult（ok=True 表示外部集成受理并执行成功；
+                       ok=False 表示被拒绝/超时/执行出错，error 字段说明原因）
+        """
+        agent_id = self._get_external_agent_id(agent)
+        start = time.time()
+        result_obj, error_msg = self._execute_external_op(op_type, params, agent)
+        ok, output, stdout, stderr = self._normalize_external_result(
+            result_obj, error_msg
+        )
         tool_name_full = f"external_{op_type}"
         result = ToolResult(
             ok=ok,
             output=output,
             error=stderr,
-            duration_ms=duration_ms,
+            duration_ms=(time.time() - start) * 1000,
             stdout=str(stdout)[:2000],
             stderr=str(stderr)[:2000],
             tool_name=tool_name_full,
@@ -502,80 +509,54 @@ class ToolExecutor:
             self._pending_approvals[aid] = a
         return a
 
-    def _run_in_sandbox(
-        self,
-        tool_name: str,
-        params: dict,
-        agent_id: str,
-        timeout: float,
-        warning: str = "",
-    ) -> ToolResult:
-        """在独立线程中执行工具，捕获 stdout/stderr，超时终止。"""
+    def _run_sandbox_impl(
+        self, tool_name: str, params: dict, out_box: dict, done_evt: threading.Event
+    ) -> None:
         from core.digital_life.tool_registry import FALLBACK_IMPLEMENTATIONS
 
-        start = time.time()
-        out_box: dict = {}
-        # 用一个事件 + 子线程实现超时
-        done_evt = threading.Event()
+        impl = FALLBACK_IMPLEMENTATIONS.get(tool_name)
+        if impl is None:
+            out_box["output"] = {
+                "simulated": True,
+                "summary": f"工具 {tool_name} 无兜底实现，返回模拟结果",
+            }
+            return
+        clean_params = {k: v for k, v in params.items() if v is not None}
+        import inspect as _inspect
 
-        def _runner():
-            # 捕获 stdout/stderr
-            old_out, old_err = sys.stdout, sys.stderr
-            sys.stdout = io.StringIO()
-            sys.stderr = io.StringIO()
-            try:
-                impl = FALLBACK_IMPLEMENTATIONS.get(tool_name)
-                if impl is None:
-                    out_box["output"] = {
-                        "simulated": True,
-                        "summary": f"工具 {tool_name} 无兜底实现，返回模拟结果",
-                    }
-                    return
-                # 调用，过滤 params 中 None 值
-                clean_params = {k: v for k, v in params.items() if v is not None}
-                # 只传 fallback 实现实际接受的参数（避免 func_name 这类
-                # 工具描述里有但 fallback 签名里没有的参数导致 TypeError）
-                import inspect as _inspect
-
-                try:
-                    sig = _inspect.signature(impl)
-                    accepts_kwargs = any(
-                        p.kind == _inspect.Parameter.VAR_KEYWORD
-                        for p in sig.parameters.values()
-                    )
-                    if not accepts_kwargs:
-                        valid_keys = set(sig.parameters.keys())
-                        clean_params = {
-                            k: v for k, v in clean_params.items() if k in valid_keys
-                        }
-                except (ValueError, TypeError):
-                    logger.exception("Exception in block")
-                result = impl(**clean_params)
-                out_box["output"] = result
-            except Exception as e:
-                out_box["error"] = str(e) + "\n" + traceback.format_exc()
-            finally:
-                out_box["stdout"] = sys.stdout.getvalue() or ""
-                out_box["stderr"] = sys.stderr.getvalue() or ""
-                sys.stdout, sys.stderr = old_out, old_err
-                done_evt.set()
-
-        t = threading.Thread(target=_runner, daemon=True)
-        t.start()
-        # 等待完成或超时
-        if not done_evt.wait(timeout=timeout):
-            # 超时（线程仍在跑，但作为 daemon 不会阻塞进程退出）
-            duration = (time.time() - start) * 1000
-            result = ToolResult(
-                False,
-                error="timeout after " + str(timeout) + "s",
-                duration_ms=duration,
-                tool_name=tool_name,
-                agent_id=agent_id,
+        try:
+            sig = _inspect.signature(impl)
+            accepts_kwargs = any(
+                p.kind == _inspect.Parameter.VAR_KEYWORD
+                for p in sig.parameters.values()
             )
-            self._add_history(result)
-            return result
+            if not accepts_kwargs:
+                valid_keys = set(sig.parameters.keys())
+                clean_params = {
+                    k: v for k, v in clean_params.items() if k in valid_keys
+                }
+        except (ValueError, TypeError):
+            logger.exception("Exception in block")
+        result = impl(**clean_params)
+        out_box["output"] = result
 
+    def _build_sandbox_timeout_result(
+        self, tool_name: str, start: float, timeout: float
+    ) -> ToolResult:
+        duration = (time.time() - start) * 1000
+        result = ToolResult(
+            False,
+            error="timeout after " + str(timeout) + "s",
+            duration_ms=duration,
+            tool_name=tool_name,
+            agent_id="",
+        )
+        self._add_history(result)
+        return result
+
+    def _build_sandbox_completion_result(
+        self, out_box: dict, tool_name: str, start: float, warning: str
+    ) -> ToolResult:
         duration = (time.time() - start) * 1000
         if "error" in out_box:
             result = ToolResult(
@@ -585,7 +566,7 @@ class ToolExecutor:
                 stdout=out_box.get("stdout", ""),
                 stderr=(warning + "\n" if warning else "") + out_box.get("stderr", ""),
                 tool_name=tool_name,
-                agent_id=agent_id,
+                agent_id="",
             )
         else:
             result = ToolResult(
@@ -595,10 +576,43 @@ class ToolExecutor:
                 stdout=out_box.get("stdout", ""),
                 stderr=(warning + "\n" if warning else "") + out_box.get("stderr", ""),
                 tool_name=tool_name,
-                agent_id=agent_id,
+                agent_id="",
             )
         self._add_history(result)
         return result
+
+    def _run_in_sandbox(
+        self,
+        tool_name: str,
+        params: dict,
+        agent_id: str,
+        timeout: float,
+        warning: str = "",
+    ) -> ToolResult:
+        """在独立线程中执行工具，捕获 stdout/stderr，超时终止。"""
+        start = time.time()
+        out_box: dict = {}
+        done_evt = threading.Event()
+
+        def _runner():
+            old_out, old_err = sys.stdout, sys.stderr
+            sys.stdout = io.StringIO()
+            sys.stderr = io.StringIO()
+            try:
+                self._run_sandbox_impl(tool_name, params, out_box, done_evt)
+            except Exception as e:
+                out_box["error"] = str(e)
+            finally:
+                out_box["stdout"] = sys.stdout.getvalue() or ""
+                out_box["stderr"] = sys.stderr.getvalue() or ""
+                sys.stdout, sys.stderr = old_out, old_err
+                done_evt.set()
+
+        t = threading.Thread(target=_runner, daemon=True)
+        t.start()
+        if not done_evt.wait(timeout=timeout):
+            return self._build_sandbox_timeout_result(tool_name, start, timeout)
+        return self._build_sandbox_completion_result(out_box, tool_name, start, warning)
 
     # ------------------------------------------------------------------
     # commit 42：execute_safe 沙箱包装

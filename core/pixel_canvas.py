@@ -112,26 +112,6 @@ class PixelCanvas:
         grid = self._layers.get(name)
         return [[c for c in row] for row in grid] if grid else None
 
-    def set_pixel(
-        self,
-        x: int,
-        y: int,
-        char: str,
-        color: int = Color.WHITE,
-        layer: str | None = None,
-    ) -> None:
-        """画像素到指定图层（默认 base）。"""
-        l = layer or self._default_layer
-        grid = self._layers.get(l)
-        if grid is None:
-            return
-        if not (0 <= x < self._w and 0 <= y < self._h):
-            return
-        if not char:
-            return
-        self._snapshot_layer(l)
-        grid[y][x] = (char[0], color)
-
     @property
     def width(self) -> int:
         return self._w

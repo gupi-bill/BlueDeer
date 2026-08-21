@@ -39,6 +39,19 @@ _SQL_INJECTION_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\bxp_cmdshell\b", re.IGNORECASE),
 ]
 
+_SSRF_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"https?://(?:localhost|127\.0\.0\.1|0\.0\.0\.0|::1|169\.254|10\.\d+|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.)", re.IGNORECASE),
+    re.compile(r"gopher://|file:///|dict://|ftp://", re.IGNORECASE),
+    re.compile(r"(?:aws|azure|gcp)_metadata", re.IGNORECASE),
+]
+
+_COMMAND_INJECTION_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"\b(?:os|subprocess|commands|popen)\.\w+\([^)]*(?:shell|popen)", re.IGNORECASE),
+    re.compile(r"\|\s*(?:sh|bash|cmd|powershell)", re.IGNORECASE),
+    re.compile(r";\s*(?:cat|ls|dir|whoami|id|curl|wget)", re.IGNORECASE),
+    re.compile(r"\$\([^)]+\)", re.IGNORECASE),
+]
+
 _PATH_TRAVERSAL_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\.\./"),
     re.compile(r"\.\.\\"),
@@ -376,6 +389,34 @@ class SecurityScanner:
                 )
         return threats
 
+    def scan_ssrf(self, text: str) -> list[Threat]:
+        threats: list[Threat] = []
+        for pat in _SSRF_PATTERNS:
+            for m in pat.finditer(text):
+                threats.append(
+                    Threat(
+                        "ssrf",
+                        _THREAT_RISK["unauthorized_access"],
+                        m.group()[:80],
+                        f"pos={m.start()}",
+                    )
+                )
+        return threats
+
+    def scan_command_injection(self, text: str) -> list[Threat]:
+        threats: list[Threat] = []
+        for pat in _COMMAND_INJECTION_PATTERNS:
+            for m in pat.finditer(text):
+                threats.append(
+                    Threat(
+                        "command_injection",
+                        _THREAT_RISK["unsafe_api"],
+                        m.group()[:80],
+                        f"pos={m.start()}",
+                    )
+                )
+        return threats
+
     def scan_undisinfected_log(self, text: str) -> list[Threat]:
         threats: list[Threat] = []
         for kind, pat in _UNDISINFECTED_LOG_PATTERNS:
@@ -422,6 +463,8 @@ class SecurityScanner:
         threats.extend(self.scan_unsafe_api(text))
         threats.extend(self.scan_weak_crypto(text))
         threats.extend(self.scan_unauthorized_access(text))
+        threats.extend(self.scan_ssrf(text))
+        threats.extend(self.scan_command_injection(text))
         threats.extend(self.scan_undisinfected_log(text))
         threats.extend(self.scan_insecure_config(text))
         return SecurityReport(
@@ -438,6 +481,8 @@ class SecurityScanner:
             "unsafe_api",
             "weak_crypto",
             "unauthorized_access",
+            "ssrf",
+            "command_injection",
             "undisinfected_log",
             "insecure_config",
         ]

@@ -9,8 +9,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import threading
 import time
 from typing import Any
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
@@ -29,6 +31,39 @@ router = APIRouter(prefix="/api/v1", tags=["BlueDeer API"])
 _api_config = get_config().api
 _RATE_LIMIT_REQUESTS = _api_config.rate_limit_requests
 _RATE_LIMIT_WINDOW = _api_config.rate_limit_window
+_MAX_TASK_TYPE_LEN = 50
+_MAX_ASSIGNEE_LEN = 100
+_MAX_DESCRIPTION_LEN = 2000
+_MAX_JOB_ID_LEN = 100
+_MAX_CRON_LEN = 100
+_ALLOWED_TASK_TYPES = {
+    "general",
+    "code",
+    "architecture",
+    "batch",
+    "voice",
+    "image",
+    "data",
+}
+_MAX_WEBHOOK_URL_LEN = 2048
+_MAX_WEBHOOK_ID_LEN = 100
+_MAX_SECRET_LEN = 256
+_ALLOWED_URL_SCHEMES = {"http", "https"}
+
+
+def _validate_webhook_url(url: str) -> None:
+    if len(url) > _MAX_WEBHOOK_URL_LEN:
+        raise HTTPException(400, f"URL 超过最大长度 {_MAX_WEBHOOK_URL_LEN}")
+    parsed = urlparse(url)
+    if parsed.scheme not in _ALLOWED_URL_SCHEMES:
+        raise HTTPException(400, f"URL 协议必须是 {_ALLOWED_URL_SCHEMES}")
+    hostname = parsed.hostname or ""
+    if hostname in ("localhost", "127.0.0.1", "0.0.0.0", "::1"):
+        raise HTTPException(400, "Webhook URL 不能指向本地地址")
+    if hostname.startswith(("10.", "192.168.", "172.")):
+        raise HTTPException(400, "Webhook URL 不能指向内网地址")
+    if hostname.endswith((".local", ".lan")):
+        raise HTTPException(400, "Webhook URL 不能指向本地域名")
 
 
 class RateLimiter:
@@ -42,24 +77,27 @@ class RateLimiter:
         self._max = max_requests
         self._window = window
         self._buckets: dict[str, list[float]] = {}
+        self._lock = threading.Lock()
 
     def check(self, key: str) -> tuple[bool, int]:
         now = time.time()
         cutoff = now - self._window
-        if key not in self._buckets:
-            self._buckets[key] = []
-        self._buckets[key] = [ts for ts in self._buckets[key] if ts > cutoff]
-        if len(self._buckets[key]) >= self._max:
-            return False, len(self._buckets[key])
-        self._buckets[key].append(now)
-        return True, len(self._buckets[key])
+        with self._lock:
+            if key not in self._buckets:
+                self._buckets[key] = []
+            self._buckets[key] = [ts for ts in self._buckets[key] if ts > cutoff]
+            if len(self._buckets[key]) >= self._max:
+                return False, len(self._buckets[key])
+            self._buckets[key].append(now)
+            return True, len(self._buckets[key])
 
     def cleanup(self) -> None:
         now = time.time()
         cutoff = now - self._window
-        self._buckets = {
-            k: [ts for ts in v if ts > cutoff] for k, v in self._buckets.items()
-        }
+        with self._lock:
+            self._buckets = {
+                k: [ts for ts in v if ts > cutoff] for k, v in self._buckets.items()
+            }
 
 
 _rate_limiter = RateLimiter()
@@ -135,6 +173,12 @@ async def create_task(
 ) -> dict[str, Any]:
     if _harness is None:
         raise HTTPException(503, "Harness 未初始化")
+    if len(task_type) > _MAX_TASK_TYPE_LEN:
+        raise HTTPException(400, f"task_type 超过最大长度 {_MAX_TASK_TYPE_LEN}")
+    if len(assignee) > _MAX_ASSIGNEE_LEN:
+        raise HTTPException(400, f"assignee 超过最大长度 {_MAX_ASSIGNEE_LEN}")
+    if len(description) > _MAX_DESCRIPTION_LEN:
+        raise HTTPException(400, f"description 超过最大长度 {_MAX_DESCRIPTION_LEN}")
     task = Task(type=task_type, payload={"description": description}, assignee=assignee)
     if _shutdown_event.is_set():
         raise HTTPException(503, "服务正在关闭，拒绝新任务")
@@ -224,6 +268,10 @@ async def create_schedule(
     assignee: str = Query(default=""),
     description: str = Query(default=""),
 ) -> dict[str, Any]:
+    if len(job_id) > _MAX_JOB_ID_LEN:
+        raise HTTPException(400, f"job_id 超过最大长度 {_MAX_JOB_ID_LEN}")
+    if len(cron) > _MAX_CRON_LEN:
+        raise HTTPException(400, f"cron 超过最大长度 {_MAX_CRON_LEN}")
     if _scheduler is None:
         raise HTTPException(503, "Scheduler 未初始化")
     job = JobDef(
@@ -279,6 +327,11 @@ async def create_webhook(
 ) -> dict[str, Any]:
     if _webhook is None:
         raise HTTPException(503, "WebhookDispatcher 未初始化")
+    if len(hook_id) > _MAX_WEBHOOK_ID_LEN:
+        raise HTTPException(400, f"hook_id 超过最大长度 {_MAX_WEBHOOK_ID_LEN}")
+    if len(secret) > _MAX_SECRET_LEN:
+        raise HTTPException(400, f"secret 超过最大长度 {_MAX_SECRET_LEN}")
+    _validate_webhook_url(url)
     event_list = [e.strip() for e in events.split(",") if e.strip()]
     hook = WebhookDef(
         id=hook_id, url=url, events=event_list, secret=secret, description=description
@@ -312,7 +365,7 @@ async def generate_report(fmt: str = Query(default="markdown")) -> dict[str, Any
     trace_lines: list[str] = []
     trace_file = "logs/trace.log"
     if os.path.exists(trace_file):
-        with open(trace_file, "r", encoding="utf-8") as f:
+        with open(trace_file, "r", encoding="utf-8") as f:  # noqa: ASYNC230
             trace_lines = f.readlines()
 
     gen = ReportGenerator()
@@ -322,7 +375,7 @@ async def generate_report(fmt: str = Query(default="markdown")) -> dict[str, Any
         trace_lines=trace_lines,
         fmt=fmt,
     )
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, "r", encoding="utf-8") as f:  # noqa: ASYNC230
         content = f.read()
     return {
         "path": path,

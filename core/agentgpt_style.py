@@ -16,10 +16,6 @@
 from __future__ import annotations
 
 import logging
-
-logger = logging.getLogger(__name__)
-
-import logging
 from dataclasses import dataclass, field
 
 from core.base_agent import BaseAgent

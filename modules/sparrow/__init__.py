@@ -1,6 +1,3 @@
-import logging
-
-logger = logging.getLogger(__name__)
 """灵音雀 VoiceSparrowAgent 模块：双形态全局状态播报员。
 
 模块组成：
@@ -9,3 +6,7 @@ logger = logging.getLogger(__name__)
 - announcer.py：自动巡检播报器（定时简报 + 异常告警 + 节点播报）
 - logs/：巡检简报与告警历史持久化
 """
+
+import logging
+
+logger = logging.getLogger(__name__)

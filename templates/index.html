@@ -4,9 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>BlueDeer · 夜森林</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- 字体已本地化：不再依赖在线 Google Fonts，改用系统字体兜底（见 :root 的 --font-* 变量），纯本地离线可用 -->
 <style>
 /* ============================================================
    Nocturne Forest · 夜森林视觉系统
@@ -37,9 +35,9 @@
   --canvas-text-shadow: rgba(0, 0, 0, 0.85);
   --canvas-brighten: 0;        /* 浅色模式下瓦片调亮系数 */
   /* 字体 */
-  --font-display: 'Fraunces', 'Source Han Serif SC', serif;
-  --font-body: 'Manrope', -apple-system, 'PingFang SC', sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+  --font-display: 'Fraunces', 'Microsoft YaHei', 'Source Han Serif SC', serif;
+  --font-body: 'Manrope', 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Consolas', 'SF Mono', monospace;
   /* 圆角 */
   --radius-sm: 4px;
   --radius: 8px;
@@ -1252,13 +1250,6 @@ nav a:hover::after { width: 100%; }
   </div>
   <span class="brand">BlueDeer</span>
   <div id="nav-time-display"></div>
-  <div id="nav-speed-ctrl" title="commit 44-3：游戏时间倍速">
-    <button data-speed="1" onclick="setGameSpeed(1)">1x</button>
-    <button data-speed="60" class="active" onclick="setGameSpeed(60)">60x</button>
-    <button data-speed="300" onclick="setGameSpeed(300)">300x</button>
-  </div>
-  <button id="immersive-btn" title="沉浸感设置"
-          onclick="openImmersivePanel()">沉浸感</button>
   <button id="theme-toggle" title="切换深/浅色模式">
     <span class="icon-moon">☾</span>
     <span class="icon-sun">☀</span>
@@ -1276,6 +1267,7 @@ nav a:hover::after { width: 100%; }
       <button onclick="toggleNavDrawer(); toggleSuggestions()">💡 建议中心</button>
       <button onclick="toggleNavDrawer(); toggleExternalPanel()">🔌 外部集成</button>
       <button onclick="toggleNavDrawer(); openApprovalsModal()">🔔 审批队列</button>
+      <button onclick="toggleNavDrawer(); openEmployeeWorkflow()">🔀 员工工作流</button>
     </div>
     <div class="drawer-section">
       <div class="drawer-title">员工</div>
@@ -1302,20 +1294,6 @@ nav a:hover::after { width: 100%; }
 </nav>
 <div id="stage">
   <canvas id="map-canvas"></canvas>
-  <div id="status-panel">
-    <button class="panel-collapse panel-close-btn" data-target="status-panel" title="关闭面板（点击外部也可关闭）">✕</button>
-    <div class="panel-resize x" data-target="status-panel" data-dir="x" title="左右拖拽调整宽度"></div>
-    <div id="global-stats"></div>
-    <h3>实时状态</h3>
-    <div id="env-stats"></div>
-    <h3>生态系统</h3>
-    <div id="eco-stats"></div>
-    <!-- commit 45-2：实时趋势 Canvas 折线图（食物/植物/昆虫/平均精力 4 条曲线） -->
-    <h3>实时趋势</h3>
-    <canvas id="stats-chart" width="280" height="120" style="display:block;width:100%;height:120px;"></canvas>
-    <h3>员工 · 点击定位</h3>
-    <div id="employee-list"></div>
-  </div>
   <div id="tool-bar">
     <button id="tool-greet" title="问候（1）" data-action="greet">问候</button>
     <button id="tool-feed"  title="投喂（2）" data-action="feed">投喂</button>
@@ -1333,28 +1311,7 @@ nav a:hover::after { width: 100%; }
     <canvas id="minimap-canvas" width="160" height="120"></canvas>
     <div class="panel-resize xy" data-target="minimap" data-dir="xy" title="拖拽调整大小"></div>
   </div>
-  <!-- commit 50-3：贴底木质长条面板（左小地图 + 分隔线 + 右工具按钮）-->
-  <div id="bottom-dock">
-    <div class="dock-minimap">
-      <canvas id="dock-minimap-canvas" width="96" height="48"></canvas>
-    </div>
-    <div class="dock-divider"></div>
-    <div class="dock-tools">
-      <button data-action="greet" title="问候（1）">问候</button>
-      <button data-action="feed" title="投喂（2）">投喂</button>
-      <button data-action="mark_focus" title="训练（3）">训练</button>
-      <button data-action="set_schedule" title="休息（4）">休息</button>
-      <button data-action="recruit" title="招募（5）">招募</button>
-    </div>
-  </div>
-  <div id="help">
-    <button class="panel-collapse" data-target="help" title="收起说明">×</button>
-    拖拽滚动 · 滚轮缩放 · 点击员工定位<br>
-    <kbd>1</kbd>–<kbd>5</kbd> 切工具 · <kbd>Space</kbd> 居中监工
-  </div>
-  <button id="status-restore" class="panel-restore" data-target="status-panel">展开状态面板</button>
   <button id="minimap-restore" class="panel-restore" data-target="minimap">展开小地图</button>
-  <button id="help-restore" class="panel-restore" data-target="help">展开操作说明</button>
   <div id="tooltip"></div>
   <div id="toast"></div>
 
@@ -12989,6 +12946,21 @@ function lazyLoadMap(region) {
 
 console.log('[commit 39] 项目看板 + 外部集成已加载：P 键看板，E 键外部集成');
 console.log('[commit 44] 员工快捷菜单 + 指令对话框 + 日夜循环 + 事件流面板已加载');
+
+function openEmployeeWorkflow() {
+  var m = document.getElementById('employee-workflow-modal');
+  if (m) m.style.display = 'block';
+}
 </script>
+
+<div id="employee-workflow-modal" style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(10,10,15,0.7);">
+  <div style="position:absolute; top:3%; left:3%; right:3%; bottom:3%; background:#1a1c22; border:1px solid #333; border-radius:12px; overflow:hidden; display:flex; flex-direction:column;">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 16px; background:#22252b; border-bottom:1px solid #333;">
+      <span style="color:#d5d9e0; font-size:14px; font-weight:600;">🔀 BlueDeer 员工工作流</span>
+      <button onclick="document.getElementById('employee-workflow-modal').style.display='none'" style="background:none; border:none; color:#9aa1ad; font-size:22px; cursor:pointer;">×</button>
+    </div>
+    <iframe id="employee-workflow-frame" src="/game/workflow" style="flex:1; border:none; width:100%; height:100%;"></iframe>
+  </div>
+</div>
 </body>
 </html>

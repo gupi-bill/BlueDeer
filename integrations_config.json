@@ -1,0 +1,22 @@
+{
+  "channels": {
+    "desktop_notify": {
+      "enabled": false
+    }
+  },
+  "quiet_hours": {
+    "enabled": true,
+    "start": "00:00",
+    "end": "23:59"
+  },
+  "message_routing": {
+    "urgent": [],
+    "important": [],
+    "normal": [],
+    "social": []
+  },
+  "digest": {
+    "enabled": false,
+    "interval_hours": 1
+  }
+}

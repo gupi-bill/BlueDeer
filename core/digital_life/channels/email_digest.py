@@ -193,7 +193,7 @@ def send_digest(config: dict, messages: list[dict]) -> bool:
     body_html = f"""
     <p>你有 <strong>{len(messages)}</strong> 条未读消息：</p>
     <ul class="msg-list">
-        {''.join(items_html)}
+        {"".join(items_html)}
     </ul>
     """
     html = _HTML_TEMPLATE.format(
@@ -204,6 +204,67 @@ def send_digest(config: dict, messages: list[dict]) -> bool:
         dashboard_url="http://127.0.0.1:8080/",
     )
     return _smtp_send(config, f"BlueDeer 摘要 | {now.strftime('%Y-%m-%d %H:%M')}", html)
+
+
+def _build_tasks_html(tasks: list) -> str:
+    if not tasks:
+        return "<p>今日无完成任务记录。</p>"
+    return "<ul>" + "".join(f"<li>{t}</li>" for t in tasks) + "</ul>"
+
+
+def _build_employee_table_html(employees: list) -> str:
+    emp_rows = ""
+    for e in employees:
+        emp_rows += (
+            f"<tr>"
+            f"<td>{e.get('name', '?')}</td>"
+            f"<td>{e.get('species', '?')}</td>"
+            f"<td>{e.get('energy', 0):.0f}</td>"
+            f"<td>{e.get('health', 0):.0f}</td>"
+            f"<td>{e.get('mood', '?')}</td>"
+            f"</tr>"
+        )
+    if emp_rows:
+        return (
+            "<table><thead><tr>"
+            "<th>姓名</th><th>物种</th><th>能量</th><th>健康</th><th>心情</th>"
+            "</tr></thead><tbody>" + emp_rows + "</tbody></table>"
+        )
+    return "<p>暂无员工数据。</p>"
+
+
+def _build_events_html(events: list) -> str:
+    if not events:
+        return "<p>今日无重要事件。</p>"
+    return (
+        "<ul>"
+        + "".join(
+            f"<li><strong>{e.get('type', '')}</strong>：{e.get('desc', '')} "
+            f"<span class='msg-time'>({e.get('time', '')})</span></li>"
+            for e in events
+        )
+        + "</ul>"
+    )
+
+
+def _build_warnings_html(warnings: list) -> str:
+    if not warnings:
+        return "<p>暂无预警。</p>"
+    return (
+        "<ul style='color: #ff4757;'>"
+        + "".join(f"<li>{w}</li>" for w in warnings)
+        + "</ul>"
+    )
+
+
+def _build_funny_html(funny: list) -> str:
+    if not funny:
+        return "<p>今日无趣事。</p>"
+    return (
+        "<ul style='color: #825ee4;'>"
+        + "".join(f"<li>{f}</li>" for f in funny)
+        + "</ul>"
+    )
 
 
 def send_daily_report(config: dict, report_data: dict) -> bool:
@@ -224,66 +285,11 @@ def send_daily_report(config: dict, report_data: dict) -> bool:
         True 表示发送成功
     """
     date_str = report_data.get("date", datetime.datetime.now().strftime("%Y年%m月%d日"))
-    # 任务列表
-    tasks = report_data.get("tasks_done", [])
-    tasks_html = "<p>今日无完成任务记录。</p>"
-    if tasks:
-        tasks_html = "<ul>" + "".join(f"<li>{t}</li>" for t in tasks) + "</ul>"
-    # 员工状态表
-    employees = report_data.get("employees", [])
-    emp_rows = ""
-    for e in employees:
-        emp_rows += (
-            f"<tr>"
-            f"<td>{e.get('name', '?')}</td>"
-            f"<td>{e.get('species', '?')}</td>"
-            f"<td>{e.get('energy', 0):.0f}</td>"
-            f"<td>{e.get('health', 0):.0f}</td>"
-            f"<td>{e.get('mood', '?')}</td>"
-            f"</tr>"
-        )
-    emp_table = (
-        "<table><thead><tr>"
-        "<th>姓名</th><th>物种</th><th>能量</th><th>健康</th><th>心情</th>"
-        "</tr></thead><tbody>" + emp_rows + "</tbody></table>"
-        if emp_rows
-        else "<p>暂无员工数据。</p>"
-    )
-    # 重要事件
-    events = report_data.get("events", [])
-    events_html = "<p>今日无重要事件。</p>"
-    if events:
-        events_html = (
-            "<ul>"
-            + "".join(
-                f"<li><strong>{e.get('type', '')}</strong>：{e.get('desc', '')} "
-                f"<span class='msg-time'>({e.get('time', '')})</span></li>"
-                for e in events
-            )
-            + "</ul>"
-        )
-    # 预警
-    warnings = report_data.get("warnings", [])
-    warnings_html = (
-        "<p>暂无预警。</p>"
-        if not warnings
-        else (
-            "<ul style='color: #ff4757;'>"
-            + "".join(f"<li>{w}</li>" for w in warnings)
-            + "</ul>"
-        )
-    )
-    # 趣事
-    funny = report_data.get("funny_logs", [])
-    funny_html = (
-        "<p>今日无趣事。</p>"
-        if not funny
-        else (
-            "<ul style='color: #825ee4;'>"
-            + "".join(f"<li>{f}</li>" for f in funny)
-            + "</ul>"
-        )
-    )
+    tasks_html = _build_tasks_html(report_data.get("tasks_done", []))
+    emp_table = _build_employee_table_html(report_data.get("employees", []))
+    events_html = _build_events_html(report_data.get("events", []))
+    warnings_html = _build_warnings_html(report_data.get("warnings", []))
+    funny_html = _build_funny_html(report_data.get("funny_logs", []))
 
     body_html = f"""
     <h3>今日完成的任务</h3>

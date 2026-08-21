@@ -22,10 +22,42 @@ from core.scheduler import JobDef, Scheduler
 from core.task import Task
 from core.task_templates import TaskTemplates
 from core.webhook import _ALL_EVENTS, WebhookDef, WebhookDispatcher
+from urllib.parse import urlparse
 
 # ruff: noqa: S110, S112
 
 logger = logging.getLogger("bluedeer.admin")
+
+_MAX_WEBHOOK_URL_LEN = 2048
+_MAX_WEBHOOK_ID_LEN = 100
+_MAX_SECRET_LEN = 256
+_ALLOWED_URL_SCHEMES = {"http", "https"}
+
+
+def _validate_webhook_url(url: str) -> str | None:
+    if len(url) > _MAX_WEBHOOK_URL_LEN:
+        return f"URL 超过最大长度 {_MAX_WEBHOOK_URL_LEN}"
+    parsed = urlparse(url)
+    if parsed.scheme not in _ALLOWED_URL_SCHEMES:
+        return f"URL 协议必须是 {_ALLOWED_URL_SCHEMES}"
+    hostname = parsed.hostname or ""
+    if hostname in ("localhost", "127.0.0.1", "0.0.0.0", "::1"):
+        return "Webhook URL 不能指向本地地址"
+    if hostname.startswith("10.") or hostname.startswith("192.168.") or hostname.startswith("172."):
+        return "Webhook URL 不能指向内网地址"
+    if hostname.endswith(".local") or hostname.endswith(".lan"):
+        return "Webhook URL 不能指向本地域名"
+    return None
+
+
+def _escape_html(text: str) -> str:
+    """Escape HTML special characters to prevent XSS."""
+    s = str(text)
+    s = s.replace("&", "&amp;")
+    s = s.replace("<", "&lt;")
+    s = s.replace(">", "&gt;")
+    s = s.replace('"', "&quot;")
+    return s
 
 
 # ====== Widget 系统 ======
@@ -74,9 +106,9 @@ class WidgetRegistry:
         for w in self._widgets.values():
             rendered = w.render()
             parts.append(
-                f'<div class="widget widget-{w.width}" data-widget="{w.name}">'
+                f'<div class="widget widget-{w.width}" data-widget="{_escape_html(w.name)}">'
             )
-            parts.append(f'<div class="widget-title">{w.title}</div>')
+            parts.append(f'<div class="widget-title">{_escape_html(w.title)}</div>')
             parts.append(f'<div class="widget-body">{rendered}</div>')
             parts.append("</div>")
         return "\n".join(parts)
@@ -122,8 +154,8 @@ def get_stats(metric: str, period: str = "24h") -> dict[str, Any]:
             base["value"] = len(_scheduler.list_jobs()) if _scheduler else 0
         elif metric == "webhook_count":
             base["value"] = len(_webhook.list_hooks()) if _webhook else 0
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("get_stats 异常: %s", e, exc_info=True)
     return base
 
 
@@ -133,7 +165,7 @@ class TextWidget(Widget):
         self._text = text
 
     def render(self) -> str:
-        return f"<p>{self._text}</p>"
+        return f"<p>{_escape_html(self._text)}</p>"
 
 
 class StatsWidget(Widget):
@@ -147,7 +179,7 @@ class StatsWidget(Widget):
     def render(self) -> str:
         stats = get_stats(self.metric, self.period)
         val = stats.get("value", 0)
-        return f'<div class="stat-value">{val}</div><div class="stat-label">{self.metric}</div>'
+        return f'<div class="stat-value">{_escape_html(str(val))}</div><div class="stat-label">{_escape_html(self.metric)}</div>'
 
 
 class ChartWidget(Widget):
@@ -161,7 +193,7 @@ class ChartWidget(Widget):
 
     def render(self) -> str:
         data = {m: get_stats(m, self.period) for m in self.metrics}
-        return f'<pre class="chart-data">{data}</pre>'
+        return f'<pre class="chart-data">{_escape_html(str(data))}</pre>'
 
 
 router = APIRouter(prefix="/admin", tags=["管理面板"])
@@ -240,8 +272,8 @@ async def dashboard(request: Request) -> str:
             dag_layers = len(d.execution_plan())
         except ValueError:
             dag_layers = 0
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("DAG 信息解析异常: %s", e, exc_info=True)
 
     if _scheduler:
         schedule_count = len(_scheduler.list_jobs())
@@ -262,8 +294,8 @@ async def dashboard(request: Request) -> str:
             }
             for h in mon.check_services()
         ]
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Dashboard 数据异常: %s", e, exc_info=True)
 
     return HTMLResponse(
         content=_render(
@@ -374,9 +406,15 @@ async def tasks_create(
 ) -> str:
     if _harness is None:
         return '<div class="toast toast-error">Harness 未初始化</div>'
+    if len(task_type) > 50:
+        return '<div class="toast toast-error">任务类型过长</div>'
+    if len(assignee) > 100:
+        return '<div class="toast toast-error">执行人名称过长</div>'
+    if len(description) > 2000:
+        return '<div class="toast toast-error">任务描述过长（最多 2000 字符）</div>'
     task = Task(type=task_type, payload={"description": description}, assignee=assignee)
     await _harness.submit_task(task)
-    return f'<div class="toast toast-success">✅ 任务已创建: {task.id[:16]}…</div>'
+    return f'<div class="toast toast-success">✅ 任务已创建: {_escape_html(task.id[:16])}…</div>'
 
 
 @router.get("/tasks/{task_id}", response_class=HTMLResponse)
@@ -395,13 +433,13 @@ async def tasks_detail(request: Request, task_id: str) -> str:
         d = TaskDAG()
         if d.has_node(task_id):
             deps = d.depends_on(task_id)
-            deps_str = ", ".join(deps) if deps else "无"
+            deps_str = _escape_html(", ".join(deps) if deps else "无")
             deps_down = d.dependents(task_id)
             down_str = ", ".join(deps_down) if deps_down else "无"
             dag_info = f"""<tr><td style="color:var(--text-secondary);">前置依赖</td><td>{deps_str}</td></tr>
     <tr><td style="color:var(--text-secondary);">下游任务</td><td>{down_str}</td></tr>"""
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("任务详情 DAG 解析异常: %s", e, exc_info=True)
 
     return f"""<div class="card">
   <div class="flex-between">
@@ -409,12 +447,12 @@ async def tasks_detail(request: Request, task_id: str) -> str:
     <button class="btn btn-sm" onclick="this.closest('.card').remove()">✕ 关闭</button>
   </div>
   <table>
-    <tr><td style="width:100px;color:var(--text-secondary);">ID</td><td style="font-family:monospace;">{task_id}</td></tr>
-    <tr><td style="color:var(--text-secondary);">类型</td><td>{task.get("type","—")}</td></tr>
-    <tr><td style="color:var(--text-secondary);">执行人</td><td>{task.get("assignee","—")}</td></tr>
-    <tr><td style="color:var(--text-secondary);">状态</td><td>{task.get("status","—")}</td></tr>
+    <tr><td style="width:100px;color:var(--text-secondary);">ID</td><td style="font-family:monospace;">{_escape_html(task_id)}</td></tr>
+    <tr><td style="color:var(--text-secondary);">类型</td><td>{_escape_html(task.get("type","—"))}</td></tr>
+    <tr><td style="color:var(--text-secondary);">执行人</td><td>{_escape_html(task.get("assignee","—"))}</td></tr>
+    <tr><td style="color:var(--text-secondary);">状态</td><td>{_escape_html(task.get("status","—"))}</td></tr>
     <tr><td style="color:var(--text-secondary);">Token</td><td>{task.get("tokens",0)}</td></tr>
-    <tr><td style="color:var(--text-secondary);">错误</td><td style="color:var(--error);">{task.get("error","") or "—"}</td></tr>
+    <tr><td style="color:var(--text-secondary);">错误</td><td style="color:var(--error);">{_escape_html(task.get("error","") or "—")}</td></tr>
     {dag_info}
   </table>
 </div>"""
@@ -493,6 +531,14 @@ async def schedules_create(
 ) -> str:
     if _scheduler is None:
         return '<div class="toast toast-error">Scheduler 未初始化</div>'
+    if len(job_id) > 100:
+        return '<div class="toast toast-error">任务 ID 过长</div>'
+    if len(cron) > 100:
+        return '<div class="toast toast-error">Cron 表达式过长</div>'
+    if len(task_type) > 50:
+        return '<div class="toast toast-error">任务类型过长</div>'
+    if len(description) > 2000:
+        return '<div class="toast toast-error">描述过长</div>'
     job = JobDef(
         id=job_id,
         cron=cron,
@@ -541,17 +587,17 @@ def _schedule_row(job_id: str, j: JobDef) -> str:
         else '<span class="badge badge-gray">禁用</span>'
     )
     toggle_btn = (
-        f'<button class="btn btn-sm btn-warn" hx-post="/admin/schedules/{job_id}/disable" hx-target="closest tr" hx-swap="outerHTML">禁用</button>'
+        f'<button class="btn btn-sm btn-warn" hx-post="/admin/schedules/{_escape_html(job_id)}/disable" hx-target="closest tr" hx-swap="outerHTML">禁用</button>'
         if enabled
-        else f'<button class="btn btn-sm" hx-post="/admin/schedules/{job_id}/enable" hx-target="closest tr" hx-swap="outerHTML">启用</button>'
+        else f'<button class="btn btn-sm" hx-post="/admin/schedules/{_escape_html(job_id)}/enable" hx-target="closest tr" hx-swap="outerHTML">启用</button>'
     )
     return f"""<tr>
-  <td style="font-family:monospace;font-size:11px;">{job_id}</td>
-  <td><code style="background:var(--bg-primary);padding:2px 6px;border-radius:3px;">{j.cron}</code></td>
-  <td>{j.task_type}</td>
-  <td class="text-muted">{j.description or '—'}</td>
+  <td style="font-family:monospace;font-size:11px;">{_escape_html(job_id)}</td>
+  <td><code style="background:var(--bg-primary);padding:2px 6px;border-radius:3px;">{_escape_html(j.cron)}</code></td>
+  <td>{_escape_html(j.task_type)}</td>
+  <td class="text-muted">{_escape_html(j.description or '—')}</td>
   <td>{badge}</td>
-  <td>{toggle_btn}<button class="btn btn-sm btn-danger" hx-delete="/admin/schedules/{job_id}" hx-target="closest tr" hx-swap="outerHTML" hx-confirm="确定删除？">删除</button></td>
+  <td>{toggle_btn}<button class="btn btn-sm btn-danger" hx-delete="/admin/schedules/{_escape_html(job_id)}" hx-target="closest tr" hx-swap="outerHTML" hx-confirm="确定删除？">删除</button></td>
 </tr>"""
 
 
@@ -628,6 +674,13 @@ async def webhooks_create(
 ) -> str:
     if _webhook is None:
         return '<div class="toast toast-error">WebhookDispatcher 未初始化</div>'
+    if len(hook_id) > _MAX_WEBHOOK_ID_LEN:
+        return '<div class="toast toast-error">Webhook ID 过长</div>'
+    if len(secret) > _MAX_SECRET_LEN:
+        return '<div class="toast toast-error">Secret 过长</div>'
+    url_error = _validate_webhook_url(url)
+    if url_error:
+        return f'<div class="toast toast-error">{_escape_html(url_error)}</div>'
     event_list = [e.strip() for e in events.split(",") if e.strip()]
     hook = WebhookDef(
         id=hook_id, url=url, events=event_list, secret=secret, description=description
@@ -673,20 +726,20 @@ def _webhook_row(hook_id: str, h: WebhookDef) -> str:
         else '<span class="badge badge-gray">禁用</span>'
     )
     toggle_btn = (
-        f'<button class="btn btn-sm btn-warn" hx-post="/admin/webhooks/{hook_id}/disable" hx-target="closest tr" hx-swap="outerHTML">禁用</button>'
+        f'<button class="btn btn-sm btn-warn" hx-post="/admin/webhooks/{_escape_html(hook_id)}/disable" hx-target="closest tr" hx-swap="outerHTML">禁用</button>'
         if enabled
-        else f'<button class="btn btn-sm" hx-post="/admin/webhooks/{hook_id}/enable" hx-target="closest tr" hx-swap="outerHTML">启用</button>'
+        else f'<button class="btn btn-sm" hx-post="/admin/webhooks/{_escape_html(hook_id)}/enable" hx-target="closest tr" hx-swap="outerHTML">启用</button>'
     )
     events_html = " ".join(
-        f'<span class="badge badge-blue">{ev}</span>' for ev in h.events
+        f'<span class="badge badge-blue">{_escape_html(ev)}</span>' for ev in h.events
     )
     return f"""<tr>
-  <td style="font-family:monospace;font-size:11px;">{hook_id}</td>
-  <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{h.url}</td>
+  <td style="font-family:monospace;font-size:11px;">{_escape_html(hook_id)}</td>
+  <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{_escape_html(h.url)}</td>
   <td>{events_html}</td>
-  <td class="text-muted">{h.description or '—'}</td>
+  <td class="text-muted">{_escape_html(h.description or '—')}</td>
   <td>{badge}</td>
-  <td>{toggle_btn}<button class="btn btn-sm btn-danger" hx-delete="/admin/webhooks/{hook_id}" hx-target="closest tr" hx-swap="outerHTML" hx-confirm="确定删除？">删除</button></td>
+  <td>{toggle_btn}<button class="btn btn-sm btn-danger" hx-delete="/admin/webhooks/{_escape_html(hook_id)}" hx-target="closest tr" hx-swap="outerHTML" hx-confirm="确定删除？">删除</button></td>
 </tr>"""
 
 
@@ -765,10 +818,10 @@ async def dag_add_node(request: Request) -> str:
     dag.save()
     # 返回行（HTMX oob 刷新）
     idx = form.get("id", "")
-    return f"""<tr id="dag-row-{idx}">
-  <td>{idx}</td>
-  <td>{form.get("depends_on", "")}</td>
-  <td>{form.get("description", "")}</td>
+    return f"""<tr id="dag-row-{_escape_html(idx)}">
+  <td>{_escape_html(idx)}</td>
+  <td>{_escape_html(form.get("depends_on", ""))}</td>
+  <td>{_escape_html(form.get("description", ""))}</td>
 </tr>"""
 
 
@@ -809,8 +862,8 @@ async def monitor_page(request: Request) -> str:
             for h in mon.check_services()
         ]
         alerts = mon.evaluate_alerts(resources)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Dashboard 数据异常: %s", e, exc_info=True)
     return HTMLResponse(
         content=_render(
             "admin/monitor.html",
@@ -837,8 +890,8 @@ async def floorplan_page(request: Request) -> str:
     try:
         if _harness:
             aggr = _harness.aggregate()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("森林平面图数据异常: %s", e, exc_info=True)
     return HTMLResponse(
         content=_render(
             "admin/floorplan.html",
@@ -860,8 +913,8 @@ async def agents_page(request: Request) -> str:
         m = get_market()
         m.refresh_from_registry()
         categories = m.get_categories()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Agent 市场页面异常: %s", e, exc_info=True)
     return HTMLResponse(
         content=_render(
             "admin/agents.html",
@@ -981,24 +1034,6 @@ async def report_generate(
   <p class="text-muted" style="margin:8px 0;">{path} ({len(content)} 字符)</p>
   <pre style="background:var(--bg-primary);padding:12px;border-radius:4px;font-size:11px;max-height:400px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;">{preview}</pre>
 </div>"""
-
-
-# ====== Agent 市场 ======
-
-
-@router.get("/agents", response_class=HTMLResponse)
-async def agents_page(request: Request) -> str:
-    return HTMLResponse(content=_render("admin/agents.html", active="agents"))
-
-
-# ====== Agent 健康 ======
-
-
-@router.get("/agent-health", response_class=HTMLResponse)
-async def agent_health_page(request: Request) -> str:
-    return HTMLResponse(
-        content=_render("admin/agent_health.html", active="agent-health")
-    )
 
 
 # ====== 通信日志 ======

@@ -10,10 +10,6 @@ P5 扩容：安全角色拆分
 from __future__ import annotations
 
 import logging
-
-logger = logging.getLogger(__name__)
-
-import logging
 from typing import Any
 
 from core.base_agent import BaseAgent
@@ -95,8 +91,8 @@ class HedgehogAgent(BaseAgent, RagCapable):
         total_tokens = TokenUsage()
 
         try:
-            # 1. 构建 prompt + 注入风格指令（用于 LLM 总结，P5 mock 下非关键路径）
-            prompt = self._apply_style(self._build_prompt(task))
+            async with self.with_budget_check(task):
+                prompt = self._apply_style(self._build_prompt(task))
 
             # 2. 调 LLM 生成审计建议（不参与扫描判定，仅作辅助提示）
             model_client = self._router.route(task.type)

@@ -182,7 +182,7 @@ class AutoGPTAgent(BaseAgent):
             )
 
         except Exception as e:
-            logger.exception("Agent %s 自主任务失败: %s", self.agent_id, e)
+            logger.exception("Agent %s 自主任务失败")
             return TaskResult(
                 trace_id=trace_id,
                 task_id="",
@@ -297,7 +297,7 @@ class AutoGPTAgent(BaseAgent):
                 "tokens_out": response.tokens_out,
             }
         except Exception as e:
-            logger.error("模型调用失败: %s", e)
+            logger.exception("模型调用失败: %s")
             return {
                 "content": f"[错误] 模型调用失败: {e}",
                 "tokens_in": 0,

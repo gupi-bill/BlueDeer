@@ -81,42 +81,14 @@ class Canvas:
         self._push_command({"type": "merge_layers", "target": target, "source": source})
         return True
 
-    def render(self, trace_id: str | None = None) -> str:
-        """生成 Mermaid flowchart 代码。
-
-        Args:
-            trace_id: 指定 trace，为空则合并所有 trace。
-
-        Returns:
-            Mermaid 格式的流程图代码。
-        """
-        lines: list[str] = [
-            "```mermaid",
-            "flowchart TD",
-            self._STYLES.strip(),
-        ]
-
-        summaries = self._debugger.summary(trace_id)
-        if not summaries:
-            lines.append("    start([暂无 trace 数据])")
-            lines.append("```")
-            return "\n".join(lines)
-
-        node_ids: set[str] = set()
-        edges: list[str] = []
-        errors: list[str] = []
-        # 页码
+    def _render_trace_nodes(self, lines, node_ids, edges, errors, summaries):
         page_idx = 1
-
         for s in summaries:
-            # trace 入口节点
             trace_node = f"trace_{s.trace_id[:8]}"
             lines.append(f'    {trace_node}(["Trace {s.trace_id[:8]}"]):::event')
             node_ids.add(trace_node)
-
             prev_node = trace_node
             comp_order = sorted(s.agent_spans.keys())
-
             for comp in comp_order:
                 comp_node = f"comp_{s.trace_id[:8]}_{comp.replace(':', '_')}"
                 safe_label = comp.replace(":", "<br>")
@@ -124,10 +96,8 @@ class Canvas:
                 node_ids.add(comp_node)
                 edges.append(f"    {prev_node} --> {comp_node}")
                 edges.append(f'    {prev_node} -- "→" --> {comp_node}')
-
                 spans = s.agent_spans[comp]
                 inner_prev = comp_node
-
                 for span in spans:
                     span_id = f"span_{s.trace_id[:8]}_{page_idx}"
                     page_idx += 1
@@ -144,20 +114,15 @@ class Canvas:
                     node_ids.add(span_id)
                     edges.append(f"    {inner_prev} --> {span_id}")
                     inner_prev = span_id
-
                 prev_node = comp_node
-
-            # token 信息
             if s.token_usage["in"] > 0 or s.token_usage["out"] > 0:
                 token_node = f"token_{s.trace_id[:8]}"
                 lines.append(
-                    f"    {token_node}(\"Token: in={s.token_usage['in']} "
-                    f"out={s.token_usage['out']}\"):::model"
+                    f'    {token_node}("Token: in={s.token_usage["in"]} '
+                    f'out={s.token_usage["out"]}"):::model'
                 )
                 node_ids.add(token_node)
                 edges.append(f"    {prev_node} -.-> {token_node}")
-
-            # 错误汇总
             if s.errors:
                 err_node = f"err_{s.trace_id[:8]}"
                 err_count = len(s.errors)
@@ -165,13 +130,37 @@ class Canvas:
                 node_ids.add(err_node)
                 edges.append(f"    {prev_node} --> {err_node}")
 
-        # 去重 edges
-        seen_edges: set[str] = set()
+    def _deduplicate_edges(self, lines, edges):
+        seen_edges = set()
         for e in edges:
             if e not in seen_edges:
                 lines.append(e)
                 seen_edges.add(e)
 
+    def render(self, trace_id: str | None = None) -> str:
+        """生成 Mermaid flowchart 代码。
+
+        Args:
+            trace_id: 指定 trace，为空则合并所有 trace。
+
+        Returns:
+            Mermaid 格式的流程图代码。
+        """
+        lines: list[str] = [
+            "```mermaid",
+            "flowchart TD",
+            self._STYLES.strip(),
+        ]
+        summaries = self._debugger.summary(trace_id)
+        if not summaries:
+            lines.append("    start([暂无 trace 数据])")
+            lines.append("```")
+            return "\n".join(lines)
+        node_ids = set()
+        edges = []
+        errors = []
+        self._render_trace_nodes(lines, node_ids, edges, errors, summaries)
+        self._deduplicate_edges(lines, edges)
         lines.append("```")
         return "\n".join(lines)
 

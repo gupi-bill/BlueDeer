@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 from modules.soft_rabbit.pixel_render import PALETTE_16, Color
 
@@ -76,7 +76,7 @@ class BarChart:
         if not data:
             return "(无数据)"
         max_val = max(v for _, v in data) or 1
-        lines: list[str] = []
+        lines: ClassVar[ClassVar[ClassVar[list[str]]]] = []
         for label, value in data:
             ratio = max(0.0, value / max_val) if max_val > 0 else 0.0
             bar_len = int(ratio * width)
@@ -147,7 +147,7 @@ class RatioBlock:
             width: 总宽度。
             gap_char: 空白填充字符。
         """
-        result: list[str] = []
+        result: ClassVar[ClassVar[ClassVar[list[str]]]] = []
         used = 0
         for ratio, _ in segments:
             seg_len = min(int(ratio), width - used)
@@ -168,7 +168,7 @@ class RatioBlock:
         Returns:
             [(字符块, 颜色), ...] 不填充 gap，仅返回有效段。
         """
-        result: list[tuple[str, Color]] = []
+        result: ClassVar[ClassVar[list[tuple[str, Color]]]] = []
         used = 0
         for ratio, color in segments:
             seg_len = min(int(ratio), width - used)
@@ -188,7 +188,7 @@ class TrendChart:
     """
 
     # 高度→字符映射（从下到上）
-    _HEIGHT_CHARS = ["─", "▄", "▆", "█"]
+    _HEIGHT_CHARS: ClassVar[list[str]] = ["─", "▄", "▆", "█"]
 
     def render(
         self,
@@ -220,9 +220,9 @@ class TrendChart:
         normalized = [int((v - v_min) / v_range * (height - 1)) for v in sampled]
 
         # 从顶到底渲染
-        lines: list[str] = []
+        lines: ClassVar[ClassVar[ClassVar[list[str]]]] = []
         for row in range(height - 1, -1, -1):
-            line_chars: list[str] = []
+            line_chars: ClassVar[ClassVar[ClassVar[list[str]]]] = []
             for v in normalized:
                 if v >= row:
                     line_chars.append("█")
@@ -243,7 +243,7 @@ class ChartRegistry:
     对标成就系统：7 大类可视化面板，每类可拆分多维度子图表。
     """
 
-    _TYPES = {
+    _TYPES: ClassVar[dict[str, type]] = {
         "progress": ProgressBar,
         "bar": BarChart,
         "stars": KpiStars,
@@ -325,7 +325,7 @@ class WidgetManager:
             w.update(dt)
 
     def render_all(self) -> list[str]:
-        lines: list[str] = []
+        lines: ClassVar[ClassVar[ClassVar[list[str]]]] = []
         for w in self._widgets.values():
             lines.extend(w.render())
         return lines

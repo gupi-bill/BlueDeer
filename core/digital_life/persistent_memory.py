@@ -17,7 +17,7 @@ import os
 import threading
 import time
 
-# ruff: noqa: S110, S112
+# ruff: noqa: S110
 
 # ----------------------------------------------------------------------
 # 配置
@@ -607,7 +607,7 @@ def summarize_chat_if_needed(
                 "保留关键信息、承诺和情感基调：\n\n"
             )
             for d in dialogue[-10:]:
-                prompt += f"{d.get('role','?')}: {d.get('text','')}\n"
+                prompt += f"{d.get('role', '?')}: {d.get('text', '')}\n"
             import asyncio
 
             loop = asyncio.new_event_loop()

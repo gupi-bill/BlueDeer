@@ -376,58 +376,59 @@ class VoiceSparrowAgent(BaseAgent, RagCapable):
         total_tokens = TokenUsage()
 
         try:
-            action = task.payload.get("action", "snapshot")
+            async with self.with_budget_check(task):
+                action = task.payload.get("action", "snapshot")
 
-            if action == "query":
-                category = task.payload.get("category", "task_progress")
-                data = self._status_center.collect_category(category)
-                output = {
-                    "action": "query",
-                    "category": category,
-                    "data": self._snapshot_to_dict(data),
-                }
-            elif action == "broadcast":
-                message = task.payload.get("message", "")
-                force = task.payload.get("force", False)
-                self.broadcast(message, force=force)
-                output = {
-                    "action": "broadcast",
-                    "message": message,
-                    "channels": [c.value for c in self._channels],
-                }
-            elif action == "report":
-                snapshot = self._status_center.collect()
-                report = self._format_brief(snapshot)
-                self.broadcast(report)
-                output = {
-                    "action": "report",
-                    "report": report,
-                    "snapshot": snapshot.to_dict(),
-                }
-            else:  # snapshot
-                snapshot = self._status_center.collect()
-                output = {
-                    "action": "snapshot",
-                    "snapshot": snapshot.to_dict(),
-                }
+                if action == "query":
+                    category = task.payload.get("category", "task_progress")
+                    data = self._status_center.collect_category(category)
+                    output = {
+                        "action": "query",
+                        "category": category,
+                        "data": self._snapshot_to_dict(data),
+                    }
+                elif action == "broadcast":
+                    message = task.payload.get("message", "")
+                    force = task.payload.get("force", False)
+                    self.broadcast(message, force=force)
+                    output = {
+                        "action": "broadcast",
+                        "message": message,
+                        "channels": [c.value for c in self._channels],
+                    }
+                elif action == "report":
+                    snapshot = self._status_center.collect()
+                    report = self._format_brief(snapshot)
+                    self.broadcast(report)
+                    output = {
+                        "action": "report",
+                        "report": report,
+                        "snapshot": snapshot.to_dict(),
+                    }
+                else:  # snapshot
+                    snapshot = self._status_center.collect()
+                    output = {
+                        "action": "snapshot",
+                        "snapshot": snapshot.to_dict(),
+                    }
 
-            self._self_check(task, output)
+                self._self_check(task, output)
 
-            if self._tracer:
-                self._tracer.span(
-                    task.trace_id,
-                    component="VoiceSparrowAgent",
-                    action="handle_success",
+                if self._tracer:
+                    self._tracer.span(
+                        task.trace_id,
+                        component="VoiceSparrowAgent",
+                        action="handle_success",
+                        task_id=task.id,
+                    )
+
+                return TaskResult(
+                    trace_id=task.trace_id,
                     task_id=task.id,
+                    status=TaskStatus.SUCCESS,
+                    output=output,
+                    token_usage=total_tokens,
                 )
-
-            return TaskResult(
-                trace_id=task.trace_id,
-                task_id=task.id,
-                status=TaskStatus.SUCCESS,
-                output=output,
-                token_usage=total_tokens,
-            )
 
         except Exception as e:
             logger.exception("灵音雀处理任务 %s 失败", task.id)
@@ -451,8 +452,10 @@ class VoiceSparrowAgent(BaseAgent, RagCapable):
         """格式化轻量简报文本。"""
         lines = [
             f"【灵音雀巡检简报 @ {snapshot.collected_at:.0f}】",
-            (f"任务进度: {snapshot.task_progress.completed_steps}/"
-            f"{snapshot.task_progress.total_steps}"),
+            (
+                f"任务进度: {snapshot.task_progress.completed_steps}/"
+                f"{snapshot.task_progress.total_steps}"
+            ),
             f"在岗员工: {len(snapshot.agents)} 名",
             f"高危拦截: {snapshot.system_runtime.hazardous_blocked_count} 次",
         ]
@@ -615,7 +618,6 @@ class StatusTracker:
     def all_statuses(self) -> dict[str, str]:
         return {aid: r.status for aid, r in self._agents.items()}
 
-    @property
     def recent_history(self, limit: int = 50) -> list[dict[str, Any]]:
         return list(self._history[-limit:])
 

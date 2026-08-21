@@ -183,6 +183,107 @@ class ApiCaller:
             ],
         }
 
+    def _check_api_enabled(self, endpoint_name: str, method: str) -> ApiResult | None:
+        if not self._enabled:
+            return ApiResult(
+                False, error="API 集成未启用", url=endpoint_name, method=method
+            )
+        return None
+
+    def _resolve_endpoint(self, endpoint_name: str) -> dict | None:
+        with self._lock:
+            return self._endpoints.get(endpoint_name)
+
+    def _build_url(self, ep: dict, path: str) -> str:
+        full_url = ep.url.rstrip("/") + "/" + path.lstrip("/") if path else ep.url
+        return full_url
+
+    def _apply_query(self, full_url: str, query: dict | None) -> str:
+        if query:
+            qs = urllib.parse.urlencode(query)
+            full_url = f"{full_url}?{qs}"
+        return full_url
+
+    def _build_headers(self, ep: dict, extra_headers: dict | None) -> dict:
+        headers = dict(ep.headers)
+        if extra_headers:
+            headers.update(extra_headers)
+        auth_value = ep.get_auth_value()
+        if ep.auth_type == "token" and auth_value:
+            headers["Authorization"] = f"Bearer {auth_value}"
+        elif ep.auth_type == "basic" and auth_value:
+            import base64
+
+            headers["Authorization"] = (
+                "Basic " + base64.b64encode(auth_value.encode()).decode()
+            )
+        return headers
+
+    def _serialize_body(self, body: Any) -> str:
+        if body is None:
+            return ""
+        if isinstance(body, (dict, list)):
+            return json.dumps(body, ensure_ascii=False)
+        return str(body)
+
+    def _build_success_result(
+        self,
+        full_url: str,
+        method: str,
+        request_body: str,
+        resp_body: str,
+        status: int,
+        start: float,
+    ) -> ApiResult:
+        dur = (time.time() - start) * 1000
+        return ApiResult(
+            ok=200 <= status < 300,
+            status_code=status,
+            url=full_url,
+            method=method,
+            request_body=request_body,
+            response_body=resp_body,
+            duration_ms=dur,
+        )
+
+    def _build_http_error_result(
+        self,
+        full_url: str,
+        method: str,
+        request_body: str,
+        e: urllib.error.HTTPError,
+        start: float,
+    ) -> ApiResult:
+        dur = (time.time() - start) * 1000
+        resp_body = ""
+        try:
+            resp_body = e.read().decode("utf-8", errors="replace")
+        except Exception:
+            logger.exception("Exception in block")
+        return ApiResult(
+            ok=False,
+            status_code=e.code,
+            url=full_url,
+            method=method,
+            request_body=request_body,
+            response_body=resp_body,
+            duration_ms=dur,
+            error=f"HTTP {e.code}: {e.reason}",
+        )
+
+    def _build_exception_result(
+        self, full_url: str, method: str, request_body: str, e: Exception, start: float
+    ) -> ApiResult:
+        dur = (time.time() - start) * 1000
+        return ApiResult(
+            ok=False,
+            url=full_url,
+            method=method,
+            request_body=request_body,
+            duration_ms=dur,
+            error=str(e),
+        )
+
     def call(
         self,
         endpoint_name: str,
@@ -203,12 +304,10 @@ class ApiCaller:
             body: 请求体（dict 会自动 json 序列化）
             extra_headers: 额外的 headers
         """
-        if not self._enabled:
-            return ApiResult(
-                False, error="API 集成未启用", url=endpoint_name, method=method
-            )
-        with self._lock:
-            ep = self._endpoints.get(endpoint_name)
+        disabled = self._check_api_enabled(endpoint_name, method)
+        if disabled is not None:
+            return disabled
+        ep = self._resolve_endpoint(endpoint_name)
         if ep is None:
             return ApiResult(
                 False,
@@ -216,35 +315,10 @@ class ApiCaller:
                 url=endpoint_name,
                 method=method,
             )
-        # 拼完整 URL
-        full_url = ep.url.rstrip("/") + "/" + path.lstrip("/") if path else ep.url
-        if query:
-            qs = urllib.parse.urlencode(query)
-            full_url = f"{full_url}?{qs}"
-        # 构造 headers
-        headers = dict(ep.headers)
-        if extra_headers:
-            headers.update(extra_headers)
-        # 加认证
-        auth_value = ep.get_auth_value()
-        if ep.auth_type == "token" and auth_value:
-            headers["Authorization"] = f"Bearer {auth_value}"
-        elif ep.auth_type == "basic" and auth_value:
-            import base64
-
-            headers["Authorization"] = (
-                "Basic " + base64.b64encode(auth_value.encode()).decode()
-            )
-        # 序列化 body
-        request_body_str = ""
-        if body is not None:
-            if isinstance(body, (dict, list)):
-                request_body_str = json.dumps(body, ensure_ascii=False)
-                if "Content-Type" not in headers:
-                    headers["Content-Type"] = "application/json"
-            else:
-                request_body_str = str(body)
-        # 执行
+        full_url = self._build_url(ep, path)
+        full_url = self._apply_query(full_url, query)
+        headers = self._build_headers(ep, extra_headers)
+        request_body_str = self._serialize_body(body)
         start = time.time()
         try:
             req = urllib.request.Request(
@@ -256,40 +330,14 @@ class ApiCaller:
             with urllib.request.urlopen(req, timeout=ep.timeout) as resp:
                 resp_body = resp.read().decode("utf-8", errors="replace")
                 status = resp.status
-                dur = (time.time() - start) * 1000
-                return ApiResult(
-                    ok=200 <= status < 300,
-                    status_code=status,
-                    url=full_url,
-                    method=method,
-                    request_body=request_body_str,
-                    response_body=resp_body,
-                    duration_ms=dur,
+                return self._build_success_result(
+                    full_url, method, request_body_str, resp_body, status, start
                 )
         except urllib.error.HTTPError as e:
-            dur = (time.time() - start) * 1000
-            resp_body = ""
-            try:
-                resp_body = e.read().decode("utf-8", errors="replace")
-            except Exception:
-                logger.exception("Exception in block")
-            return ApiResult(
-                ok=False,
-                status_code=e.code,
-                url=full_url,
-                method=method,
-                request_body=request_body_str,
-                response_body=resp_body,
-                duration_ms=dur,
-                error=f"HTTP {e.code}: {e.reason}",
+            return self._build_http_error_result(
+                full_url, method, request_body_str, e, start
             )
         except Exception as e:
-            dur = (time.time() - start) * 1000
-            return ApiResult(
-                ok=False,
-                url=full_url,
-                method=method,
-                request_body=request_body_str,
-                duration_ms=dur,
-                error=str(e),
+            return self._build_exception_result(
+                full_url, method, request_body_str, e, start
             )

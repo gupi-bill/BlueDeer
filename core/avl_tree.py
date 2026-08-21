@@ -125,28 +125,7 @@ class AVLTree:
                 else:
                     cur.value = value
                     return False
-            for i in range(len(path) - 1, -1, -1):
-                node, _ = path[i]
-                self._update_height(node)
-                bf = self._balance_factor(node)
-                if bf > 1:
-                    if self._balance_factor(node.left) < 0:
-                        node.left = self._rotate_left(node.left)
-                    new_sub = self._rotate_right(node)
-                elif bf < -1:
-                    if self._balance_factor(node.right) > 0:
-                        node.right = self._rotate_right(node.right)
-                    new_sub = self._rotate_left(node)
-                else:
-                    continue
-                if i == 0:
-                    self._root = new_sub
-                else:
-                    gp, gp_left = path[i - 1]
-                    if gp_left:
-                        gp.left = new_sub
-                    else:
-                        gp.right = new_sub
+            self._rebalance_path(path)
             return True
 
     def delete_iterative(self, key) -> bool:
@@ -189,29 +168,32 @@ class AVLTree:
                     parent.left = child
                 else:
                     parent.right = child
-            for i in range(len(path) - 1, -1, -1):
-                node, _ = path[i]
-                self._update_height(node)
-                bf = self._balance_factor(node)
-                if bf > 1:
-                    if self._balance_factor(node.left) < 0:
-                        node.left = self._rotate_left(node.left)
-                    new_sub = self._rotate_right(node)
-                elif bf < -1:
-                    if self._balance_factor(node.right) > 0:
-                        node.right = self._rotate_right(node.right)
-                    new_sub = self._rotate_left(node)
-                else:
-                    continue
-                if i == 0:
-                    self._root = new_sub
-                else:
-                    gp, gp_left = path[i - 1]
-                    if gp_left:
-                        gp.left = new_sub
-                    else:
-                        gp.right = new_sub
+            self._rebalance_path(path)
             return True
+
+    def _rebalance_path(self, path: list[tuple[_Node, bool]]) -> None:
+        for i in range(len(path) - 1, -1, -1):
+            node, _ = path[i]
+            self._update_height(node)
+            bf = self._balance_factor(node)
+            if bf > 1:
+                if self._balance_factor(node.left) < 0:
+                    node.left = self._rotate_left(node.left)
+                new_sub = self._rotate_right(node)
+            elif bf < -1:
+                if self._balance_factor(node.right) > 0:
+                    node.right = self._rotate_right(node.right)
+                new_sub = self._rotate_left(node)
+            else:
+                continue
+            if i == 0:
+                self._root = new_sub
+            else:
+                gp, gp_left = path[i - 1]
+                if gp_left:
+                    gp.left = new_sub
+                else:
+                    gp.right = new_sub
 
     def insert(self, key: Any, value: Any = None) -> bool:
         """插入。返回是否新增（False=更新）。"""

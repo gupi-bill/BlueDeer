@@ -7,6 +7,7 @@ commit 28：行为池——梳羽 / 摆弄闪亮物 / 讲古 / 高飞眺望
 from __future__ import annotations
 
 import logging
+from typing import ClassVar
 
 logger = logging.getLogger(__name__)
 
@@ -16,13 +17,13 @@ import time
 from .digital_life_form import DigitalLifeForm
 
 # 渡鸦跨代记忆档案（模块级全局，所有渡鸦共享）
-raven_archive: list = []
+raven_archive: ClassVar[list] = []
 
 
 class Raven(DigitalLifeForm):
     """渡鸦。"""
 
-    SPECIES_TEMPLATE: dict = {
+    SPECIES_TEMPLATE: ClassVar[dict] = {
         "species": "raven",
         "default_name": "渡鸦",
         "metabolic_rate": 0.35,
@@ -41,7 +42,7 @@ class Raven(DigitalLifeForm):
     # 2. 摆弄闪亮物：随机叼起金属物品观赏
     # 3. 讲古：夜晚 20-24 时，向周围同事讲述已故同事往事
     # 4. 高飞眺望：飞到最高处俯瞰公司，更新全局记忆
-    BEHAVIOR_POOL: list[dict] = [
+    BEHAVIOR_POOL: ClassVar[list[dict]] = [
         {
             "name": "groom_feathers",
             "label": "梳理羽毛",

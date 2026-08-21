@@ -14,10 +14,6 @@
 from __future__ import annotations
 
 import logging
-
-logger = logging.getLogger(__name__)
-
-import logging
 from dataclasses import dataclass, field
 
 from core.base_agent import BaseAgent
@@ -179,6 +175,7 @@ class BabyAGILoopAgent(BaseAgent):
             tasks = self._parse_tasks(resp.content)
             return tasks or pending
         except Exception:
+            logger.warning("BabyAGI 任务排序失败，返回原始队列", exc_info=True)
             return pending
 
     def _parse_tasks(self, content: str) -> list[dict]:

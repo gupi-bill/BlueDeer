@@ -68,76 +68,65 @@ class CommLog:
     def _ts_str(self, ts: float) -> str:
         return time.strftime("%H:%M:%S", time.localtime(ts))
 
-    def query(
+    def _query_filter_records(
         self,
-        *,
-        trace_id: str | None = None,
-        agent: str | None = None,
-        action: str | None = None,
-        since: float = 0.0,
-        upto: float | None = None,
-        max_chains: int = 50,
-    ) -> CommLogResult:
-        if not os.path.exists(self._trace_log):
-            return CommLogResult(
-                chains=[], total_chains=0, total_entries=0, agent_list=[]
-            )
-
+        trace_id: str | None,
+        agent: str | None,
+        action: str | None,
+        since: float,
+        upto: float | None,
+    ) -> tuple[dict[str, list[dict]], set[str]]:
         entries_by_trace: dict[str, list[dict]] = defaultdict(list)
         all_agents: set[str] = set()
-
+        if not os.path.exists(self._trace_log):
+            return entries_by_trace, all_agents
         try:
             with open(self._trace_log, "r", encoding="utf-8") as f:
                 for line in f:
                     record = self._parse_line(line)
                     if record is None:
                         continue
-
                     ts = record.get("ts", 0)
                     if since and ts < since:
                         continue
                     if upto and ts > upto:
                         continue
-
                     comp = record.get("component", "")
                     tid = record.get("trace_id", "")
                     act = record.get("action", "")
-
                     if trace_id and trace_id not in tid:
                         continue
                     if agent and agent not in comp:
                         continue
                     if action and action != act:
                         continue
-
                     if comp:
                         all_agents.add(comp)
                     if tid:
                         entries_by_trace[tid].append(record)
         except (OSError, json.JSONDecodeError) as e:
             logger.warning("读取 trace 日志失败: %s", e)
+        return entries_by_trace, all_agents
 
+    def _query_build_chains(
+        self, entries_by_trace: dict[str, list[dict]]
+    ) -> tuple[list[CommChain], int]:
         chains: list[CommChain] = []
         total_entries = 0
-
         for tid, records in entries_by_trace.items():
             records.sort(key=lambda r: r.get("ts", 0))
-
             agents_in_chain: set[str] = set()
             chain_entries: list[CommEntry] = []
             error_count = 0
-
             for r in records:
                 comp = r.get("component", "")
                 act = r.get("action", "")
                 ts = r.get("ts", 0)
                 err = r.get("error", "")
-
                 if comp:
                     agents_in_chain.add(comp)
                 if err:
                     error_count += 1
-
                 chain_entries.append(
                     CommEntry(
                         trace_id=tid,
@@ -152,12 +141,9 @@ class CommLog:
                         raw=r,
                     )
                 )
-
             if not chain_entries:
                 continue
-
             total_entries += len(chain_entries)
-
             chain = CommChain(
                 trace_id=tid,
                 agents=sorted(agents_in_chain),
@@ -170,10 +156,24 @@ class CommLog:
                 agent_count=len(agents_in_chain),
             )
             chains.append(chain)
+        return chains, total_entries
 
+    def query(
+        self,
+        *,
+        trace_id: str | None = None,
+        agent: str | None = None,
+        action: str | None = None,
+        since: float = 0.0,
+        upto: float | None = None,
+        max_chains: int = 50,
+    ) -> CommLogResult:
+        entries_by_trace, all_agents = self._query_filter_records(
+            trace_id, agent, action, since, upto
+        )
+        chains, total_entries = self._query_build_chains(entries_by_trace)
         chains.sort(key=lambda c: c.start_ts, reverse=True)
         chains = chains[:max_chains]
-
         return CommLogResult(
             chains=chains,
             total_chains=len(chains),

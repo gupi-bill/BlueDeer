@@ -300,6 +300,15 @@ HTML_TEMPLATE = (Path(__file__).parent / "templates" / "index.html").read_text(
 import json as _json
 
 
+def _escape_html(text: str) -> str:
+    s = str(text)
+    s = s.replace("&", "&amp;")
+    s = s.replace("<", "&lt;")
+    s = s.replace(">", "&gt;")
+    s = s.replace('"', "&quot;")
+    return s
+
+
 def render_index(visit_mode: bool = False, visit_token: str = "") -> str:
     """渲染首页 HTML（注入 17 区布局与物种配色）。
 
@@ -316,8 +325,9 @@ def render_index(visit_mode: bool = False, visit_token: str = "") -> str:
     )
     if visit_mode:
         # 参观模式：注入只读标记
+        safe_token = _escape_html(visit_token)
         html = html.replace(
-            "<body>", f'<body data-visit-mode="1" data-visit-token="{visit_token}">'
+            "<body>", f'<body data-visit-mode="1" data-visit-token="{safe_token}">'
         )
         # 在顶部插入参观者提示横幅
         html = html.replace(

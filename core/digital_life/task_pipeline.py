@@ -274,6 +274,58 @@ class PipelineEngine:
 
     # ---------------- 提交流水线 ----------------
 
+    def _create_pipeline(
+        self,
+        task: str,
+        steps: list[PipelineStep],
+        name: str,
+        project_id: str,
+        milestone_id: str,
+    ) -> Pipeline:
+        pipeline = Pipeline(name=name or task[:30], original_task=task, steps=steps)
+        if project_id:
+            pipeline.project_id = project_id
+            if milestone_id:
+                pipeline.milestone_id = milestone_id
+            for s in pipeline.steps:
+                s.project_id = project_id
+                if milestone_id:
+                    s.milestone_id = milestone_id
+        return pipeline
+
+    def _register_pipeline(self, pipeline: Pipeline) -> None:
+        with self._lock:
+            self._pipelines[pipeline.id] = pipeline
+            if len(self._pipelines) > self._max_history:
+                old = sorted(self._pipelines.values(), key=lambda p: p.created_ts)[
+                    : len(self._pipelines) - self._max_history
+                ]
+                for p in old:
+                    self._pipelines.pop(p.id, None)
+
+    def _start_pipeline_execution(
+        self, pipeline: Pipeline, steps: list[PipelineStep]
+    ) -> None:
+        pipeline.status = PIPELINE_RUNNING
+        pipeline.notify_update()
+        self._notify(
+            "pipeline_started",
+            {
+                "pipeline_id": pipeline.id,
+                "name": pipeline.name,
+                "steps_count": len(steps),
+                "project_id": pipeline.project_id,
+                "milestone_id": pipeline.milestone_id,
+            },
+        )
+        t = threading.Thread(
+            target=self._run_pipeline,
+            args=(pipeline,),
+            daemon=True,
+            name=f"pipeline-{pipeline.id}",
+        )
+        t.start()
+
     def submit(
         self, task: str, name: str = "", project_id: str = "", milestone_id: str = ""
     ) -> dict:
@@ -287,7 +339,6 @@ class PipelineEngine:
 
         返回：{"ok": bool, "pipeline_id": str, "steps_count": int, "error": str}
         """
-        # 1. 拆解
         try:
             steps = self._decompose(task)
         except Exception as e:
@@ -297,7 +348,6 @@ class PipelineEngine:
                 "steps_count": 0,
                 "error": f"拆解失败: {e}",
             }
-
         if not steps:
             return {
                 "ok": False,
@@ -305,52 +355,9 @@ class PipelineEngine:
                 "steps_count": 0,
                 "error": "拆解结果为空",
             }
-
-        # 2. 创建流水线
-        pipeline = Pipeline(name=name or task[:30], original_task=task, steps=steps)
-        # commit 39：关联项目 + 里程碑（如指定）
-        if project_id:
-            pipeline.project_id = project_id
-            if milestone_id:
-                pipeline.milestone_id = milestone_id
-            # 同时给每个 step 打上 project_id / milestone_id 标记
-            for s in pipeline.steps:
-                s.project_id = project_id
-                if milestone_id:
-                    s.milestone_id = milestone_id
-        with self._lock:
-            self._pipelines[pipeline.id] = pipeline
-            # 清理超过历史上限的旧 pipeline
-            if len(self._pipelines) > self._max_history:
-                old = sorted(self._pipelines.values(), key=lambda p: p.created_ts)[
-                    : len(self._pipelines) - self._max_history
-                ]
-                for p in old:
-                    self._pipelines.pop(p.id, None)
-
-        # 3. 启动后台调度
-        pipeline.status = PIPELINE_RUNNING
-        pipeline.notify_update()
-        self._notify(
-            "pipeline_started",
-            {
-                "pipeline_id": pipeline.id,
-                "name": pipeline.name,
-                "steps_count": len(steps),
-                "project_id": pipeline.project_id,
-                "milestone_id": pipeline.milestone_id,
-            },
-        )
-
-        # 后台跑调度循环
-        t = threading.Thread(
-            target=self._run_pipeline,
-            args=(pipeline,),
-            daemon=True,
-            name=f"pipeline-{pipeline.id}",
-        )
-        t.start()
-
+        pipeline = self._create_pipeline(task, steps, name, project_id, milestone_id)
+        self._register_pipeline(pipeline)
+        self._start_pipeline_execution(pipeline, steps)
         return {
             "ok": True,
             "pipeline_id": pipeline.id,
@@ -569,7 +576,9 @@ badger（网络）、lark（监控）、kite（调度）
 
     # ---------------- 调度执行 ----------------
 
-    def _create_pipeline_executor(self, pipeline: Pipeline) -> tuple[ThreadPoolExecutor, dict[int, "Future"]]:
+    def _create_pipeline_executor(
+        self, pipeline: Pipeline
+    ) -> tuple[ThreadPoolExecutor, dict[int, Future]]:
         max_workers = min(8, max(2, len(pipeline.steps)))
         executor = ThreadPoolExecutor(
             max_workers=max_workers, thread_name_prefix="pipe-step"
@@ -583,9 +592,7 @@ badger（网络）、lark（监控）、kite（调度）
             deps_ok = True
             deps_failed = False
             for dep_id in step.depends_on:
-                dep = next(
-                    (x for x in pipeline.steps if x.step_id == dep_id), None
-                )
+                dep = next((x for x in pipeline.steps if x.step_id == dep_id), None)
                 if dep is None:
                     continue
                 if dep.status != STEP_DONE:
@@ -611,7 +618,10 @@ badger（网络）、lark（监控）、kite（调度）
                 step.status = STEP_READY
 
     def _dispatch_ready_steps(
-        self, pipeline: Pipeline, executor: ThreadPoolExecutor, running: dict[int, "Future"]
+        self,
+        pipeline: Pipeline,
+        executor: ThreadPoolExecutor,
+        running: dict[int, Future],
     ) -> None:
         for step in pipeline.steps:
             if step.status == STEP_READY and step.step_id not in running:
@@ -630,7 +640,9 @@ badger（网络）、lark（监控）、kite（调度）
                     },
                 )
 
-    def _collect_finished_steps(self, pipeline: Pipeline, running: dict[int, "Future"]) -> None:
+    def _collect_finished_steps(
+        self, pipeline: Pipeline, running: dict[int, Future]
+    ) -> None:
         done_ids = []
         for sid, fut in list(running.items()):
             if fut.done():
@@ -640,7 +652,6 @@ badger（网络）、lark（监控）、kite（调度）
             pipeline.notify_update()
 
     def _finalize_pipeline(self, pipeline: Pipeline) -> None:
-        total = len(pipeline.steps)
         done = sum(1 for s in pipeline.steps if s.status == STEP_DONE)
         failed = sum(
             1 for s in pipeline.steps if s.status in (STEP_FAILED, STEP_SKIPPED)
@@ -687,7 +698,9 @@ badger（网络）、lark（监控）、kite（调度）
                     "total": len(pipeline.steps),
                     "done": sum(1 for s in pipeline.steps if s.status == STEP_DONE),
                     "failed": sum(
-                        1 for s in pipeline.steps if s.status in (STEP_FAILED, STEP_SKIPPED)
+                        1
+                        for s in pipeline.steps
+                        if s.status in (STEP_FAILED, STEP_SKIPPED)
                     ),
                     "summary": pipeline.summary[:200],
                 },
@@ -695,7 +708,16 @@ badger（网络）、lark（监控）、kite（调度）
 
             if pipeline.project_id:
                 try:
-                    self._advance_milestone(pipeline, len(pipeline.steps), sum(1 for s in pipeline.steps if s.status == STEP_DONE), sum(1 for s in pipeline.steps if s.status in (STEP_FAILED, STEP_SKIPPED)))
+                    self._advance_milestone(
+                        pipeline,
+                        len(pipeline.steps),
+                        sum(1 for s in pipeline.steps if s.status == STEP_DONE),
+                        sum(
+                            1
+                            for s in pipeline.steps
+                            if s.status in (STEP_FAILED, STEP_SKIPPED)
+                        ),
+                    )
                 except Exception:
                     pass
 
@@ -720,43 +742,105 @@ badger（网络）、lark（监控）、kite（调度）
 
     # ---------------- 单步执行 ----------------
 
+    def _negotiate_step(self, pipeline: Pipeline, step: PipelineStep) -> str:
+        actual_species = step.agent_species
+        candidates = [step.agent_species]
+        try:
+            from core.digital_life.negotiation_engine import get_negotiation_engine
+
+            ne = get_negotiation_engine()
+            if ne._biosphere_ref is None and self._biosphere_ref is not None:
+                ne.set_biosphere(self._biosphere_ref)
+            nego = ne.negotiate(
+                pipeline_id=pipeline.id,
+                step_id=step.step_id,
+                task=step.task,
+                candidate_species=candidates,
+                timeout=2.0,
+            )
+            if nego.get("ok") and nego.get("winner"):
+                actual_species = nego["winner"]
+            with pipeline.lock:
+                pipeline.negotiation_log.append(
+                    {
+                        "step_id": step.step_id,
+                        "task": step.task[:80],
+                        "candidates": candidates,
+                        "winner": actual_species,
+                        "bids": nego.get("bids", []),
+                        "reason": nego.get("reason", ""),
+                        "fallback": nego.get("fallback", False),
+                        "ts": time.time(),
+                    }
+                )
+        except Exception:
+            pass
+        return actual_species
+
+    def _dispatch_step_to_agent(self, agent: Any, step: PipelineStep) -> dict:
+        try:
+            agent._tool_call_status = "running"
+            agent._tool_call_meta = {
+                "tool": step.tools[0] if step.tools else "",
+                "task": step.task[:60],
+                "step_id": step.step_id,
+                "pipeline_id": step.pipeline_id,
+            }
+        except Exception:
+            pass
+        from core.digital_life.agent_function_calling import dispatch_task_to_agent
+
+        return dispatch_task_to_agent(agent, step.task)
+
+    def _update_step_result(
+        self, pipeline: Pipeline, step: PipelineStep, agent: Any, result: dict
+    ) -> None:
+        with pipeline.lock:
+            step.tool_calls = result.get("tool_calls", []) or []
+            if result.get("ok"):
+                step.status = STEP_DONE
+                step.result = result.get("answer", "")[:3000]
+                try:
+                    agent._tool_call_status = "done"
+                except Exception:
+                    pass
+            else:
+                step.status = STEP_FAILED
+                step.error = result.get("answer", "")[:500] or "unknown error"
+                try:
+                    agent._tool_call_status = "error"
+                except Exception:
+                    pass
+            step.finished_ts = time.time()
+
+    def _clear_agent_status(self, agent: Any, step: PipelineStep) -> None:
+        time.sleep(1.5)
+        try:
+            if getattr(agent, "_tool_call_status", "") in ("done", "error"):
+                meta = getattr(agent, "_tool_call_meta", {}) or {}
+                if meta.get("step_id") == step.step_id:
+                    agent._tool_call_status = ""
+        except Exception:
+            pass
+
+    def _notify_step_finished(
+        self, pipeline: Pipeline, step: PipelineStep, result: dict
+    ) -> None:
+        self._notify(
+            "step_finished",
+            {
+                "pipeline_id": pipeline.id,
+                "step_id": step.step_id,
+                "agent": step.agent_species,
+                "ok": result.get("ok", False),
+                "result": (step.result if result.get("ok") else step.error)[:200],
+            },
+        )
+
     def _execute_step(self, pipeline: Pipeline, step: PipelineStep) -> None:
         """执行一个 step：找到对应物种的智能体，把任务派给它。"""
         try:
-            # commit 38：先做协商——让候选物种竞标，挑最合适的
-            actual_species = step.agent_species
-            candidates = [step.agent_species]
-            try:
-                from core.digital_life.negotiation_engine import get_negotiation_engine
-
-                ne = get_negotiation_engine()
-                if ne._biosphere_ref is None and self._biosphere_ref is not None:
-                    ne.set_biosphere(self._biosphere_ref)
-                nego = ne.negotiate(
-                    pipeline_id=pipeline.id,
-                    step_id=step.step_id,
-                    task=step.task,
-                    candidate_species=candidates,
-                    timeout=2.0,
-                )
-                if nego.get("ok") and nego.get("winner"):
-                    actual_species = nego["winner"]
-                with pipeline.lock:
-                    pipeline.negotiation_log.append(
-                        {
-                            "step_id": step.step_id,
-                            "task": step.task[:80],
-                            "candidates": candidates,
-                            "winner": actual_species,
-                            "bids": nego.get("bids", []),
-                            "reason": nego.get("reason", ""),
-                            "fallback": nego.get("fallback", False),
-                            "ts": time.time(),
-                        }
-                    )
-            except Exception:
-                pass
-
+            actual_species = self._negotiate_step(pipeline, step)
             agent = self._find_agent(actual_species, step.agent_name_hint)
             if agent is None:
                 with pipeline.lock:
@@ -764,69 +848,12 @@ badger（网络）、lark（监控）、kite（调度）
                     step.error = f"找不到物种 {actual_species} 的智能体"
                     step.finished_ts = time.time()
                 return
-
-            # 设置 agent 工作状态：running（前端会显示齿轮图标）
-            try:
-                agent._tool_call_status = "running"
-                agent._tool_call_meta = {
-                    "tool": step.tools[0] if step.tools else "",
-                    "task": step.task[:60],
-                    "step_id": step.step_id,
-                    "pipeline_id": pipeline.id,
-                }
-            except Exception:
-                pass
-
-            # 调用 agent_function_calling
-            from core.digital_life.agent_function_calling import dispatch_task_to_agent
-
-            result = dispatch_task_to_agent(agent, step.task)
-
-            with pipeline.lock:
-                step.tool_calls = result.get("tool_calls", []) or []
-                if result.get("ok"):
-                    step.status = STEP_DONE
-                    step.result = result.get("answer", "")[:3000]
-                    # 设置 agent 工作状态：done（前端会显示绿勾并淡出）
-                    try:
-                        agent._tool_call_status = "done"
-                    except Exception:
-                        pass
-                else:
-                    step.status = STEP_FAILED
-                    step.error = result.get("answer", "")[:500] or "unknown error"
-                    # 设置 agent 工作状态：error（前端会显示红感叹号）
-                    try:
-                        agent._tool_call_status = "error"
-                    except Exception:
-                        pass
-                step.finished_ts = time.time()
-
-            # 1.5 秒后清空 done/error 状态，避免图标长期挂在那里
-            def _clear_status(a=agent, ts=time.time()):
-                time.sleep(1.5)
-                try:
-                    if getattr(a, "_tool_call_status", "") in ("done", "error"):
-                        # 检查是否还是同一个调用（避免覆盖更新的状态）
-                        meta = getattr(a, "_tool_call_meta", {}) or {}
-                        if meta.get("step_id") == step.step_id:
-                            a._tool_call_status = ""
-                except Exception:
-                    pass
-
-            threading.Thread(target=_clear_status, daemon=True).start()
-
-            self._notify(
-                "step_finished",
-                {
-                    "pipeline_id": pipeline.id,
-                    "step_id": step.step_id,
-                    "agent": step.agent_species,
-                    "ok": result.get("ok", False),
-                    "result": (step.result if result.get("ok") else step.error)[:200],
-                },
-            )
-
+            result = self._dispatch_step_to_agent(agent, step)
+            self._update_step_result(pipeline, step, agent, result)
+            threading.Thread(
+                target=self._clear_agent_status, args=(agent, step), daemon=True
+            ).start()
+            self._notify_step_finished(pipeline, step, result)
         except Exception as e:
             with pipeline.lock:
                 step.status = STEP_FAILED

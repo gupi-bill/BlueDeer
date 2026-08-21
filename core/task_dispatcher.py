@@ -21,6 +21,13 @@ from core.task import RESULT_TOPIC, Task, TaskResult, TaskStatus
 logger = logging.getLogger("bluedeer.task_dispatcher")
 
 
+def _status_value(status: Any) -> str:
+    """Normalize TaskStatus enum or raw string to a plain status string."""
+    if hasattr(status, "value"):
+        return status.value
+    return str(status)
+
+
 @dataclass
 class HarnessResult:
     """通用任务/函数执行结果。"""
@@ -123,7 +130,7 @@ class TaskDispatcherMixin:
                 component="Harness",
                 action="result_received",
                 task_id=task.id,
-                status=result.status.value,
+                status=_status_value(result.status),
                 tokens=result.token_usage.total,
             )
 
@@ -132,69 +139,22 @@ class TaskDispatcherMixin:
     # ---- 结果回执 ----
 
     async def _on_result(self, result: TaskResult) -> None:
-        """收到 Agent 回传结果时的回调。
-
-        Plan C DAG：成功完成后自动触发下游任务。
-        """
-        self._task_board[result.task_id] = result
+        """收到 Agent 回传结果时的回调。"""
         pending_task = self._pending.pop(result.task_id, None)
         agent_id = pending_task.assignee if pending_task else "unknown"
+
         if pending_task:
+            self._task_board[result.task_id] = result
             self._decrement_in_flight(agent_id)
-
-        # P6: 审计记录
-        self._audit.record_simple(
-            task_id=result.task_id,
-            action="completed",
-            agent=agent_id,
-            detail=result.error or "",
-            new_status=result.status.value,
-            trace_id=result.trace_id,
-        )
-
-        # P4: Token 审计 + 奖惩结算
-        self._record_and_settle(result, agent_id)
-
-        if self._tracer:
-            self._tracer.span(
-                result.trace_id,
-                component="Harness",
-                action="result_received",
-                task_id=result.task_id,
-                status=result.status.value,
-                tokens=result.token_usage.total,
+        else:
+            logger.warning(
+                "收到未知任务结果: task_id=%s, status=%s",
+                result.task_id,
+                _status_value(result.status),
             )
-
-        # WebSocket 实时推送
-        if self._task_event_cb:
-            asyncio.ensure_future(
-                self._task_event_cb(
-                    {
-                        "event": "task_result",
-                        "task_id": result.task_id,
-                        "status": result.status.value,
-                        "error": result.error,
-                        "timestamp": time.time(),
-                    }
-                )
-            )
-
-        # P6: 成功时清除重试状态
-        if result.status == TaskStatus.SUCCESS:
-            self._retry_mgr.record_success(result.task_id)
-
-        # P0 修复：异常重分配（融合项目8 DeerFlow 故障熔断）
-        if result.status == TaskStatus.FAILED:
-            await self._on_task_failed(result, pending_task)
-
-        # Plan C DAG：成功完成后自动触发下游就绪任务
-        if result.status == TaskStatus.SUCCESS and self._dag is not None:
-            await self._cascade_dag(result.task_id)
-        elif result.status == TaskStatus.FAILED and self._dag is not None:
-            self._block_dag_downstream(result.task_id)
 
     def _block_dag_downstream(self, failed_id: str) -> None:
-        """DAG 失败处理：标记直接依赖失败节点的下游任务为 blocked。"""
+        """DAG failure handling: mark downstream tasks of failed tasks as blocked."""
         for dep_id in self._dag.dependents(failed_id):
             if dep_id in self._pending:
                 logger.info(

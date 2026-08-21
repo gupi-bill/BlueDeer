@@ -1,63 +1,121 @@
-"""任务审计日志链。
+"""不可篡改审计日志（企业版）。
 
-记录每个任务从创建到完成的完整生命周期事件，
-支持按 task_id / agent / action / 时间范围查询。
+- 写入独立 data/audit_log.db（SQLite）
+- 每行带 SHA-256 哈希链：hash_i = sha256(prev_hash || payload_i)
+- 提供校验命令 verify_chain()
+- 保留旧兼容接口：AuditLog / record_simple / query / summary / get_audit_log
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
+import sqlite3
+import threading
 import time
-from dataclasses import dataclass, field
 from typing import Any
 
 logger = logging.getLogger("bluedeer.audit")
 
-_AUDIT_FILE = "logs/audit.jsonl"
-_MAX_LINES = 10_000
+_DB_FILE = "data/audit_log.db"
 
 
-@dataclass
-class AuditEntry:
-    task_id: str
-    action: str
-    ts: float = field(default_factory=time.time)
-    agent: str = ""
-    detail: str = ""
-    old_status: str = ""
-    new_status: str = ""
-    attempt: int = 0
-    trace_id: str = ""
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "task_id": self.task_id,
-            "action": self.action,
-            "ts": self.ts,
-            "agent": self.agent,
-            "detail": self.detail,
-            "old_status": self.old_status,
-            "new_status": self.new_status,
-            "attempt": self.attempt,
-            "trace_id": self.trace_id,
-        }
+def _chain_hash(payload: str, prev_hash: str = "") -> str:
+    return hashlib.sha256(f"{prev_hash}\x00{payload}".encode("utf-8")).hexdigest()
 
 
 class AuditLog:
-    def __init__(self, path: str = _AUDIT_FILE, archive_path: str = "") -> None:
+    def __init__(self, path: str = _DB_FILE) -> None:
         self._path = path
-        self._archive_path = archive_path or (
-            path.replace(".jsonl", "_archive.jsonl")
-            if path
-            else "logs/audit_archive.jsonl"
-        )
-        self._buffer: list[AuditEntry] = []
+        self._lock = threading.RLock()
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        self._conn = sqlite3.connect(path, check_same_thread=False)
+        self._conn.row_factory = sqlite3.Row
+        self._init_schema()
 
-    def record(self, entry: AuditEntry) -> None:
-        self._buffer.append(entry)
-        self._flush()
+    def _init_schema(self) -> None:
+        with self._lock, self._conn:
+            self._conn.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS audit_entries (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task_id TEXT NOT NULL DEFAULT '',
+                    action TEXT NOT NULL DEFAULT '',
+                    ts REAL NOT NULL,
+                    agent TEXT NOT NULL DEFAULT '',
+                    username TEXT NOT NULL DEFAULT '',
+                    ip TEXT NOT NULL DEFAULT '',
+                    detail TEXT NOT NULL DEFAULT '',
+                    old_status TEXT NOT NULL DEFAULT '',
+                    new_status TEXT NOT NULL DEFAULT '',
+                    attempt INTEGER NOT NULL DEFAULT 0,
+                    trace_id TEXT NOT NULL DEFAULT '',
+                    prev_hash TEXT NOT NULL DEFAULT '',
+                    hash TEXT NOT NULL DEFAULT ''
+                );
+                CREATE INDEX IF NOT EXISTS idx_audit_task ON audit_entries(task_id);
+                CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_entries(action);
+                CREATE INDEX IF NOT EXISTS idx_audit_agent ON audit_entries(agent);
+                CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_entries(ts);
+                """
+            )
+
+    def _last_hash(self) -> str:
+        row = self._conn.execute(
+            "SELECT hash FROM audit_entries ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        return row["hash"] if row else ""
+
+    def record(self, entry_dict: dict[str, Any]) -> dict[str, Any]:
+        """记录一条审计，自动计算哈希链。"""
+        now = time.time()
+        prev_hash = self._last_hash()
+        payload = json.dumps(
+            {
+                "task_id": entry_dict.get("task_id", ""),
+                "action": entry_dict.get("action", ""),
+                "ts": now,
+                "agent": entry_dict.get("agent", ""),
+                "username": entry_dict.get("username", ""),
+                "ip": entry_dict.get("ip", ""),
+                "detail": entry_dict.get("detail", ""),
+                "old_status": entry_dict.get("old_status", ""),
+                "new_status": entry_dict.get("new_status", ""),
+                "attempt": entry_dict.get("attempt", 0),
+                "trace_id": entry_dict.get("trace_id", ""),
+            },
+            sort_keys=True,
+            ensure_ascii=False,
+        )
+        row_hash = _chain_hash(payload, prev_hash)
+        with self._lock, self._conn:
+            cur = self._conn.execute(
+                """
+                INSERT INTO audit_entries
+                (task_id, action, ts, agent, username, ip, detail, old_status,
+                 new_status, attempt, trace_id, prev_hash, hash)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    entry_dict.get("task_id", ""),
+                    entry_dict.get("action", ""),
+                    now,
+                    entry_dict.get("agent", ""),
+                    entry_dict.get("username", ""),
+                    entry_dict.get("ip", ""),
+                    entry_dict.get("detail", ""),
+                    entry_dict.get("old_status", ""),
+                    entry_dict.get("new_status", ""),
+                    entry_dict.get("attempt", 0),
+                    entry_dict.get("trace_id", ""),
+                    prev_hash,
+                    row_hash,
+                ),
+            )
+            new_id = cur.lastrowid
+        return {"id": new_id, "hash": row_hash}
 
     def record_simple(
         self,
@@ -69,195 +127,116 @@ class AuditLog:
         new_status: str = "",
         attempt: int = 0,
         trace_id: str = "",
-    ) -> AuditEntry:
-        entry = AuditEntry(
-            task_id=task_id,
-            action=action,
-            agent=agent,
-            detail=detail,
-            old_status=old_status,
-            new_status=new_status,
-            attempt=attempt,
-            trace_id=trace_id,
+        username: str = "",
+        ip: str = "",
+        **_: Any,
+    ) -> dict[str, Any]:
+        """兼容旧签名，返回记录信息。"""
+        return self.record(
+            {
+                "task_id": task_id,
+                "action": action,
+                "agent": agent,
+                "detail": detail,
+                "old_status": old_status,
+                "new_status": new_status,
+                "attempt": attempt,
+                "trace_id": trace_id,
+                "username": username,
+                "ip": ip,
+            }
         )
-        self.record(entry)
-        return entry
-
-    # ---- 索引加速的时间范围搜索 ----
-
-    def query_by_time(
-        self,
-        since: float,
-        upto: float,
-        action: str | None = None,
-        agent: str | None = None,
-        limit: int = 100,
-        offset: int = 0,
-    ) -> list[dict[str, Any]]:
-        """基于时间范围的索引搜索（要求文件按 ts 有序）。"""
-        if not os.path.exists(self._path):
-            return []
-        result: list[dict[str, Any]] = []
-        try:
-            with open(self._path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        entry = json.loads(line)
-                    except (json.JSONDecodeError, ValueError):
-                        continue
-                    ts = entry.get("ts", 0)
-                    if ts < since:
-                        continue
-                    if ts > upto:
-                        # 由于文件按 ts 有序，后面都 > upto，可提前终止
-                        break
-                    if action and entry.get("action") != action:
-                        continue
-                    if agent and entry.get("agent") != agent:
-                        continue
-                    result.append(entry)
-        except OSError as e:
-            logger.warning("审计日志时间搜索失败: %s", e)
-        result.sort(key=lambda e: e.get("ts", 0), reverse=True)
-        return result[offset : offset + limit]
-
-    # ---- 归档策略 ----
-
-    def archive(self, before: float) -> int:
-        """将 before 时间戳之前的审计记录移至归档存储。
-
-        Returns:
-            归档的记录数。
-        """
-        if not os.path.exists(self._path):
-            return 0
-        remaining: list[dict[str, Any]] = []
-        archived: list[dict[str, Any]] = []
-        try:
-            with open(self._path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        entry = json.loads(line)
-                    except (json.JSONDecodeError, ValueError):
-                        remaining.append({"raw": line})
-                        continue
-                    ts = entry.get("ts", 0)
-                    if ts < before:
-                        archived.append(entry)
-                    else:
-                        remaining.append(entry)
-        except OSError as e:
-            logger.warning("审计日志归档读取失败: %s", e)
-            return 0
-        # 写回剩余记录
-        try:
-            with open(self._path, "w", encoding="utf-8") as f:
-                for entry in remaining:
-                    f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-        except OSError as e:
-            logger.warning("审计日志归档写回失败: %s", e)
-            return 0
-        # 追加到归档文件
-        if archived:
-            try:
-                os.makedirs(os.path.dirname(self._archive_path) or ".", exist_ok=True)
-                with open(self._archive_path, "a", encoding="utf-8") as f:
-                    for entry in archived:
-                        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-            except OSError as e:
-                logger.warning("审计日志归档写入失败: %s", e)
-                return 0
-        logger.info("审计日志归档: %d 条移至 %s", len(archived), self._archive_path)
-        return len(archived)
-
-    def _flush(self) -> None:
-        if not self._buffer:
-            return
-        try:
-            os.makedirs(os.path.dirname(self._path) or ".", exist_ok=True)
-            with open(self._path, "a", encoding="utf-8") as f:
-                f.writelines(
-                    json.dumps(entry.to_dict(), ensure_ascii=False) + "\n"
-                    for entry in self._buffer
-                )
-            self._buffer.clear()
-        except OSError as e:
-            logger.warning("审计日志写入失败: %s", e)
 
     def query(
         self,
         task_id: str | None = None,
         action: str | None = None,
         agent: str | None = None,
+        username: str | None = None,
         since: float = 0,
         upto: float | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> list[dict[str, Any]]:
-        if not os.path.exists(self._path):
-            return []
-
-        result: list[dict[str, Any]] = []
-        try:
-            with open(self._path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        entry = json.loads(line)
-                    except (json.JSONDecodeError, ValueError):
-                        continue
-
-                    ts = entry.get("ts", 0)
-                    if since and ts < since:
-                        continue
-                    if upto and ts > upto:
-                        continue
-                    if task_id and entry.get("task_id") != task_id:
-                        continue
-                    if action and entry.get("action") != action:
-                        continue
-                    if agent and entry.get("agent") != agent:
-                        continue
-                    result.append(entry)
-
-        except OSError as e:
-            logger.warning("审计日志读取失败: %s", e)
-
-        result.sort(key=lambda e: e.get("ts", 0), reverse=True)
-        return result[offset : offset + limit]
+        sql = "SELECT * FROM audit_entries WHERE 1=1"
+        params: list[Any] = []
+        if task_id:
+            sql += " AND task_id=?"
+            params.append(task_id)
+        if action:
+            sql += " AND action=?"
+            params.append(action)
+        if agent:
+            sql += " AND agent=?"
+            params.append(agent)
+        if username:
+            sql += " AND username=?"
+            params.append(username)
+        if since:
+            sql += " AND ts>=?"
+            params.append(since)
+        if upto:
+            sql += " AND ts<=?"
+            params.append(upto)
+        sql += " ORDER BY id DESC LIMIT ? OFFSET ?"
+        params.extend([max(1, min(limit, 1000)), offset])
+        rows = self._conn.execute(sql, params).fetchall()
+        return [dict(r) for r in rows]
 
     def summary(self) -> dict[str, Any]:
-        entries = self.query(limit=500)
-        total = len(entries)
-        by_action: dict[str, int] = {}
-        by_agent: dict[str, int] = {}
-        for e in entries[:500]:
-            act = e.get("action", "?")
-            by_action[act] = by_action.get(act, 0) + 1
-            ag = e.get("agent", "?")
-            by_agent[ag] = by_agent.get(ag, 0) + 1
+        row = self._conn.execute(
+            "SELECT COUNT(*) AS c, MAX(ts) AS last_ts FROM audit_entries"
+        ).fetchone()
+        actions = self._conn.execute(
+            "SELECT action, COUNT(*) AS c FROM audit_entries GROUP BY action"
+        ).fetchall()
         return {
-            "total": total,
-            "by_action": by_action,
-            "by_agent": by_agent,
-            "latest_ts": entries[0]["ts"] if entries else 0,
+            "total": row["c"] if row else 0,
+            "last_ts": row["last_ts"] if row else 0,
+            "actions": {a["action"]: a["c"] for a in actions},
         }
 
+    def verify_chain(self) -> tuple[bool, str]:
+        """校验哈希链，返回 (是否完整, 说明)。"""
+        rows = self._conn.execute(
+            "SELECT * FROM audit_entries ORDER BY id ASC"
+        ).fetchall()
+        prev = ""
+        for r in rows:
+            payload = json.dumps(
+                {
+                    "task_id": r["task_id"],
+                    "action": r["action"],
+                    "ts": r["ts"],
+                    "agent": r["agent"],
+                    "username": r["username"],
+                    "ip": r["ip"],
+                    "detail": r["detail"],
+                    "old_status": r["old_status"],
+                    "new_status": r["new_status"],
+                    "attempt": r["attempt"],
+                    "trace_id": r["trace_id"],
+                },
+                sort_keys=True,
+                ensure_ascii=False,
+            )
+            expected = _chain_hash(payload, prev)
+            if expected != r["hash"]:
+                return False, f"哈希链断裂于 id={r['id']}"
+            prev = expected
+        return True, f"哈希链完整，共 {len(rows)} 条"
 
-# 全局单例
+    def close(self) -> None:
+        self._conn.close()
+
+
 _audit_log: AuditLog | None = None
+_audit_lock = threading.Lock()
 
 
 def get_audit_log() -> AuditLog:
     global _audit_log
-    if _audit_log is None:
-        _audit_log = AuditLog()
-    return _audit_log
+    with _audit_lock:
+        if _audit_log is None:
+            _audit_log = AuditLog()
+        return _audit_log

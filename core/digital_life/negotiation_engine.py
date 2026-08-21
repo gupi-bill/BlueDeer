@@ -64,6 +64,96 @@ class NegotiationEngine:
 
     # ---------------- 主入口 ----------------
 
+    def _create_negotiation(
+        self,
+        pipeline_id: str,
+        step_id: int,
+        task: str,
+        candidate_species: list[str],
+        timeout: float,
+    ) -> str:
+        neg_id = "neg-" + uuid.uuid4().hex[:8]
+        deadline = time.time() + timeout
+        with self._lock:
+            self._active[neg_id] = {
+                "negotiation_id": neg_id,
+                "pipeline_id": pipeline_id,
+                "step_id": step_id,
+                "task": task,
+                "candidates": list(candidate_species),
+                "started_ts": time.time(),
+                "deadline": deadline,
+            }
+        return neg_id
+
+    def _collect_and_score_bids(
+        self, candidate_species: list[str], task: str
+    ) -> list[dict]:
+        bids: list[dict] = []
+        for species in candidate_species:
+            bid = self._collect_bid(species, task)
+            if bid is not None:
+                bid["score"] = self._score_bid(bid, task)
+                bids.append(bid)
+        bids.sort(key=lambda b: b.get("score", 0), reverse=True)
+        return bids
+
+    def _decide_winner(
+        self, bids: list[dict], candidate_species: list[str]
+    ) -> tuple[str, str, str, bool]:
+        winner = ""
+        winner_name = ""
+        reason = ""
+        fallback = False
+        available_bids = [b for b in bids if b.get("available", False)]
+        if available_bids:
+            top = available_bids[0]
+            winner = top.get("species", "")
+            winner_name = top.get("agent_name", "")
+            reason = self._explain_winner(top, available_bids)
+        elif candidate_species:
+            winner = candidate_species[0]
+            reason = (
+                f"所有候选都不可接（{len(bids)} 个竞标均 available=False），"
+                f"默认指派给 {winner}"
+            )
+            fallback = True
+        else:
+            reason = "无候选物种"
+        return winner, winner_name, reason, fallback
+
+    def _record_negotiation_history(
+        self,
+        neg_id: str,
+        pipeline_id: str,
+        step_id: int,
+        task: str,
+        candidate_species: list[str],
+        bids: list[dict],
+        winner: str,
+        winner_name: str,
+        reason: str,
+        fallback: bool,
+    ) -> None:
+        record = {
+            "negotiation_id": neg_id,
+            "pipeline_id": pipeline_id,
+            "step_id": step_id,
+            "task": task,
+            "candidates": list(candidate_species),
+            "bids": bids,
+            "winner": winner,
+            "winner_name": winner_name,
+            "reason": reason,
+            "fallback": fallback,
+            "ts": time.time(),
+        }
+        with self._lock:
+            self._history.append(record)
+            if len(self._history) > 200:
+                self._history = self._history[-200:]
+            self._active.pop(neg_id, None)
+
     def negotiate(
         self,
         pipeline_id: str,
@@ -92,77 +182,25 @@ class NegotiationEngine:
                 "fallback": bool,        # 是否走默认指派（协商失败时）
             }
         """
-        neg_id = "neg-" + uuid.uuid4().hex[:8]
-        deadline = time.time() + timeout
-
-        # 记录进行中
-        with self._lock:
-            self._active[neg_id] = {
-                "negotiation_id": neg_id,
-                "pipeline_id": pipeline_id,
-                "step_id": step_id,
-                "task": task,
-                "candidates": list(candidate_species),
-                "started_ts": time.time(),
-                "deadline": deadline,
-            }
-
-        # 收集竞标
-        bids: list[dict] = []
-        for species in candidate_species:
-            bid = self._collect_bid(species, task)
-            if bid is not None:
-                bid["score"] = self._score_bid(bid, task)
-                bids.append(bid)
-
-        # 评分排序
-        bids.sort(key=lambda b: b.get("score", 0), reverse=True)
-
-        # 决策
-        winner = ""
-        winner_name = ""
-        reason = ""
-        fallback = False
-
-        # 优先选 available=True 且分数最高的
-        available_bids = [b for b in bids if b.get("available", False)]
-        if available_bids:
-            top = available_bids[0]
-            winner = top.get("species", "")
-            winner_name = top.get("agent_name", "")
-            reason = self._explain_winner(top, available_bids)
-        elif candidate_species:
-            # 所有候选都不可接——走 fallback，指派第一个候选
-            winner = candidate_species[0]
-            winner_name = ""
-            reason = (
-                f"所有候选都不可接（{len(bids)} 个竞标均 available=False），"
-                f"默认指派给 {winner}"
-            )
-            fallback = True
-        else:
-            reason = "无候选物种"
-
-        # 记录历史
-        record = {
-            "negotiation_id": neg_id,
-            "pipeline_id": pipeline_id,
-            "step_id": step_id,
-            "task": task,
-            "candidates": list(candidate_species),
-            "bids": bids,
-            "winner": winner,
-            "winner_name": winner_name,
-            "reason": reason,
-            "fallback": fallback,
-            "ts": time.time(),
-        }
-        with self._lock:
-            self._history.append(record)
-            if len(self._history) > 200:
-                self._history = self._history[-200:]
-            self._active.pop(neg_id, None)
-
+        neg_id = self._create_negotiation(
+            pipeline_id, step_id, task, candidate_species, timeout
+        )
+        bids = self._collect_and_score_bids(candidate_species, task)
+        winner, winner_name, reason, fallback = self._decide_winner(
+            bids, candidate_species
+        )
+        self._record_negotiation_history(
+            neg_id,
+            pipeline_id,
+            step_id,
+            task,
+            candidate_species,
+            bids,
+            winner,
+            winner_name,
+            reason,
+            fallback,
+        )
         return {
             "ok": True,
             "negotiation_id": neg_id,

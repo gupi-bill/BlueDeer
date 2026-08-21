@@ -12,6 +12,11 @@ psutil>=7.2
 Pillow>=12.2
 packaging>=26.0
 
+# 可观测性（OpenTelemetry + OTLP）
+opentelemetry-api>=1.21
+opentelemetry-sdk>=1.21
+opentelemetry-exporter-otlp>=1.21
+
 # 测试
 pytest>=9.1
 pytest-asyncio>=1.4

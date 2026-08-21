@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+from typing import ClassVar
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,7 @@ EMOTION_COLORS: dict[str, tuple[int, int, int]] = {
 }
 
 # 主导情感触发阈值（超过该值才显现为光环）
-EMOTION_AURA_THRESHOLD: dict[str, float] = {
+EMOTION_AURA_THRESHOLD: ClassVar[dict[str, float]] = {
     "joy": 0.6,
     "sadness": 0.5,
     "anxiety": 0.6,
@@ -141,7 +142,7 @@ class AtmosphereSystem:
     _instance_lock = threading.Lock()
 
     # 默认设置（可被用户覆盖）
-    DEFAULT_SETTINGS: dict = {
+    DEFAULT_SETTINGS: ClassVar[dict] = {
         "aura_intensity": 0.7,  # 光环强度 0-1
         "particle_density": "medium",  # 少/中/多
         "show_aura": True,
@@ -180,7 +181,7 @@ class AtmosphereSystem:
 
     # ---------------- mood_transition / current_atmosphere ----------------
 
-    _mood_transition_cache: dict = {}
+    _mood_transition_cache: ClassVar[ClassVar[dict]] = {}
     _mood_transition_speed: float = 0.05
 
     def mood_transition(
@@ -205,9 +206,9 @@ class AtmosphereSystem:
         with self._lock:
             if not self._zone_aura:
                 return {"dominant": "neutral", "score": 0.5, "zones": {}}
-            all_scores: list[float] = []
+            all_scores: ClassVar[list[float]] = []
             zone_scores = {}
-            emotion_total: dict[str, float] = {}
+            emotion_total: ClassVar[dict[str, float]] = {}
             for zid, aura in self._zone_aura.items():
                 if aura:
                     dom = max(aura, key=aura.get)
@@ -262,7 +263,7 @@ class AtmosphereSystem:
             return
 
         with self._lock:
-            new_auras: dict[str, dict] = {}
+            new_auras: ClassVar[dict[str, dict]] = {}
             zone_emotion_accum: dict[str, dict[str, float]] = (
                 {}
             )  # {zone_id: {emo: total_intensity}}
@@ -406,7 +407,7 @@ class AtmosphereSystem:
 
     def _update_particles(self, dt: float) -> None:
         """更新粒子位置 + 生命周期。"""
-        alive: list[AtmosphereParticle] = []
+        alive: ClassVar[list[AtmosphereParticle]] = []
         for p in self._particles:
             p.life -= dt
             if p.life <= 0:

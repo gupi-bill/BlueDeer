@@ -18,7 +18,7 @@ import random
 import time
 from typing import Any
 
-# ruff: noqa: S110, S112
+# ruff: noqa: S110
 
 # ====================================================================
 # 消息分类与优先级
@@ -274,6 +274,80 @@ def generate_via_llm(router: Any, prompt: str, timeout: float = 3.0) -> str | No
 # ====================================================================
 
 
+def _check_active_message_cooldown(agent: Any, category: str) -> bool:
+    cfg = get_category_config(category)
+    cooldown_sec = cfg.get("cooldown", 3600)
+    if cooldown_sec > 0:
+        last_ts = agent._active_msg_cooldowns.get(category, 0.0)
+        if time.time() - last_ts < cooldown_sec:
+            return True
+    return False
+
+
+def _build_llm_prompt_for_category(
+    name: Any,
+    species: str,
+    energy: float,
+    health: float,
+    top_e: str,
+    category: str,
+    context: str,
+    detail: str,
+) -> str:
+    context_text = context or detail
+    return build_llm_prompt(
+        name, species, energy, health, top_e, category, context_text
+    )
+
+
+def _generate_active_message_text(
+    router: Any, category: str, species: str, name: Any, detail: str, prompt: str
+) -> str | None:
+    text = None
+    if router is not None:
+        text = generate_via_llm(router, prompt)
+    if not text:
+        text = pick_template(category, species, name, detail)
+    return text
+
+
+def _push_active_message_to_env(
+    agent: Any, text: str, category: str, cfg: dict
+) -> bool:
+    env = getattr(agent, "_environment", None)
+    if env is None:
+        return False
+    name = getattr(agent, "_name_obj", "?")
+    species = getattr(agent, "species", "unknown")
+    return env.push_active_message(
+        sender=name,
+        sender_species=species,
+        text=text,
+        category=category,
+        priority=cfg.get("priority", "low"),
+    )
+
+
+def _dispatch_active_message_external(
+    text: str, category: str, cfg: dict, name: Any, species: str
+) -> None:
+    try:
+        from core.digital_life.message_router import dispatch_active_message
+
+        dispatch_active_message(
+            {
+                "sender": name,
+                "sender_species": species,
+                "text": text,
+                "category": category,
+                "priority": cfg.get("priority", "low"),
+                "time": time.time(),
+            }
+        )
+    except Exception:
+        pass
+
+
 def trigger_active_message(
     agent: Any,
     category: str,
@@ -299,71 +373,27 @@ def trigger_active_message(
         return None
     if category not in MESSAGE_CATEGORIES:
         return None
-
-    # 1. 检查冷却
-    cfg = get_category_config(category)
-    cooldown_sec = cfg.get("cooldown", 3600)
-    if cooldown_sec > 0:
-        last_ts = agent._active_msg_cooldowns.get(category, 0.0)
-        if time.time() - last_ts < cooldown_sec:
-            return None  # 还在冷却中
-
-    # 2. 生成消息文本
+    if _check_active_message_cooldown(agent, category):
+        return None
     name = getattr(agent, "_name_obj", "?")
     species = getattr(agent, "species", "unknown")
     energy = getattr(agent, "energy", 50.0)
     health = getattr(agent, "health", 100.0)
     emo = getattr(agent, "emotional_state", {})
     top_e = max(emo.items(), key=lambda x: x[1])[0] if emo else "neutral"
-
-    text = None
-    # 优先尝试 LLM（如果传入了 router）
-    if router is not None:
-        prompt = build_llm_prompt(
-            name, species, energy, health, top_e, category, context or detail
-        )
-        text = generate_via_llm(router, prompt)
-
-    # LLM 失败或未传 router → 降级到模板
-    if not text:
-        text = pick_template(category, species, name, detail)
-
-    # 3. 推送到 environment 的主动消息队列
-    env = getattr(agent, "_environment", None)
-    if env is None:
-        return None
-    ok = env.push_active_message(
-        sender=name,
-        sender_species=species,
-        text=text,
-        category=category,
-        priority=cfg.get("priority", "low"),
+    prompt = _build_llm_prompt_for_category(
+        name, species, energy, health, top_e, category, context, detail
     )
-    if not ok:
-        # 全局速率限制触发，未发送
+    text = _generate_active_message_text(
+        router, category, species, name, detail, prompt
+    )
+    if not text:
         return None
-
-    # commit 32：交给 MessageRouter 分发到外部渠道（桌面通知/微信/邮件等）
-    # 失败不影响管控台消息队列（已入队），仅静默跳过
-    try:
-        from core.digital_life.message_router import dispatch_active_message
-
-        dispatch_active_message(
-            {
-                "sender": name,
-                "sender_species": species,
-                "text": text,
-                "category": category,
-                "priority": cfg.get("priority", "low"),
-                "time": time.time(),
-            }
-        )
-    except Exception:
-        pass
-
-    # 4. 记录冷却
+    cfg = get_category_config(category)
+    if not _push_active_message_to_env(agent, text, category, cfg):
+        return None
+    _dispatch_active_message_external(text, category, cfg, name, species)
     agent._active_msg_cooldowns[category] = time.time()
-    # 同时写入智能体短期记忆
     try:
         agent._remember(f"（向监工发送消息）{text}", importance="normal")
     except Exception:

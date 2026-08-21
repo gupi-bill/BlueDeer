@@ -8,10 +8,6 @@
 
 from __future__ import annotations
 
-import logging
-
-logger = logging.getLogger(__name__)
-
 import json
 import logging
 import os
@@ -109,6 +105,7 @@ def _clean_jsonl(
 
                             ts = datetime.fromisoformat(ts).timestamp()
                         except Exception:
+                            logger.debug("时间戳解析失败，设为 0", exc_info=True)
                             ts = 0
                     if ts < cutoff:
                         removed += 1
@@ -132,8 +129,8 @@ def _fmt_size(b: int) -> str:
     if b < 1024:
         return f"{b} B"
     if b < 1024 * 1024:
-        return f"{b/1024:.1f} KB"
-    return f"{b/1024/1024:.1f} MB"
+        return f"{b / 1024:.1f} KB"
+    return f"{b / 1024 / 1024:.1f} MB"
 
 
 # ============== 优先级排序 ==============
@@ -215,7 +212,7 @@ def _save_last_run() -> None:
         with open(_STATE_FILE, "w", encoding="utf-8") as f:
             json.dump({"last_run": time.time()}, f)
     except Exception:
-        logger.exception("Exception in block")
+        logger.warning("清理状态文件失败", exc_info=True)
 
 
 def run_cleanup_incremental(

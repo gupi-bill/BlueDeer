@@ -7,16 +7,17 @@ commit 28：行为池——假装迷路 / 偷看测试结果 / 雪地打滚
 from __future__ import annotations
 
 import random
+from typing import ClassVar
 
 from .digital_life_form import DigitalLifeForm
 
-# ruff: noqa: S110, S112
+# ruff: noqa: S110
 
 
 class Fox(DigitalLifeForm):
     """狡黠狐狸。"""
 
-    SPECIES_TEMPLATE: dict = {
+    SPECIES_TEMPLATE: ClassVar[dict] = {
         "species": "fox",
         "default_name": "狡黠狐狸",
         "metabolic_rate": 0.55,
@@ -34,7 +35,7 @@ class Fox(DigitalLifeForm):
     # 1. 假装迷路：随机选一位同事，故意绕路然后回头狡黠一笑
     # 2. 偷看测试结果：找测试相关同事偷看，被发现耳朵耷拉
     # 3. 雪地打滚：冬季室外（zone=fox 测试迷宫）打滚，留下压痕
-    BEHAVIOR_POOL: list[dict] = [
+    BEHAVIOR_POOL: ClassVar[list[dict]] = [
         {
             "name": "fake_lost",
             "label": "假装迷路",

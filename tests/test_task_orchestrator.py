@@ -6,6 +6,7 @@ import asyncio
 
 import pytest
 
+from core.exceptions import TaskDependencyError, TaskTimeoutError
 from core.task_orchestrator import TaskNode, TaskOrchestrator
 
 
@@ -58,7 +59,7 @@ class TestTaskOrchestrator:
         orch = TaskOrchestrator(max_workers=2)
         orch.add_task("a", lambda: "a", deps=["b"])
         orch.add_task("b", lambda: "b", deps=["a"])
-        with pytest.raises(Exception):  # TaskDependencyError
+        with pytest.raises(TaskDependencyError):
             orch.run(timeout=10.0)
 
     def test_task_status(self):
@@ -117,7 +118,7 @@ class TestAsyncOrchestrator:
             return "late"
 
         orch.add_task("slow", slow)
-        with pytest.raises(Exception):  # TaskTimeoutError
+        with pytest.raises(TaskTimeoutError):
             await orch.run_async(timeout=0.05)
 
         assert orch.task_status("slow")["state"] in ("pending", "cancelled")

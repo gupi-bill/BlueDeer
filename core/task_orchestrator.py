@@ -1,20 +1,19 @@
-"""BlueDeer 并发任务编排器：DAG 依赖 + 并行执行 + 汇合 + 超时。
+"""BlueDeer 并发任务编排器：DAG 依赖 + 并行执行 + 汇合 + 超时 + 状态快照。
 
 evolution（并发维度 - R179）：
 - 工作流经常是多步且依赖复杂的：A→B、A→C、B+C→D
 - 串行执行慢，盲目并行又会破坏依赖
 - DAG 编排：声明任务和依赖，按拓扑并行执行无依赖的任务
 - 支持失败传播、超时、取消
+
+P1 新增：状态快照（snapshot / restore），支持跨会话恢复。
 """
 
 from __future__ import annotations
 
-import logging
-
-logger = logging.getLogger(__name__)
-
 import asyncio
 import inspect
+import json
 import logging
 import threading
 import time
@@ -22,6 +21,7 @@ from collections.abc import Callable
 from typing import Any
 
 from core.exceptions import TaskDependencyError, TaskExecutionError, TaskTimeoutError
+from core.observability import Observability
 
 logger = logging.getLogger("bluedeer.orch")
 
@@ -103,6 +103,8 @@ class TaskOrchestrator:
         self._lock = threading.RLock()
         self._dag = dag
         self._executor = TaskExecutor(max_workers)
+        self._approval_callbacks: dict[str, Callable[[TaskNode], bool]] = {}
+        self._paused_tasks: dict[str, TaskNode] = {}
 
     def add_task(
         self,
@@ -167,124 +169,142 @@ class TaskOrchestrator:
         - 依赖任务失败时，下游任务被取消
         - 超时取消所有未完成任务
         """
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            return asyncio.run(self._run_async(timeout))
-        raise RuntimeError(
-            "TaskOrchestrator.run() 不能在有运行事件循环的协程中调用，"
-            "请改用 await orch.run_async(timeout=...)"
-        )
+        with Observability.span("task_orchestrator.run", timeout=timeout or 0):
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                return asyncio.run(self._run_async(timeout))
+            raise RuntimeError(
+                "TaskOrchestrator.run() 不能在有运行事件循环的协程中调用，"
+                "请改用 await orch.run_async(timeout=...)"
+            )
 
     async def _invoke(self, node: TaskNode, dep_results: list) -> Any:
         """执行节点函数（委托给 TaskExecutor）。"""
-        return await self._executor.execute(node, dep_results)
+        with Observability.span("task_orchestrator.invoke", task=node.name):
+            return await self._executor.execute(node, dep_results)
 
     async def run_async(self, timeout: float | None = None) -> dict[str, Any]:
         """协程友好的编排入口：await orch.run_async(timeout=...)。"""
-        return await self._run_async(timeout)
+        with Observability.span("task_orchestrator.run_async", timeout=timeout or 0):
+            return await self._run_async(timeout)
+
+    def _run_async_check_timeout(
+        self, deadline: float | None, tasks_snapshot: dict, pending: dict
+    ) -> None:
+        if deadline is not None and time.monotonic() >= deadline:
+            for t in tasks_snapshot.values():
+                if t.state in ("pending", "running"):
+                    t.state = "cancelled"
+            for fut in list(pending):
+                fut.cancel()
+            pending.clear()
+            raise TaskTimeoutError(f"编排超时 {self._timeout}s")
+
+    def _run_async_cleanup_completed(
+        self, tasks_snapshot: dict, pending: dict, results: dict
+    ) -> None:
+        for fut in list(pending):
+            if fut.done():
+                name = pending.pop(fut)
+                t = tasks_snapshot[name]
+                t.finished_at = time.time()
+                try:
+                    t.result = fut.result()
+                    t.state = "done"
+                    results[name] = t.result
+                except Exception as e:
+                    t.exception = e
+                    t.state = "failed"
+                fut.cancel()
+
+    def _run_async_submit_ready(self, tasks_snapshot: dict, pending: dict) -> bool:
+        ready = self._get_ready()
+        submitted_any = False
+        for name in ready:
+            t = tasks_snapshot[name]
+            if self._has_failed_deps(t):
+                t.state = "cancelled"
+                continue
+            if t.state == "running":
+                continue
+            if not self._check_approval(t):
+                continue
+            dep_results = [tasks_snapshot[d].result for d in t.deps]
+            t.state = "running"
+            t.started_at = time.time()
+            fut = asyncio.ensure_future(self._invoke(t, dep_results))
+            pending[fut] = name
+            submitted_any = True
+        return submitted_any
+
+    async def _run_async_wait_done(self, pending: dict, deadline: float | None) -> set:
+        if deadline is not None:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return set()
+            try:
+                done, _ = await asyncio.wait(
+                    list(pending.keys()),
+                    timeout=remaining,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+            except TimeoutError:
+                logger.exception("Exception in block")
+                return set()
+        else:
+            done, _ = await asyncio.wait(
+                list(pending.keys()),
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+        return done
+
+    def _run_async_process_done(
+        self, done: set, pending: dict, tasks_snapshot: dict, results: dict
+    ) -> None:
+        for fut in done:
+            name = pending[fut]
+            t = tasks_snapshot[name]
+            t.finished_at = time.time()
+            try:
+                t.result = fut.result()
+                t.state = "done"
+                results[name] = t.result
+            except asyncio.CancelledError:
+                t.state = "cancelled"
+                logger.info("任务 %s 被取消", name)
+            except Exception as e:
+                t.exception = e
+                t.state = "failed"
+            finally:
+                pending.pop(fut, None)
 
     async def _run_async(self, timeout: float | None = None) -> dict[str, Any]:
         """asyncio 版本的编排执行（按拓扑并行 + 超时 + 失败传播）。"""
+        self._timeout = timeout
         with self._lock:
             self._validate()
             tasks_snapshot = dict(self._tasks)
-
         deadline = None if timeout is None else time.monotonic() + timeout
         pending: dict[asyncio.Task, str] = {}
         results: dict[str, Any] = {}
-
         try:
             while True:
-                # 检查超时
-                if deadline is not None and time.monotonic() >= deadline:
-                    for t in tasks_snapshot.values():
-                        if t.state in ("pending", "running"):
-                            t.state = "cancelled"
-                    for fut in list(pending):
-                        fut.cancel()
-                    pending.clear()
-                    raise TaskTimeoutError(f"编排超时 {timeout}s")
-
-                # 清理已完成的 task
-                for fut in list(pending):
-                    if fut.done():
-                        name = pending.pop(fut)
-                        t = tasks_snapshot[name]
-                        t.finished_at = time.time()
-                        try:
-                            t.result = fut.result()
-                            t.state = "done"
-                            results[name] = t.result
-                        except Exception as e:
-                            t.exception = e
-                            t.state = "failed"
-                        fut.cancel()
-
-                # 就绪注入
-                ready = self._get_ready()
-                submitted_any = False
-                for name in ready:
-                    t = tasks_snapshot[name]
-                    if self._has_failed_deps(t):
-                        t.state = "cancelled"
-                        continue
-                    if t.state == "running":
-                        continue
-                    dep_results = [tasks_snapshot[d].result for d in t.deps]
-                    t.state = "running"
-                    t.started_at = time.time()
-                    fut = asyncio.ensure_future(self._invoke(t, dep_results))
-                    pending[fut] = name
-                    submitted_any = True
-
+                self._run_async_check_timeout(deadline, tasks_snapshot, pending)
+                self._run_async_cleanup_completed(tasks_snapshot, pending, results)
+                submitted_any = self._run_async_submit_ready(tasks_snapshot, pending)
                 if not pending:
-                    # 全完成 or 全失败/取消
                     if not any(t.state == "running" for t in tasks_snapshot.values()):
                         break
-                    # 理论上不会到这；防死循环
                     await asyncio.sleep(0.01)
                     continue
-
                 if submitted_any:
                     await asyncio.sleep(0)
                     continue
-
-                # 等最先完成的那批
-                if deadline is not None:
-                    remaining = deadline - time.monotonic()
-                    if remaining <= 0:
-                        continue
-                    try:
-                        done, _ = await asyncio.wait(
-                            list(pending.keys()),
-                            timeout=remaining,
-                            return_when=asyncio.FIRST_COMPLETED,
-                        )
-                    except TimeoutError:
-                        logger.exception("Exception in block")
-                        continue
-                else:
-                    done, _ = await asyncio.wait(
-                        list(pending.keys()),
-                        return_when=asyncio.FIRST_COMPLETED,
-                    )
-                for fut in done:
-                    name = pending[fut]
-                    t = tasks_snapshot[name]
-                    t.finished_at = time.time()
-                    try:
-                        t.result = fut.result()
-                        t.state = "done"
-                        results[name] = t.result
-                    except Exception as e:
-                        t.exception = e
-                        t.state = "failed"
-                    del pending[fut]
-                    fut.cancel()
-        except TaskTimeoutError:
+                done = await self._run_async_wait_done(pending, deadline)
+                self._run_async_process_done(done, pending, tasks_snapshot, results)
+        except TaskTimeoutError:  # noqa: TRY203
             raise
-
         return results
 
     def _run_task(self, node: TaskNode, dep_results: list) -> Any:
@@ -437,3 +457,113 @@ class TaskOrchestrator:
                 t.exception = None
                 t.started_at = 0.0
                 t.finished_at = 0.0
+
+    # ============== P1 新增：状态快照 ==============
+
+    def snapshot(self) -> dict[str, Any]:
+        """导出当前编排器状态快照。
+
+        Returns:
+            包含所有任务节点状态的字典，可用于跨会话恢复。
+        """
+        with self._lock:
+            return {
+                "max_workers": self._max_workers,
+                "tasks": {
+                    name: {
+                        "name": t.name,
+                        "state": t.state,
+                        "deps": list(t.deps),
+                        "started_at": t.started_at,
+                        "finished_at": t.finished_at,
+                        "result": t.result,
+                        "exception": str(t.exception) if t.exception else None,
+                    }
+                    for name, t in self._tasks.items()
+                },
+            }
+
+    def restore(self, snapshot_data: dict[str, Any]) -> None:
+        """从快照恢复编排器状态。
+
+        Args:
+            snapshot_data: snapshot() 返回的字典。
+        """
+        with self._lock:
+            self._max_workers = snapshot_data.get("max_workers", self._max_workers)
+            self._executor = TaskExecutor(self._max_workers)
+            for name, tdata in snapshot_data.get("tasks", {}).items():
+                if name not in self._tasks:
+                    self._tasks[name] = TaskNode(
+                        name=tdata["name"],
+                        func=lambda *a, **kw: None,
+                        deps=tdata.get("deps", []),
+                    )
+                node = self._tasks[name]
+                node.state = tdata.get("state", "pending")
+                node.deps = tdata.get("deps", node.deps)
+                node.started_at = tdata.get("started_at", 0.0)
+                node.finished_at = tdata.get("finished_at", 0.0)
+                node.result = tdata.get("result")
+                exc_str = tdata.get("exception")
+                node.exception = TaskExecutionError(exc_str) if exc_str else None
+
+    def save_snapshot(self, path: str) -> None:
+        """将状态快照保存到 JSON 文件。"""
+        import os
+
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        data = self.snapshot()
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2, default=str)
+
+    @classmethod
+    def load_snapshot(cls, path: str) -> dict[str, Any]:
+        """从 JSON 文件加载状态快照。"""
+        import os
+
+        if not os.path.exists(path):
+            return {}
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    # ============== P1 新增：Human-in-the-Loop ==============
+
+    def register_approval_callback(
+        self, task_name: str, callback: Callable[[TaskNode], bool]
+    ) -> None:
+        """注册人工审批回调。
+
+        Args:
+            task_name: 需要审批的任务名。
+            callback: 审批函数，接收 TaskNode，返回 True(批准) / False(拒绝)。
+        """
+        self._approval_callbacks[task_name] = callback
+
+    def approve(self, task_name: str) -> None:
+        """人工批准任务，继续执行。"""
+        node = self._paused_tasks.pop(task_name, None)
+        if node is None:
+            raise KeyError(f"任务 {task_name} 不在等待审批状态")
+        node.state = "pending"
+        logger.info("任务 %s 已人工批准", task_name)
+
+    def reject(self, task_name: str) -> None:
+        """人工拒绝任务，标记为 cancelled。"""
+        node = self._paused_tasks.pop(task_name, None)
+        if node is None:
+            raise KeyError(f"任务 {task_name} 不在等待审批状态")
+        node.state = "cancelled"
+        logger.info("任务 %s 已人工拒绝", task_name)
+
+    def _check_approval(self, node: TaskNode) -> bool:
+        """检查任务是否需要人工审批。"""
+        cb = self._approval_callbacks.get(node.name)
+        if cb is None:
+            return True
+        approved = cb(node)
+        if not approved:
+            node.state = "paused"
+            self._paused_tasks[node.name] = node
+            logger.info("任务 %s 等待人工审批", node.name)
+        return approved

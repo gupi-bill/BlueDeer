@@ -201,7 +201,9 @@ class AgentMonitor:
                         component = record.get("component", "")
                         aid = component.split(".", 1)[1] if "." in component else span
 
-                    self._update_health_stats(stats, record, aid, max_errors, max_recent)
+                    self._update_health_stats(
+                        stats, record, aid, max_errors, max_recent
+                    )
         except (OSError, json.JSONDecodeError) as e:
             logger.warning("读取 trace 日志失败: %s", e)
 

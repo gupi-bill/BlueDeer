@@ -13,6 +13,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 import os
+import threading
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -293,6 +294,13 @@ def _coerce(value: Any, expected: Any) -> Any | None:
             if low in ("false", "0", "no", "off"):
                 return False
         return None
+
+    if expected is set:
+        if isinstance(value, set):
+            return value
+        if isinstance(value, list):
+            return set(value)
+        return None
     if expected is int:
         if isinstance(value, bool):
             return None
@@ -319,12 +327,6 @@ def _coerce(value: Any, expected: Any) -> Any | None:
         return None
     if expected is list:
         return value if isinstance(value, list) else None
-    if expected is set:
-        if isinstance(value, set):
-            return value
-        if isinstance(value, list):
-            return set(value)
-        return None
     if expected is dict:
         return value if isinstance(value, dict) else None
     if isinstance(expected, type) and issubclass(expected, Enum):
@@ -418,20 +420,7 @@ class AppConfig:
     def from_file(cls, path: str) -> AppConfig:
         cfg = cls()
         cfg.config_file = path
-        raw: dict[str, Any] = {}
-        if path.endswith((".yaml", ".yml")):
-            try:
-                import yaml
-            except ImportError:
-                logger.exception("Exception in block")
-            else:
-                with open(path, "r", encoding="utf-8") as f:
-                    raw = yaml.safe_load(f) or {}
-        elif path.endswith(".toml"):
-            import tomllib
-
-            with open(path, "rb") as f:
-                raw = tomllib.load(f)
+        raw = cls._load_raw(path)
         if not isinstance(raw, dict):
             cfg._load_errors.append("配置文件顶层必须是映射")
             raw = {}
@@ -451,22 +440,7 @@ class AppConfig:
             if not isinstance(section_cfg, dict):
                 cfg._load_errors.append(f"配置 section {section} 必须是映射")
                 continue
-            obj = getattr(cfg, section)
-            for k, v in section_cfg.items():
-                if k not in _SECTION_FIELDS[section]:
-                    cfg._load_errors.append(f"未知配置项: {section}.{k}")
-                    continue
-                if section == "log" and k == "level":
-                    if not isinstance(v, str) or v.upper() not in _LOG_LEVELS:
-                        cfg._load_errors.append(
-                            f"log.level 非法: {v!r}（可选 {sorted(_LOG_LEVELS)}）"
-                        )
-                        continue
-                coerced = _coerce(v, _SECTION_FIELDS[section][k])
-                if coerced is None:
-                    cfg._load_errors.append(f"配置项 {section}.{k} 类型/值非法: {v!r}")
-                    continue
-                setattr(obj, k, coerced)
+            cfg._apply_section(section, section_cfg)
         cfg.apply_env()
         try:
             cfg._file_mtime = os.path.getmtime(path)
@@ -474,12 +448,44 @@ class AppConfig:
             logger.exception("Exception in block")
         errors = cfg.validate()
         if errors:
-            import logging
-
             logging.getLogger("bluedeer.config").warning(
                 "配置验证发现 %d 个问题: %s", len(errors), errors
             )
         return cfg
+
+    @classmethod
+    def _load_raw(cls, path: str) -> dict[str, Any]:
+        if path.endswith((".yaml", ".yml")):
+            try:
+                import yaml
+            except ImportError as exc:
+                raise RuntimeError(
+                    "读取 YAML 配置文件需要 PyYAML: pip install pyyaml"
+                ) from exc
+            with open(path, "r", encoding="utf-8") as f:
+                return yaml.safe_load(f) or {}
+        if path.endswith(".toml"):
+            import tomllib
+            with open(path, "rb") as f:
+                return tomllib.load(f)
+        return {}
+
+    def _apply_section(self, section: str, section_cfg: dict[str, Any]) -> None:
+        obj = getattr(self, section)
+        for k, v in section_cfg.items():
+            if k not in _SECTION_FIELDS[section]:
+                self._load_errors.append(f"未知配置项: {section}.{k}")
+                continue
+            if section == "log" and k == "level" and (not isinstance(v, str) or v.upper() not in _LOG_LEVELS):
+                    self._load_errors.append(
+                        f"log.level 非法: {v!r}（可选 {sorted(_LOG_LEVELS)}）"
+                    )
+                    continue
+            coerced = _coerce(v, _SECTION_FIELDS[section][k])
+            if coerced is None:
+                self._load_errors.append(f"配置项 {section}.{k} 类型/值非法: {v!r}")
+                continue
+            setattr(obj, k, coerced)
 
     def reload(self) -> bool:
         if not self.config_file:
@@ -515,6 +521,10 @@ class AppConfig:
         self.apply_env()
         return True
 
+    def reload_async(self) -> bool:
+        with _config_lock:
+            return self.reload()
+
     def validate(self) -> list[str]:
         errors: list[str] = []
         if self.task.timeout_seconds <= 0:
@@ -542,30 +552,33 @@ class AppConfig:
 
 _config: AppConfig | None = None
 _config_file: str = ""
+_config_lock = threading.Lock()
 
 
 def get_config() -> AppConfig:
     global _config
     if _config is None:
-        _config = AppConfig.from_env()
-        if _config_file:
-            _config = AppConfig.from_file(_config_file)
-        errors = _config.validate()
-        if errors:
-            import logging
-
-            logging.getLogger("bluedeer.config").warning(
-                "配置验证发现 %d 个问题: %s", len(errors), errors
-            )
+        with _config_lock:
+            if _config is None:
+                _config = AppConfig.from_env()
+                if _config_file:
+                    _config = AppConfig.from_file(_config_file)
+                errors = _config.validate()
+                if errors:
+                    logging.getLogger("bluedeer.config").warning(
+                        "配置验证发现 %d 个问题: %s", len(errors), errors
+                    )
     return _config
 
 
 def set_config(cfg: AppConfig) -> None:
     global _config
-    _config = cfg
+    with _config_lock:
+        _config = cfg
 
 
 def set_config_file(path: str) -> None:
     global _config_file, _config
-    _config_file = path
-    _config = AppConfig.from_file(path)
+    with _config_lock:
+        _config_file = path
+        _config = AppConfig.from_file(path)

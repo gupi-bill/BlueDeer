@@ -88,7 +88,7 @@ class GitOps:
         """
         cmd = ["git"] + args
         try:
-            proc = subprocess.run(
+            proc = subprocess.run(  # noqa: PLW1510
                 cmd,
                 cwd=self._repo,
                 capture_output=True,
@@ -102,10 +102,10 @@ class GitOps:
             # 注意：只去尾随换行，不去首部空格（git status --porcelain 输出首字符可能是空格）
             return proc.returncode, proc.stdout.rstrip("\n"), proc.stderr.rstrip("\n")
         except subprocess.TimeoutExpired:
-            logger.error("git 命令超时: %s", " ".join(cmd))
+            logger.exception("git 命令超时: %s", " ".join(cmd))
             return -1, "", "timeout"
         except FileNotFoundError:
-            logger.error("git 未安装或不在 PATH")
+            logger.exception("git 未安装或不在 PATH")
             return -2, "", "git not found"
 
     def is_repo(self) -> bool:
@@ -171,6 +171,15 @@ class GitOps:
         skipped = [p for p in paths if self._is_forbidden(p)]
         if skipped:
             logger.warning("跳过敏感文件（安全黑名单）: %s", skipped)
+
+        if not safe_paths:
+            return True, []
+
+        # 额外检查：禁止路径遍历
+        for p in safe_paths[:]:
+            if ".." in p or p.startswith("/") or (len(p) > 2 and p[1] == ":"):
+                logger.warning("跳过路径遍历文件: %s", p)
+                safe_paths.remove(p)
 
         if not safe_paths:
             return True, []

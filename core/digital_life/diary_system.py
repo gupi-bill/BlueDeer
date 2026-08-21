@@ -20,7 +20,7 @@ import threading
 import time
 from typing import Any
 
-# ruff: noqa: S110, S112
+# ruff: noqa: S110
 
 # ----------------------------------------------------------------------
 # 配置
@@ -538,7 +538,7 @@ class DiaryManager:
                     is_relic=True,
                 )
             return len(diary.special_entries)
-        except Exception:
+        except Exception as e:
             return 0
 
     # ---------------- 查询 ----------------
