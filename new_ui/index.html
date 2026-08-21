@@ -170,6 +170,23 @@ textarea { resize: vertical; }
 .toast.show { opacity: 1; }
 .toast.err { background: var(--red); }
 .loading { text-align: center; color: var(--text-mute); padding: 30px 0; }
+/* ============ 记忆池 ============ */
+.mem-toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; margin-bottom:12px; }
+.domain-chip { display:inline-block; background:var(--accent-soft); color:var(--accent); border-radius:6px; padding:3px 11px; margin:3px 5px 3px 0; font-size:12px; cursor:pointer; border:1px solid transparent; }
+.domain-chip:hover { border-color:var(--accent); }
+.domain-chip.active { background:var(--accent); color:#fff; }
+.mem-item { border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:10px; }
+.mem-key { font-weight:600; font-size:13.5px; }
+.mem-content { color:var(--text-dim); font-size:13px; margin-top:4px; white-space:pre-wrap; word-break:break-all; }
+
+/* ============ 工作流 ============ */
+.wf-canvas { background:var(--bg); border:1px solid var(--border); border-radius:10px; overflow:auto; }
+.wf-node { fill:var(--card); stroke:var(--border); stroke-width:1.2; }
+.wf-node.active { stroke:var(--accent); stroke-width:2; }
+.wf-node-text { font-size:10.5px; fill:var(--text); font-family:inherit; }
+.wf-edge { stroke:var(--text-mute); stroke-width:1.4; fill:none; }
+.run-item { border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:10px; }
+.run-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:6px; }
 </style>
 </head>
 <body>
@@ -181,6 +198,8 @@ textarea { resize: vertical; }
     <button class="tab active" data-page="agents" onclick="switchPage('agents')">Agent 列表</button>
     <button class="tab" data-page="approvals" onclick="switchPage('approvals')">审批中心</button>
     <button class="tab" data-page="messages" onclick="switchPage('messages')">消息调试</button>
+    <button class="tab" data-page="memories" onclick="switchPage('memories')">记忆池</button>
+    <button class="tab" data-page="workflows" onclick="switchPage('workflows')">工作流</button>
   </nav>
   <div class="right"><span class="dot" id="api-dot"></span><span id="api-status">检测中…</span></div>
 </div>
@@ -249,6 +268,66 @@ textarea { resize: vertical; }
     <div class="card">
       <div class="card-title">消息流 <span class="cnt" id="msg-count">…</span></div>
       <div class="msg-stream" id="msg-stream"><div class="loading">加载中…</div></div>
+    </div>
+  </div>
+
+  <!-- ============ 页面 4：记忆池 ============ -->
+  <div class="page" id="page-memories">
+    <div class="page-head">
+      <h2>记忆池</h2>
+      <span class="sub">三层记忆域 agent:/task:/global · 写/删走审批</span>
+      <div class="page-actions"><button class="btn sm" onclick="loadMemories()">刷新</button></div>
+    </div>
+    <div class="card">
+      <div class="card-title">可见域 <span class="cnt" id="mem-domain-count">…</span></div>
+      <div class="card-sub">点选域后读取该域全部记忆（权限由底座 /memories/read 控制）</div>
+      <div id="mem-domains"><div class="loading">加载中…</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">记忆列表 <span class="cnt" id="mem-count">…</span></div>
+      <div id="mem-list"><div class="loading">先选择上方记忆域</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">写记忆</div>
+      <div class="card-sub">提交后生成审批单，需当前管理岗在「审批中心」同意后才落库（底座同步等待审批）</div>
+      <div class="mem-toolbar">
+        <div class="field"><label>域</label><input id="mem-w-domain" placeholder="global / agent:x / task:x" style="width:170px"></div>
+        <div class="field"><label>键</label><input id="mem-w-key" placeholder="mem_key" style="width:140px"></div>
+        <div class="field" style="flex:1;min-width:200px"><label>内容</label><input id="mem-w-content" placeholder="记忆内容" style="width:100%"></div>
+        <button class="btn primary" onclick="writeMemory()">提交写记忆</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">删记忆</div>
+      <div class="card-sub">删除同样走审批</div>
+      <div class="mem-toolbar">
+        <div class="field"><label>域</label><input id="mem-d-domain" placeholder="domain" style="width:170px"></div>
+        <div class="field"><label>键</label><input id="mem-d-key" placeholder="mem_key" style="width:140px"></div>
+        <button class="btn danger" onclick="deleteMemory()">提交删记忆</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 页面 5：工作流 ============ -->
+  <div class="page" id="page-workflows">
+    <div class="page-head">
+      <h2>工作流</h2>
+      <span class="sub">DAG 编排 · 5 种节点 · 手动触发 · 审批节点挂起</span>
+      <div class="page-actions"><button class="btn sm" onclick="loadWorkflows()">刷新</button></div>
+    </div>
+    <div class="card">
+      <div class="card-title">新建工作流</div>
+      <div class="card-sub">definition = {nodes:[...], edges:[...]}，节点 type ∈ agent / tool / memory_write / memory_read / approval</div>
+      <div class="field" style="margin-bottom:8px"><label>名称</label><input id="wf-name" placeholder="工作流名称" style="width:280px"></div>
+      <div class="field" style="margin-bottom:8px"><label>描述</label><input id="wf-desc" placeholder="可选" style="width:100%"></div>
+      <div class="field" style="margin-bottom:10px"><label>Definition JSON</label>
+        <textarea id="wf-def" rows="7" style="width:100%;font-family:Consolas,monospace;font-size:12px">{"nodes":[{"id":"n1","type":"agent","data":{"agent_id":"worker1","content":"开始干活"}},{"id":"n2","type":"memory_write","data":{"owner_agent_id":"worker1","domain":"global","mem_key":"result","content":"完成"}}],"edges":[{"source":"n1","target":"n2"}]}</textarea>
+      </div>
+      <button class="btn primary" onclick="createWorkflow()">创建工作流</button>
+    </div>
+    <div class="card">
+      <div class="card-title">已定义工作流 <span class="cnt" id="wf-count">…</span></div>
+      <div id="wf-list"><div class="loading">加载中…</div></div>
     </div>
   </div>
 
@@ -448,6 +527,152 @@ function sendMessage() {
   }).catch(function(e){ toast('发送失败：' + e.message, true); });
 }
 
+/* ============ 页面 4：记忆池 ============ */
+var memState = { reader: 'human', domain: null };
+function loadMemories() { loadMemoryDomains(); }
+function loadMemoryDomains() {
+  var reader = memState.reader;
+  apiGet('/memories/list-domains?reader=' + encodeURIComponent(reader)).then(function(d){
+    var domains = d.domains || [];
+    document.getElementById('mem-domain-count').textContent = domains.length;
+    var box = document.getElementById('mem-domains');
+    if (!domains.length) { box.innerHTML = '<div class="empty">暂无可见记忆域。</div>'; document.getElementById('mem-list').innerHTML = '<div class="empty">暂无记忆</div>'; return; }
+    box.innerHTML = domains.map(function(dom){
+      var active = memState.domain === dom ? ' active' : '';
+      return '<span class="domain-chip' + active + '" onclick="selectDomain(\'' + esc(dom) + '\')">' + esc(dom) + '</span>';
+    }).join('');
+    if (!memState.domain || domains.indexOf(memState.domain) < 0) { selectDomain(domains[0]); }
+    else { readMemories(memState.domain); }
+  }).catch(function(e){ document.getElementById('mem-domains').innerHTML = '<div class="empty">读取失败：' + esc(e.message) + '</div>'; });
+}
+function selectDomain(dom) { memState.domain = dom; loadMemoryDomains(); }
+function readMemories(dom) {
+  var box = document.getElementById('mem-list');
+  box.innerHTML = '<div class="loading">读取 ' + esc(dom) + ' …</div>';
+  apiGet('/memories/read?reader=' + encodeURIComponent(memState.reader) + '&domain=' + encodeURIComponent(dom)).then(function(d){
+    var list = d.memories || [];
+    document.getElementById('mem-count').textContent = list.length;
+    if (!list.length) { box.innerHTML = '<div class="empty">该域暂无记忆。</div>'; return; }
+    box.innerHTML = list.map(function(m){
+      return '<div class="mem-item"><div class="mem-key">' + esc(m.mem_key) + '</div><div class="mem-content">' + esc(m.content) + '</div><div class="muted">' + esc(m.owner_agent || '') + ' · 更新 ' + ago(m.updated_at) + '</div></div>';
+    }).join('');
+  }).catch(function(e){ box.innerHTML = '<div class="empty">读取失败：' + esc(e.message) + '</div>'; });
+}
+function writeMemory() {
+  var body = { agent_id: memState.reader, domain: document.getElementById('mem-w-domain').value.trim(), mem_key: document.getElementById('mem-w-key').value.trim(), content: document.getElementById('mem-w-content').value.trim() };
+  if (!body.domain || !body.mem_key) { toast('域和键必填', true); return; }
+  toast('提交中（底座同步等待审批）…');
+  apiPost('/memories/write', body).then(function(d){
+    var st = d.status || '';
+    if (st === 'approved') toast('已审批通过并落库');
+    else if (st === 'pending') toast('已提交，等待管理岗审批');
+    else if (st === 'denied') toast('审批被拒绝', true);
+    else toast('已提交：' + esc(st));
+    loadMemoryDomains();
+  }).catch(function(e){ toast('写入失败：' + e.message, true); });
+}
+function deleteMemory() {
+  var body = { agent_id: memState.reader, domain: document.getElementById('mem-d-domain').value.trim(), mem_key: document.getElementById('mem-d-key').value.trim() };
+  if (!body.domain || !body.mem_key) { toast('域和键必填', true); return; }
+  toast('提交中（底座同步等待审批）…');
+  apiPost('/memories/delete', body).then(function(d){
+    var st = d.status || '';
+    if (st === 'approved') toast('删除已审批通过');
+    else if (st === 'pending') toast('已提交，等待管理岗审批');
+    else if (st === 'denied') toast('审批被拒绝', true);
+    else toast('已提交：' + esc(st));
+    loadMemoryDomains();
+  }).catch(function(e){ toast('删除失败：' + e.message, true); });
+}
+
+/* ============ 页面 5：工作流 ============ */
+var NODE_COLOR = { agent:'#1e6fff', tool:'#6d5ae0', memory_write:'#0ea5a4', memory_read:'#0ea5a4', approval:'#e08a00' };
+function loadWorkflows() {
+  apiGet('/workflows').then(function(d){
+    var list = d.workflows || [];
+    document.getElementById('wf-count').textContent = list.length;
+    var box = document.getElementById('wf-list');
+    if (!list.length) { box.innerHTML = '<div class="empty"><div class="ico">🔀</div>暂无工作流，用上方表单创建。</div>'; return; }
+    box.innerHTML = list.map(function(wf){
+      return '<div class="run-item"><div class="run-head"><b>' + esc(wf.name || wf.workflow_id) + '</b>'
+        + '<span class="tag">' + esc(wf.workflow_id) + '</span>'
+        + '<span class="tag ' + (wf.status === 'active' ? 'online' : 'offline') + '">' + esc(wf.status || 'active') + '</span></div>'
+        + '<div class="card-sub">' + esc(wf.description || '') + '</div>'
+        + '<div class="wf-canvas">' + renderWfSvg(wf.definition) + '</div>'
+        + '<div class="approval-actions" style="margin-top:10px">'
+        + '<button class="btn primary sm" onclick="runWorkflow(\'' + esc(wf.workflow_id) + '\')">▶ 运行</button>'
+        + '<button class="btn sm" onclick="loadWorkflowRuns(\'' + esc(wf.workflow_id) + '\')">查看 run</button>'
+        + '<button class="btn danger sm" onclick="deleteWorkflow(\'' + esc(wf.workflow_id) + '\')">删除</button>'
+        + '</div><div id="wf-runs-' + esc(wf.workflow_id) + '"></div></div>';
+    }).join('');
+  }).catch(function(e){ document.getElementById('wf-list').innerHTML = '<div class="empty">读取失败：' + esc(e.message) + '</div>'; });
+}
+function renderWfSvg(def) {
+  var nodes = (def && def.nodes) || [];
+  var edges = (def && def.edges) || [];
+  var pos = {}; var perRow = 4;
+  nodes.forEach(function(n, i){ var c = i % perRow, r = Math.floor(i / perRow); pos[n.id] = { x: 100 + c * 170, y: 50 + r * 90 }; });
+  var w = Math.max(500, perRow * 170 + 80);
+  var h = Math.max(140, Math.ceil(nodes.length / perRow) * 90 + 60);
+  var s = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="230">';
+  s += '<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L8,3 z" fill="#9aa0a8"/></marker></defs>';
+  edges.forEach(function(e){ var a = pos[e.source], b = pos[e.target]; if (!a || !b) return; s += '<line class="wf-edge" x1="' + a.x + '" y1="' + a.y + '" x2="' + b.x + '" y2="' + b.y + '" marker-end="url(#arrow)"/>'; });
+  nodes.forEach(function(n){ var p = pos[n.id]; if (!p) return; var c = NODE_COLOR[n.type] || '#1e6fff';
+    s += '<g transform="translate(' + p.x + ',' + p.y + ')">';
+    s += '<rect class="wf-node" x="-66" y="-19" width="132" height="38" rx="8"/>';
+    s += '<rect x="-66" y="-19" width="6" height="38" rx="3" fill="' + c + '"/>';
+    s += '<text class="wf-node-text" x="-52" y="-3">' + esc(n.type) + '</text>';
+    s += '<text class="wf-node-text" x="-52" y="12" font-size="9" fill="#9aa0a8">' + esc(n.id) + '</text>';
+    s += '</g>'; });
+  s += '</svg>';
+  return s;
+}
+function createWorkflow() {
+  var name = document.getElementById('wf-name').value.trim();
+  var defText = document.getElementById('wf-def').value.trim();
+  if (!name || !defText) { toast('名称和 Definition 必填', true); return; }
+  var def;
+  try { def = JSON.parse(defText); } catch(e) { toast('Definition 不是合法 JSON：' + e.message, true); return; }
+  apiPost('/workflows/create', { name: name, description: document.getElementById('wf-desc').value.trim(), definition: def }).then(function(d){
+    toast('已创建 ' + d.workflow_id);
+    loadWorkflows();
+  }).catch(function(e){ toast('创建失败：' + e.message, true); });
+}
+function runWorkflow(id) {
+  apiPost('/workflows/' + id + '/run?trigger_by=human', {}).then(function(d){
+    toast('运行：' + esc(d.status || '已触发') + (d.run_id ? ' · ' + d.run_id : ''));
+    loadWorkflowRuns(id);
+  }).catch(function(e){ toast('运行失败：' + e.message, true); });
+}
+function loadWorkflowRuns(id) {
+  var box = document.getElementById('wf-runs-' + id);
+  box.innerHTML = '<div class="loading">读取 run…</div>';
+  apiGet('/workflows/' + id + '/runs').then(function(d){
+    var runs = d.runs || [];
+    if (!runs.length) { box.innerHTML = '<div class="mute" style="padding:8px 0">暂无运行记录。</div>'; return; }
+    box.innerHTML = runs.map(function(r){
+      var awaiting = r.status === 'awaiting_approval';
+      var statusTag = { running:'进行中', done:'完成', failed:'失败', awaiting_approval:'待审批', pending:'待执行' }[r.status] || r.status;
+      var actions = awaiting
+        ? '<button class="btn primary sm" onclick="decideWorkflowRun(\'' + esc(r.run_id) + '\', true)">通过</button>'
+          + '<button class="btn danger sm" onclick="decideWorkflowRun(\'' + esc(r.run_id) + '\', false)">拒绝</button>'
+        : '';
+      return '<div class="run-item" style="margin-top:10px"><div class="run-head"><b>' + esc(r.run_id) + '</b><span class="tag">' + esc(statusTag) + '</span>'
+        + (r.current_node ? '<span class="muted">当前节点 ' + esc(r.current_node) + '</span>' : '') + '</div>'
+        + (r.error ? '<div class="muted" style="color:var(--red)">' + esc(r.error) + '</div>' : '') + actions + '</div>';
+    }).join('');
+  }).catch(function(e){ box.innerHTML = '<div class="muted">读取失败：' + esc(e.message) + '</div>'; });
+}
+function decideWorkflowRun(runId, approve) {
+  var path = '/workflows/runs/' + runId + '/' + (approve ? 'approve' : 'deny') + '?manager_id=human';
+  apiPost(path, {}).then(function(d){ toast(approve ? '已通过' : '已拒绝'); loadWorkflows(); })
+    .catch(function(e){ toast('操作失败：' + e.message, true); });
+}
+function deleteWorkflow(id) {
+  apiPost('/workflows/' + id + '/delete', {}).then(function(d){ toast('已删除'); loadWorkflows(); })
+    .catch(function(e){ toast('删除失败：' + e.message, true); });
+}
+
 /* ============ 页面切换 ============ */
 function switchPage(name) {
   document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
@@ -456,6 +681,8 @@ function switchPage(name) {
   if (name === 'agents') loadAgents();
   else if (name === 'approvals') loadApprovals();
   else if (name === 'messages') loadMessages();
+  else if (name === 'memories') loadMemories();
+  else if (name === 'workflows') loadWorkflows();
 }
 
 /* ============ 启动 ============ */
