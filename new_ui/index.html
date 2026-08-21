@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlueDeer · Agent 调度台</title>
+<style>
+/* ============ 基础（干净浅色，去塑料感：无霓虹发光 / 无粒子动画 / 无多层阴影） ============ */
+:root {
+  --bg: #f4f5f7;
+  --card: #ffffff;
+  --border: #e4e7ec;
+  --text: #1f2329;
+  --text-dim: #646a73;
+  --text-mute: #9aa0a8;
+  --accent: #1e6fff;
+  --accent-soft: #eaf1ff;
+  --green: #10b981;
+  --green-soft: #e6f7f0;
+  --red: #e5484d;
+  --red-soft: #fdecec;
+  --amber: #b45309;
+  --amber-soft: #fdf3e3;
+  --radius: 12px;
+  --gap: 16px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+}
+a { color: var(--accent); text-decoration: none; }
+.muted { color: var(--text-dim); font-size: 12.5px; }
+.mute { color: var(--text-mute); }
+
+/* ============ 顶栏 ============ */
+.topbar {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; }
+.brand .deer { width: 30px; height: 30px; border-radius: 8px; background: var(--accent-soft); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.station-tag { font-size: 11px; color: var(--text-mute); background: var(--bg); border: 1px solid var(--border); padding: 3px 10px; border-radius: 999px; }
+.tabs { display: flex; gap: 4px; margin-left: 12px; }
+.tab {
+  border: none; background: transparent; color: var(--text-dim);
+  padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13.5px; font-weight: 500;
+}
+.tab:hover { background: var(--bg); color: var(--text); }
+.tab.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.topbar .right { margin-left: auto; font-size: 12px; color: var(--text-mute); display: flex; align-items: center; gap: 8px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-mute); display: inline-block; }
+.dot.up { background: var(--green); }
+.dot.down { background: var(--red); }
+
+/* ============ 布局 ============ */
+.container { max-width: 1080px; margin: 0 auto; padding: 24px 20px 60px; }
+.page { display: none; }
+.page.active { display: block; }
+.page-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 18px; }
+.page-head h2 { font-size: 19px; font-weight: 700; }
+.page-head .sub { color: var(--text-mute); font-size: 12.5px; }
+.page-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+/* ============ 卡片 ============ */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--gap);
+  margin-bottom: var(--gap);
+}
+.card-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+.card-title .cnt { font-size: 11px; background: var(--bg); border: 1px solid var(--border); color: var(--text-dim); padding: 1px 8px; border-radius: 999px; font-weight: 500; }
+.card-sub { color: var(--text-mute); font-size: 12px; margin-bottom: 12px; }
+
+/* ============ 按钮 ============ */
+.btn {
+  border: 1px solid var(--border); background: var(--card); color: var(--text);
+  padding: 6px 14px; border-radius: 8px; font-size: 12.5px; cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: #1660e0; }
+.btn.primary:disabled { background: #9dbdf5; border-color: #9dbdf5; cursor: not-allowed; }
+.btn.danger { color: var(--red); border-color: #f3c2c3; }
+.btn.danger:hover { background: var(--red-soft); border-color: var(--red); }
+.btn.ghost { border-color: transparent; color: var(--text-dim); }
+.btn.ghost:hover { background: var(--bg); color: var(--text); }
+.btn.sm { padding: 4px 10px; font-size: 12px; border-radius: 6px; }
+
+/* ============ 表格 / 列表 ============ */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; color: var(--text-mute); font-weight: 500; font-size: 12px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+td { padding: 10px; border-bottom: 1px solid #f0f1f4; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #fafbfc; }
+
+/* ============ 组件 ============ */
+.avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.agent-cell { display: flex; align-items: center; gap: 10px; }
+.agent-cell .nm { font-weight: 600; }
+.agent-cell .id { font-size: 11px; color: var(--text-mute); font-family: "SF Mono", Consolas, monospace; }
+.tag { display: inline-block; font-size: 11px; padding: 2px 9px; border-radius: 999px; font-weight: 500; }
+.tag.worker { background: var(--accent-soft); color: var(--accent); }
+.tag.manager { background: var(--amber-soft); color: var(--amber); }
+.tag.toolnode { background: #f1f0f7; color: #6d5ae0; }
+.tag.online { background: var(--green-soft); color: var(--green); }
+.tag.offline { background: #f1f2f4; color: var(--text-mute); }
+.caps { font-size: 11px; color: var(--text-dim); }
+.cap-chip { display: inline-block; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 1px 7px; margin: 1px 3px 1px 0; font-size: 11px; }
+
+.badge-manager { background: var(--amber-soft); color: var(--amber); border-radius: 999px; padding: 1px 9px; font-size: 11px; font-weight: 600; margin-left: 6px; }
+
+/* ============ 审批单 ============ */
+.approval-item { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 10px; }
+.approval-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.approval-title { font-weight: 600; font-size: 13.5px; }
+.approval-body { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-family: "SF Mono", Consolas, monospace; font-size: 12px; color: var(--text-dim); white-space: pre-wrap; word-break: break-all; margin-bottom: 10px; }
+.approval-actions { display: flex; gap: 8px; }
+.empty { text-align: center; color: var(--text-mute); padding: 36px 0; font-size: 13px; }
+.empty .ico { font-size: 28px; margin-bottom: 8px; }
+
+/* ============ 消息面板 ============ */
+.msg-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 14px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 11.5px; color: var(--text-mute); }
+input, select, textarea {
+  border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px;
+  font-size: 13px; font-family: inherit; color: var(--text); background: var(--card);
+  outline: none; transition: border-color .12s;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+textarea { resize: vertical; }
+.msg-stream { height: 380px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+.msg-row { display: flex; gap: 10px; padding: 8px 6px; border-bottom: 1px solid #eceef1; }
+.msg-row:last-child { border-bottom: none; }
+.msg-main { flex: 1; min-width: 0; }
+.msg-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+.msg-from { font-weight: 600; font-size: 12.5px; }
+.msg-to { font-size: 11.5px; color: var(--text-mute); }
+.msg-time { font-size: 11px; color: var(--text-mute); margin-left: auto; }
+.msg-content { font-size: 13px; color: var(--text); word-break: break-word; white-space: pre-wrap; }
+.msg-content.code { font-family: "SF Mono", Consolas, monospace; font-size: 11.5px; color: var(--text-dim); background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; }
+.ch-tag { font-size: 10.5px; padding: 1px 7px; border-radius: 6px; border: 1px solid var(--border); color: var(--text-dim); }
+
+/* ============ 状态条 / toast ============ */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 100;
+  background: var(--text); color: #fff; padding: 10px 18px; border-radius: 10px;
+  font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none;
+  box-shadow: 0 4px 20px rgba(0,0,0,.15);
+}
+.toast.show { opacity: 1; }
+.toast.err { background: var(--red); }
+.loading { text-align: center; color: var(--text-mute); padding: 30px 0; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="deer">🦌</span>BlueDeer 调度台</div>
+  <span class="station-tag" id="station-tag">Agent-Rotary-Station</span>
+  <nav class="tabs">
+    <button class="tab active" data-page="agents" onclick="switchPage('agents')">Agent 列表</button>
+    <button class="tab" data-page="approvals" onclick="switchPage('approvals')">审批中心</button>
+    <button class="tab" data-page="messages" onclick="switchPage('messages')">消息调试</button>
+  </nav>
+  <div class="right"><span class="dot" id="api-dot"></span><span id="api-status">检测中…</span></div>
+</div>
+
+<div class="container">
+
+  <!-- ============ 页面 1：Agent 列表 ============ -->
+  <div class="page active" id="page-agents">
+    <div class="page-head">
+      <h2>Agent 列表</h2>
+      <span class="sub">来自底座 /agents 真实数据</span>
+      <div class="page-actions">
+        <span class="tag manager" id="cur-manager-tag" style="display:none">管理岗：—</span>
+        <button class="btn sm" onclick="loadAgents()">刷新</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">已注册节点 <span class="cnt" id="agent-count">…</span></div>
+      <div class="card-sub">设置 / 撤销管理岗会真实写入底座，立即生效。</div>
+      <div id="agent-list"><div class="loading">加载中…</div></div>
+    </div>
+  </div>
+
+  <!-- ============ 页面 2：审批中心 ============ -->
+  <div class="page" id="page-approvals">
+    <div class="page-head">
+      <h2>审批中心</h2>
+      <span class="sub">记忆写入 / 删除等敏感操作，需当前管理岗审批</span>
+      <div class="page-actions">
+        <button class="btn sm" onclick="loadApprovals()">刷新</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">待审批队列 <span class="cnt" id="approval-count">…</span></div>
+      <div class="card-sub" id="approval-hint">审批人 = 当前在岗管理岗</div>
+      <div id="approval-list"><div class="loading">加载中…</div></div>
+    </div>
+  </div>
+
+  <!-- ============ 页面 3：消息调试 ============ -->
+  <div class="page" id="page-messages">
+    <div class="page-head">
+      <h2>消息调试面板</h2>
+      <span class="sub">收发真实 Agent 消息流（/messages）</span>
+      <div class="page-actions">
+        <button class="btn sm" onclick="loadMessages()">刷新</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">发送消息</div>
+      <div class="msg-toolbar">
+        <div class="field"><label>频道类型</label>
+          <select id="msg-channel">
+            <option value="private">private 私聊</option>
+            <option value="group">group 群聊</option>
+            <option value="task">task 任务</option>
+          </select>
+        </div>
+        <div class="field"><label>发信人</label><input id="msg-from" placeholder="agent_id，如 worker1" style="width:130px"></div>
+        <div class="field"><label>收信人</label><input id="msg-to" placeholder="to_agent（私聊/群聊）" style="width:150px"></div>
+        <div class="field"><label>任务 ID</label><input id="msg-task" placeholder="task_id（任务频道）" style="width:140px"></div>
+        <div class="field" style="flex:1;min-width:220px"><label>内容</label><input id="msg-content" placeholder="消息内容" style="width:100%"></div>
+        <button class="btn primary" onclick="sendMessage()">发送</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">消息流 <span class="cnt" id="msg-count">…</span></div>
+      <div class="msg-stream" id="msg-stream"><div class="loading">加载中…</div></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ 配置 ============ */
+var API = 'http://127.0.0.1:8000';   // Agent-Rotary-Station 底座
+var state = { managerId: null };
+
+/* ============ 工具 ============ */
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function toast(msg, isErr) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isErr ? ' err' : '');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function(){ t.className = 'toast'; }, 2600);
+}
+function ago(ts) {
+  if (!ts) return '—';
+  var s = Math.floor(Date.now() / 1000 - ts);
+  if (s < 60) return s + 's 前';
+  if (s < 3600) return Math.floor(s / 60) + 'm 前';
+  if (s < 86400) return Math.floor(s / 3600) + 'h 前';
+  return new Date(ts * 1000).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+function req(url, opts) {
+  return fetch(API + url, opts).then(function(r){
+    return r.json().then(function(j){ if (!r.ok) throw new Error(j.detail || j.message || ('HTTP ' + r.status)); return j; });
+  });
+}
+function apiGet(url) { return req(url); }
+function apiPost(url, body) {
+  return req(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+}
+var ROLE_TEXT = { worker: '执行', manager: '管理岗', toolnode: '工具' };
+var ROLE_COLOR = { worker: 'worker', manager: 'manager', toolnode: 'toolnode' };
+var AVATAR_COLORS = ['#1e6fff', '#6d5ae0', '#0ea5a4', '#e08a00', '#d55f8e', '#4c8c3f', '#5b6b8c', '#b5522e'];
+
+function avatarHtml(name) {
+  var ch = (name || '?').charAt(0).toUpperCase();
+  var c = AVATAR_COLORS[(name || '').length % AVATAR_COLORS.length];
+  return '<span class="avatar" style="background:' + c + '">' + esc(ch) + '</span>';
+}
+
+/* ============ 健康检测 ============ */
+function checkApi() {
+  fetch(API + '/').then(function(r){ return r.json(); }).then(function(j){
+    var dot = document.getElementById('api-dot'), st = document.getElementById('api-status');
+    dot.className = 'dot up'; st.textContent = '底座在线 v' + (j.version || '');
+  }).catch(function(){
+    var dot = document.getElementById('api-dot'), st = document.getElementById('api-status');
+    dot.className = 'dot down'; st.textContent = '底座离线（' + API + '）';
+  });
+}
+
+/* ============ 页面 1：Agent 列表 ============ */
+function loadAgents() {
+  var box = document.getElementById('agent-list');
+  box.innerHTML = '<div class="loading">加载中…</div>';
+  apiGet('/agents').then(function(d){
+    var agents = d.agents || [];
+    document.getElementById('agent-count').textContent = agents.length;
+    // 当前管理岗
+    return apiGet('/agents/manager/current').then(function(md){
+      state.managerId = (md.manager && md.manager.agent_id) || null;
+      var tag = document.getElementById('cur-manager-tag');
+      if (state.managerId) {
+        var m = agents.filter(function(a){ return a.agent_id === state.managerId; })[0];
+        tag.style.display = '';
+        tag.textContent = '管理岗：' + (m ? m.name : state.managerId);
+      } else { tag.style.display = 'none'; }
+      return agents;
+    });
+  }).then(function(agents){
+    if (!agents.length) { document.getElementById('agent-list').innerHTML = '<div class="empty"><div class="ico">🤖</div>暂无注册节点，用底座 /agents/register 注册后刷新。</div>'; return; }
+    var h = '<table><thead><tr><th>节点</th><th>角色</th><th>状态</th><th>能力</th><th>最后活跃</th><th style="width:130px">操作</th></tr></thead><tbody>';
+    agents.forEach(function(a){
+      var isManager = state.managerId && a.agent_id === state.managerId;
+      var caps = (a.capabilities || []).map(function(c){ return '<span class="cap-chip">' + esc(c) + '</span>'; }).join('') || '<span class="mute">—</span>';
+      var btn;
+      if (isManager) {
+        btn = '<button class="btn sm danger" onclick="clearManager()">撤销管理岗</button>';
+      } else {
+        btn = '<button class="btn sm" onclick="setManager(\'' + esc(a.agent_id) + '\')">设为管理岗</button>';
+      }
+      h += '<tr><td><div class="agent-cell">' + avatarHtml(a.name || a.agent_id)
+        + '<div><div class="nm">' + esc(a.name || a.agent_id) + (isManager ? '<span class="badge-manager">当前管理岗</span>' : '') + '</div>'
+        + '<div class="id">' + esc(a.agent_id) + '</div></div></div></td>'
+        + '<td><span class="tag ' + (ROLE_COLOR[a.role] || 'worker') + '">' + esc(ROLE_TEXT[a.role] || a.role) + '</span></td>'
+        + '<td><span class="tag ' + (a.status === 'online' ? 'online' : 'offline') + '">' + (a.status === 'online' ? '在线' : '离线') + '</span></td>'
+        + '<td><div class="caps">' + caps + '</div></td>'
+        + '<td class="muted">' + ago(a.last_seen) + '</td>'
+        + '<td>' + btn + '</td></tr>';
+    });
+    h += '</tbody></table>';
+    document.getElementById('agent-list').innerHTML = h;
+  }).catch(function(e){ document.getElementById('agent-list').innerHTML = '<div class="empty">读取失败：' + esc(e.message) + '</div>'; toast('读取 Agent 列表失败', true); });
+}
+function setManager(agentId) {
+  apiPost('/agents/manager/set', { agent_id: agentId }).then(function(d){
+    toast('已设置管理岗：' + agentId);
+    loadAgents();
+  }).catch(function(e){ toast('设置失败：' + e.message, true); });
+}
+function clearManager() {
+  apiPost('/agents/manager/clear', {}).then(function(d){
+    toast('已撤销管理岗');
+    loadAgents();
+  }).catch(function(e){ toast('撤销失败：' + e.message, true); });
+}
+
+/* ============ 页面 2：审批中心 ============ */
+function loadApprovals() {
+  var box = document.getElementById('approval-list');
+  box.innerHTML = '<div class="loading">加载中…</div>';
+  apiGet('/memories/approvals/pending').then(function(d){
+    var list = d.pending || [];
+    document.getElementById('approval-count').textContent = list.length;
+    var hint = document.getElementById('approval-hint');
+    return apiGet('/agents/manager/current').then(function(md){
+      state.managerId = (md.manager && md.manager.agent_id) || null;
+      hint.innerHTML = state.managerId
+        ? ('审批人 = <b>当前管理岗「' + esc(state.managerId) + '」</b>（底座要求只有管理岗能审批）')
+        : '<span style="color:var(--red)">⚠️ 当前无管理岗在岗 —— 请先在「Agent 列表」设置管理岗，否则无法审批。</span>';
+      return list;
+    });
+  }).then(function(list){
+    if (!list.length) { document.getElementById('approval-list').innerHTML = '<div class="empty"><div class="ico">✅</div>当前没有待审批事项。</div>'; return; }
+    var h = '';
+    list.forEach(function(r){
+      var act = r.action || '';
+      var dom = r.domain || '';
+      h += '<div class="approval-item">'
+        + '<div class="approval-head">' + avatarHtml(r.agent_id)
+        + '<div><div class="approval-title">' + esc(dom) + ' · ' + esc(act) + '</div>'
+        + '<div class="muted">请求方：<b>' + esc(r.agent_id) + '</b> · 单号 ' + esc(r.request_id) + ' · ' + ago(r.created_at) + '</div></div></div>'
+        + '<div class="approval-body">' + esc(r.payload || JSON.stringify(r, null, 2)) + '</div>'
+        + '<div class="approval-actions">'
+        + '<button class="btn primary sm" onclick="decide(\'' + esc(r.request_id) + '\', true)">同意</button>'
+        + '<button class="btn danger sm" onclick="decide(\'' + esc(r.request_id) + '\', false)">拒绝</button>'
+        + '</div></div>';
+    });
+    document.getElementById('approval-list').innerHTML = h;
+  }).catch(function(e){ document.getElementById('approval-list').innerHTML = '<div class="empty">读取失败：' + esc(e.message) + '</div>'; toast('读取审批队列失败', true); });
+}
+function decide(requestId, approve) {
+  if (!state.managerId) { toast('请先在 Agent 列表设置管理岗', true); return; }
+  apiPost('/memories/approvals/decide', { request_id: requestId, manager_id: state.managerId, approve: approve })
+    .then(function(d){
+      toast((approve ? '已同意' : '已拒绝') + ' ' + requestId);
+      loadApprovals();
+    }).catch(function(e){ toast('操作失败：' + e.message, true); });
+}
+
+/* ============ 页面 3：消息调试 ============ */
+function loadMessages() {
+  apiGet('/messages/history?limit=60').then(function(d){
+    var list = d.messages || [];
+    document.getElementById('msg-count').textContent = list.length;
+    var box = document.getElementById('msg-stream');
+    if (!list.length) { box.innerHTML = '<div class="empty"><div class="ico">💬</div>暂无消息，发一条试试。</div>'; return; }
+    var h = '';
+    list.slice().reverse().forEach(function(m){
+      var isCode = typeof m.content === 'string' && m.content.charAt(0) === '{';
+      var from = m.from_agent || '?';
+      var to = m.channel_type === 'task' ? ('任务 ' + (m.task_id || '')) : (m.to_agent || '群聊');
+      h += '<div class="msg-row"><div class="msg-main">'
+        + '<div class="msg-meta">' + avatarHtml(from)
+        + '<span class="msg-from">' + esc(from) + '</span>'
+        + '<span class="msg-to">→ ' + esc(to) + '</span>'
+        + '<span class="ch-tag">' + esc(m.channel_type) + '</span>'
+        + '<span class="msg-time">' + ago(m.created_at) + '</span></div>'
+        + '<div class="msg-content' + (isCode ? ' code' : '') + '">' + esc(m.content) + '</div>'
+        + '</div></div>';
+    });
+    box.innerHTML = h;
+  }).catch(function(e){ document.getElementById('msg-stream').innerHTML = '<div class="empty">读取失败：' + esc(e.message) + '</div>'; });
+}
+function sendMessage() {
+  var body = {
+    channel_type: document.getElementById('msg-channel').value,
+    from_agent: document.getElementById('msg-from').value.trim(),
+    to_agent: document.getElementById('msg-to').value.trim(),
+    task_id: document.getElementById('msg-task').value.trim(),
+    content: document.getElementById('msg-content').value.trim()
+  };
+  if (!body.from_agent || !body.content) { toast('发信人和内容必填', true); return; }
+  if (body.channel_type === 'task' && !body.task_id) { toast('任务频道需要 task_id', true); return; }
+  apiPost('/messages/send', body).then(function(d){
+    toast('已发送 ' + d.msg_id);
+    document.getElementById('msg-content').value = '';
+    loadMessages();
+  }).catch(function(e){ toast('发送失败：' + e.message, true); });
+}
+
+/* ============ 页面切换 ============ */
+function switchPage(name) {
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.toggle('active', t.getAttribute('data-page') === name); });
+  if (name === 'agents') loadAgents();
+  else if (name === 'approvals') loadApprovals();
+  else if (name === 'messages') loadMessages();
+}
+
+/* ============ 启动 ============ */
+checkApi();
+loadAgents();
+</script>
+</body>
+</html>

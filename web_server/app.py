@@ -1374,6 +1374,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # 精灵（game_frontend JS 请求 /sprites/<name>_sprite.png）
 os.makedirs("static/sprites", exist_ok=True)
 app.mount("/sprites", StaticFiles(directory="static/sprites"), name="sprites")
+# new_ui：Agent-Rotary-Station 调度台（纯静态，仅调底座 API）
+if os.path.isdir("new_ui"):
+    app.mount("/new_ui", StaticFiles(directory="new_ui", html=True), name="new_ui")
 
 
 # ===== 项目文件路由（仿 OpenClaw：本地文件经自身 web 路由提供，而非 file://）=====
