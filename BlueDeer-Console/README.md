@@ -49,4 +49,5 @@ BlueDeer-Console/
 ## 说明
 
 - 纯静态前端，无需构建，可任意静态服务器托管。
+- 代码编辑器页（IDE）走 CDN `jsdelivr.net` 加载 Monaco Editor（默认离线可打开其他 6 页；IDE 页须联网）。
 - 接口返回格式以底座 OpenAPI（`/docs`）为准；本仓库不包含任何底座代码。

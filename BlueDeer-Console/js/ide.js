@@ -15,7 +15,7 @@ function ideInitMonaco(cb) {
   if (IDE.monaco) { cb(); return; }
   var loading = document.getElementById('ide-status-right');
   if (loading) loading.textContent = '加载编辑器内核…';
-  require.config({ paths: { vs: 'vendor/monaco/min/vs' } });
+  require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.49.0/min/vs' } });
   require(['vs/editor/editor.main'], function(){
     IDE.monaco = monaco;
     monaco.editor.defineTheme('bd-light', {

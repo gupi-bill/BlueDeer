@@ -27,14 +27,16 @@ class TestGitOps:
 
 
 class TestGitHubClient:
-    def test_no_token(self):
+    def test_no_token(self, monkeypatch):
+        monkeypatch.delenv("GITHUB_TOKEN", raising=False)
         client = GitHubClient()
         assert client.has_token is False
         ok, resp = client.list_prs("owner/repo")
         assert ok is True
         assert resp[0].get("mock") is True
 
-    def test_create_pr_no_token(self):
+    def test_create_pr_no_token(self, monkeypatch):
+        monkeypatch.delenv("GITHUB_TOKEN", raising=False)
         client = GitHubClient()
         ok, resp = client.create_pr("owner/repo", "Title", "main", "dev")
         assert ok is True
