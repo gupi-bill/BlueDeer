@@ -83,6 +83,9 @@ BlueDeer/
 │   ├── project_hub.html  # BlueDeer 控制台（单页，17 视图）
 │   └── index.html        # 夜森林外壳
 ├── core/                 # 多智能体引擎（DAG/编排/分发/看板/流式…）
+├── BlueDeer-Agent/       # 13 层架构的自主 Agent 骨架（最小链路，零三方依赖）
+├── BlueDeer-Console/     # 独立前端调度台（7 页，纯静态，接外部底座 REST API）
+├── new_ui/               # Agent-Rotary-Station 调度台重制版（老代码不删，新页全入此）
 ├── docs/                 # 架构与设计文档
 └── data/                 # 运行时数据（不入库）
 ```

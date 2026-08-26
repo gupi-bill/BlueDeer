@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlueDeer · Agent 调度台</title>
+<link rel="stylesheet" href="main.css?v=20260825b">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============ 侧边导航（借鉴 n8n：分组导航 + 可折叠） ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <img class="brand-logo" src="assets/bluedeer-logo.png" alt="BlueDeer">
+      <div class="brand-text"><b>BlueDeer</b><span>Agent 调度台</span></div>
+      <button class="collapse-btn" id="sidebar-toggle" onclick="toggleSidebar()" title="折叠/展开侧边栏">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+    </div>
+    <nav class="nav">
+      <div class="nav-group"><span class="nav-group-title">总览</span>
+        <button class="nav-item active" data-page="monitor" onclick="switchPage('monitor')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          <span>总览</span>
+        </button>
+      </div>
+      <div class="nav-group"><span class="nav-group-title">治理</span>
+        <button class="nav-item" data-page="approvals" onclick="switchPage('approvals')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+          <span>审批中心</span>
+        </button>
+        <button class="nav-item" data-page="messages" onclick="switchPage('messages')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>聊天会话</span>
+        </button>
+        <button class="nav-item" data-page="audit" onclick="switchPage('audit')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          <span>审计日志</span>
+        </button>
+      </div>
+      <div class="nav-group"><span class="nav-group-title">资源</span>
+        <button class="nav-item" data-page="memories" onclick="switchPage('memories')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          <span>记忆池</span>
+        </button>
+        <button class="nav-item" data-page="skills" onclick="switchPage('skills')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.439 7.85c-.049.322.059.648.289.878l1.568 1.568c.47.47.706 1.087.706 1.704s-.235 1.233-.706 1.704l-1.611 1.611a.98.98 0 0 1-.837.276c-.47-.07-.802-.48-.968-.925a2.501 2.501 0 1 0-3.214 3.214c.446.166.855.497.925.968a.979.979 0 0 1-.276.837l-1.61 1.61a2.404 2.404 0 0 1-1.705.707 2.402 2.402 0 0 1-1.704-.706l-1.568-1.568a1.026 1.026 0 0 0-.877-.29c-.493.074-.84.504-1.02.968a2.5 2.5 0 1 1-3.237-3.237c.464-.18.894-.527.967-1.02a1.026 1.026 0 0 0-.289-.877l-1.568-1.568A2.402 2.402 0 0 1 1.998 12c0-.617.236-1.234.706-1.704L4.23 8.77c.24-.24.581-.353.917-.303.515.077.877.528 1.073 1.01a2.5 2.5 0 1 0 3.259-3.259c-.482-.196-.933-.558-1.01-1.073-.05-.336.062-.676.303-.917l1.525-1.525A2.402 2.402 0 0 1 12 1.998c.617 0 1.234.236 1.704.706l1.568 1.568c.23.23.556.338.877.29.493-.074.84-.504 1.02-.968a2.5 2.5 0 1 1 3.237 3.237c-.464.18-.894.527-.967 1.02Z"/></svg>
+          <span>技能注册表</span>
+        </button>
+        <button class="nav-item" data-page="workflows" onclick="switchPage('workflows')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+          <span>工作流</span>
+        </button>
+        <button class="nav-item" data-page="projects" onclick="switchPage('projects')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>项目空间</span>
+        </button>
+      </div>
+      <div class="nav-group"><span class="nav-group-title">调度</span>
+        <button class="nav-item" data-page="schedule" onclick="switchPage('schedule')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>定时任务</span>
+        </button>
+      </div>
+      <div class="nav-group"><span class="nav-group-title">开发</span>
+        <button class="nav-item" data-page="ide" onclick="switchPage('ide')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/><path d="m13 5-2 14"/></svg>
+          <span>IDE 工作台</span>
+        </button>
+      </div>
+      <div class="nav-group"><span class="nav-group-title">节点</span>
+        <button class="nav-item" data-page="agents" onclick="switchPage('agents')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Agent 列表</span>
+        </button>
+        <button class="nav-item" data-page="orchestrate" onclick="switchPage('orchestrate')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v8"/><path d="m16 6-4 4-4-4"/><path d="M4 14h16"/><path d="M12 22v-8"/><path d="m8 18 4-4 4 4"/></svg>
+          <span>Agent 编排</span>
+        </button>
+      </div>
+    </nav>
+    <div class="sidebar-foot">
+      <span class="dot" id="api-dot"></span>
+      <span id="api-status">检测中…</span>
+      <button class="collapse-btn" onclick="openSettings()" title="设置" style="margin-left:auto">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ============ 主内容区 ============ -->
+  <main class="content">
+    <div class="topbar">
+      <div class="crumb">
+        <span class="crumb-root">BlueDeer</span>
+        <span class="crumb-sep">/</span>
+        <span class="crumb-current" id="crumb-current">Agent 列表</span>
+      </div>
+      <div class="topbar-actions">
+        <span class="mute" id="topbar-time"></span>
+        <button class="btn sm" onclick="refreshCurrent()">刷新</button>
+      </div>
+    </div>
+    <div class="container">
+
+      <!-- ===== 页面 1：Agent 列表 ===== -->
+      <div class="page active" id="page-agents">
+        <div class="page-head">
+          <h2>Agent 列表</h2>
+          <span class="sub">来自底座 /agents 真实数据</span>
+          <div class="page-actions">
+            <span class="tag manager" id="cur-manager-tag" style="display:none">管理岗：—</span>
+            <button class="btn sm" onclick="loadAgents()">刷新</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">已注册节点 <span class="cnt" id="agent-count">…</span></div>
+          <div class="card-sub">设置 / 撤销管理岗会真实写入底座，立即生效。</div>
+          <div id="agent-list"><div class="loading">加载中…</div></div>
+        </div>
+      </div>
+
+      <!-- ===== 页面 2：审批中心 ===== -->
+      <div class="page" id="page-approvals">
+        <div class="page-head">
+          <h2>审批中心</h2>
+          <span class="sub">记忆写入 / 删除等敏感操作，需当前管理岗审批</span>
+          <div class="page-actions">
+            <button class="btn sm" onclick="loadApprovals()">刷新</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">待审批队列 <span class="cnt" id="approval-count">…</span></div>
+          <div class="card-sub" id="approval-hint">审批人 = 当前在岗管理岗</div>
+          <div id="approval-list"><div class="loading">加载中…</div></div>
+        </div>
+      </div>
+
+      <!-- ===== 页面 3：聊天会话（会话列表 + 聊天窗口 + 工具卡片） ===== -->
+      <div class="page" id="page-messages" style="height:calc(100vh - 130px);min-height:520px">
+        <div class="chat">
+          <div class="chat-sidebar">
+            <div class="chat-sidebar-head">
+              <span class="ide-title">会话</span>
+              <button class="ide-btn" onclick="loadMessages()" title="刷新">⟳</button>
+            </div>
+            <div class="chat-targets" id="chat-targets"><div class="loading">加载中…</div></div>
+          </div>
+          <div class="chat-main">
+            <div class="chat-head" id="chat-head">
+              <b>选择左侧 Agent 开始会话</b>
+              <span class="mute" style="font-size:12px" id="chat-head-sub"></span>
+            </div>
+            <div class="chat-stream" id="msg-stream"><div class="empty">← 从左侧选择要对话的 Agent</div></div>
+            <div class="chat-inputbar">
+              <input id="msg-content" placeholder="输入消息，回车发送…" style="flex:1" onkeydown="if(event.key==='Enter')sendMessage()">
+              <button class="btn sm" onclick="stopStream()" title="停止（中断当前自动刷新/输出）">⏹ 停止</button>
+              <button class="btn primary" onclick="sendMessage()">发送</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 页面 4：记忆池 ===== -->
+      <div class="page" id="page-memories">
+        <div class="page-head">
+          <h2>记忆池</h2>
+          <span class="sub">三层记忆域 agent:/task:/global · 写/删走审批</span>
+          <div class="page-actions"><button class="btn sm" onclick="loadMemories()">刷新</button></div>
+        </div>
+        <div class="card">
+          <div class="card-title">可见域 <span class="cnt" id="mem-domain-count">…</span></div>
+          <div class="card-sub">点选域后读取该域全部记忆（权限由底座 /memories/read 控制）</div>
+          <div id="mem-domains"><div class="skel-grid"><div class="skel-card"><div class="skel-line" style="width:38%"></div><div class="skel-line" style="width:72%"></div><div class="skel-line" style="width:55%"></div></div><div class="skel-card"><div class="skel-line" style="width:38%"></div><div class="skel-line" style="width:72%"></div><div class="skel-line" style="width:55%"></div></div></div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">记忆列表 <span class="cnt" id="mem-count">…</span></div>
+          <div id="mem-list"><div class="skel-grid"><div class="skel-card"><div class="skel-line" style="width:38%"></div><div class="skel-line" style="width:72%"></div><div class="skel-line" style="width:55%"></div></div><div class="skel-card"><div class="skel-line" style="width:38%"></div><div class="skel-line" style="width:72%"></div><div class="skel-line" style="width:55%"></div></div></div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">写记忆</div>
+          <div class="card-sub">提交后生成审批单，需当前管理岗在「审批中心」同意后才落库（底座同步等待审批）</div>
+          <div class="mem-toolbar">
+            <div class="field"><label>域</label><input id="mem-w-domain" placeholder="global / agent:x / task:x" style="width:170px"></div>
+            <div class="field"><label>键</label><input id="mem-w-key" placeholder="mem_key" style="width:140px"></div>
+            <div class="field" style="flex:1;min-width:200px"><label>内容</label><input id="mem-w-content" placeholder="记忆内容" style="width:100%"></div>
+            <button class="btn primary" onclick="writeMemory()">提交写记忆</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">删记忆</div>
+          <div class="card-sub">删除同样走审批</div>
+          <div class="mem-toolbar">
+            <div class="field"><label>域</label><input id="mem-d-domain" placeholder="domain" style="width:170px"></div>
+            <div class="field"><label>键</label><input id="mem-d-key" placeholder="mem_key" style="width:140px"></div>
+            <button class="btn danger" onclick="deleteMemory()">提交删记忆</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 页面 5：工作流 ===== -->
+      <div class="page" id="page-workflows">
+        <div class="page-head">
+          <h2>工作流</h2>
+          <span class="sub">DAG 编排 · 5 种节点 · 手动触发 · 审批节点挂起</span>
+          <div class="page-actions"><button class="btn sm" onclick="loadWorkflows()">刷新</button></div>
+        </div>
+        <div class="card">
+          <div class="card-title">新建工作流</div>
+          <div class="card-sub">definition = {nodes:[...], edges:[...]}，节点 type ∈ agent / tool / memory_write / memory_read / approval —— 点下方节点一键插入 JSON</div>
+          <div class="palette" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+            <button class="btn sm" onclick="addNodeToDef('agent')">＋ agent</button>
+            <button class="btn sm" onclick="addNodeToDef('tool')">＋ tool</button>
+            <button class="btn sm" onclick="addNodeToDef('memory_write')">＋ memory_write</button>
+            <button class="btn sm" onclick="addNodeToDef('memory_read')">＋ memory_read</button>
+            <button class="btn sm" onclick="addNodeToDef('approval')">＋ approval</button>
+          </div>
+          <div class="field" style="margin-bottom:8px"><label>名称</label><input id="wf-name" placeholder="工作流名称" style="width:280px"></div>
+          <div class="field" style="margin-bottom:8px"><label>描述</label><input id="wf-desc" placeholder="可选" style="width:100%"></div>
+          <div class="field" style="margin-bottom:10px"><label>Definition JSON</label>
+            <textarea id="wf-def" rows="7" style="width:100%;font-family:Consolas,monospace;font-size:12px">{"nodes":[{"id":"n1","type":"agent","data":{"agent_id":"worker1","content":"开始干活"}},{"id":"n2","type":"memory_write","data":{"owner_agent_id":"worker1","domain":"global","mem_key":"result","content":"完成"}}],"edges":[{"source":"n1","target":"n2"}]}</textarea>
+          </div>
+          <button class="btn primary" onclick="createWorkflow()">创建工作流</button>
+        </div>
+        <div class="card">
+          <div class="card-title">已定义工作流 <span class="cnt" id="wf-count">…</span></div>
+          <div id="wf-list"><div class="skel-grid"><div class="skel-card"><div class="skel-line" style="width:38%"></div><div class="skel-line" style="width:72%"></div><div class="skel-line" style="width:55%"></div></div><div class="skel-card"><div class="skel-line" style="width:38%"></div><div class="skel-line" style="width:72%"></div><div class="skel-line" style="width:55%"></div></div></div></div>
+        </div>
+      </div>
+
+      <!-- ===== 页面 6：技能注册表 ===== -->
+      <div class="page" id="page-skills">
+        <div class="page-head">
+          <h2>技能注册表</h2>
+          <span class="sub">MCP-Skill 全局技能注册表（/skills · status=active 可见）</span>
+          <div class="page-actions"><button class="btn sm" onclick="loadSkills()">刷新</button></div>
+        </div>
+        <div class="card">
+          <div class="card-title">注册新技能</div>
+          <div class="card-sub">param_schema 为 JSON 对象（参数名 → 描述），如 {"query": "搜索关键词"}</div>
+          <div class="mem-toolbar">
+            <div class="field"><label>技能 ID</label><input id="sk-id" placeholder="如 web_search" style="width:140px"></div>
+            <div class="field"><label>名称</label><input id="sk-name" placeholder="技能名称" style="width:140px"></div>
+            <div class="field"><label>描述</label><input id="sk-desc" placeholder="可选" style="width:170px"></div>
+            <div class="field"><label>endpoint_url</label><input id="sk-url" placeholder="http://... 技能端点" style="width:190px"></div>
+            <div class="field"><label>提供节点</label><input id="sk-provider" placeholder="toolnode id" style="width:110px"></div>
+          </div>
+          <div class="field" style="margin-top:8px"><label>param_schema JSON</label><input id="sk-params" placeholder='如 {"query": "搜索关键词"}' style="width:100%"></div>
+          <div style="margin-top:10px"><button class="btn primary" onclick="registerSkill()">注册技能</button></div>
+        </div>
+        <div class="card">
+          <div class="card-title">已注册技能（active）<span class="cnt" id="sk-count">…</span></div>
+          <div id="sk-owners" style="margin-bottom:14px"></div>
+          <div id="sk-list"><div class="loading">加载中…</div></div>
+        </div>
+      </div>
+
+      <!-- ===== 页面 7：监控仪表盘 ===== -->
+      <div class="page" id="page-monitor">
+        <div class="page-head">
+          <h2>监控仪表盘</h2>
+          <span class="sub">全部统计来自底座 /system/stats，前端零计算</span>
+          <div class="page-actions"><span class="muted" id="mon-time"></span><button class="btn sm" onclick="loadDashboard()">刷新</button></div>
+        </div>
+        <div class="card">
+          <div class="card-title">实时统计</div>
+          <div class="stat-grid" id="mon-cards"><div class="loading">加载中…</div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">用量分析 <span class="cnt">真实 runs/ 轨迹 · 非假数据</span></div>
+          <div id="usage-charts"><div class="loading">加载中…</div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">紧急刹车（人类最高拦截）</div>
+          <div id="mon-eb"><div class="loading">加载中…</div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">审计日志 <span class="cnt">真实 /system/audit-logs</span></div>
+          <div id="mon-audit"><div class="loading">加载中…</div></div>
+        </div>
+      </div>
+
+      <!-- ============ 页面 8：Agent 编排 ============ -->
+      <div class="page" id="page-orchestrate">
+        <div class="page-head">
+          <h2>Agent 编排</h2>
+          <span class="sub">把自己拆成多个子 Agent · 互相委托调用 · 自动应答闭环</span>
+          <div class="page-actions"><button class="btn sm" onclick="loadOrchestrate()">刷新</button></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">注册子 Agent（拆分身）</div>
+          <div class="card-sub">每个子 Agent 是底座上的独立节点，可配「自动应答」——收到任务立即按模板回复，形成调用闭环</div>
+          <div class="form-row">
+            <div class="field" style="flex:1"><label>ID（唯一）</label><input id="orch-id" placeholder="sub_researcher"></div>
+            <div class="field" style="flex:1"><label>名字</label><input id="orch-name" placeholder="调研子Agent"></div>
+            <div class="field" style="width:110px"><label>角色</label>
+              <select id="orch-role"><option value="worker">worker</option><option value="toolnode">toolnode</option></select>
+            </div>
+            <div class="field" style="flex:1.4"><label>能力（逗号分隔）</label><input id="orch-caps" placeholder="research, writing"></div>
+          </div>
+          <div class="field" style="margin-bottom:10px"><label>自动应答模板（{from}=调用方 {task}=任务）</label>
+            <input id="orch-template" style="width:100%" value="收到，{from}。任务「{task}」已受理，正在处理…">
+          </div>
+          <button class="btn primary" onclick="registerSubAgent()">注册子 Agent</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">子 Agent 列表 <span class="cnt" id="orch-count">…</span></div>
+          <div class="agent-grid" id="orch-list"><div class="loading">加载中…</div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">委托调用（Agent 互相调用）</div>
+          <div class="card-sub">选择「调用方 Agent」向「目标子 Agent」派任务——目标开了自动应答会立即回复，否则任务进其收件箱</div>
+          <div class="form-row">
+            <div class="field" style="flex:1"><label>调用方 Agent</label><select id="orch-from"></select></div>
+            <div class="field" style="flex:1"><label>目标子 Agent</label><select id="orch-to"></select></div>
+            <div class="field" style="flex:2.2"><label>任务内容</label><input id="orch-task" placeholder="例如：帮我把这份报告润色一下"></div>
+          </div>
+          <button class="btn primary" onclick="delegateTask()">🚀 发起委托调用</button>
+          <div id="orch-result" style="margin-top:12px"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">编排对话流 <span class="cnt">Agent 间消息往来</span></div>
+          <div id="orch-flow"><div class="loading">加载中…</div></div>
+        </div>
+      </div>
+
+      <!-- ============ 页面 9：IDE 工作台（借鉴 VS Code/Hermes：文件树 + 标签页 + Monaco 编辑器） ============ -->
+      <div class="page" id="page-ide" style="height:calc(100vh - 130px);min-height:520px">
+        <div class="ide">
+          <div class="ide-sidebar">
+            <div class="ide-sidebar-head">
+              <span class="ide-title">资源管理器</span>
+              <div class="ide-actions">
+                <button class="ide-btn" onclick="ideNewFile()" title="新建文件">📄</button>
+                <button class="ide-btn" onclick="ideNewDir()" title="新建文件夹">📁</button>
+                <button class="ide-btn" onclick="ideRefreshTree()" title="刷新">⟳</button>
+              </div>
+            </div>
+            <div class="ide-tree" id="ide-tree"><div class="loading">加载中…</div></div>
+          </div>
+          <div class="ide-main">
+            <div class="ide-tabs" id="ide-tabs">
+              <div class="ide-empty-tab">未打开文件 — 点击左侧文件开始编辑</div>
+            </div>
+            <div class="ide-editor" id="ide-editor"></div>
+            <div class="ide-statusbar" id="ide-statusbar">
+              <span>BlueDeer IDE · 底座文件系统</span>
+              <span class="ide-status-right" id="ide-status-right"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ 页面 10：项目空间 ============ -->
+      <div class="page" id="page-projects">
+        <div class="page-head">
+          <h2>项目空间</h2>
+          <span class="sub">项目 = 一组 Agent + 独立消息会话 + 独立工作流（全真实 /projects）</span>
+          <div class="page-actions"><button class="btn sm" onclick="loadProjects()">刷新</button></div>
+        </div>
+        <div class="card">
+          <div class="card-title">新建项目</div>
+          <div class="form-row">
+            <div class="field" style="flex:1"><label>项目名</label><input id="pj-name" placeholder="如：森林建设组"></div>
+            <div class="field" style="flex:1"><label>描述</label><input id="pj-desc" placeholder="可选"></div>
+            <div class="field" style="flex:1.6"><label>成员 Agent（逗号分隔）</label><input id="pj-agents" placeholder="worker1, sub_planner, sub_exec"></div>
+          </div>
+          <button class="btn primary" onclick="createProject()">创建项目</button>
+        </div>
+        <div class="card">
+          <div class="card-title">项目列表 <span class="cnt" id="pj-count">…</span></div>
+          <div id="pj-list"><div class="skel-grid"><div class="skel-card"><div class="skel-line" style="width:38%"></div><div class="skel-line" style="width:72%"></div><div class="skel-line" style="width:55%"></div></div></div></div>
+        </div>
+      </div>
+
+      <!-- ============ 页面 11：定时任务 ============ -->
+      <div class="page" id="page-schedule">
+        <div class="page-head">
+          <h2>定时任务</h2>
+          <span class="sub">后台调度线程真实执行（/crons）· 每任务可启停/手动触发/看执行历史</span>
+          <div class="page-actions"><button class="btn sm" onclick="loadCrons()">刷新</button></div>
+        </div>
+        <div class="card">
+          <div class="card-title">新建定时任务</div>
+          <div class="form-row">
+            <div class="field" style="flex:1"><label>名称</label><input id="cr-name" placeholder="如：每日问候"></div>
+            <div class="field" style="width:120px"><label>间隔（秒）</label><input id="cr-interval" type="number" value="3600" style="width:100%"></div>
+            <div class="field" style="width:120px"><label>动作</label><select id="cr-action" style="width:100%"><option value="message">发消息</option><option value="workflow">触发工作流</option></select></div>
+            <div class="field" style="flex:1"><label>目标（Agent ID 或工作流 ID）</label><input id="cr-target" placeholder="sub_planner / wf_xxx"></div>
+            <div class="field" style="flex:1.4"><label>消息内容（动作=发消息时）</label><input id="cr-content" placeholder="定时触发的内容"></div>
+          </div>
+          <button class="btn primary" onclick="createCron()">创建定时任务</button>
+        </div>
+        <div class="card">
+          <div class="card-title">任务列表 <span class="cnt" id="cr-count">…</span></div>
+          <div id="cr-list"><div class="skel-grid"><div class="skel-card"><div class="skel-line" style="width:38%"></div><div class="skel-line" style="width:72%"></div><div class="skel-line" style="width:55%"></div></div></div></div>
+        </div>
+      </div>
+
+      <!-- ============ 页面 12：审计日志 ============ -->
+      <div class="page" id="page-audit">
+        <div class="page-head">
+          <h2>审计日志</h2>
+          <span class="sub">全部操作留痕：谁调了什么技能 / 谁通过审批 / 报错记录（/system/audit-logs）</span>
+          <div class="page-actions"><button class="btn sm" onclick="loadAudit()">刷新</button></div>
+        </div>
+        <div class="card">
+          <div class="card-title">筛选</div>
+          <div class="form-row" style="align-items:flex-end">
+            <div class="field" style="width:150px"><label>操作者</label><input id="au-actor" placeholder="human / agent_id"></div>
+            <div class="field" style="width:170px"><label>动作</label><input id="au-action" placeholder="如 delegate / cron_create"></div>
+            <div class="field" style="flex:1"><label>关键字搜索</label><input id="au-q" placeholder="搜索操作者/动作/目标/详情…"></div>
+            <div class="field" style="width:110px"><label>条数</label><select id="au-limit" style="width:100%"><option>50</option><option selected>100</option><option>300</option></select></div>
+            <button class="btn primary" onclick="loadAudit()">查询</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">日志 <span class="cnt" id="au-count">…</span></div>
+          <div id="au-list"><div class="skel-grid"><div class="skel-card"><div class="skel-line" style="width:38%"></div><div class="skel-line" style="width:72%"></div><div class="skel-line" style="width:55%"></div></div></div></div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ============ Agent 详情抽屉（历史活动 + 人设提示词） ============ -->
+<div class="drawer-mask" id="agent-detail-modal" style="display:none" onclick="if(event.target===this)closeAgentDetail()">
+  <div class="drawer" id="agent-detail-drawer" style="width:540px">
+    <div class="drawer-head">
+      <div>
+        <div class="drawer-title">Agent 助理详情</div>
+        <div class="mute" style="font-size:12px">历史活动 · 人设提示词 · 真实数据</div>
+      </div>
+      <button class="btn ghost sm" onclick="closeAgentDetail()">✕</button>
+    </div>
+    <div class="drawer-body" style="flex-direction:column;overflow-y:auto">
+      <div class="ad-head" id="ad-head" style="display:flex;gap:14px;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)"></div>
+
+      <div class="set-group" style="padding:14px 20px">
+        <div class="set-group-title">资料</div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-name">能力</div></div>
+          <div class="set-ctrl" style="font-size:12.5px;color:var(--muted)" id="ad-caps">—</div>
+        </div>
+        <div class="set-row">
+          <div class="set-row-info"><div class="set-row-name">自动应答</div></div>
+          <div class="set-ctrl" style="font-size:12.5px;color:var(--muted)" id="ad-auto">—</div>
+        </div>
+      </div>
+
+      <div class="set-group" style="padding:14px 20px">
+        <div class="set-group-title">人设提示词（system prompt）</div>
+        <div class="set-row-desc" style="margin:0 2px 10px">改完点保存，真实写回底座（Agent 下次工作按新人设执行）</div>
+        <textarea id="ad-prompt" rows="6" style="width:100%;font-family:var(--mono);font-size:12.5px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg);color:var(--text);resize:vertical" placeholder="给这个 Agent 定义人设…"></textarea>
+        <div style="margin-top:10px;display:flex;gap:10px;align-items:center">
+          <button class="btn primary sm" onclick="saveAgentPrompt()">保存人设</button>
+          <span class="muted" id="ad-prompt-msg"></span>
+        </div>
+      </div>
+
+      <div class="set-group" style="padding:14px 20px;border-bottom:none">
+        <div class="set-group-title">历史活动（消息 + 审计，时间倒序）</div>
+        <div id="ad-activity" style="margin-top:8px"><div class="loading">加载中…</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 设置中心（借鉴 Hermes Agent：右侧抽屉 + 左分类右配置 + 顶部搜索） ============ -->
+<div class="drawer-mask" id="settings-modal" style="display:none" onclick="if(event.target===this)closeSettings()">
+  <div class="drawer" id="settings-drawer">
+    <div class="drawer-head">
+      <div>
+        <div class="drawer-title">设置</div>
+        <div class="mute" style="font-size:12px">BlueDeer 控制台 · 配置即时生效</div>
+      </div>
+      <button class="btn ghost sm" onclick="closeSettings()">✕</button>
+    </div>
+
+    <div class="drawer-search">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;opacity:.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="set-search" placeholder="搜索设置（如：模型、主题、地址）" oninput="filterSettings()">
+    </div>
+
+    <div class="drawer-body">
+      <nav class="set-nav" id="set-nav">
+        <button class="set-nav-item active" data-cat="general" onclick="switchSetCat('general')">常规</button>
+        <button class="set-nav-item" data-cat="appearance" onclick="switchSetCat('appearance')">外观</button>
+        <button class="set-nav-item" data-cat="models" onclick="switchSetCat('models')">模型与 API</button>
+        <button class="set-nav-item" data-cat="agent" onclick="switchSetCat('agent')">Agent 行为</button>
+        <button class="set-nav-item" data-cat="about" onclick="switchSetCat('about')">关于</button>
+      </nav>
+
+      <div class="set-panels" id="set-panels">
+        <!-- 常规 -->
+        <section class="set-panel" data-panel="general">
+          <div class="set-group">
+            <div class="set-group-title">连接</div>
+            <div class="set-row" data-kw="api 地址 底座 连接 服务器">
+              <div class="set-row-info"><div class="set-row-name">底座 API 地址</div><div class="set-row-desc">所有页面数据与操作来自该底座 REST API；需底座开启 CORS</div></div>
+              <div class="set-ctrl"><input id="set-api" placeholder="http://127.0.0.1:8000" value="" style="width:240px"></div>
+            </div>
+            <div class="set-row" data-kw="自动刷新 间隔 轮询">
+              <div class="set-row-info"><div class="set-row-name">自动刷新</div><div class="set-row-desc">页面数据轮询间隔（监控/审批等实时页）</div></div>
+              <div class="set-ctrl"><select id="set-refresh" style="width:130px">
+                <option value="0">关闭</option><option value="10">10 秒</option>
+                <option value="30" selected>30 秒</option><option value="60">60 秒</option>
+              </select></div>
+            </div>
+          </div>
+          <div class="set-group">
+            <div class="set-group-title">数据</div>
+            <div class="set-row" data-kw="页面密度 紧凑 标准">
+              <div class="set-row-info"><div class="set-row-name">页面密度</div><div class="set-row-desc">列表与卡片的间距密度</div></div>
+              <div class="set-ctrl"><select id="set-density" style="width:130px">
+                <option value="cozy">标准</option><option value="compact">紧凑</option>
+              </select></div>
+            </div>
+            <div class="set-row" data-kw="toast 通知 提示">
+              <div class="set-row-info"><div class="set-row-name">操作提示</div><div class="set-row-desc">操作成功/失败时弹出 toast 提示</div></div>
+              <div class="set-ctrl"><label class="switch-mini"><input type="checkbox" id="set-toast" checked><span></span></label></div>
+            </div>
+          </div>
+          <div class="set-group">
+            <div class="set-row" data-kw="保存 应用">
+              <div class="set-row-info"></div>
+              <div class="set-ctrl"><button class="btn primary" onclick="saveSettings()">保存常规设置</button><span class="muted" id="set-msg" style="margin-left:10px"></span></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 外观 -->
+        <section class="set-panel" data-panel="appearance" style="display:none">
+          <div class="set-group">
+            <div class="set-group-title">主题</div>
+            <div class="set-row" data-kw="主题 浅色 深色 自动 dark light">
+              <div class="set-row-info"><div class="set-row-name">显示模式</div><div class="set-row-desc">浅色 / 深色 / 跟随系统</div></div>
+              <div class="set-ctrl">
+                <div class="seg" id="set-theme-seg">
+                  <button class="seg-btn" data-theme="light" onclick="setTheme('light')">☀ 浅色</button>
+                  <button class="seg-btn" data-theme="dark" onclick="setTheme('dark')">🌙 深色</button>
+                  <button class="seg-btn" data-theme="auto" onclick="setTheme('auto')">🖥 自动</button>
+                </div>
+              </div>
+            </div>
+            <div class="set-row" data-kw="点缀色 主题色 颜色 accent 蓝 紫 青 琥珀 玫红">
+              <div class="set-row-info"><div class="set-row-name">点缀色</div><div class="set-row-desc">全局强调色（按钮/高亮/选中态）</div></div>
+              <div class="set-ctrl"><div class="swatches" id="set-accent-swatches"></div></div>
+            </div>
+          </div>
+          <div class="set-group">
+            <div class="set-group-title">布局</div>
+            <div class="set-row" data-kw="侧边栏 折叠 导航">
+              <div class="set-row-info"><div class="set-row-name">侧边栏折叠</div><div class="set-row-desc">导航栏默认收起为窄图标条</div></div>
+              <div class="set-ctrl"><label class="switch-mini"><input type="checkbox" id="set-sidebar-collapsed"><span></span></label></div>
+            </div>
+          </div>
+          <div class="set-group">
+            <div class="set-row" data-kw="重置 外观">
+              <div class="set-row-info"></div>
+              <div class="set-ctrl"><button class="btn ghost" onclick="resetAppearance()">重置外观</button></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 模型与 API -->
+        <section class="set-panel" data-panel="models" style="display:none">
+          <div class="set-group">
+            <div class="set-group-title">模型选择（借鉴 Hermes 两阶段：先选 Provider，再选模型）</div>
+            <div class="set-row" data-kw="provider 提供方 硅基流动 deepseek github 智谱 ollama 本地">
+              <div class="set-row-info"><div class="set-row-name">模型提供方</div><div class="set-row-desc">本地 Ollama 或 OpenAI 兼容云端端点</div></div>
+              <div class="set-ctrl"><select id="set-provider" style="width:220px" onchange="onProviderChange()">
+                <option value="ollama">本地 Ollama（免费）</option>
+                <option value="siliconflow">硅基流动 SiliconFlow</option>
+                <option value="deepseek">DeepSeek 官方</option>
+                <option value="github">GitHub Models</option>
+                <option value="zhipu">智谱 BigModel</option>
+                <option value="custom">自定义端点</option>
+              </select></div>
+            </div>
+            <div class="set-row" data-kw="api base 地址 端点">
+              <div class="set-row-info"><div class="set-row-name">API 地址</div><div class="set-row-desc">OpenAI 兼容 base_url（如 https://api.siliconflow.cn/v1）</div></div>
+              <div class="set-ctrl"><input id="set-api-base" placeholder="本地 Ollama 无需填写" style="width:280px"></div>
+            </div>
+            <div class="set-row" data-kw="api key 密钥 令牌 token">
+              <div class="set-row-info"><div class="set-row-name">API 密钥</div><div class="set-row-desc">云端端点鉴权，本地模型可留空</div></div>
+              <div class="set-ctrl"><input id="set-api-key" type="password" placeholder="sk-…" style="width:240px"></div>
+            </div>
+            <div class="set-row" data-kw="探测 测试 模型列表 连接">
+              <div class="set-row-info"><div class="set-row-name">模型探测</div><div class="set-row-desc">从底座真实拉取该端点可用模型列表</div></div>
+              <div class="set-ctrl"><button class="btn sm" onclick="probeModels()">🔍 探测模型</button><span class="muted" id="set-probe-msg" style="margin-left:8px"></span></div>
+            </div>
+            <div class="set-row" data-kw="模型 model 选择">
+              <div class="set-row-info"><div class="set-row-name">模型</div><div class="set-row-desc">探测成功后从真实列表选择</div></div>
+              <div class="set-ctrl"><select id="set-model" style="width:220px"><option value="">先探测模型</option></select></div>
+            </div>
+          </div>
+          <div class="set-group">
+            <div class="set-row" data-kw="保存 模型">
+              <div class="set-row-info"></div>
+              <div class="set-ctrl"><button class="btn primary" onclick="saveModelConfig()">保存模型配置</button><span class="muted" id="set-model-msg" style="margin-left:10px"></span></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Agent 行为 -->
+        <section class="set-panel" data-panel="agent" style="display:none">
+          <div class="set-group">
+            <div class="set-group-title">子 Agent 默认值（真实存底座 settings 表）</div>
+            <div class="set-row" data-kw="自动应答 模板 默认">
+              <div class="set-row-info"><div class="set-row-name">默认自动应答模板</div><div class="set-row-desc">Agent 编排页注册新子 Agent 时预填；{from}=调用方 {task}=任务</div></div>
+              <div class="set-ctrl"><input id="set-ar-template" style="width:320px" placeholder="收到，{from}。任务「{task}」已受理，正在处理…"></div>
+            </div>
+            <div class="set-row" data-kw="保存 agent">
+              <div class="set-row-info"></div>
+              <div class="set-ctrl"><button class="btn primary" onclick="saveAgentDefaults()">保存 Agent 默认值</button><span class="muted" id="set-agent-msg" style="margin-left:10px"></span></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 关于 -->
+        <section class="set-panel" data-panel="about" style="display:none">
+          <div class="set-group">
+            <div class="set-row" data-kw="关于 版本">
+              <div class="set-row-info"><div class="set-row-name">BlueDeer Console</div><div class="set-row-desc">独立前端 Agent 调度控制台 · 纯静态 · 零业务逻辑</div></div>
+              <div class="set-ctrl"><span class="tag online">v1.0</span></div>
+            </div>
+            <div class="set-row" data-kw="底座 状态">
+              <div class="set-row-info"><div class="set-row-name">底座状态</div><div class="set-row-desc" id="about-base-desc">检测中…</div></div>
+              <div class="set-ctrl"><span class="tag" id="about-base-tag">…</span></div>
+            </div>
+            <div class="set-row" data-kw="github 仓库 链接">
+              <div class="set-row-info"><div class="set-row-name">仓库</div><div class="set-row-desc">项目源码与说明</div></div>
+              <div class="set-ctrl"><a class="btn sm" href="https://github.com/gupi-bill/BlueDeer-Console" target="_blank">GitHub ↗</a></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <script src="js/api.js?v=20260825b"></script>
+  <script src="js/charts.js?v=20260825b"></script>
+  <script src="js/settings.js?v=20260825b"></script>
+<script src="js/app.js?v=20260825b"></script>
+<script src="js/agents.js?v=20260825b"></script>
+<script src="js/approvals.js?v=20260825b"></script>
+<script src="js/messages.js?v=20260825b"></script>
+<script src="js/memories.js?v=20260825b"></script>
+<script src="js/skills.js?v=20260825b"></script>
+<script src="js/workflows.js?v=20260825b"></script>
+<script src="js/dashboard.js?v=20260825b"></script>
+<script src="js/orchestr.js?v=20260825b"></script>
+<script src="js/ide.js?v=20260825b"></script>
+<script src="js/projects.js?v=20260825b"></script>
+<script src="js/schedule.js?v=20260825b"></script>
+<script src="js/audit.js?v=20260825b"></script>
+<script src="vendor/monaco/min/vs/loader.js"></script>
+<script>checkApi(); switchPage('monitor');</script>
+
+</body>
+</html>

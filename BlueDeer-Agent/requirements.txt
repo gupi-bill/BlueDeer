@@ -1,0 +1,1 @@
+# BlueDeer Agent 第一版零第三方依赖，仅用 Python 标准库即可运行。
