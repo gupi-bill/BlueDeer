@@ -135,6 +135,25 @@ def _generate_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+# 内存滑动窗口限流：同窗口内失败次数过多即拒绝（独立于 DB 锁定的第二道防线）
+_LOGIN_RATE_LIMIT_WINDOW = 60
+_LOGIN_RATE_LIMIT_MAX_ATTEMPTS = 20
+_login_attempts: dict[str, list[float]] = {}
+
+
+def _check_login_rate_limit(username: str) -> tuple[bool, float]:
+    now = time.time()
+    attempts = [t for t in _login_attempts.get(username, []) if now - t < _LOGIN_RATE_LIMIT_WINDOW]
+    _login_attempts[username] = attempts
+    if len(attempts) >= _LOGIN_RATE_LIMIT_MAX_ATTEMPTS:
+        return False, _LOGIN_RATE_LIMIT_WINDOW - (now - attempts[0])
+    return True, 0.0
+
+
+def _record_attempt(username: str) -> None:
+    _login_attempts.setdefault(username, []).append(time.time())
+
+
 class AuthSystem:
     def __init__(self, db_file: str = _DB_FILE, legacy_users_file: str = _LEGACY_USERS_FILE) -> None:
         self._db_file = db_file
@@ -375,6 +394,11 @@ class AuthSystem:
         user = self.get_user(username)
         if not user or not user.enabled:
             return None
+        allowed, _ = _check_login_rate_limit(username)
+        if not allowed:
+            logger.warning("用户 %s 触发登录限流，拒绝登录", username)
+            return None
+        _record_attempt(username)
         locked, _ = self._is_locked(username)
         if locked:
             logger.warning("用户 %s 处于锁定状态，拒绝登录", username)
@@ -385,6 +409,7 @@ class AuthSystem:
             self._record_failure(username)
             return None
         self._clear_failures(username)
+        _login_attempts.pop(username, None)
         token = SessionToken(token=_generate_token(), username=username, role=user.role)
         with self._lock, self._conn:
             self._conn.execute(

@@ -32,10 +32,11 @@ chroma/
 .DS_Store
 Thumbs.db
 
-# ── 开发临时脚本与产物（不公开） ────────────────────────
-_*.py
-_*.txt
-_*/
+# ── 开发临时脚本与产物（不公开，仅限仓库根目录） ────────
+/_*.py
+/_*.txt
+/_*/
+!__init__.py
 backups/
 biosphere_save.json*
 ._trash/

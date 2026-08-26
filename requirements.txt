@@ -20,6 +20,8 @@ opentelemetry-exporter-otlp>=1.21
 # 测试
 pytest>=9.1
 pytest-asyncio>=1.4
+httpx>=0.28            # starlette TestClient
+python-multipart>=0.0.12  # FastAPI 表单数据
 
 # ---- 可选增强（缺省自动降级，不影响主流程） ----
 # argcomplete    CLI Tab 补全（cli/main.py）
