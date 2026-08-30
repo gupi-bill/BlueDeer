@@ -16,6 +16,7 @@ import threading
 import time
 import urllib.request
 from collections.abc import Callable
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -66,9 +67,56 @@ def invalidate_cache(pattern: str | None = None) -> None:
         _RESPONSE_CACHE.clear()
 
 
+# ===== 生命周期管理 =====
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用启动/关闭生命周期：加载插件、启动服务、清理资源。"""
+    # --- startup ---
+    loaded = await plugin_manager.load_all()
+    if loaded:
+        logger.info("已加载 %d 个插件: %s", len(loaded), loaded)
+        await plugin_manager.ready_all()
+    else:
+        logger.info("未发现插件，跳过")
+
+    await scheduler.start()
+    await webhook.start()
+    logger.info("调度器和 Webhook 分发器已启动")
+    asyncio.create_task(_periodic_ws_health())
+    logger.info("WebSocket 健康推送已启动")
+
+    global _biosphere_instance
+    try:
+        bio = Biosphere(
+            save_path="data/biosphere_save.json",
+            pid_path="data/biosphere.pid",
+        )
+        bio.bootstrap(load=True)
+        bio.start()
+        _biosphere_instance = bio
+        init_biosphere(bio)
+        logger.info("🌿 森林生物圈已启动")
+    except Exception as e:
+        logger.warning("生物圈启动失败（可忽略）: %s", e)
+
+    yield
+
+    # --- shutdown ---
+    await scheduler.stop()
+    await webhook.stop()
+    await plugin_manager.shutdown()
+
+    if _biosphere_instance is not None:
+        try:
+            _biosphere_instance.stop()
+            logger.info("🌿 森林生物圈已停止")
+        except Exception as e:
+            logger.warning("生物圈停止异常: %s", e)
+
+
 # ===== 请求验证中间件 =====
 
-app = FastAPI(title="BlueDeer 森林公司仪表盘")
+app = FastAPI(title="BlueDeer 森林公司仪表盘", lifespan=lifespan)
 
 
 class ValidationMiddleware:
@@ -1276,39 +1324,6 @@ debugger.enable()
 canvas = Canvas(debugger)
 
 
-# ===== 启动/关闭事件 =====
-@app.on_event("startup")
-async def startup() -> None:
-    """应用启动时加载插件、启动后台服务、初始化生物圈。"""
-    loaded = await plugin_manager.load_all()
-    if loaded:
-        logger.info("已加载 %d 个插件: %s", len(loaded), loaded)
-        await plugin_manager.ready_all()
-    else:
-        logger.info("未发现插件，跳过")
-
-    await scheduler.start()
-    await webhook.start()
-    logger.info("调度器和 Webhook 分发器已启动")
-    asyncio.create_task(_periodic_ws_health())
-    logger.info("WebSocket 健康推送已启动")
-
-    # ── 启动生物圈 ──
-    global _biosphere_instance
-    try:
-        bio = Biosphere(
-            save_path="data/biosphere_save.json",
-            pid_path="data/biosphere.pid",
-        )
-        bio.bootstrap(load=True)
-        bio.start()
-        _biosphere_instance = bio
-        init_biosphere(bio)
-        logger.info("🌿 森林生物圈已启动")
-    except Exception as e:
-        logger.warning("生物圈启动失败（可忽略）: %s", e)
-
-
 async def _periodic_ws_health() -> None:
     """每 10s 通过 WS 推送系统健康状态 + 告警评估。"""
     _logger = logging.getLogger("bluedeer.web")
@@ -1352,20 +1367,6 @@ async def _periodic_ws_health() -> None:
             ae.evaluate("pending_count", data["pending"])
         except Exception as _e:
             _logger.warning("WS 健康推送异常: %s", _e, exc_info=True)
-@app.on_event("shutdown")
-async def shutdown() -> None:
-    """应用关闭时清理资源。"""
-    await scheduler.stop()
-    await webhook.stop()
-    await plugin_manager.shutdown()
-
-    # ── 停止生物圈 ──
-    if _biosphere_instance is not None:
-        try:
-            _biosphere_instance.stop()
-            logger.info("🌿 森林生物圈已停止")
-        except Exception as e:
-            logger.warning("生物圈停止异常: %s", e)
 
 
 # 挂载静态文件
