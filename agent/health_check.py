@@ -188,6 +188,7 @@ def check_secrets():
     patterns = ["sk-live-", "ghp_", "ghs_"]
     skip_dirs = {".git", "__pycache__", "node_modules", "data", "vector_db", ".venv", ".cache"}
     skip_ext = {".db", ".json", ".log", ".txt", ".md", ".html", ".css", ".js"}
+    skip_files = {"health_check.py"}
     found = []
     for pat in patterns:
         r = subprocess.run(
@@ -200,7 +201,7 @@ def check_secrets():
                 continue
             rel = str(fp.relative_to(root))
             skip = any(d in rel.split("\\") or d in rel.split("/") for d in skip_dirs)
-            if skip or fp.suffix in skip_ext or "test_" in fp.name:
+            if skip or fp.suffix in skip_ext or "test_" in fp.name or fp.name in skip_files:
                 continue
             try:
                 content = fp.read_text(encoding="utf-8", errors="replace")

@@ -16,3 +16,6 @@ Thumbs.db
 *.log
 
 # Third-party archive - not part of BlueDeer project
+
+data/
+vector_db/
