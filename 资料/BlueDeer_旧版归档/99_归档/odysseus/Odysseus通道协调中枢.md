@@ -192,5 +192,5 @@ WorkBuddy 作为「通道全域协调中枢」：
 **接入说明：**
 - 四座 MCP 服务均 `is_enabled=1`，能力清单对通道内**所有 Agent 永久公开**（符合公理 2 与总线定义）。
 - Obsidian / n8n / openclaw 为早期已接入；**Hermes 于 2026-07-29 按用户指令重新注册回总线**（此前因用户改用桌面版临时移除，本次明确纳入通道）。
-- Hermes MCP 读取 `C:\Users\a\AppData\Local\hermes\config.yaml`（custom provider → 本地 Ollama `deepseek-coder-v2-lite:16b`），启动 `hermes mcp serve` 即暴露其对话能力；桌面端 `Hermes.exe` 为该 Agent 的 GUI 入口。
+- Hermes MCP 读取 `<USER_HOME>\AppData\Local\hermes\config.yaml`（custom provider → 本地 Ollama `deepseek-coder-v2-lite:16b`），启动 `hermes mcp serve` 即暴露其对话能力；桌面端 `Hermes.exe` 为该 Agent 的 GUI 入口。
 - 新增 / 移除总线成员：改 `odysseus/data/app.db` 的 `mcp_servers` 表后，Odysseus 重载（或经启动器重启）即生效。

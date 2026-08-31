@@ -273,9 +273,9 @@ def _ollama_installed_models() -> list[str]:
 # openclaw CLI 本身就是网关官方客户端（内部完成 WS 握手/签名），
 # 通过它拉取真实 agent / session / channel / cron / model 数据。
 OPENCLAW_STATE_DIR = r"<WORKSPACE_DIR>\OpenClaw\data"
-OPENCLAW_NODE = r"C:\Users\a\.workbuddy\binaries\node\versions\22.22.2\node.exe"
+OPENCLAW_NODE = r"<USER_HOME>\.workbuddy\binaries\node\versions\22.22.2\node.exe"
 OPENCLAW_CLI = (
-    r"C:\Users\a\.workbuddy\binaries\node\versions\22.22.2"
+    r"<USER_HOME>\.workbuddy\binaries\node\versions\22.22.2"
     r"\node_modules\openclaw\dist\index.js"
 )
 

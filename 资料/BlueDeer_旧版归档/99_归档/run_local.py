@@ -50,9 +50,9 @@ def _pick_python() -> str:
 
 # ---- OpenClaw 网关联动：若 18789 未监听则自动拉起 ----
 OPENCLAW_STATE_DIR = r"<WORKSPACE_DIR>\OpenClaw\data"
-OPENCLAW_NODE = r"C:\Users\a\.workbuddy\binaries\node\versions\22.22.2\node.exe"
+OPENCLAW_NODE = r"<USER_HOME>\.workbuddy\binaries\node\versions\22.22.2\node.exe"
 OPENCLAW_CLI = (
-    r"C:\Users\a\.workbuddy\binaries\node\versions\22.22.2"
+    r"<USER_HOME>\.workbuddy\binaries\node\versions\22.22.2"
     r"\node_modules\openclaw\dist\index.js"
 )
 GW_PORT = 18789
