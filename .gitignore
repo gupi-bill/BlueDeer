@@ -14,3 +14,5 @@ BlueDeer-Agent/config.json
 .DS_Store
 Thumbs.db
 *.log
+
+# Third-party archive - not part of BlueDeer project

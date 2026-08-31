@@ -11424,6 +11424,1026 @@
         "author": "GitHub Knowledge"
       }
     },
+    "lib_1788161737518_3321": {
+      "id": "lib_1788161737518_3321",
+      "text": "项目: FastAPI\n描述: 现代高性能 Python Web 框架，自动 OpenAPI 文档\n分类: framework\n标签: web, api, async, python\n关键洞见:\n  - 依赖注入模式\n  - 自动 API 文档生成\n  - Pydantic 数据验证",
+      "metadata": {
+        "entry_id": "lib_1788161737518_3321",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "web,api,async,python",
+        "title": "[GitHub] FastAPI",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161737653_4402": {
+      "id": "lib_1788161737653_4402",
+      "text": "项目: LangChain\n描述: 构建 LLM 应用的框架，支持链式调用和工具集成\n分类: framework\n标签: llm, ai, chain, agent\n关键洞见:\n  - 链式调用模式\n  - Agent 工具集成\n  - Prompt 模板管理",
+      "metadata": {
+        "entry_id": "lib_1788161737653_4402",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "llm,ai,chain,agent",
+        "title": "[GitHub] LangChain",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161737696_641": {
+      "id": "lib_1788161737696_641",
+      "text": "项目: CrewAI\n描述: 多 Agent 协作框架，角色分工与任务路由\n分类: framework\n标签: multi-agent, collaboration, ai\n关键洞见:\n  - 角色分工模式\n  - 任务委派\n  - Agent 间通信",
+      "metadata": {
+        "entry_id": "lib_1788161737696_641",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "multi-agent,collaboration,ai",
+        "title": "[GitHub] CrewAI",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161737738_9588": {
+      "id": "lib_1788161737738_9588",
+      "text": "项目: AutoGen\n描述: 微软多 Agent 对话框架，支持多轮对话与代码执行\n分类: framework\n标签: multi-agent, conversation, microsoft\n关键洞见:\n  - 多 Agent 对话模式\n  - 代码执行沙箱\n  - 对话管理",
+      "metadata": {
+        "entry_id": "lib_1788161737738_9588",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "multi-agent,conversation,microsoft",
+        "title": "[GitHub] AutoGen",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161737770_7560": {
+      "id": "lib_1788161737770_7560",
+      "text": "项目: Pydantic\n描述: Python 数据验证库，类型安全的数据模型\n分类: framework\n标签: validation, types, python\n关键洞见:\n  - 数据验证模式\n  - 类型安全\n  - JSON Schema 生成",
+      "metadata": {
+        "entry_id": "lib_1788161737770_7560",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "validation,types,python",
+        "title": "[GitHub] Pydantic",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161737799_1931": {
+      "id": "lib_1788161737799_1931",
+      "text": "项目: Redis\n描述: 内存数据结构存储，支持缓存、消息队列、发布订阅\n分类: tool\n标签: cache, database, message-queue\n关键洞见:\n  - LRU 缓存策略\n  - 发布订阅模式\n  - 数据结构服务",
+      "metadata": {
+        "entry_id": "lib_1788161737799_1931",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "cache,database,message-queue",
+        "title": "[GitHub] Redis",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161737831_622": {
+      "id": "lib_1788161737831_622",
+      "text": "项目: Celery\n描述: 分布式任务队列，支持异步任务调度\n分类: tool\n标签: task-queue, async, distributed\n关键洞见:\n  - 任务队列模式\n  - 工作流调度\n  - 结果后端",
+      "metadata": {
+        "entry_id": "lib_1788161737831_622",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "task-queue,async,distributed",
+        "title": "[GitHub] Celery",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161737863_9150": {
+      "id": "lib_1788161737863_9150",
+      "text": "项目: Nginx\n描述: 高性能 Web 服务器和反向代理\n分类: tool\n标签: web-server, proxy, load-balancing\n关键洞见:\n  - 事件驱动架构\n  - 反向代理模式\n  - 负载均衡策略",
+      "metadata": {
+        "entry_id": "lib_1788161737863_9150",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "web-server,proxy,load-balancing",
+        "title": "[GitHub] Nginx",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161737888_7014": {
+      "id": "lib_1788161737888_7014",
+      "text": "项目: Event Sourcing\n描述: 事件溯源架构，以事件序列存储状态变更\n分类: architecture\n标签: event-driven, cqrs, ddd\n关键洞见:\n  - 事件存储模式\n  - 状态重建\n  - 事件回溯",
+      "metadata": {
+        "entry_id": "lib_1788161737888_7014",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "event-driven,cqrs,ddd",
+        "title": "[GitHub] Event Sourcing",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161737915_4048": {
+      "id": "lib_1788161737915_4048",
+      "text": "项目: CQRS\n描述: 命令查询职责分离，读写分离架构\n分类: architecture\n标签: architecture, read-write, scalability\n关键洞见:\n  - 读写分离\n  - 命令模式\n  - 查询优化",
+      "metadata": {
+        "entry_id": "lib_1788161737915_4048",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "architecture,read-write,scalability",
+        "title": "[GitHub] CQRS",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161737946_2993": {
+      "id": "lib_1788161737946_2993",
+      "text": "项目: Microservices\n描述: 微服务架构模式，服务独立部署和扩展\n分类: architecture\n标签: architecture, distributed, scalability\n关键洞见:\n  - 服务拆分\n  - 服务发现\n  - API 网关",
+      "metadata": {
+        "entry_id": "lib_1788161737946_2993",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "architecture,distributed,scalability",
+        "title": "[GitHub] Microservices",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161737976_2725": {
+      "id": "lib_1788161737976_2725",
+      "text": "项目: Clean Architecture\n描述: 整洁架构，依赖反转和用例驱动\n分类: architecture\n标签: architecture, ddd, solid\n关键洞见:\n  - 依赖反转原则\n  - 用例驱动\n  - 边界隔离",
+      "metadata": {
+        "entry_id": "lib_1788161737976_2725",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "architecture,ddd,solid",
+        "title": "[GitHub] Clean Architecture",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161738015_1557": {
+      "id": "lib_1788161738015_1557",
+      "text": "项目: Bloom Filter\n描述: 布隆过滤器，高效集合成员判断\n分类: algorithm\n标签: probabilistic, set, memory\n关键洞见:\n  - 概率性数据结构\n  - 假阳性控制\n  - 空间效率",
+      "metadata": {
+        "entry_id": "lib_1788161738015_1557",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "probabilistic,set,memory",
+        "title": "[GitHub] Bloom Filter",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161738046_6280": {
+      "id": "lib_1788161738046_6280",
+      "text": "项目: Skip List\n描述: 跳表，有序数据结构，支持 O(log n) 查找\n分类: algorithm\n标签: data-structure, ordered, log-n\n关键洞见:\n  - 多层索引\n  - 概率平衡\n  - 范围查询优化",
+      "metadata": {
+        "entry_id": "lib_1788161738046_6280",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "data-structure,ordered,log-n",
+        "title": "[GitHub] Skip List",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161738081_2227": {
+      "id": "lib_1788161738081_2227",
+      "text": "项目: LSM Tree\n描述: 日志结构合并树，LSM 存储引擎核心\n分类: algorithm\n标签: storage, write-optimized, nosql\n关键洞见:\n  - 顺序写入\n  - 层级合并\n  - 写放大控制",
+      "metadata": {
+        "entry_id": "lib_1788161738081_2227",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "storage,write-optimized,nosql",
+        "title": "[GitHub] LSM Tree",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161738111_5793": {
+      "id": "lib_1788161738111_5793",
+      "text": "项目: Cookiecutter\n描述: 项目模板生成器，从模板创建新项目\n分类: template\n标签: template, scaffold, automation\n关键洞见:\n  - 模板化生成\n  - 变量替换\n  - 钩子机制",
+      "metadata": {
+        "entry_id": "lib_1788161738111_5793",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "template,scaffold,automation",
+        "title": "[GitHub] Cookiecutter",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161738141_7463": {
+      "id": "lib_1788161738141_7463",
+      "text": "项目: uv\n描述: 极速 Python 包管理器，替代 pip\n分类: tool\n标签: python, package-manager, performance\n关键洞见:\n  - 依赖解析优化\n  - 并行下载\n  - 缓存策略",
+      "metadata": {
+        "entry_id": "lib_1788161738141_7463",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "python,package-manager,performance",
+        "title": "[GitHub] uv",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161894178_1530": {
+      "id": "lib_1788161894178_1530",
+      "text": "项目: FastAPI\n描述: 现代高性能 Python Web 框架，自动 OpenAPI 文档\n分类: framework\n标签: web, api, async, python\n关键洞见:\n  - 依赖注入模式\n  - 自动 API 文档生成\n  - Pydantic 数据验证",
+      "metadata": {
+        "entry_id": "lib_1788161894178_1530",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "web,api,async,python",
+        "title": "[GitHub] FastAPI",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161894271_837": {
+      "id": "lib_1788161894271_837",
+      "text": "项目: LangChain\n描述: 构建 LLM 应用的框架，支持链式调用和工具集成\n分类: framework\n标签: llm, ai, chain, agent\n关键洞见:\n  - 链式调用模式\n  - Agent 工具集成\n  - Prompt 模板管理",
+      "metadata": {
+        "entry_id": "lib_1788161894271_837",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "llm,ai,chain,agent",
+        "title": "[GitHub] LangChain",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161894303_5941": {
+      "id": "lib_1788161894303_5941",
+      "text": "项目: CrewAI\n描述: 多 Agent 协作框架，角色分工与任务路由\n分类: framework\n标签: multi-agent, collaboration, ai\n关键洞见:\n  - 角色分工模式\n  - 任务委派\n  - Agent 间通信",
+      "metadata": {
+        "entry_id": "lib_1788161894303_5941",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "multi-agent,collaboration,ai",
+        "title": "[GitHub] CrewAI",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161894327_2332": {
+      "id": "lib_1788161894327_2332",
+      "text": "项目: AutoGen\n描述: 微软多 Agent 对话框架，支持多轮对话与代码执行\n分类: framework\n标签: multi-agent, conversation, microsoft\n关键洞见:\n  - 多 Agent 对话模式\n  - 代码执行沙箱\n  - 对话管理",
+      "metadata": {
+        "entry_id": "lib_1788161894327_2332",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "multi-agent,conversation,microsoft",
+        "title": "[GitHub] AutoGen",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161894355_6663": {
+      "id": "lib_1788161894355_6663",
+      "text": "项目: Pydantic\n描述: Python 数据验证库，类型安全的数据模型\n分类: framework\n标签: validation, types, python\n关键洞见:\n  - 数据验证模式\n  - 类型安全\n  - JSON Schema 生成",
+      "metadata": {
+        "entry_id": "lib_1788161894355_6663",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "validation,types,python",
+        "title": "[GitHub] Pydantic",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161894381_7471": {
+      "id": "lib_1788161894381_7471",
+      "text": "项目: Redis\n描述: 内存数据结构存储，支持缓存、消息队列、发布订阅\n分类: tool\n标签: cache, database, message-queue\n关键洞见:\n  - LRU 缓存策略\n  - 发布订阅模式\n  - 数据结构服务",
+      "metadata": {
+        "entry_id": "lib_1788161894381_7471",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "cache,database,message-queue",
+        "title": "[GitHub] Redis",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161894406_619": {
+      "id": "lib_1788161894406_619",
+      "text": "项目: Celery\n描述: 分布式任务队列，支持异步任务调度\n分类: tool\n标签: task-queue, async, distributed\n关键洞见:\n  - 任务队列模式\n  - 工作流调度\n  - 结果后端",
+      "metadata": {
+        "entry_id": "lib_1788161894406_619",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "task-queue,async,distributed",
+        "title": "[GitHub] Celery",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161894436_8686": {
+      "id": "lib_1788161894436_8686",
+      "text": "项目: Nginx\n描述: 高性能 Web 服务器和反向代理\n分类: tool\n标签: web-server, proxy, load-balancing\n关键洞见:\n  - 事件驱动架构\n  - 反向代理模式\n  - 负载均衡策略",
+      "metadata": {
+        "entry_id": "lib_1788161894436_8686",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "web-server,proxy,load-balancing",
+        "title": "[GitHub] Nginx",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161894466_4270": {
+      "id": "lib_1788161894466_4270",
+      "text": "项目: Event Sourcing\n描述: 事件溯源架构，以事件序列存储状态变更\n分类: architecture\n标签: event-driven, cqrs, ddd\n关键洞见:\n  - 事件存储模式\n  - 状态重建\n  - 事件回溯",
+      "metadata": {
+        "entry_id": "lib_1788161894466_4270",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "event-driven,cqrs,ddd",
+        "title": "[GitHub] Event Sourcing",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161894489_8843": {
+      "id": "lib_1788161894489_8843",
+      "text": "项目: CQRS\n描述: 命令查询职责分离，读写分离架构\n分类: architecture\n标签: architecture, read-write, scalability\n关键洞见:\n  - 读写分离\n  - 命令模式\n  - 查询优化",
+      "metadata": {
+        "entry_id": "lib_1788161894489_8843",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "architecture,read-write,scalability",
+        "title": "[GitHub] CQRS",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161894511_7826": {
+      "id": "lib_1788161894511_7826",
+      "text": "项目: Microservices\n描述: 微服务架构模式，服务独立部署和扩展\n分类: architecture\n标签: architecture, distributed, scalability\n关键洞见:\n  - 服务拆分\n  - 服务发现\n  - API 网关",
+      "metadata": {
+        "entry_id": "lib_1788161894511_7826",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "architecture,distributed,scalability",
+        "title": "[GitHub] Microservices",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161894533_290": {
+      "id": "lib_1788161894533_290",
+      "text": "项目: Clean Architecture\n描述: 整洁架构，依赖反转和用例驱动\n分类: architecture\n标签: architecture, ddd, solid\n关键洞见:\n  - 依赖反转原则\n  - 用例驱动\n  - 边界隔离",
+      "metadata": {
+        "entry_id": "lib_1788161894533_290",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "architecture,ddd,solid",
+        "title": "[GitHub] Clean Architecture",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161894555_9470": {
+      "id": "lib_1788161894555_9470",
+      "text": "项目: Bloom Filter\n描述: 布隆过滤器，高效集合成员判断\n分类: algorithm\n标签: probabilistic, set, memory\n关键洞见:\n  - 概率性数据结构\n  - 假阳性控制\n  - 空间效率",
+      "metadata": {
+        "entry_id": "lib_1788161894555_9470",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "probabilistic,set,memory",
+        "title": "[GitHub] Bloom Filter",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161894582_8824": {
+      "id": "lib_1788161894582_8824",
+      "text": "项目: Skip List\n描述: 跳表，有序数据结构，支持 O(log n) 查找\n分类: algorithm\n标签: data-structure, ordered, log-n\n关键洞见:\n  - 多层索引\n  - 概率平衡\n  - 范围查询优化",
+      "metadata": {
+        "entry_id": "lib_1788161894582_8824",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "data-structure,ordered,log-n",
+        "title": "[GitHub] Skip List",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161894605_5665": {
+      "id": "lib_1788161894605_5665",
+      "text": "项目: LSM Tree\n描述: 日志结构合并树，LSM 存储引擎核心\n分类: algorithm\n标签: storage, write-optimized, nosql\n关键洞见:\n  - 顺序写入\n  - 层级合并\n  - 写放大控制",
+      "metadata": {
+        "entry_id": "lib_1788161894605_5665",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "storage,write-optimized,nosql",
+        "title": "[GitHub] LSM Tree",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161894631_5263": {
+      "id": "lib_1788161894631_5263",
+      "text": "项目: Cookiecutter\n描述: 项目模板生成器，从模板创建新项目\n分类: template\n标签: template, scaffold, automation\n关键洞见:\n  - 模板化生成\n  - 变量替换\n  - 钩子机制",
+      "metadata": {
+        "entry_id": "lib_1788161894631_5263",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "template,scaffold,automation",
+        "title": "[GitHub] Cookiecutter",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788161894653_4311": {
+      "id": "lib_1788161894653_4311",
+      "text": "项目: uv\n描述: 极速 Python 包管理器，替代 pip\n分类: tool\n标签: python, package-manager, performance\n关键洞见:\n  - 依赖解析优化\n  - 并行下载\n  - 缓存策略",
+      "metadata": {
+        "entry_id": "lib_1788161894653_4311",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "python,package-manager,performance",
+        "title": "[GitHub] uv",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162185408_2074": {
+      "id": "lib_1788162185408_2074",
+      "text": "项目: FastAPI\n描述: 现代高性能 Python Web 框架，自动 OpenAPI 文档\n分类: framework\n标签: web, api, async, python\n关键洞见:\n  - 依赖注入模式\n  - 自动 API 文档生成\n  - Pydantic 数据验证",
+      "metadata": {
+        "entry_id": "lib_1788162185408_2074",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "web,api,async,python",
+        "title": "[GitHub] FastAPI",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162185500_1930": {
+      "id": "lib_1788162185500_1930",
+      "text": "项目: LangChain\n描述: 构建 LLM 应用的框架，支持链式调用和工具集成\n分类: framework\n标签: llm, ai, chain, agent\n关键洞见:\n  - 链式调用模式\n  - Agent 工具集成\n  - Prompt 模板管理",
+      "metadata": {
+        "entry_id": "lib_1788162185500_1930",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "llm,ai,chain,agent",
+        "title": "[GitHub] LangChain",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162185523_3772": {
+      "id": "lib_1788162185523_3772",
+      "text": "项目: CrewAI\n描述: 多 Agent 协作框架，角色分工与任务路由\n分类: framework\n标签: multi-agent, collaboration, ai\n关键洞见:\n  - 角色分工模式\n  - 任务委派\n  - Agent 间通信",
+      "metadata": {
+        "entry_id": "lib_1788162185523_3772",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "multi-agent,collaboration,ai",
+        "title": "[GitHub] CrewAI",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162185545_1052": {
+      "id": "lib_1788162185545_1052",
+      "text": "项目: AutoGen\n描述: 微软多 Agent 对话框架，支持多轮对话与代码执行\n分类: framework\n标签: multi-agent, conversation, microsoft\n关键洞见:\n  - 多 Agent 对话模式\n  - 代码执行沙箱\n  - 对话管理",
+      "metadata": {
+        "entry_id": "lib_1788162185545_1052",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "multi-agent,conversation,microsoft",
+        "title": "[GitHub] AutoGen",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162185573_9032": {
+      "id": "lib_1788162185573_9032",
+      "text": "项目: Pydantic\n描述: Python 数据验证库，类型安全的数据模型\n分类: framework\n标签: validation, types, python\n关键洞见:\n  - 数据验证模式\n  - 类型安全\n  - JSON Schema 生成",
+      "metadata": {
+        "entry_id": "lib_1788162185573_9032",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "validation,types,python",
+        "title": "[GitHub] Pydantic",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162185595_4889": {
+      "id": "lib_1788162185595_4889",
+      "text": "项目: Redis\n描述: 内存数据结构存储，支持缓存、消息队列、发布订阅\n分类: tool\n标签: cache, database, message-queue\n关键洞见:\n  - LRU 缓存策略\n  - 发布订阅模式\n  - 数据结构服务",
+      "metadata": {
+        "entry_id": "lib_1788162185595_4889",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "cache,database,message-queue",
+        "title": "[GitHub] Redis",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162185622_8137": {
+      "id": "lib_1788162185622_8137",
+      "text": "项目: Celery\n描述: 分布式任务队列，支持异步任务调度\n分类: tool\n标签: task-queue, async, distributed\n关键洞见:\n  - 任务队列模式\n  - 工作流调度\n  - 结果后端",
+      "metadata": {
+        "entry_id": "lib_1788162185622_8137",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "task-queue,async,distributed",
+        "title": "[GitHub] Celery",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162185643_7369": {
+      "id": "lib_1788162185643_7369",
+      "text": "项目: Nginx\n描述: 高性能 Web 服务器和反向代理\n分类: tool\n标签: web-server, proxy, load-balancing\n关键洞见:\n  - 事件驱动架构\n  - 反向代理模式\n  - 负载均衡策略",
+      "metadata": {
+        "entry_id": "lib_1788162185643_7369",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "web-server,proxy,load-balancing",
+        "title": "[GitHub] Nginx",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162185671_1196": {
+      "id": "lib_1788162185671_1196",
+      "text": "项目: Event Sourcing\n描述: 事件溯源架构，以事件序列存储状态变更\n分类: architecture\n标签: event-driven, cqrs, ddd\n关键洞见:\n  - 事件存储模式\n  - 状态重建\n  - 事件回溯",
+      "metadata": {
+        "entry_id": "lib_1788162185671_1196",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "event-driven,cqrs,ddd",
+        "title": "[GitHub] Event Sourcing",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162185696_7116": {
+      "id": "lib_1788162185696_7116",
+      "text": "项目: CQRS\n描述: 命令查询职责分离，读写分离架构\n分类: architecture\n标签: architecture, read-write, scalability\n关键洞见:\n  - 读写分离\n  - 命令模式\n  - 查询优化",
+      "metadata": {
+        "entry_id": "lib_1788162185696_7116",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "architecture,read-write,scalability",
+        "title": "[GitHub] CQRS",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162185718_1259": {
+      "id": "lib_1788162185718_1259",
+      "text": "项目: Microservices\n描述: 微服务架构模式，服务独立部署和扩展\n分类: architecture\n标签: architecture, distributed, scalability\n关键洞见:\n  - 服务拆分\n  - 服务发现\n  - API 网关",
+      "metadata": {
+        "entry_id": "lib_1788162185718_1259",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "architecture,distributed,scalability",
+        "title": "[GitHub] Microservices",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162185743_9480": {
+      "id": "lib_1788162185743_9480",
+      "text": "项目: Clean Architecture\n描述: 整洁架构，依赖反转和用例驱动\n分类: architecture\n标签: architecture, ddd, solid\n关键洞见:\n  - 依赖反转原则\n  - 用例驱动\n  - 边界隔离",
+      "metadata": {
+        "entry_id": "lib_1788162185743_9480",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "architecture,ddd,solid",
+        "title": "[GitHub] Clean Architecture",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162185772_6251": {
+      "id": "lib_1788162185772_6251",
+      "text": "项目: Bloom Filter\n描述: 布隆过滤器，高效集合成员判断\n分类: algorithm\n标签: probabilistic, set, memory\n关键洞见:\n  - 概率性数据结构\n  - 假阳性控制\n  - 空间效率",
+      "metadata": {
+        "entry_id": "lib_1788162185772_6251",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "probabilistic,set,memory",
+        "title": "[GitHub] Bloom Filter",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162185798_4069": {
+      "id": "lib_1788162185798_4069",
+      "text": "项目: Skip List\n描述: 跳表，有序数据结构，支持 O(log n) 查找\n分类: algorithm\n标签: data-structure, ordered, log-n\n关键洞见:\n  - 多层索引\n  - 概率平衡\n  - 范围查询优化",
+      "metadata": {
+        "entry_id": "lib_1788162185798_4069",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "data-structure,ordered,log-n",
+        "title": "[GitHub] Skip List",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162185823_8014": {
+      "id": "lib_1788162185823_8014",
+      "text": "项目: LSM Tree\n描述: 日志结构合并树，LSM 存储引擎核心\n分类: algorithm\n标签: storage, write-optimized, nosql\n关键洞见:\n  - 顺序写入\n  - 层级合并\n  - 写放大控制",
+      "metadata": {
+        "entry_id": "lib_1788162185823_8014",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "storage,write-optimized,nosql",
+        "title": "[GitHub] LSM Tree",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162185848_2127": {
+      "id": "lib_1788162185848_2127",
+      "text": "项目: Cookiecutter\n描述: 项目模板生成器，从模板创建新项目\n分类: template\n标签: template, scaffold, automation\n关键洞见:\n  - 模板化生成\n  - 变量替换\n  - 钩子机制",
+      "metadata": {
+        "entry_id": "lib_1788162185848_2127",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "template,scaffold,automation",
+        "title": "[GitHub] Cookiecutter",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162185872_5076": {
+      "id": "lib_1788162185872_5076",
+      "text": "项目: uv\n描述: 极速 Python 包管理器，替代 pip\n分类: tool\n标签: python, package-manager, performance\n关键洞见:\n  - 依赖解析优化\n  - 并行下载\n  - 缓存策略",
+      "metadata": {
+        "entry_id": "lib_1788162185872_5076",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "python,package-manager,performance",
+        "title": "[GitHub] uv",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162609331_9847": {
+      "id": "lib_1788162609331_9847",
+      "text": "项目: FastAPI\n描述: 现代高性能 Python Web 框架，自动 OpenAPI 文档\n分类: framework\n标签: web, api, async, python\n关键洞见:\n  - 依赖注入模式\n  - 自动 API 文档生成\n  - Pydantic 数据验证",
+      "metadata": {
+        "entry_id": "lib_1788162609331_9847",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "web,api,async,python",
+        "title": "[GitHub] FastAPI",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162609427_2550": {
+      "id": "lib_1788162609427_2550",
+      "text": "项目: LangChain\n描述: 构建 LLM 应用的框架，支持链式调用和工具集成\n分类: framework\n标签: llm, ai, chain, agent\n关键洞见:\n  - 链式调用模式\n  - Agent 工具集成\n  - Prompt 模板管理",
+      "metadata": {
+        "entry_id": "lib_1788162609427_2550",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "llm,ai,chain,agent",
+        "title": "[GitHub] LangChain",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162609452_4807": {
+      "id": "lib_1788162609452_4807",
+      "text": "项目: CrewAI\n描述: 多 Agent 协作框架，角色分工与任务路由\n分类: framework\n标签: multi-agent, collaboration, ai\n关键洞见:\n  - 角色分工模式\n  - 任务委派\n  - Agent 间通信",
+      "metadata": {
+        "entry_id": "lib_1788162609452_4807",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "multi-agent,collaboration,ai",
+        "title": "[GitHub] CrewAI",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162609478_5574": {
+      "id": "lib_1788162609478_5574",
+      "text": "项目: AutoGen\n描述: 微软多 Agent 对话框架，支持多轮对话与代码执行\n分类: framework\n标签: multi-agent, conversation, microsoft\n关键洞见:\n  - 多 Agent 对话模式\n  - 代码执行沙箱\n  - 对话管理",
+      "metadata": {
+        "entry_id": "lib_1788162609478_5574",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "multi-agent,conversation,microsoft",
+        "title": "[GitHub] AutoGen",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162609501_8623": {
+      "id": "lib_1788162609501_8623",
+      "text": "项目: Pydantic\n描述: Python 数据验证库，类型安全的数据模型\n分类: framework\n标签: validation, types, python\n关键洞见:\n  - 数据验证模式\n  - 类型安全\n  - JSON Schema 生成",
+      "metadata": {
+        "entry_id": "lib_1788162609501_8623",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "validation,types,python",
+        "title": "[GitHub] Pydantic",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162609527_1633": {
+      "id": "lib_1788162609527_1633",
+      "text": "项目: Redis\n描述: 内存数据结构存储，支持缓存、消息队列、发布订阅\n分类: tool\n标签: cache, database, message-queue\n关键洞见:\n  - LRU 缓存策略\n  - 发布订阅模式\n  - 数据结构服务",
+      "metadata": {
+        "entry_id": "lib_1788162609527_1633",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "cache,database,message-queue",
+        "title": "[GitHub] Redis",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162609551_2225": {
+      "id": "lib_1788162609551_2225",
+      "text": "项目: Celery\n描述: 分布式任务队列，支持异步任务调度\n分类: tool\n标签: task-queue, async, distributed\n关键洞见:\n  - 任务队列模式\n  - 工作流调度\n  - 结果后端",
+      "metadata": {
+        "entry_id": "lib_1788162609551_2225",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "task-queue,async,distributed",
+        "title": "[GitHub] Celery",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162609575_8141": {
+      "id": "lib_1788162609575_8141",
+      "text": "项目: Nginx\n描述: 高性能 Web 服务器和反向代理\n分类: tool\n标签: web-server, proxy, load-balancing\n关键洞见:\n  - 事件驱动架构\n  - 反向代理模式\n  - 负载均衡策略",
+      "metadata": {
+        "entry_id": "lib_1788162609575_8141",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "web-server,proxy,load-balancing",
+        "title": "[GitHub] Nginx",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162609597_3017": {
+      "id": "lib_1788162609597_3017",
+      "text": "项目: Event Sourcing\n描述: 事件溯源架构，以事件序列存储状态变更\n分类: architecture\n标签: event-driven, cqrs, ddd\n关键洞见:\n  - 事件存储模式\n  - 状态重建\n  - 事件回溯",
+      "metadata": {
+        "entry_id": "lib_1788162609597_3017",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "event-driven,cqrs,ddd",
+        "title": "[GitHub] Event Sourcing",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162609624_8739": {
+      "id": "lib_1788162609624_8739",
+      "text": "项目: CQRS\n描述: 命令查询职责分离，读写分离架构\n分类: architecture\n标签: architecture, read-write, scalability\n关键洞见:\n  - 读写分离\n  - 命令模式\n  - 查询优化",
+      "metadata": {
+        "entry_id": "lib_1788162609624_8739",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "architecture,read-write,scalability",
+        "title": "[GitHub] CQRS",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162609646_4584": {
+      "id": "lib_1788162609646_4584",
+      "text": "项目: Microservices\n描述: 微服务架构模式，服务独立部署和扩展\n分类: architecture\n标签: architecture, distributed, scalability\n关键洞见:\n  - 服务拆分\n  - 服务发现\n  - API 网关",
+      "metadata": {
+        "entry_id": "lib_1788162609646_4584",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "architecture,distributed,scalability",
+        "title": "[GitHub] Microservices",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162609669_9520": {
+      "id": "lib_1788162609669_9520",
+      "text": "项目: Clean Architecture\n描述: 整洁架构，依赖反转和用例驱动\n分类: architecture\n标签: architecture, ddd, solid\n关键洞见:\n  - 依赖反转原则\n  - 用例驱动\n  - 边界隔离",
+      "metadata": {
+        "entry_id": "lib_1788162609669_9520",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "architecture,ddd,solid",
+        "title": "[GitHub] Clean Architecture",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162609693_4769": {
+      "id": "lib_1788162609693_4769",
+      "text": "项目: Bloom Filter\n描述: 布隆过滤器，高效集合成员判断\n分类: algorithm\n标签: probabilistic, set, memory\n关键洞见:\n  - 概率性数据结构\n  - 假阳性控制\n  - 空间效率",
+      "metadata": {
+        "entry_id": "lib_1788162609693_4769",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "probabilistic,set,memory",
+        "title": "[GitHub] Bloom Filter",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162609716_197": {
+      "id": "lib_1788162609716_197",
+      "text": "项目: Skip List\n描述: 跳表，有序数据结构，支持 O(log n) 查找\n分类: algorithm\n标签: data-structure, ordered, log-n\n关键洞见:\n  - 多层索引\n  - 概率平衡\n  - 范围查询优化",
+      "metadata": {
+        "entry_id": "lib_1788162609716_197",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "data-structure,ordered,log-n",
+        "title": "[GitHub] Skip List",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162609739_7216": {
+      "id": "lib_1788162609739_7216",
+      "text": "项目: LSM Tree\n描述: 日志结构合并树，LSM 存储引擎核心\n分类: algorithm\n标签: storage, write-optimized, nosql\n关键洞见:\n  - 顺序写入\n  - 层级合并\n  - 写放大控制",
+      "metadata": {
+        "entry_id": "lib_1788162609739_7216",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "storage,write-optimized,nosql",
+        "title": "[GitHub] LSM Tree",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162609766_1953": {
+      "id": "lib_1788162609766_1953",
+      "text": "项目: Cookiecutter\n描述: 项目模板生成器，从模板创建新项目\n分类: template\n标签: template, scaffold, automation\n关键洞见:\n  - 模板化生成\n  - 变量替换\n  - 钩子机制",
+      "metadata": {
+        "entry_id": "lib_1788162609766_1953",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "template,scaffold,automation",
+        "title": "[GitHub] Cookiecutter",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162609794_8465": {
+      "id": "lib_1788162609794_8465",
+      "text": "项目: uv\n描述: 极速 Python 包管理器，替代 pip\n分类: tool\n标签: python, package-manager, performance\n关键洞见:\n  - 依赖解析优化\n  - 并行下载\n  - 缓存策略",
+      "metadata": {
+        "entry_id": "lib_1788162609794_8465",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "python,package-manager,performance",
+        "title": "[GitHub] uv",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162756554_2378": {
+      "id": "lib_1788162756554_2378",
+      "text": "项目: FastAPI\n描述: 现代高性能 Python Web 框架，自动 OpenAPI 文档\n分类: framework\n标签: web, api, async, python\n关键洞见:\n  - 依赖注入模式\n  - 自动 API 文档生成\n  - Pydantic 数据验证",
+      "metadata": {
+        "entry_id": "lib_1788162756554_2378",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "web,api,async,python",
+        "title": "[GitHub] FastAPI",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162756675_4898": {
+      "id": "lib_1788162756675_4898",
+      "text": "项目: LangChain\n描述: 构建 LLM 应用的框架，支持链式调用和工具集成\n分类: framework\n标签: llm, ai, chain, agent\n关键洞见:\n  - 链式调用模式\n  - Agent 工具集成\n  - Prompt 模板管理",
+      "metadata": {
+        "entry_id": "lib_1788162756675_4898",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "llm,ai,chain,agent",
+        "title": "[GitHub] LangChain",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162756712_4395": {
+      "id": "lib_1788162756712_4395",
+      "text": "项目: CrewAI\n描述: 多 Agent 协作框架，角色分工与任务路由\n分类: framework\n标签: multi-agent, collaboration, ai\n关键洞见:\n  - 角色分工模式\n  - 任务委派\n  - Agent 间通信",
+      "metadata": {
+        "entry_id": "lib_1788162756712_4395",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "multi-agent,collaboration,ai",
+        "title": "[GitHub] CrewAI",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162756758_5214": {
+      "id": "lib_1788162756758_5214",
+      "text": "项目: AutoGen\n描述: 微软多 Agent 对话框架，支持多轮对话与代码执行\n分类: framework\n标签: multi-agent, conversation, microsoft\n关键洞见:\n  - 多 Agent 对话模式\n  - 代码执行沙箱\n  - 对话管理",
+      "metadata": {
+        "entry_id": "lib_1788162756758_5214",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "multi-agent,conversation,microsoft",
+        "title": "[GitHub] AutoGen",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162756792_3145": {
+      "id": "lib_1788162756792_3145",
+      "text": "项目: Pydantic\n描述: Python 数据验证库，类型安全的数据模型\n分类: framework\n标签: validation, types, python\n关键洞见:\n  - 数据验证模式\n  - 类型安全\n  - JSON Schema 生成",
+      "metadata": {
+        "entry_id": "lib_1788162756792_3145",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "validation,types,python",
+        "title": "[GitHub] Pydantic",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162756826_5017": {
+      "id": "lib_1788162756826_5017",
+      "text": "项目: Redis\n描述: 内存数据结构存储，支持缓存、消息队列、发布订阅\n分类: tool\n标签: cache, database, message-queue\n关键洞见:\n  - LRU 缓存策略\n  - 发布订阅模式\n  - 数据结构服务",
+      "metadata": {
+        "entry_id": "lib_1788162756826_5017",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "cache,database,message-queue",
+        "title": "[GitHub] Redis",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162756860_7653": {
+      "id": "lib_1788162756860_7653",
+      "text": "项目: Celery\n描述: 分布式任务队列，支持异步任务调度\n分类: tool\n标签: task-queue, async, distributed\n关键洞见:\n  - 任务队列模式\n  - 工作流调度\n  - 结果后端",
+      "metadata": {
+        "entry_id": "lib_1788162756860_7653",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "task-queue,async,distributed",
+        "title": "[GitHub] Celery",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162756893_7338": {
+      "id": "lib_1788162756893_7338",
+      "text": "项目: Nginx\n描述: 高性能 Web 服务器和反向代理\n分类: tool\n标签: web-server, proxy, load-balancing\n关键洞见:\n  - 事件驱动架构\n  - 反向代理模式\n  - 负载均衡策略",
+      "metadata": {
+        "entry_id": "lib_1788162756893_7338",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "web-server,proxy,load-balancing",
+        "title": "[GitHub] Nginx",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162756926_6452": {
+      "id": "lib_1788162756926_6452",
+      "text": "项目: Event Sourcing\n描述: 事件溯源架构，以事件序列存储状态变更\n分类: architecture\n标签: event-driven, cqrs, ddd\n关键洞见:\n  - 事件存储模式\n  - 状态重建\n  - 事件回溯",
+      "metadata": {
+        "entry_id": "lib_1788162756926_6452",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "event-driven,cqrs,ddd",
+        "title": "[GitHub] Event Sourcing",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162756965_118": {
+      "id": "lib_1788162756965_118",
+      "text": "项目: CQRS\n描述: 命令查询职责分离，读写分离架构\n分类: architecture\n标签: architecture, read-write, scalability\n关键洞见:\n  - 读写分离\n  - 命令模式\n  - 查询优化",
+      "metadata": {
+        "entry_id": "lib_1788162756965_118",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "architecture,read-write,scalability",
+        "title": "[GitHub] CQRS",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162756995_3012": {
+      "id": "lib_1788162756995_3012",
+      "text": "项目: Microservices\n描述: 微服务架构模式，服务独立部署和扩展\n分类: architecture\n标签: architecture, distributed, scalability\n关键洞见:\n  - 服务拆分\n  - 服务发现\n  - API 网关",
+      "metadata": {
+        "entry_id": "lib_1788162756995_3012",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "architecture,distributed,scalability",
+        "title": "[GitHub] Microservices",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162757031_2910": {
+      "id": "lib_1788162757031_2910",
+      "text": "项目: Clean Architecture\n描述: 整洁架构，依赖反转和用例驱动\n分类: architecture\n标签: architecture, ddd, solid\n关键洞见:\n  - 依赖反转原则\n  - 用例驱动\n  - 边界隔离",
+      "metadata": {
+        "entry_id": "lib_1788162757031_2910",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "architecture,ddd,solid",
+        "title": "[GitHub] Clean Architecture",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162757075_5626": {
+      "id": "lib_1788162757075_5626",
+      "text": "项目: Bloom Filter\n描述: 布隆过滤器，高效集合成员判断\n分类: algorithm\n标签: probabilistic, set, memory\n关键洞见:\n  - 概率性数据结构\n  - 假阳性控制\n  - 空间效率",
+      "metadata": {
+        "entry_id": "lib_1788162757075_5626",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "probabilistic,set,memory",
+        "title": "[GitHub] Bloom Filter",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162757111_5818": {
+      "id": "lib_1788162757111_5818",
+      "text": "项目: Skip List\n描述: 跳表，有序数据结构，支持 O(log n) 查找\n分类: algorithm\n标签: data-structure, ordered, log-n\n关键洞见:\n  - 多层索引\n  - 概率平衡\n  - 范围查询优化",
+      "metadata": {
+        "entry_id": "lib_1788162757111_5818",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "data-structure,ordered,log-n",
+        "title": "[GitHub] Skip List",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162757148_5999": {
+      "id": "lib_1788162757148_5999",
+      "text": "项目: LSM Tree\n描述: 日志结构合并树，LSM 存储引擎核心\n分类: algorithm\n标签: storage, write-optimized, nosql\n关键洞见:\n  - 顺序写入\n  - 层级合并\n  - 写放大控制",
+      "metadata": {
+        "entry_id": "lib_1788162757148_5999",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "storage,write-optimized,nosql",
+        "title": "[GitHub] LSM Tree",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162757179_2016": {
+      "id": "lib_1788162757179_2016",
+      "text": "项目: Cookiecutter\n描述: 项目模板生成器，从模板创建新项目\n分类: template\n标签: template, scaffold, automation\n关键洞见:\n  - 模板化生成\n  - 变量替换\n  - 钩子机制",
+      "metadata": {
+        "entry_id": "lib_1788162757179_2016",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "template,scaffold,automation",
+        "title": "[GitHub] Cookiecutter",
+        "author": "GitHub Knowledge"
+      }
+    },
+    "lib_1788162757209_1981": {
+      "id": "lib_1788162757209_1981",
+      "text": "项目: uv\n描述: 极速 Python 包管理器，替代 pip\n分类: tool\n标签: python, package-manager, performance\n关键洞见:\n  - 依赖解析优化\n  - 并行下载\n  - 缓存策略",
+      "metadata": {
+        "entry_id": "lib_1788162757209_1981",
+        "scope": "global",
+        "scope_key": "common",
+        "tags": "python,package-manager,performance",
+        "title": "[GitHub] uv",
+        "author": "GitHub Knowledge"
+      }
+    },
     "doc1": {
       "id": "doc1",
       "text": "hello world",
@@ -11431,287 +12451,287 @@
     }
   },
   "df": {
-    "现": 112,
-    "关": 952,
-    "证": 112,
-    "签": 952,
-    "api": 112,
-    "洞": 952,
-    "高": 168,
-    "自": 56,
-    "动": 168,
-    "framework": 280,
-    "能": 112,
-    "模": 672,
-    "类": 952,
-    "web": 112,
-    "见": 952,
-    "目": 952,
-    "代": 224,
-    "openapi": 56,
-    "架": 504,
-    "pydantic": 112,
-    "入": 112,
-    "fastapi": 56,
-    "述": 952,
-    "python": 168,
-    "标": 952,
-    "档": 56,
-    "成": 280,
-    "文": 56,
-    "生": 168,
-    "据": 280,
-    "分": 952,
-    "依": 168,
-    "描": 952,
-    "项": 952,
-    "性": 168,
-    "验": 112,
-    "注": 56,
-    "框": 224,
-    "数": 280,
-    "式": 616,
-    "async": 112,
-    "键": 952,
-    "赖": 168,
-    "工": 168,
-    "管": 168,
-    "板": 112,
-    "集": 112,
-    "建": 168,
-    "应": 56,
-    "agent": 168,
-    "理": 224,
-    "llm": 56,
-    "构": 560,
-    "链": 56,
-    "和": 224,
-    "prompt": 56,
-    "的": 112,
-    "用": 112,
-    "ai": 112,
-    "chain": 56,
-    "支": 280,
-    "持": 280,
-    "具": 56,
-    "调": 112,
-    "langchain": 56,
-    "务": 280,
-    "派": 56,
-    "通": 56,
-    "任": 112,
-    "委": 56,
-    "信": 56,
-    "作": 112,
-    "色": 56,
-    "crewai": 56,
-    "collaboration": 56,
-    "路": 56,
-    "与": 112,
-    "由": 56,
-    "多": 168,
-    "协": 56,
-    "角": 56,
-    "间": 112,
-    "multi": 112,
-    "对": 56,
-    "码": 56,
-    "话": 56,
-    "行": 112,
-    "microsoft": 56,
-    "箱": 56,
-    "autogen": 56,
-    "执": 56,
-    "轮": 56,
-    "沙": 56,
-    "conversation": 56,
-    "微": 112,
-    "软": 56,
-    "json": 56,
-    "types": 56,
-    "安": 56,
-    "validation": 56,
-    "库": 56,
-    "型": 56,
-    "全": 56,
-    "schema": 56,
-    "lru": 56,
-    "message": 56,
-    "cache": 56,
-    "queue": 112,
-    "策": 168,
-    "redis": 56,
-    "database": 56,
-    "缓": 112,
-    "储": 168,
-    "结": 280,
-    "存": 224,
-    "阅": 56,
-    "内": 56,
-    "息": 56,
-    "布": 168,
-    "略": 168,
-    "消": 56,
-    "列": 168,
-    "队": 112,
-    "订": 56,
-    "发": 112,
-    "tool": 224,
-    "服": 168,
-    "异": 56,
-    "流": 56,
-    "步": 56,
-    "celery": 56,
-    "distributed": 112,
-    "果": 56,
-    "后": 56,
-    "task": 56,
-    "度": 56,
-    "端": 56,
-    "nginx": 56,
-    "proxy": 56,
-    "器": 224,
-    "server": 56,
-    "load": 56,
-    "balancing": 56,
-    "载": 112,
-    "向": 56,
-    "驱": 112,
-    "负": 56,
-    "事": 112,
-    "件": 112,
-    "均": 56,
-    "反": 112,
-    "衡": 112,
-    "变": 112,
-    "driven": 56,
-    "architecture": 224,
-    "溯": 56,
-    "源": 56,
-    "重": 56,
-    "序": 168,
-    "sourcing": 56,
-    "cqrs": 112,
-    "状": 56,
-    "ddd": 112,
-    "态": 56,
-    "回": 56,
-    "更": 56,
-    "以": 56,
-    "event": 56,
-    "读": 56,
-    "化": 224,
-    "写": 112,
-    "write": 112,
-    "离": 112,
-    "询": 112,
-    "scalability": 112,
-    "优": 168,
-    "令": 56,
-    "read": 56,
-    "查": 112,
-    "责": 56,
-    "命": 56,
-    "职": 56,
-    "部": 56,
-    "网": 56,
-    "独": 56,
-    "署": 56,
-    "扩": 56,
-    "立": 56,
-    "microservices": 56,
-    "展": 56,
-    "拆": 56,
-    "转": 56,
-    "洁": 56,
-    "则": 56,
-    "clean": 56,
-    "solid": 56,
-    "整": 56,
-    "隔": 56,
-    "边": 56,
-    "例": 56,
-    "原": 56,
-    "界": 56,
-    "员": 56,
-    "假": 56,
-    "效": 56,
-    "filter": 56,
-    "制": 168,
-    "set": 56,
-    "空": 56,
-    "过": 56,
-    "滤": 56,
-    "algorithm": 168,
-    "判": 56,
-    "断": 56,
-    "率": 112,
-    "概": 112,
-    "probabilistic": 56,
-    "控": 112,
-    "合": 112,
-    "memory": 56,
-    "隆": 56,
-    "阳": 56,
-    "bloom": 56,
-    "索": 56,
-    "n": 56,
-    "data": 56,
-    "跳": 56,
-    "o": 56,
-    "skip": 56,
-    "有": 56,
-    "引": 112,
-    "ordered": 56,
-    "表": 56,
-    "log": 56,
-    "list": 56,
-    "范": 56,
-    "structure": 56,
-    "层": 112,
-    "围": 56,
-    "平": 56,
-    "找": 56,
-    "optimized": 56,
-    "大": 56,
-    "核": 56,
-    "nosql": 56,
-    "放": 56,
-    "志": 56,
-    "storage": 56,
-    "日": 56,
-    "并": 112,
-    "心": 56,
-    "级": 56,
-    "树": 56,
-    "擎": 56,
-    "顺": 56,
-    "tree": 56,
-    "lsm": 56,
-    "新": 56,
-    "创": 56,
-    "从": 56,
-    "量": 56,
-    "automation": 56,
-    "机": 56,
-    "替": 112,
-    "子": 56,
-    "cookiecutter": 56,
-    "template": 56,
-    "钩": 56,
-    "scaffold": 56,
-    "换": 56,
-    "package": 56,
-    "极": 56,
-    "下": 56,
-    "析": 56,
-    "速": 56,
-    "包": 56,
-    "pip": 56,
-    "performance": 56,
-    "uv": 56,
-    "manager": 56,
-    "解": 56,
+    "现": 122,
+    "关": 1037,
+    "证": 122,
+    "签": 1037,
+    "api": 122,
+    "洞": 1037,
+    "高": 183,
+    "自": 61,
+    "动": 183,
+    "framework": 305,
+    "能": 122,
+    "模": 732,
+    "类": 1037,
+    "web": 122,
+    "见": 1037,
+    "目": 1037,
+    "代": 244,
+    "openapi": 61,
+    "架": 549,
+    "pydantic": 122,
+    "入": 122,
+    "fastapi": 61,
+    "述": 1037,
+    "python": 183,
+    "标": 1037,
+    "档": 61,
+    "成": 305,
+    "文": 61,
+    "生": 183,
+    "据": 305,
+    "分": 1037,
+    "依": 183,
+    "描": 1037,
+    "项": 1037,
+    "性": 183,
+    "验": 122,
+    "注": 61,
+    "框": 244,
+    "数": 305,
+    "式": 671,
+    "async": 122,
+    "键": 1037,
+    "赖": 183,
+    "工": 183,
+    "管": 183,
+    "板": 122,
+    "集": 122,
+    "建": 183,
+    "应": 61,
+    "agent": 183,
+    "理": 244,
+    "llm": 61,
+    "构": 610,
+    "链": 61,
+    "和": 244,
+    "prompt": 61,
+    "的": 122,
+    "用": 122,
+    "ai": 122,
+    "chain": 61,
+    "支": 305,
+    "持": 305,
+    "具": 61,
+    "调": 122,
+    "langchain": 61,
+    "务": 305,
+    "派": 61,
+    "通": 61,
+    "任": 122,
+    "委": 61,
+    "信": 61,
+    "作": 122,
+    "色": 61,
+    "crewai": 61,
+    "collaboration": 61,
+    "路": 61,
+    "与": 122,
+    "由": 61,
+    "多": 183,
+    "协": 61,
+    "角": 61,
+    "间": 122,
+    "multi": 122,
+    "对": 61,
+    "码": 61,
+    "话": 61,
+    "行": 122,
+    "microsoft": 61,
+    "箱": 61,
+    "autogen": 61,
+    "执": 61,
+    "轮": 61,
+    "沙": 61,
+    "conversation": 61,
+    "微": 122,
+    "软": 61,
+    "json": 61,
+    "types": 61,
+    "安": 61,
+    "validation": 61,
+    "库": 61,
+    "型": 61,
+    "全": 61,
+    "schema": 61,
+    "lru": 61,
+    "message": 61,
+    "cache": 61,
+    "queue": 122,
+    "策": 183,
+    "redis": 61,
+    "database": 61,
+    "缓": 122,
+    "储": 183,
+    "结": 305,
+    "存": 244,
+    "阅": 61,
+    "内": 61,
+    "息": 61,
+    "布": 183,
+    "略": 183,
+    "消": 61,
+    "列": 183,
+    "队": 122,
+    "订": 61,
+    "发": 122,
+    "tool": 244,
+    "服": 183,
+    "异": 61,
+    "流": 61,
+    "步": 61,
+    "celery": 61,
+    "distributed": 122,
+    "果": 61,
+    "后": 61,
+    "task": 61,
+    "度": 61,
+    "端": 61,
+    "nginx": 61,
+    "proxy": 61,
+    "器": 244,
+    "server": 61,
+    "load": 61,
+    "balancing": 61,
+    "载": 122,
+    "向": 61,
+    "驱": 122,
+    "负": 61,
+    "事": 122,
+    "件": 122,
+    "均": 61,
+    "反": 122,
+    "衡": 122,
+    "变": 122,
+    "driven": 61,
+    "architecture": 244,
+    "溯": 61,
+    "源": 61,
+    "重": 61,
+    "序": 183,
+    "sourcing": 61,
+    "cqrs": 122,
+    "状": 61,
+    "ddd": 122,
+    "态": 61,
+    "回": 61,
+    "更": 61,
+    "以": 61,
+    "event": 61,
+    "读": 61,
+    "化": 244,
+    "写": 122,
+    "write": 122,
+    "离": 122,
+    "询": 122,
+    "scalability": 122,
+    "优": 183,
+    "令": 61,
+    "read": 61,
+    "查": 122,
+    "责": 61,
+    "命": 61,
+    "职": 61,
+    "部": 61,
+    "网": 61,
+    "独": 61,
+    "署": 61,
+    "扩": 61,
+    "立": 61,
+    "microservices": 61,
+    "展": 61,
+    "拆": 61,
+    "转": 61,
+    "洁": 61,
+    "则": 61,
+    "clean": 61,
+    "solid": 61,
+    "整": 61,
+    "隔": 61,
+    "边": 61,
+    "例": 61,
+    "原": 61,
+    "界": 61,
+    "员": 61,
+    "假": 61,
+    "效": 61,
+    "filter": 61,
+    "制": 183,
+    "set": 61,
+    "空": 61,
+    "过": 61,
+    "滤": 61,
+    "algorithm": 183,
+    "判": 61,
+    "断": 61,
+    "率": 122,
+    "概": 122,
+    "probabilistic": 61,
+    "控": 122,
+    "合": 122,
+    "memory": 61,
+    "隆": 61,
+    "阳": 61,
+    "bloom": 61,
+    "索": 61,
+    "n": 61,
+    "data": 61,
+    "跳": 61,
+    "o": 61,
+    "skip": 61,
+    "有": 61,
+    "引": 122,
+    "ordered": 61,
+    "表": 61,
+    "log": 61,
+    "list": 61,
+    "范": 61,
+    "structure": 61,
+    "层": 122,
+    "围": 61,
+    "平": 61,
+    "找": 61,
+    "optimized": 61,
+    "大": 61,
+    "核": 61,
+    "nosql": 61,
+    "放": 61,
+    "志": 61,
+    "storage": 61,
+    "日": 61,
+    "并": 122,
+    "心": 61,
+    "级": 61,
+    "树": 61,
+    "擎": 61,
+    "顺": 61,
+    "tree": 61,
+    "lsm": 61,
+    "新": 61,
+    "创": 61,
+    "从": 61,
+    "量": 61,
+    "automation": 61,
+    "机": 61,
+    "替": 122,
+    "子": 61,
+    "cookiecutter": 61,
+    "template": 61,
+    "钩": 61,
+    "scaffold": 61,
+    "换": 61,
+    "package": 61,
+    "极": 61,
+    "下": 61,
+    "析": 61,
+    "速": 61,
+    "包": 61,
+    "pip": 61,
+    "performance": 61,
+    "uv": 61,
+    "manager": 61,
+    "解": 61,
     "hello": 1,
     "world": 1
   }
