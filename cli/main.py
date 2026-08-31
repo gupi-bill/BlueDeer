@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """BlueDeer 统一 CLI 入口。
 
 用法：
@@ -18,11 +20,9 @@
     bluedeer init-config [path]   生成示例配置文件
 """
 
-from __future__ import annotations
-
 import logging
 
-# ruff: noqa: F821
+from core.config import get_config
 
 logger = logging.getLogger(__name__)
 

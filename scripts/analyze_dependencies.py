@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 #!/usr/bin/env python3
 """Core 模块依赖分析脚本。
 
@@ -11,15 +13,12 @@
     python scripts/analyze_dependencies.py [--core-dir core] [--output deps.md]
 """
 
-from __future__ import annotations
-
 import argparse
 import ast
+import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
-
-# ruff: noqa: F821
 
 
 def parse_imports(file_path: Path) -> tuple[set[str], set[str]]:

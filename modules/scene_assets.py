@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """BlueDeer P6 像素沙盘美术素材库。
 
 P6 扩容新增：
@@ -9,11 +11,9 @@ P6 扩容新增：
 纯数据定义，由 TUIRenderer 按需取用。
 """
 
-from __future__ import annotations
+from typing import Any
 
 from core.pixel_canvas import Color
-
-# ruff: noqa: F821
 
 # ============== 背景工位区块 ==============
 # 每个工位 8 宽 × 5 高，作为头像的背景框

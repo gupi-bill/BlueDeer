@@ -8,7 +8,7 @@
 
 ## 【总纲 · 所有段共用】
 
-你在接手一个真实运行的多智能体系统 **BlueDeer（忧郁鹿森林公司）**，代码根 `C:\Users\a\Desktop\vibe coding\BlueDeer`，FastAPI + Python 3.11/3.12，纯原生 HTML/CSS/JS 前端（无前端框架），本地优先。
+你在接手一个真实运行的多智能体系统 **BlueDeer（忧郁鹿森林公司）**，代码根 `<WORKSPACE_DIR>\BlueDeer`，FastAPI + Python 3.11/3.12，纯原生 HTML/CSS/JS 前端（无前端框架），本地优先。
 
 **项目本质**：一个本地优先、拟人化的多智能体 Agent 生态系统，被设定为「森林公司」，员工是动物智能体（较真松鼠/戒备猬/夜枭猫头鹰/勤恳海狸/狡黠狐狸/绘羽蝶/赤谋狐/针客猬/大坝狸/霜耳兔/土工獾/清音雀/黑卷鸦/天瞰鸢/忧郁鹿总经理）。核心运行时代码在 `core/`，业务模块在 `modules/`，Web 仪表盘入口 `/game/hub`（模板 `templates/project_hub.html`），API 服务 `web_server/`，启动 `uv run uvicorn web_server.app:app --port 8080`。
 

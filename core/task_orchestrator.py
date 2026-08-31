@@ -303,7 +303,7 @@ class TaskOrchestrator:
                     continue
                 done = await self._run_async_wait_done(pending, deadline)
                 self._run_async_process_done(done, pending, tasks_snapshot, results)
-        except TaskTimeoutError:  # noqa: TRY203
+        except TaskTimeoutError:
             raise
         return results
 

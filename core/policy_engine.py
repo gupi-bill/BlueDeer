@@ -205,7 +205,7 @@ class PolicyEngine:
     ) -> tuple[bool, Any | None, str]:
         """兼容 SecurityGuard.check_operation 接口。"""
         try:
-            from tools.base_tool import ToolCategory  # noqa: F401
+            from tools.base_tool import ToolCategory  # noqa: F401 (availability check)
         except ImportError:
             pass
         decision = self.check_tool_access("__op__", tool_name, confirm_token)

@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import socket
+import sys
 import threading
 import time
 import urllib.request
@@ -288,7 +289,8 @@ from core.game_router import router as game_router
 app.include_router(game_router)
 
 # ===== 实时状态 API（概览页真实数据源） =====
-OPENCLAW_CONFIG_PATH = Path(r"C:\Users\a\Desktop\vibe coding\OpenClaw\data\openclaw.json")
+_OPENCLAW_BASE_DIR = Path(os.getenv("OPENCLAW_STATE_DIR", "data/openclaw")).resolve()
+OPENCLAW_CONFIG_PATH = _OPENCLAW_BASE_DIR / "openclaw.json"
 
 
 def _load_openclaw_config() -> dict:
@@ -320,12 +322,16 @@ def _ollama_installed_models() -> list[str]:
 # ===== OpenClaw 网关 CLI 集成（真实数据通道） =====
 # openclaw CLI 本身就是网关官方客户端（内部完成 WS 握手/签名），
 # 通过它拉取真实 agent / session / channel / cron / model 数据。
-OPENCLAW_STATE_DIR = r"C:\Users\a\Desktop\vibe coding\OpenClaw\data"
-OPENCLAW_NODE = r"C:\Users\a\.workbuddy\binaries\node\versions\22.22.2\node.exe"
-OPENCLAW_CLI = (
-    r"C:\Users\a\.workbuddy\binaries\node\versions\22.22.2"
-    r"\node_modules\openclaw\dist\index.js"
+_OPENCLAW_NODE_BASE = os.getenv(
+    "OPENCLAW_NODE_BASE",
+    os.path.join(os.path.dirname(__file__), "..", ".workbuddy", "binaries", "node", "versions", "22.22.2"),
 )
+if sys.platform == "win32":
+    OPENCLAW_NODE = os.path.join(_OPENCLAW_NODE_BASE, "node.exe")
+else:
+    OPENCLAW_NODE = os.path.join(_OPENCLAW_NODE_BASE, "bin", "node")
+OPENCLAW_CLI = os.path.join(_OPENCLAW_NODE_BASE, "node_modules", "openclaw", "dist", "index.js")
+OPENCLAW_STATE_DIR = os.getenv("OPENCLAW_STATE_DIR", os.path.join(os.path.dirname(__file__), "..", "data", "openclaw"))
 
 _oc_cache: dict = {}
 _oc_cache_ts: float = 0.0
@@ -1248,12 +1254,13 @@ async def oc_logs(limit: int = 120):
     """磁盘直读最新网关日志文件（毫秒级）。"""
     import glob as _glob
 
-    # 优先网关运行日志，其次 logs 目录
+    # 优先网关运行日志，其次 logs 目录（路径跟随 OPENCLAW_STATE_DIR，不写死本机目录）
+    oc_root = os.path.dirname(OPENCLAW_STATE_DIR)
     ordered = [
-        r"C:\Users\a\Desktop\vibe coding\OpenClaw\data\gateway-start.log",
-        r"C:\Users\a\Desktop\vibe coding\OpenClaw\gw.log",
-        r"C:\Users\a\Desktop\vibe coding\OpenClaw\openclaw-gw.log",
-        r"C:\Users\a\Desktop\vibe coding\OpenClaw\openclaw.log",
+        os.path.join(OPENCLAW_STATE_DIR, "gateway-start.log"),
+        os.path.join(oc_root, "gw.log"),
+        os.path.join(oc_root, "openclaw-gw.log"),
+        os.path.join(OPENCLAW_STATE_DIR, "openclaw.log"),
     ]
     cands = [c for c in ordered if os.path.exists(c)]
     if not cands:

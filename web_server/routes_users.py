@@ -1,7 +1,7 @@
 # 自动拆分自 web_server.py（路由域: users）
 import logging
 
-# ruff: noqa: F821
+from web_server.routes_admin import _require_role
 
 logger = logging.getLogger(__name__)
 from typing import Any

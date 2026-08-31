@@ -25,8 +25,6 @@ import time
 
 from typing_extensions import Self
 
-# ruff: noqa: S110
-
 # ====================================================================
 # 触发参数
 # ====================================================================
@@ -145,7 +143,7 @@ def pick_dialogue_template(tags: list[str]) -> dict:
     """根据关系标签挑选对话模板。优先匹配标签，无匹配则通用。"""
     # 优先找带匹配标签的
     for tpl in DIALOGUE_TEMPLATES:
-        if tpl["tags"] and any(t in tags for t in tpl["tags"]):  # noqa: SIM102
+        if tpl["tags"] and any(t in tags for t in tpl["tags"]):
             if random.random() < 0.7:  # 70% 概率用第一个匹配的
                 return tpl
     # 否则用通用的

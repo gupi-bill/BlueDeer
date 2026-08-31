@@ -25,7 +25,7 @@
 
 ## 三、文件与改动清单
 
-**BlueDeer 仓库**（`C:\Users\a\Desktop\vibe coding\BlueDeer`）
+**BlueDeer 仓库**（`<WORKSPACE_DIR>\BlueDeer`）
 - `new_ui/index.html` — 新调度台（唯一新增文件，23KB，单页 3 tab）
 - `web_server/app.py` — 只加 3 行静态挂载：
   ```python
@@ -34,7 +34,7 @@
   ```
 - git 提交：`55a52fa feat(new_ui): Agent-Rotary-Station 调度台 — 3 页面全真实 API`
 
-**ARS 仓库**（`C:\Users\a\Desktop\vibe coding\Agent-Rotary-Station`）
+**ARS 仓库**（`<WORKSPACE_DIR>\Agent-Rotary-Station`）
 - `app/main.py` — 加 CORS 中间件（`allow_origins=["*"]`，全方法全头）
 - git 提交：`62d505e feat: 开启 CORS 跨域`
 

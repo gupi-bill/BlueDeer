@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 #!/usr/bin/env python3
 """BlueDeer 项目一键初始化脚本。
 
@@ -11,15 +13,12 @@
     python scripts/init_project.py [--venv-dir .venv] [--skip-tests]
 """
 
-from __future__ import annotations
-
 import argparse
 import platform
 import subprocess
 import sys
 from pathlib import Path
-
-# ruff: noqa: F821
+from typing import Any
 
 
 def run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess:

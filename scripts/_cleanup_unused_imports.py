@@ -7,7 +7,7 @@ import ast
 import os
 import re
 
-BASE = r"C:\Users\a\Desktop\vibe coding\BlueDeer"
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPORT = os.path.join(BASE, "reports", "006-24_dead_code_audit.md")
 SKIP_FILES = {"__init__.py"}
 

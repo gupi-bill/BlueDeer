@@ -49,13 +49,22 @@ def _pick_python() -> str:
 
 
 # ---- OpenClaw 网关联动：若 18789 未监听则自动拉起 ----
-OPENCLAW_STATE_DIR = r"C:\Users\a\Desktop\vibe coding\OpenClaw\data"
-OPENCLAW_NODE = r"C:\Users\a\.workbuddy\binaries\node\versions\22.22.2\node.exe"
-OPENCLAW_CLI = (
-    r"C:\Users\a\.workbuddy\binaries\node\versions\22.22.2"
-    r"\node_modules\openclaw\dist\index.js"
+# 路径优先级：环境变量 > 项目相对路径 > 跳过
+OPENCLAW_STATE_DIR = os.getenv(
+    "OPENCLAW_STATE_DIR",
+    os.path.join(ROOT, "..", "OpenClaw", "data"),
 )
-GW_PORT = 18789
+_OPENCLAW_BASE = os.getenv(
+    "OPENCLAW_NODE_BASE",
+    os.path.join(ROOT, "..", ".workbuddy", "binaries", "node", "versions", "22.22.2"),
+)
+if sys.platform == "win32":
+    OPENCLAW_NODE = os.path.join(_OPENCLAW_BASE, "node.exe")
+    OPENCLAW_CLI = os.path.join(_OPENCLAW_BASE, "node_modules", "openclaw", "dist", "index.js")
+else:
+    OPENCLAW_NODE = os.path.join(_OPENCLAW_BASE, "bin", "node")
+    OPENCLAW_CLI = os.path.join(_OPENCLAW_BASE, "node_modules", "openclaw", "dist", "index.js")
+GW_PORT = int(os.getenv("OPENCLAW_GATEWAY_PORT", "18789"))
 
 
 def _ensure_openclaw_gateway() -> None:

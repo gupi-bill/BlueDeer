@@ -314,7 +314,7 @@ class StatusCenter:
                         snap.router_load.get(client.model_name, 0) + 1
                     )
                     snap.token_rate[client.model_name] = 0.0
-                except Exception:  # noqa: S112
+                except Exception:
                     continue
         # 高危拦截数
         if self._guard and hasattr(self._guard, "has_pending_confirm_tokens"):
@@ -380,14 +380,14 @@ class StatusCenter:
         try:
             import subprocess
 
-            result = subprocess.run(  # noqa: PLW1510
+            result = subprocess.run(
                 ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                 capture_output=True,
                 text=True,
                 timeout=3,
             )
             snap.branch = result.stdout.strip() if result.returncode == 0 else ""
-            result = subprocess.run(  # noqa: PLW1510
+            result = subprocess.run(
                 ["git", "log", "-1", "--format=%H|%s"],
                 capture_output=True,
                 text=True,
@@ -397,7 +397,7 @@ class StatusCenter:
                 parts = result.stdout.strip().split("|", 1)
                 snap.last_commit_hash = parts[0][:12]
                 snap.last_commit_message = parts[1] if len(parts) > 1 else ""
-            result = subprocess.run(  # noqa: PLW1510
+            result = subprocess.run(
                 ["git", "status", "--porcelain"],
                 capture_output=True,
                 text=True,
@@ -428,7 +428,7 @@ class StatusCenter:
                         count = self._router.model_failure_count(client.model_name)
                         if count > 0:
                             snap.failure_counts[client.model_name] = count
-                except Exception:  # noqa: S112
+                except Exception:
                     continue
         return snap
 
@@ -478,7 +478,7 @@ class StatusAggregator:
                 try:
                     if condition(snapshot):
                         callback(snapshot)
-                except Exception:  # noqa: S112
+                except Exception:
                     continue
 
     def clear_callbacks(self) -> None:

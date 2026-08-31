@@ -7,7 +7,7 @@ import ast
 import os
 from collections import Counter
 
-BASE = r"C:\Users\a\Desktop\vibe coding\BlueDeer"
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 AUDIT_DIRS = ["core", "modules", "cli", "scripts", "tools"]
 REF_DIRS = AUDIT_DIRS + ["tests", "launchers"]
 

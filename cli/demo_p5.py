@@ -215,11 +215,11 @@ async def run_demo() -> None:
     raw = {
         "agent_id": "squirrel",
         "config": {
-            "api_key": "AKIAIOSFODNN7EXAMPLE12345abcde",
-            "password": "supersecret123",
+            "api_key": "DEMO-KEY-XXXXXXXXXXXXXXXXXXXXXXXX",
+            "password": "demopass123",
             "safe_field": "normal_value",
         },
-        "msg": "token=sk-abcdefghijklmnopqrstuvwxyz1234567890 loaded",
+        "msg": "token=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx loaded",
     }
     sanitized = sanitize_log(raw)
     print(f"  原始: {raw}")

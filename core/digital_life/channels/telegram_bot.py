@@ -23,8 +23,6 @@ import urllib.parse
 import urllib.request
 from collections.abc import Callable
 
-# ruff: noqa: S110
-
 # ====================================================================
 # 轻量 HTTP 调用（不依赖第三方包，直接用 Bot API HTTP 接口）
 # ====================================================================

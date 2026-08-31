@@ -90,7 +90,7 @@ BlueDeer 的员工是一群拟人化动物智能体，代码位于 `core/digital
 | OpenClaw | 视觉 Agent（截图 / 桌面控制） | `ROOT/OpenClaw` |
 | Obsidian Bill | 长期记忆 / 知识库中枢 | `kobsidian` MCP 读写，路径 `ROOT/ObsidianPortable/Bill` |
 
-`ROOT` = `C:\Users\a\Desktop\vibe coding`（工作区根）。
+`ROOT` = `<WORKSPACE_DIR>`（工作区根）。
 
 ---
 

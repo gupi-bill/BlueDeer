@@ -365,7 +365,7 @@ async def generate_report(fmt: str = Query(default="markdown")) -> dict[str, Any
     trace_lines: list[str] = []
     trace_file = "logs/trace.log"
     if os.path.exists(trace_file):
-        with open(trace_file, "r", encoding="utf-8") as f:  # noqa: ASYNC230
+        with open(trace_file, "r", encoding="utf-8") as f:
             trace_lines = f.readlines()
 
     gen = ReportGenerator()
@@ -375,7 +375,7 @@ async def generate_report(fmt: str = Query(default="markdown")) -> dict[str, Any
         trace_lines=trace_lines,
         fmt=fmt,
     )
-    with open(path, "r", encoding="utf-8") as f:  # noqa: ASYNC230
+    with open(path, "r", encoding="utf-8") as f:
         content = f.read()
     return {
         "path": path,

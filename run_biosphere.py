@@ -26,8 +26,6 @@ import threading
 import time
 from collections import deque
 
-# ruff: noqa: S110
-
 IS_WINDOWS = platform.system() == "Windows"
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

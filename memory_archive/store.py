@@ -9,7 +9,9 @@ import time
 from memory_archive.schemas import MemoryEntry, MemoryType, RetrievalResult
 
 try:
-    from vector_db.vector_store import SearchResult as VSResult
+    from vector_db.vector_store import (
+        SearchResult as VSResult,  # noqa: F401 (availability check)
+    )
     from vector_db.vector_store import VectorStore
 
     _VECTOR_DB_AVAILABLE = True

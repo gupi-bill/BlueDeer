@@ -1,4 +1,4 @@
-﻿"""BlueDeer 底座 REST API —— 纯标准库实现，给 BlueDeer-Console 前端供真实数据。
+"""BlueDeer 底座 REST API —— 纯标准库实现，给 BlueDeer-Console 前端供真实数据。
 
 启动: python -m bluedeer.server   (默认 127.0.0.1:8000, config.json 可改 server_port)
 
@@ -9,6 +9,7 @@
 - 委托调用 → 真跑 Agent 十三层流水线, 并写入 runs/ 轨迹
 """
 import json
+import logging
 import os
 import re
 import sys
@@ -19,6 +20,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 from .agent import BlueDeerAgent
+
+logger = logging.getLogger(__name__)
 from .config import (
     DEFAULT_CONFIG,
     ROOT_DIR,
@@ -70,7 +73,7 @@ class Store:
                 if k in self.data:
                     self.data[k] = v
         except Exception:
-            pass
+            logger.warning("Store._load: config read failed")
 
     def save(self):
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
@@ -168,7 +171,7 @@ def _scheduler_loop(api, stop_evt):
                 STORE.audit("cron:" + cid, "cron.auto", entry["note"])
                 STORE.save()
         except Exception:
-            pass
+            logger.warning("cron auto-fire failed")
 
 
 def _scan_runs(runs_dir):

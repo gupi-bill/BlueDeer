@@ -20,8 +20,6 @@ from core.config import get_config
 from core.exceptions import ToolExecutionError, ToolNotFoundError, ToolValidationError
 from tools.base_tool import BaseTool, ToolCategory, category_level, needs_security_check
 
-# ruff: noqa: F821
-
 logger = logging.getLogger("bluedeer.tools")
 
 
@@ -91,7 +89,7 @@ class ToolRegistry:
         return [name for name, t in self._tools.items() if t.category == category]
 
     def list_for_agent(
-        self, agent_id: str, guard: HasAgentPermissions
+        self, agent_id: str, guard: Any  # TODO: define HasAgentPermissions protocol
     ) -> list[BaseTool]:
         """P0 修复：返回 agent 有权调用的工具子集。
 

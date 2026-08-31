@@ -88,7 +88,7 @@ class GitOps:
         """
         cmd = ["git"] + args
         try:
-            proc = subprocess.run(  # noqa: PLW1510
+            proc = subprocess.run(
                 cmd,
                 cwd=self._repo,
                 capture_output=True,

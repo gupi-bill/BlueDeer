@@ -81,7 +81,7 @@ class HashTable:
             if slot.state == _TOMB:
                 if first_tomb is None:
                     first_tomb = idx
-            elif slot.state == _FILLED:  # noqa: SIM102
+            elif slot.state == _FILLED:
                 if slot.hash == h and self._keys_equal(slot.key, key):
                     return idx, None
             idx = (idx + 1) & self._mask

@@ -25,8 +25,6 @@ import threading
 import time
 from typing import Any
 
-# ruff: noqa: S110
-
 _ROLE_HISTORY_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "data",

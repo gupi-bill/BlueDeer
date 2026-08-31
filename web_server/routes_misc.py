@@ -3,8 +3,6 @@ import asyncio
 import logging
 import time
 
-# ruff: noqa: F821
-
 logger = logging.getLogger(__name__)
 from typing import Any
 
@@ -96,6 +94,7 @@ async def comm_log_query(
     action: str = "",
     max_chains: int = 50,
 ) -> dict[str, Any]:
+    from web_server.routes_agents import _get_comm_log
     log = _get_comm_log()
     result = log.query(
         trace_id=trace_id or None,
@@ -139,7 +138,7 @@ async def comm_log_query(
 @router.get("/api/comm-log/summary")
 async def comm_log_summary() -> dict[str, Any]:
     from core.comm_log import CommLogViewer
-
+    from web_server.routes_agents import _get_comm_log
     log = _get_comm_log()
     return CommLogViewer.summary(log)
 

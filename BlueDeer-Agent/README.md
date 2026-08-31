@@ -9,7 +9,7 @@
 ## 快速启动
 
 ```bat
-cd /d C:\Users\a\Desktop\vibe coding\BlueDeer-Agent
+cd /d <WORKSPACE_DIR>\BlueDeer-Agent
 python -m bluedeer
 ```
 
@@ -20,7 +20,7 @@ python -m bluedeer
 ## 测试
 
 ```bat
-cd /d C:\Users\a\Desktop\vibe coding\BlueDeer-Agent
+cd /d <WORKSPACE_DIR>\BlueDeer-Agent
 python -m unittest tests.smoke_test.py -v
 ```
 

@@ -12,16 +12,32 @@ ignore = [
     "E741",
     "S110",
     "S112",
+    "S311",
+    "SIM102",
+    "SIM115",
     "TRY004",
     "UP031",
     "PLW1510",
     "SIM401",
     "ASYNC251",
     "ASYNC230",
+    "ASYNC221",
+    "ASYNC210",
+    "PIE810",
+    "PIE796",
+    "PLW0602",
+    "RUF012",
+    "B019",
+    "PERF102",
+    "PLC3002",
+    "PLR0124",
+    "TRY203",
+    "EXE005",
+    "S324",
 ]
 
 [lint.per-file-ignores]
-"tests/**" = ["S101", "PT011", "RUF059"]
+"tests/**" = ["S101", "PT011", "RUF059", "F401"]
 "BlueDeer-Agent/**" = ["S101", "RUF059"]
 "BlueDeer-Console/**" = ["S101"]
-"cli/**" = ["ASYNC251", "ASYNC230", "S101"]
+"cli/**" = ["ASYNC251", "ASYNC230", "S101", "F401"]

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """commit 37：多 Agent 协作流水线。
 
 零基础读者可以这样理解：
@@ -21,18 +23,14 @@
     全部完成（或失败）后，鹿汇总报告
 """
 
-from __future__ import annotations
-
 import asyncio
 import json
 import re
 import threading
 import time
 import uuid
+from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any
-
-# ruff: noqa: F821
-# ruff: noqa: S110, S112
 
 # ----------------------------------------------------------------------
 # 状态枚举（字符串，便于 JSON 序列化）

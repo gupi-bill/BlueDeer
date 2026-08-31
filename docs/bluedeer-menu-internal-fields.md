@@ -619,7 +619,7 @@
 {
   "name": "核心架构",
   "file": "docs/CORE_ARCHITECTURE.md",
-  "path": "file:///C:/Users/a/Desktop/vibe%20coding/BlueDeer/docs/CORE_ARCHITECTURE.md"
+  "path": "file:///<WORKSPACE_DIR>/BlueDeer/docs/CORE_ARCHITECTURE.md"
 }
 ```
 

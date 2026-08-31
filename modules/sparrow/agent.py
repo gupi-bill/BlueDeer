@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """灵音雀 VoiceSparrowAgent：双形态全局状态播报员。
 
 双形态（互不冲突，可同时启用）：
@@ -7,9 +9,8 @@
 归属独立 Skill 技能包，与像素 UI、调度核心、梦境记忆完全解耦，可一键启停。
 """
 
-from __future__ import annotations
-
 import logging
+import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -23,8 +24,6 @@ from core.tracer import Tracer
 from models.router import Router
 from modules.sparrow.status_center import StatusCenter, SystemSnapshot
 from tools.registry import ToolRegistry
-
-# ruff: noqa: F821
 
 logger = logging.getLogger("bluedeer.sparrow.agent")
 

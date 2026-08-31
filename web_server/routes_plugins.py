@@ -1,8 +1,6 @@
 # 自动拆分自 web_server.py（路由域: plugins）
 import logging
 
-# ruff: noqa: F821
-
 logger = logging.getLogger(__name__)
 from typing import Any
 
@@ -90,6 +88,7 @@ def _ensure_agent_registry() -> None:
 
 @router.get("/api/plugins/search")
 async def plugin_search(query: str = "", max_results: int = 20) -> dict[str, Any]:
+    from web_server.routes_misc import _get_plugin_repo
     repo = _get_plugin_repo()
     result = repo.search_github(query=query, max_results=max_results)
     return {
@@ -111,6 +110,7 @@ async def plugin_search(query: str = "", max_results: int = 20) -> dict[str, Any
 
 @router.post("/api/plugins/install-git")
 async def plugin_install_git(body: dict[str, Any]) -> dict[str, Any]:
+    from web_server.routes_misc import _get_plugin_repo
     repo = _get_plugin_repo()
     ok, msg = repo.install_from_git(
         url=body.get("url", ""),
@@ -122,6 +122,7 @@ async def plugin_install_git(body: dict[str, Any]) -> dict[str, Any]:
 
 @router.post("/api/plugins/uninstall")
 async def plugin_uninstall(body: dict[str, Any]) -> dict[str, Any]:
+    from web_server.routes_misc import _get_plugin_repo
     repo = _get_plugin_repo()
     ok, msg = repo.uninstall(body.get("name", ""))
     return {"success": ok, "message": msg}

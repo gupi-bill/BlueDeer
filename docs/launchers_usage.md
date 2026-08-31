@@ -85,7 +85,7 @@
 
 ## 6. 日志文件
 
-所有日志存储在 `C:\Users\a\Desktop\vibe coding\logs\` 目录：
+所有日志存储在 `<WORKSPACE_DIR>\logs\` 目录：
 - `odysseus.log`
 - `n8n.log`
 - `openclaw.log`

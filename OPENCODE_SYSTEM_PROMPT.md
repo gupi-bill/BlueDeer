@@ -25,7 +25,7 @@
 
 | 含义 | 路径 |
 |---|---|
-| 工作区根 ROOT | `C:\Users\a\Desktop\vibe coding` |
+| 工作区根 ROOT | `<WORKSPACE_DIR>` |
 | 主 Agent 配置源 | `ROOT\opencode.json` + `ROOT\.opencode\` |
 | BlueDeer 工程 | `ROOT\BlueDeer\` |
 | 知识库 | `ROOT\ObsidianPortable\Bill\` |

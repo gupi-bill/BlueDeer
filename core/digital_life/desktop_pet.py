@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """桌面宠物模式 + 系统托盘（commit 34）。
 
 零基础读者可以这样理解：
@@ -9,13 +11,13 @@
 零依赖：托盘部分若未装 pystray/Pillow 会自动降级为"无托盘"模式，不影响主流程。
 """
 
-from __future__ import annotations
+import logging
+
+logger = logging.getLogger(__name__)
 
 import datetime
 import threading
 import time
-
-# ruff: noqa: F821
 
 # ----------------------------------------------------------------------
 # 桌面宠物状态管理（服务端推送当前活跃智能体）
@@ -414,8 +416,8 @@ def start_tray_in_thread(
 ) -> threading.Thread | None:
     """在后台线程启动托盘。失败返回 None。"""
     try:
-        import pystray  # noqa: F401
-        from PIL import Image  # noqa: F401
+        import pystray  # noqa: F401 (availability check)
+        from PIL import Image  # noqa: F401 (availability check)
     except ImportError:
         return None
     t = threading.Thread(

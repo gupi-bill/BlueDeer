@@ -25,8 +25,6 @@ from typing import Any
 
 from typing_extensions import Self
 
-# ruff: noqa: S110
-
 
 # ====================================================================
 # 优先级 → 路由 key 映射

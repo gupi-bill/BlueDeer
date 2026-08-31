@@ -507,7 +507,7 @@ class Environment:
             if "day_of_month" in ev_def and now.day != ev_def["day_of_month"]:
                 continue
             # 天气限制
-            if "requires_weather" in ev_def:  # noqa: SIM102
+            if "requires_weather" in ev_def:
                 if self.current_weather != ev_def["requires_weather"]:
                     continue
             # 已经在活跃中？

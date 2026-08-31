@@ -195,7 +195,7 @@ class TestRunner:
         t0 = time.time()
 
         try:
-            proc = subprocess.run(  # noqa: PLW1510
+            proc = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
