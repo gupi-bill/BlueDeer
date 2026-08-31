@@ -1194,7 +1194,7 @@ def _fallback_hypothesis_test(
     for r in range(int(runs)):
         x = random.choice(samples) if samples else random.randint(-100, 100)
         # 简单不变量：x == x
-        if x != x:  # noqa: PLR0124
+        if x != x:
             failures.append({"run": r, "input": x, "reason": "identity violated"})
     return {
         "property": property_name or "identity",

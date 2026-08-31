@@ -23,7 +23,7 @@ _DB_FILE = "data/audit_log.db"
 
 
 def _chain_hash(payload: str, prev_hash: str = "") -> str:
-    return hashlib.sha256(f"{prev_hash}\x00{payload}".encode("utf-8")).hexdigest()
+    return hashlib.sha256(f"{prev_hash}\x00{payload}".encode()).hexdigest()
 
 
 class AuditLog:

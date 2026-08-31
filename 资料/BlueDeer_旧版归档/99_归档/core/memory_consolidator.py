@@ -13,7 +13,6 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any
 
 logger = logging.getLogger("bluedeer.memory_consolidator")
 

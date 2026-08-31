@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """办公工作空间 API：代码编辑、Agent 协作、任务执行。"""
 
-import asyncio
 import json
 import logging
 import os
@@ -11,8 +10,6 @@ from pathlib import Path
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-
-from web_server.app import app
 
 logger = logging.getLogger("bluedeer.workspace")
 
@@ -213,7 +210,7 @@ async def ws_agent_config_update(request: Request):
         if config_path.exists():
             existing = json.loads(config_path.read_text(encoding="utf-8"))
         existing.update(body)
-        if "api_key" in body and body["api_key"]:
+        if body.get("api_key"):
             existing["api_key"] = body["api_key"]
         config_path.write_text(json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8")
         return {"ok": True}

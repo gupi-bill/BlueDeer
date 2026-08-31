@@ -9,6 +9,12 @@ from typing import Any
 
 from core.models import ChatMessage
 from fastapi import APIRouter, HTTPException, Request
+from routes.session_routes import (
+    _message_role,
+    _message_text,
+    _reject_compact_during_active_run,
+    _verify_session_owner,
+)
 from src.auth_helpers import effective_user
 from src.topic_analyzer import analyze_topics
 from src.upload_handler import reserve_message_upload_references
@@ -16,12 +22,6 @@ from src.upload_handler import reserve_message_upload_references
 from core.database import ChatMessage as DbChatMessage
 from core.database import Session as DbSession
 from core.database import SessionLocal
-from routes.session_routes import (
-    _message_role,
-    _message_text,
-    _reject_compact_during_active_run,
-    _verify_session_owner,
-)
 
 logger = logging.getLogger(__name__)
 

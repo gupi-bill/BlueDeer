@@ -27,8 +27,6 @@ from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from src.task_endpoint import resolve_task_candidates, task_llm_call_async
-
 from routes.email_helpers import (
     _EMAIL_REPLY_SYS_PROMPT_BASE,
     SCHEDULED_DB,
@@ -52,6 +50,7 @@ from routes.email_helpers import (
     _send_smtp_message,
     _strip_think,
 )
+from src.task_endpoint import resolve_task_candidates, task_llm_call_async
 
 logger = logging.getLogger(__name__)
 

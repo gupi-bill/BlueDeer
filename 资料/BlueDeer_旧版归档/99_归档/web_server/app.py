@@ -728,7 +728,7 @@ def _scan_config(path: str) -> dict:
     except Exception:
         return {}
     grp = lambda pat, d=None: (re.search(pat, s).group(1) if re.search(pat, s) else d)
-    tm = re.search(r"task_model_map.*?default_factory=lambda:\s*\{([^}]*)\}", s, re.S)
+    tm = re.search(r"task_model_map.*?default_factory=lambda:\s*\{([^}]*)\}", s, re.DOTALL)
     task_map = dict(re.findall(r'"(\w+)":\s*"([^"]+)"', tm.group(1))) if tm else {}
     return {
         "default_model": grp(r'default_model:\s*str\s*=\s*"([^"]+)"'),
@@ -1383,7 +1383,8 @@ if os.path.isdir("new_ui"):
 # 控制台「文档 / 配置」里的文件链接统一指向 /repo/...，由本路由安全读取磁盘文件。
 # 屏蔽敏感目录与文件，仅本地 127.0.0.1 暴露，避免源码/密钥外泄。
 import mimetypes as _mimetypes
-from fastapi.responses import FileResponse, Response
+
+from fastapi.responses import FileResponse
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _REPO_BLOCKED_DIRS = {
@@ -1541,9 +1542,9 @@ from .routes_pages import router as _pages_router
 from .routes_plugins import router as _plugins_router
 from .routes_system import router as _system_router
 from .routes_traces import router as _traces_router
+from .routes_ui import router as _ui_router
 from .routes_users import router as _users_router
 from .routes_vector import router as _vector_router
-from .routes_ui import router as _ui_router
 
 app.include_router(_admin_router)
 app.include_router(_users_router)

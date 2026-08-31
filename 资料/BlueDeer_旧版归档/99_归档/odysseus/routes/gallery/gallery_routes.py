@@ -11,6 +11,13 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
+from routes.gallery.gallery_helpers import (
+    GalleryPatch,
+    _extract_exif,
+    _human_size,
+    _image_to_dict,
+    _owner_filter,
+)
 from src.auth_helpers import get_current_user, owner_filter, require_privilege
 from src.constants import GENERATED_IMAGES_DIR
 from src.optional_deps import patch_realesrgan_torchvision_compat
@@ -22,13 +29,6 @@ from src.upload_limits import (
 
 from core.database import GalleryAlbum, GalleryImage, ModelEndpoint, SessionLocal
 from core.database import Session as DbSession
-from routes.gallery.gallery_helpers import (
-    GalleryPatch,
-    _extract_exif,
-    _human_size,
-    _image_to_dict,
-    _owner_filter,
-)
 
 logger = logging.getLogger(__name__)
 

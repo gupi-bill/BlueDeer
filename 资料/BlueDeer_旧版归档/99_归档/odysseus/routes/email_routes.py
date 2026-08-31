@@ -46,10 +46,6 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.responses import FileResponse, StreamingResponse
-from src.constants import DATA_DIR
-from src.llm_core import llm_call_async
-from src.upload_limits import EMAIL_COMPOSE_UPLOAD_MAX_BYTES, read_upload_limited
-
 from routes.email_helpers import (
     _EMAIL_REPLY_SYS_PROMPT_BASE,
     _IMAP_TIMEOUT_SECONDS,
@@ -99,6 +95,9 @@ from routes.email_helpers import (
     verify_oauth_state,
 )
 from routes.email_pollers import _start_poller
+from src.constants import DATA_DIR
+from src.llm_core import llm_call_async
+from src.upload_limits import EMAIL_COMPOSE_UPLOAD_MAX_BYTES, read_upload_limited
 
 logger = logging.getLogger(__name__)
 

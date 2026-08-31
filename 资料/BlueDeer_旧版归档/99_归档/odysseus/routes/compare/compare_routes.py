@@ -10,10 +10,10 @@ from datetime import datetime
 from core.session_manager import SessionManager
 from fastapi import APIRouter, Form, HTTPException, Request
 from pydantic import BaseModel
+from routes.session_routes import _reject_raw_endpoint_url_for_non_admin
 from src.auth_helpers import get_current_user
 
 from core.database import Comparison, SessionLocal
-from routes.session_routes import _reject_raw_endpoint_url_for_non_admin
 
 logger = logging.getLogger(__name__)
 

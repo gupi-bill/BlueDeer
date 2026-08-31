@@ -176,7 +176,7 @@ class BeaverAgent(BaseAgent, RagCapable):
                 # 6. 可选推送
                 push_result = None
                 if do_push and commit_result.get("success"):
-                ok, msg = self._git.push()
+                    ok, msg = self._git.push()
                 push_result = {"success": ok, "message": msg}
 
             # 7. 可选创建 PR

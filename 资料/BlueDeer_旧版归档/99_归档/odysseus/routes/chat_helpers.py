@@ -11,6 +11,7 @@ from typing import Any
 
 from core.models import ChatMessage
 from fastapi import HTTPException
+from routes.prefs_routes import _load_for_user as load_prefs_for_user
 from src.attachment_refs import attachment_ref
 from src.auth_helpers import effective_user
 from src.context_compactor import maybe_compact, trim_for_context
@@ -21,7 +22,6 @@ from src.prompt_security import untrusted_context_message
 
 from core.database import ModelEndpoint, SessionLocal
 from core.database import Session as DBSession
-from routes.prefs_routes import _load_for_user as load_prefs_for_user
 
 logger = logging.getLogger(__name__)
 

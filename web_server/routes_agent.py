@@ -5,28 +5,26 @@
 前端 console/ 通过相对路径 /agent/ 调用。
 """
 
-import asyncio
 import logging
 import os
 import sys
-import threading
+import time
 
-from fastapi import APIRouter, Request, Query
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
 
 # 导入 agent 核心模块
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "agent"))
+from bluedeer.config import ROOT_DIR
 from bluedeer.server import (
     STORE,
     Api,
     build_stats,
-    dispatch,
     load_config,
     probe_models,
     seed_agents_from_roles,
     usage_report,
 )
-from bluedeer.config import ROOT_DIR
 
 logger = logging.getLogger("bluedeer.agent_routes")
 
@@ -155,7 +153,6 @@ async def agent_register(request: Request):
     aid = (body or {}).get("agent_id", "").strip()
     if not aid:
         return JSONResponse({"detail": "agent_id 不能为空"}, status_code=400)
-    from bluedeer.roles import list_roles, load_role
     existed = aid in STORE.data["agents"]
     rec = STORE.data["agents"].get(aid, {})
     rec.update({
@@ -324,7 +321,8 @@ async def mem_read(domain: str = Query("")):
 
 @router.post("/memories/write", summary="写入记忆")
 async def mem_write(request: Request):
-    import time, os
+    import os
+    import time
     body = await request.json() if request.body else {}
     item = {"id": "mem_%d_%s" % (int(time.time()), os.urandom(3).hex()),
             "reader": body.get("reader", "human"),
@@ -402,7 +400,8 @@ async def skills_list():
 
 @router.post("/skills/register", summary="注册技能")
 async def skill_register(request: Request):
-    import time, os, re
+    import re
+    import time
     body = await request.json() if request.body else {}
     sid = (body or {}).get("name", "").strip()
     if not sid:
@@ -439,7 +438,8 @@ async def wf_list():
 
 @router.post("/workflows/create", summary="创建工作流")
 async def wf_create(request: Request):
-    import time, os
+    import os
+    import time
     body = await request.json() if request.body else {}
     wid = "wf_%d_%s" % (int(time.time()), os.urandom(3).hex())
     rec = {"id": wid, "name": (body or {}).get("name", "未命名"),
@@ -475,6 +475,7 @@ async def wf_update(workflow_id: str, request: Request):
 @router.post("/workflows/{workflow_id}/run", summary="运行工作流")
 async def wf_run(workflow_id: str, request: Request):
     import time
+
     from bluedeer.agent import BlueDeerAgent
     api = get_api()
     w = STORE.data["workflows"].get(workflow_id)
@@ -532,7 +533,8 @@ async def pj_list():
 
 @router.post("/projects/create", summary="创建项目")
 async def pj_create(request: Request):
-    import time, os
+    import os
+    import time
     body = await request.json() if request.body else {}
     pid = "pj_%d_%s" % (int(time.time()), os.urandom(3).hex())
     rec = {"id": pid, "name": (body or {}).get("name", "未命名项目"),
@@ -571,7 +573,8 @@ async def cron_list():
 
 @router.post("/crons/create", summary="创建定时任务")
 async def cron_create(request: Request):
-    import time, os
+    import os
+    import time
     body = await request.json() if request.body else {}
     cid = "cr_%d_%s" % (int(time.time()), os.urandom(3).hex())
     rec = {"id": cid, "name": (body or {}).get("name", "定时任务"),
@@ -597,6 +600,7 @@ async def cron_toggle(cron_id: str):
 @router.post("/crons/{cron_id}/run", summary="手动执行定时任务")
 async def cron_run(cron_id: str):
     import time
+
     from bluedeer.agent import BlueDeerAgent
     api = get_api()
     c = STORE.data["crons"].get(cron_id)
@@ -636,7 +640,7 @@ async def cron_history(cron_id: str):
 @router.get("/files/list", summary="文件列表")
 async def files_list(path: str = Query("")):
     api = get_api()
-    import time, os
+    import os
     rel = (path or "").lstrip("/\\").replace("..\\", "").replace("../", "")
     p = os.path.abspath(os.path.join(ROOT_DIR, rel))
     if not (p == os.path.abspath(ROOT_DIR) or p.startswith(os.path.abspath(ROOT_DIR) + os.sep)):
@@ -654,7 +658,7 @@ async def files_list(path: str = Query("")):
 @router.get("/files/content", summary="文件内容")
 async def files_content(path: str = Query(""), encoding: str = Query("utf-8")):
     api = get_api()
-    import time, os
+    import os
     rel = (path or "").lstrip("/\\").replace("..\\", "").replace("../", "")
     p = os.path.abspath(os.path.join(ROOT_DIR, rel))
     if not (p == os.path.abspath(ROOT_DIR) or p.startswith(os.path.abspath(ROOT_DIR) + os.sep)):
@@ -669,7 +673,7 @@ async def files_content(path: str = Query(""), encoding: str = Query("utf-8")):
 @router.post("/files/content", summary="写入文件")
 async def files_content_post(request: Request):
     api = get_api()
-    import time, os
+    import os
     body = await request.json() if request.body else {}
     path = body.get("path", "")
     content = body.get("content", "")
@@ -689,7 +693,7 @@ async def files_content_post(request: Request):
 @router.post("/files/create", summary="创建文件")
 async def files_create(request: Request):
     api = get_api()
-    import time, os
+    import os
     body = await request.json() if request.body else {}
     path = body.get("path", "")
     rel = (path or "").lstrip("/\\").replace("..\\", "").replace("../", "")
@@ -708,7 +712,7 @@ async def files_create(request: Request):
 @router.post("/files/delete", summary="删除文件")
 async def files_delete(request: Request):
     api = get_api()
-    import time, os
+    import os
     body = await request.json() if request.body else {}
     path = body.get("path", "")
     rel = (path or "").lstrip("/\\").replace("..\\", "").replace("../", "")

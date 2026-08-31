@@ -18,8 +18,6 @@ import threading
 import time
 from typing import Any
 
-# ruff: noqa: S110
-
 _EVOLUTION_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "data",
@@ -385,7 +383,7 @@ class EvolutionSystem:
             if gen == -1:
                 # 固定特征，100% 遗传
                 result.append({"key": key, "fixed": True})
-            elif gen > 0:  # noqa: SIM102
+            elif gen > 0:
                 # 非固定，40% 概率遗传
                 if random.random() < 0.4:
                     result.append({"key": key, "fixed": False})

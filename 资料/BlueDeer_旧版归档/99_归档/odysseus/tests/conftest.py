@@ -5,6 +5,7 @@ import os
 import sys
 import types
 from unittest.mock import MagicMock
+
 # ruff: noqa: F401
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -26,10 +27,10 @@ os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 # the stub wins and contaminates every subsequent test that needs the real ORM.
 try:
     import sqlalchemy
-    import sqlalchemy.orm  # noqa: F401
+    import sqlalchemy.orm
     import src.database
 
-    import core.database  # noqa: F401
+    import core.database
 except ImportError:
     pass  # not installed - the stubs below will handle it
 

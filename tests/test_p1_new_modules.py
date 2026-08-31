@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import time
 
-import pytest
-
 from core.hitl_manager import HitlManager, HitlStatus, HitlTask
 from core.memory_consolidator import MemoryConsolidator, MemoryEntry
 from core.memory_extractor import MemoryExtractor

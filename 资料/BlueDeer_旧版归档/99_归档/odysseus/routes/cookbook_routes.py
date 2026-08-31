@@ -16,7 +16,7 @@ from pathlib import Path
 
 from core.middleware import require_admin
 from core.platform_compat import (
-# ruff: noqa: F821
+    # ruff: noqa: F821
     IS_WINDOWS,
     detached_popen_kwargs,
     find_bash,
@@ -27,6 +27,14 @@ from core.platform_compat import (
 )
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from routes._validators import validate_remote_host, validate_ssh_port
+from routes.cookbook_output import (
+    HF_CACHE_COMPLETE_PROBE,
+    HF_CACHE_INCOMPLETE_PROBE,
+    classify_dead_download,
+    error_aware_output_tail,
+)
+from routes.shell_routes import TMUX_LOG_DIR
 from src.auth_helpers import require_user
 from src.constants import COOKBOOK_STATE_FILE
 from src.host_docker_access import (
@@ -36,15 +44,6 @@ from src.host_docker_access import (
     local_docker_available,
     running_in_container,
 )
-
-from routes._validators import validate_remote_host, validate_ssh_port
-from routes.cookbook_output import (
-    HF_CACHE_COMPLETE_PROBE,
-    HF_CACHE_INCOMPLETE_PROBE,
-    classify_dead_download,
-    error_aware_output_tail,
-)
-from routes.shell_routes import TMUX_LOG_DIR
 
 logger = logging.getLogger(__name__)
 

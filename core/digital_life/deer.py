@@ -18,8 +18,6 @@ from typing import ClassVar
 from .digital_life_form import DigitalLifeForm
 from .environment import Environment
 
-# ruff: noqa: S110
-
 
 class Deer(DigitalLifeForm):
     """忧郁鹿：BlueDeer 总经理原型，第一个示范物种。"""

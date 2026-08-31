@@ -136,7 +136,7 @@ class Squirrel(DigitalLifeForm):
         elif bname == "forget_cache":
             # 翻找：消耗能量，不加 food_cache
             self.energy = max(0.0, self.energy - 0.2)
-        elif bname == "show_off_code":  # noqa: SIM102
+        elif bname == "show_off_code":
             # 炫耀：每 10 秒找一位同事 +mood
             if int(time.time()) % 10 == 0 and self._environment is not None:
                 others = [

@@ -20,8 +20,6 @@ import threading
 import time
 from typing import Any
 
-# ruff: noqa: S110
-
 
 class MemoryArchive:
     """逝者记忆归档（持久化到磁盘）。

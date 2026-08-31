@@ -15,6 +15,18 @@ from core.models import ChatMessage
 from fastapi import APIRouter, Form, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
+from routes.chat_helpers import (
+    _enforce_chat_privileges,
+    build_chat_context,
+    clean_thinking_for_save,
+    resolve_session_auth,
+    run_post_response_tasks,
+    save_assistant_response,
+)
+from routes.document_helpers import _owner_session_filter
+from routes.model_routes import _visible_models
+from routes.research_routes import _resolve_research_endpoint
+from routes.session_routes import _verify_session_owner
 from src import agent_runs
 from src.action_intents import ToolIntent
 from src.action_intents import classify_tool_intent as _classify_tool_intent
@@ -46,18 +58,6 @@ from core.database import (
 )
 from core.database import Session as DBSession
 from core.exceptions import SessionNotFoundError
-from routes.chat_helpers import (
-    _enforce_chat_privileges,
-    build_chat_context,
-    clean_thinking_for_save,
-    resolve_session_auth,
-    run_post_response_tasks,
-    save_assistant_response,
-)
-from routes.document_helpers import _owner_session_filter
-from routes.model_routes import _visible_models
-from routes.research_routes import _resolve_research_endpoint
-from routes.session_routes import _verify_session_owner
 
 logger = logging.getLogger(__name__)
 

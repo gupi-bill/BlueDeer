@@ -6,7 +6,6 @@ from copy import deepcopy
 
 from core.platform_compat import run_ssh_command
 from fastapi import APIRouter, HTTPException
-
 from routes._validators import validate_remote_host, validate_ssh_port
 
 # Backends the manual hardware simulator accepts. Must stay a subset of what

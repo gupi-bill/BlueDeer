@@ -192,7 +192,7 @@ class PluginRepo:
 
             os.makedirs(self._plugin_dir, exist_ok=True)
             with tempfile.TemporaryDirectory() as tmpdir:
-                result = subprocess.run(  # noqa: PLW1510
+                result = subprocess.run(
                     ["git", "clone", "--depth", "1", "-b", ref, clone_url, str(tmpdir)],
                     capture_output=True,
                     text=True,

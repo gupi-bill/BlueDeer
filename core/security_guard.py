@@ -91,7 +91,7 @@ class SecurityGuard:
             return self._policy_engine.check_operation(
                 tool_name, params, category, confirm_token
             )
-        if category == ToolCategory.HAZARDOUS:  # noqa: SIM102
+        if category == ToolCategory.HAZARDOUS:
             if tool_name not in self._allowed_hazardous:
                 return False, None, f"高危工具 '{tool_name}' 未在白名单，拒绝调用"
 

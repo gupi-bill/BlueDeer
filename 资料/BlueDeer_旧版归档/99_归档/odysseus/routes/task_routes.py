@@ -10,6 +10,7 @@ from typing import Any
 from core.constants import internal_api_base
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
+from routes.prefs_routes import _load_for_user, _save_for_user
 from src.auth_helpers import get_current_user
 from src.constants import DATA_DIR, EMAIL_URGENCY_CACHE_DIR
 from src.task_action_policy import (
@@ -20,7 +21,6 @@ from src.task_action_policy import (
 from src.task_scheduler import HOUSEKEEPING_DEFAULTS, compute_next_run
 
 from core.database import ScheduledTask, SessionLocal, TaskRun
-from routes.prefs_routes import _load_for_user, _save_for_user
 
 logger = logging.getLogger(__name__)
 

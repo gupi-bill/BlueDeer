@@ -9,8 +9,6 @@ from fastapi.responses import HTMLResponse
 from web_server.app import (
     app,
     debugger,
-    github,
-    scene,
 )
 
 router = APIRouter()

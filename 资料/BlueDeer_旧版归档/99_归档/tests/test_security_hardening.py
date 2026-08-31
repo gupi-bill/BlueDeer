@@ -18,19 +18,16 @@ Covers:
 from __future__ import annotations
 
 import pytest
+from fastapi.exceptions import HTTPException
 
 import core.security as sec
-from core.auth import AuthSystem, _check_login_rate_limit, _login_attempts
-from core.config import _coerce
-from core.input_validator import InputValidator, ValidationError, sanitize_string
-from core.security_guard import csrf_token, validate_csrf_token
 from core.api_server import RateLimiter, _validate_webhook_url
-from core.digital_life.external.shell_executor import ShellExecutor
+from core.auth import AuthSystem, _check_login_rate_limit, _login_attempts
 from core.digital_life.tool_executor import ToolExecutor
 from core.git_ops import GitOps
+from core.input_validator import InputValidator, ValidationError, sanitize_string
+from core.security_guard import csrf_token, validate_csrf_token
 from core.test_runner import TestRunner
-from core.security_guard import SecurityGuard
-from fastapi.exceptions import HTTPException
 from game_frontend import render_index
 from web_admin import _escape_html
 

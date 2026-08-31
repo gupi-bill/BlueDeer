@@ -19,12 +19,11 @@ on a GET would be unsafe (Lax cookies ride top-level GET navigations), so GET
 
 import html
 
+from companion import pairing as _pairing
 from core.middleware import require_admin
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from src.auth_helpers import get_current_user
-
-from companion import pairing as _pairing
 
 
 def token_owner(request: Request) -> str | None:

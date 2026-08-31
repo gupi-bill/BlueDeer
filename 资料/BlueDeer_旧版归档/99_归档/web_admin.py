@@ -11,6 +11,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlparse
 
 import jinja2
 from fastapi import APIRouter, Form, Query, Request
@@ -22,9 +23,6 @@ from core.scheduler import JobDef, Scheduler
 from core.task import Task
 from core.task_templates import TaskTemplates
 from core.webhook import _ALL_EVENTS, WebhookDef, WebhookDispatcher
-from urllib.parse import urlparse
-
-# ruff: noqa: S110, S112
 
 logger = logging.getLogger("bluedeer.admin")
 

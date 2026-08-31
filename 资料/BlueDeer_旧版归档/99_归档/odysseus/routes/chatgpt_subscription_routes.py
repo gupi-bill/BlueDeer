@@ -5,16 +5,16 @@ import logging
 import uuid
 
 from fastapi import HTTPException, Request
-from src import chatgpt_subscription
-from src.auth_helpers import get_current_user
-
-from core.database import ModelEndpoint, ProviderAuthSession, SessionLocal, utcnow_naive
 from routes.device_flow import (
     DeviceFlowPoll,
     DeviceFlowStart,
     PendingDeviceFlowStore,
     create_device_flow_router,
 )
+from src import chatgpt_subscription
+from src.auth_helpers import get_current_user
+
+from core.database import ModelEndpoint, ProviderAuthSession, SessionLocal, utcnow_naive
 
 logger = logging.getLogger(__name__)
 

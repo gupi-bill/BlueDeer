@@ -162,7 +162,7 @@ class ServerTest(unittest.TestCase):
         wid = jw["workflow"]["id"]
         st, jr = self.p("/workflows/%s/run?trigger_by=test" % wid)
         self.assertEqual(st, 200)
-        self.assertEqual(rj := jr["run"], rj)  # noqa
+        self.assertEqual(rj := jr["run"], rj)
         self.assertEqual(len(rj["steps"]), 2)
         self.assertIn("elapsed_ms", rj["steps"][0])
         st, jrs = self.g("/workflows/%s/runs" % wid)

@@ -17,8 +17,6 @@ import random
 import threading
 import time
 
-# ruff: noqa: S110
-
 # ----------------------------------------------------------------------
 # 疾病定义
 # ----------------------------------------------------------------------
@@ -507,8 +505,8 @@ class IllnessSystem:
                     except Exception:
                         pass
                 # 重症濒死检查（健康 < 10 且致命）
-                if ill.fatal and ill.health_delta_per_day < 0:  # noqa: SIM102
-                    if lf.health < 10:  # noqa: SIM102
+                if ill.fatal and ill.health_delta_per_day < 0:
+                    if lf.health < 10:
                         # 进入"濒死待急救"状态
                         if lf.species not in self._rescue_in_progress:
                             self._rescue_in_progress[lf._name_obj] = {

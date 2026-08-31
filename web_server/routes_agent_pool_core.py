@@ -5,9 +5,9 @@ import json
 import logging
 import threading
 import time
-import urllib.request
 import urllib.error
 import urllib.parse
+import urllib.request
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path

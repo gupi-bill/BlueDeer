@@ -4,10 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
-import sqlite3
 import threading
-import time
 
 import pytest
 
@@ -17,8 +14,8 @@ from core.guardrail_config import (
     GuardrailTripwire,
     GuardrailViolationType,
 )
-from core.session_store import Session, SessionMessage, SessionStore
-from core.token_budget import AgentBudget, TokenBudget, TokenRecord
+from core.session_store import SessionStore
+from core.token_budget import TokenBudget
 
 
 def _run(coro):

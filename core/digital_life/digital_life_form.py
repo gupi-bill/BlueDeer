@@ -26,8 +26,6 @@ import time
 from collections import deque
 from typing import ClassVar
 
-# ruff: noqa: S110
-
 # ----------------------------------------------------------------------
 # 枚举
 # ----------------------------------------------------------------------
@@ -1057,7 +1055,7 @@ class DigitalLifeForm(threading.Thread):
         emo["curiosity"] = max(0.0, emo["curiosity"] - 0.0002)
 
         # commit 30：童年烙印基线加成（前 3 天）
-        if self.childhood_imprint and not self.childhood_done:  # noqa: SIM102
+        if self.childhood_imprint and not self.childhood_done:
             if self.age >= 3.0:
                 # 适应期结束，根据情感快照决定基线
                 self.childhood_done = True
@@ -1871,7 +1869,7 @@ class DigitalLifeForm(threading.Thread):
         if "min_age_days" in cond and self.age < cond["min_age_days"]:
             return False
         # 生命阶段白名单
-        if "life_stages" in cond:  # noqa: SIM102
+        if "life_stages" in cond:
             if self.life_stage.value not in cond["life_stages"]:
                 return False
         # 概率（每次检查独立掷骰）
@@ -2773,13 +2771,13 @@ class DigitalLifeForm(threading.Thread):
             notifier = None
             with self._environment._lock:
                 for lf in self._environment.population:
-                    if lf is not self and getattr(lf, "_alive", False):  # noqa: SIM102
+                    if lf is not self and getattr(lf, "_alive", False):
                         if lf.species == "raven":
                             notifier = lf
                             break
                 if notifier is None:
                     for lf in self._environment.population:
-                        if lf is not self and getattr(lf, "_alive", False):  # noqa: SIM102
+                        if lf is not self and getattr(lf, "_alive", False):
                             if lf.species == "deer":
                                 notifier = lf
                                 break

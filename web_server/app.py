@@ -1383,7 +1383,8 @@ if os.path.isdir("new_ui"):
 # 控制台「文档 / 配置」里的文件链接统一指向 /repo/...，由本路由安全读取磁盘文件。
 # 屏蔽敏感目录与文件，仅本地 127.0.0.1 暴露，避免源码/密钥外泄。
 import mimetypes as _mimetypes
-from fastapi.responses import FileResponse, Response
+
+from fastapi.responses import FileResponse
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _REPO_BLOCKED_DIRS = {
@@ -1533,6 +1534,9 @@ LOGIN_HTML = """<!DOCTYPE html>
 
 # ===== 路由注册（自动拆分） =====
 from .routes_admin import router as _admin_router
+from .routes_agent import init_agent_scheduler
+from .routes_agent import router as _agent_router
+from .routes_agent_pool import router as _agent_pool_router
 from .routes_agents import router as _agents_router
 from .routes_alerts import router as _alerts_router
 from .routes_dag import router as _dag_router
@@ -1541,12 +1545,10 @@ from .routes_pages import router as _pages_router
 from .routes_plugins import router as _plugins_router
 from .routes_system import router as _system_router
 from .routes_traces import router as _traces_router
+from .routes_ui import router as _ui_router
 from .routes_users import router as _users_router
 from .routes_vector import router as _vector_router
-from .routes_ui import router as _ui_router
-from .routes_agent import router as _agent_router, init_agent_scheduler
 from .routes_workspace import router as _workspace_router
-from .routes_agent_pool import router as _agent_pool_router
 
 app.include_router(_admin_router)
 app.include_router(_users_router)

@@ -28,10 +28,10 @@ logger = logging.getLogger(__name__)
 
 import argparse
 import os
+import socket
 import sys
 import threading
 import time
-import socket
 import webbrowser
 
 

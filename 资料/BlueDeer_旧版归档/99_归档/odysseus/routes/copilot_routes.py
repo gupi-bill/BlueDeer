@@ -25,16 +25,16 @@ import uuid
 
 import httpx
 from fastapi import HTTPException, Request
-from src import copilot
-from src.auth_helpers import get_current_user
-
-from core.database import ModelEndpoint, SessionLocal
 from routes.device_flow import (
     DeviceFlowPoll,
     DeviceFlowStart,
     PendingDeviceFlowStore,
     create_device_flow_router,
 )
+from src import copilot
+from src.auth_helpers import get_current_user
+
+from core.database import ModelEndpoint, SessionLocal
 
 logger = logging.getLogger(__name__)
 

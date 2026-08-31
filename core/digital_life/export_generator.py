@@ -16,8 +16,6 @@ from __future__ import annotations
 import time
 from typing import Any
 
-# ruff: noqa: S110, S112
-
 # 物种主题色（与 game_frontend.py 的 SPECIES_COLORS 一致）
 SPECIES_COLORS = {
     "deer": "#c9a96e",

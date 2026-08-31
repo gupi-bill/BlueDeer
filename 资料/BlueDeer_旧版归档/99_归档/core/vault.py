@@ -14,8 +14,6 @@ import logging
 import os
 import re
 import threading
-import time
-from typing import Any
 
 logger = logging.getLogger("bluedeer.vault")
 

@@ -1,9 +1,9 @@
 """Provider 抽象。第一版只实现 MockProvider，真实 LLM 后续接入。"""
 
 import json
-import urllib.request
-import urllib.error
 import logging
+import urllib.error
+import urllib.request
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ class OllamaProvider(BaseProvider):
             return f"[Ollama 错误] 无法连接到 {self.base_url}，请确保 Ollama 已启动。"
         except Exception as e:
             logger.error(f"Ollama 生成失败: {e}")
-            return f"[Ollama 错误] {str(e)}"
+            return f"[Ollama 错误] {e!s}"
 
 
 class OpenAIProvider(BaseProvider):
@@ -111,7 +111,7 @@ class OpenAIProvider(BaseProvider):
             return f"[API 错误] 无法连接到 {self.api_base}。"
         except Exception as e:
             logger.error(f"API 生成失败: {e}")
-            return f"[API 错误] {str(e)}"
+            return f"[API 错误] {e!s}"
 
 
 def get_provider(name: str, **kwargs) -> BaseProvider:

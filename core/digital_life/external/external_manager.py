@@ -25,8 +25,6 @@ from core.digital_life.external.api_caller import ApiCaller
 from core.digital_life.external.git_integration import GitIntegration
 from core.digital_life.external.shell_executor import ShellExecutor
 
-# ruff: noqa: S110
-
 _CONFIG_PATH = os.path.join(
     os.path.dirname(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

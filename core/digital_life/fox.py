@@ -11,8 +11,6 @@ from typing import ClassVar
 
 from .digital_life_form import DigitalLifeForm
 
-# ruff: noqa: S110
-
 
 class Fox(DigitalLifeForm):
     """狡黠狐狸。"""

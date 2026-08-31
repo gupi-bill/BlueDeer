@@ -238,7 +238,7 @@ class RecruitSystem:
         return results
 
     def recruit_agent(self, agent_id: str) -> str:
-        if agent_id in self._cd_pool:  # noqa: SIM102
+        if agent_id in self._cd_pool:
             if time.monotonic() < self._cd_pool[agent_id]:
                 return "cooldown"
         lf = self.complete_recruit(agent_id)

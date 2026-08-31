@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+from core.platform_compat import IS_WINDOWS, safe_chmod
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -25,8 +26,6 @@ from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm import backref, relationship, sessionmaker
 from sqlalchemy.types import TypeDecorator
 from src.runtime_paths import get_app_root
-
-from core.platform_compat import IS_WINDOWS, safe_chmod
 
 logger = logging.getLogger(__name__)
 
