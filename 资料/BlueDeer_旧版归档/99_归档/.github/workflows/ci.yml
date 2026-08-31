@@ -1,0 +1,63 @@
+name: BlueDeer CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov ruff black pip-audit
+      - name: Lint (ruff)
+        run: ruff check --target-version py311 core/ tests/
+      - name: Format check (black)
+        run: black --check --target-version py311 core/ tests/
+      - name: Run tests with coverage
+        run: python -m pytest tests/ --cov=core --cov=web_server --cov=game_frontend --cov-report=xml -q --tb=short
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+      - name: Security scan
+        run: python scripts/precommit_security.py
+      - name: Import check
+        run: python scripts/precommit_imports.py
+      - name: CVE scan (pip-audit)
+        run: pip-audit -r requirements.txt --fix
+
+  security-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio
+      - name: Run security tests
+        run: python -m pytest tests/test_security_hardening.py -v --tb=short

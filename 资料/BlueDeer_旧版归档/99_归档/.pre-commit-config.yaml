@@ -1,0 +1,28 @@
+repos:
+  - repo: local
+    hooks:
+      - id: security-scan
+        name: security scan (core.security.SecurityScanner)
+        entry: python scripts/precommit_security.py
+        language: system
+        pass_filenames: false
+      - id: import-check
+        name: import check (AST syntax + import discovery)
+        entry: python scripts/precommit_imports.py
+        language: system
+        pass_filenames: false
+      - id: ruff
+        name: ruff format + lint
+        entry: ruff check --fix --exit-zero --target-version py311
+        language: python
+        types: [python]
+      - id: black
+        name: black formatter check
+        entry: black --check --target-version py311
+        language: python
+        types: [python]
+      - id: detect-secrets
+        name: detect-secrets (gitleaks-style secret scan)
+        entry: python scripts/precommit_secrets.py
+        language: system
+        pass_filenames: false

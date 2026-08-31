@@ -1,0 +1,22 @@
+{
+  "run_id": "20260825_110551_e9bcfd",
+  "output": "[Mock回复] 你说的是：hello forest",
+  "blocked": false,
+  "block_reason": "",
+  "layer_timings": {
+    "input": 0,
+    "understanding": 0,
+    "memory": 0,
+    "reasoning": 0,
+    "decision": 0,
+    "planning": 0,
+    "task_queue": 0,
+    "action": 0,
+    "result_check": 0,
+    "output": 0,
+    "safety": 0,
+    "mcp": 0,
+    "monitoring": 0
+  },
+  "finished_at": 1787627151.364888
+}

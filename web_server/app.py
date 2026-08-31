@@ -12,12 +12,10 @@ import json
 import logging
 import os
 import socket
-import sys
 import threading
 import time
 import urllib.request
 from collections.abc import Callable
-from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -68,56 +66,9 @@ def invalidate_cache(pattern: str | None = None) -> None:
         _RESPONSE_CACHE.clear()
 
 
-# ===== 生命周期管理 =====
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """应用启动/关闭生命周期：加载插件、启动服务、清理资源。"""
-    # --- startup ---
-    loaded = await plugin_manager.load_all()
-    if loaded:
-        logger.info("已加载 %d 个插件: %s", len(loaded), loaded)
-        await plugin_manager.ready_all()
-    else:
-        logger.info("未发现插件，跳过")
-
-    await scheduler.start()
-    await webhook.start()
-    logger.info("调度器和 Webhook 分发器已启动")
-    asyncio.create_task(_periodic_ws_health())
-    logger.info("WebSocket 健康推送已启动")
-
-    global _biosphere_instance
-    try:
-        bio = Biosphere(
-            save_path="data/biosphere_save.json",
-            pid_path="data/biosphere.pid",
-        )
-        bio.bootstrap(load=True)
-        bio.start()
-        _biosphere_instance = bio
-        init_biosphere(bio)
-        logger.info("🌿 森林生物圈已启动")
-    except Exception as e:
-        logger.warning("生物圈启动失败（可忽略）: %s", e)
-
-    yield
-
-    # --- shutdown ---
-    await scheduler.stop()
-    await webhook.stop()
-    await plugin_manager.shutdown()
-
-    if _biosphere_instance is not None:
-        try:
-            _biosphere_instance.stop()
-            logger.info("🌿 森林生物圈已停止")
-        except Exception as e:
-            logger.warning("生物圈停止异常: %s", e)
-
-
 # ===== 请求验证中间件 =====
 
-app = FastAPI(title="BlueDeer 森林公司仪表盘", lifespan=lifespan)
+app = FastAPI(title="BlueDeer 森林公司仪表盘")
 
 
 class ValidationMiddleware:
@@ -289,8 +240,7 @@ from core.game_router import router as game_router
 app.include_router(game_router)
 
 # ===== 实时状态 API（概览页真实数据源） =====
-_OPENCLAW_BASE_DIR = Path(os.getenv("OPENCLAW_STATE_DIR", "data/openclaw")).resolve()
-OPENCLAW_CONFIG_PATH = _OPENCLAW_BASE_DIR / "openclaw.json"
+OPENCLAW_CONFIG_PATH = Path(r"<WORKSPACE_DIR>\OpenClaw\data\openclaw.json")
 
 
 def _load_openclaw_config() -> dict:
@@ -322,16 +272,12 @@ def _ollama_installed_models() -> list[str]:
 # ===== OpenClaw 网关 CLI 集成（真实数据通道） =====
 # openclaw CLI 本身就是网关官方客户端（内部完成 WS 握手/签名），
 # 通过它拉取真实 agent / session / channel / cron / model 数据。
-_OPENCLAW_NODE_BASE = os.getenv(
-    "OPENCLAW_NODE_BASE",
-    os.path.join(os.path.dirname(__file__), "..", ".workbuddy", "binaries", "node", "versions", "22.22.2"),
+OPENCLAW_STATE_DIR = r"<WORKSPACE_DIR>\OpenClaw\data"
+OPENCLAW_NODE = r"C:\Users\a\.workbuddy\binaries\node\versions\22.22.2\node.exe"
+OPENCLAW_CLI = (
+    r"C:\Users\a\.workbuddy\binaries\node\versions\22.22.2"
+    r"\node_modules\openclaw\dist\index.js"
 )
-if sys.platform == "win32":
-    OPENCLAW_NODE = os.path.join(_OPENCLAW_NODE_BASE, "node.exe")
-else:
-    OPENCLAW_NODE = os.path.join(_OPENCLAW_NODE_BASE, "bin", "node")
-OPENCLAW_CLI = os.path.join(_OPENCLAW_NODE_BASE, "node_modules", "openclaw", "dist", "index.js")
-OPENCLAW_STATE_DIR = os.getenv("OPENCLAW_STATE_DIR", os.path.join(os.path.dirname(__file__), "..", "data", "openclaw"))
 
 _oc_cache: dict = {}
 _oc_cache_ts: float = 0.0
@@ -782,7 +728,7 @@ def _scan_config(path: str) -> dict:
     except Exception:
         return {}
     grp = lambda pat, d=None: (re.search(pat, s).group(1) if re.search(pat, s) else d)
-    tm = re.search(r"task_model_map.*?default_factory=lambda:\s*\{([^}]*)\}", s, re.DOTALL)
+    tm = re.search(r"task_model_map.*?default_factory=lambda:\s*\{([^}]*)\}", s, re.S)
     task_map = dict(re.findall(r'"(\w+)":\s*"([^"]+)"', tm.group(1))) if tm else {}
     return {
         "default_model": grp(r'default_model:\s*str\s*=\s*"([^"]+)"'),
@@ -881,7 +827,7 @@ async def dashboard_data() -> dict:
     oc_status = oc.get("status", {}) or {}
     oc_models = oc.get("models", {}) or {}
     oc_channels = oc.get("channels", {}) or {}
-    oc_status.get("sessions", {}) or {}
+    oc_sessions = oc_status.get("sessions", {}) or {}
     oc_sessions_count = int(oc.get("sessionsCount", 0) or 0)
 
     if oc_connected:
@@ -1254,13 +1200,12 @@ async def oc_logs(limit: int = 120):
     """磁盘直读最新网关日志文件（毫秒级）。"""
     import glob as _glob
 
-    # 优先网关运行日志，其次 logs 目录（路径跟随 OPENCLAW_STATE_DIR，不写死本机目录）
-    oc_root = os.path.dirname(OPENCLAW_STATE_DIR)
+    # 优先网关运行日志，其次 logs 目录
     ordered = [
-        os.path.join(OPENCLAW_STATE_DIR, "gateway-start.log"),
-        os.path.join(oc_root, "gw.log"),
-        os.path.join(oc_root, "openclaw-gw.log"),
-        os.path.join(OPENCLAW_STATE_DIR, "openclaw.log"),
+        r"<WORKSPACE_DIR>\OpenClaw\data\gateway-start.log",
+        r"<WORKSPACE_DIR>\OpenClaw\gw.log",
+        r"<WORKSPACE_DIR>\OpenClaw\openclaw-gw.log",
+        r"<WORKSPACE_DIR>\OpenClaw\openclaw.log",
     ]
     cands = [c for c in ordered if os.path.exists(c)]
     if not cands:
@@ -1331,6 +1276,39 @@ debugger.enable()
 canvas = Canvas(debugger)
 
 
+# ===== 启动/关闭事件 =====
+@app.on_event("startup")
+async def startup() -> None:
+    """应用启动时加载插件、启动后台服务、初始化生物圈。"""
+    loaded = await plugin_manager.load_all()
+    if loaded:
+        logger.info("已加载 %d 个插件: %s", len(loaded), loaded)
+        await plugin_manager.ready_all()
+    else:
+        logger.info("未发现插件，跳过")
+
+    await scheduler.start()
+    await webhook.start()
+    logger.info("调度器和 Webhook 分发器已启动")
+    asyncio.create_task(_periodic_ws_health())
+    logger.info("WebSocket 健康推送已启动")
+
+    # ── 启动生物圈 ──
+    global _biosphere_instance
+    try:
+        bio = Biosphere(
+            save_path="data/biosphere_save.json",
+            pid_path="data/biosphere.pid",
+        )
+        bio.bootstrap(load=True)
+        bio.start()
+        _biosphere_instance = bio
+        init_biosphere(bio)
+        logger.info("🌿 森林生物圈已启动")
+    except Exception as e:
+        logger.warning("生物圈启动失败（可忽略）: %s", e)
+
+
 async def _periodic_ws_health() -> None:
     """每 10s 通过 WS 推送系统健康状态 + 告警评估。"""
     _logger = logging.getLogger("bluedeer.web")
@@ -1374,6 +1352,20 @@ async def _periodic_ws_health() -> None:
             ae.evaluate("pending_count", data["pending"])
         except Exception as _e:
             _logger.warning("WS 健康推送异常: %s", _e, exc_info=True)
+@app.on_event("shutdown")
+async def shutdown() -> None:
+    """应用关闭时清理资源。"""
+    await scheduler.stop()
+    await webhook.stop()
+    await plugin_manager.shutdown()
+
+    # ── 停止生物圈 ──
+    if _biosphere_instance is not None:
+        try:
+            _biosphere_instance.stop()
+            logger.info("🌿 森林生物圈已停止")
+        except Exception as e:
+            logger.warning("生物圈停止异常: %s", e)
 
 
 # 挂载静态文件
@@ -1391,8 +1383,7 @@ if os.path.isdir("new_ui"):
 # 控制台「文档 / 配置」里的文件链接统一指向 /repo/...，由本路由安全读取磁盘文件。
 # 屏蔽敏感目录与文件，仅本地 127.0.0.1 暴露，避免源码/密钥外泄。
 import mimetypes as _mimetypes
-
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _REPO_BLOCKED_DIRS = {
@@ -1550,9 +1541,12 @@ from .routes_pages import router as _pages_router
 from .routes_plugins import router as _plugins_router
 from .routes_system import router as _system_router
 from .routes_traces import router as _traces_router
-from .routes_ui import router as _ui_router
 from .routes_users import router as _users_router
 from .routes_vector import router as _vector_router
+from .routes_ui import router as _ui_router
+from .routes_agent import router as _agent_router, init_agent_scheduler
+from .routes_workspace import router as _workspace_router
+from .routes_agent_pool import router as _agent_pool_router
 
 app.include_router(_admin_router)
 app.include_router(_users_router)
@@ -1566,6 +1560,23 @@ app.include_router(_vector_router)
 app.include_router(_pages_router)
 app.include_router(_misc_router)
 app.include_router(_ui_router)
+app.include_router(_agent_router)
+app.include_router(_workspace_router)
+app.include_router(_agent_pool_router)
+
+# ===== 静态文件挂载 =====
+_CONSOLES_DIR = os.path.join(os.path.dirname(__file__), "..", "console")
+if os.path.isdir(_CONSOLES_DIR):
+    app.mount("/console", StaticFiles(directory=_CONSOLES_DIR, html=True), name="console")
+
+# ===== Agent 底座初始化（启动时执行） =====
+@app.on_event("startup")
+async def startup_agent():
+    try:
+        init_agent_scheduler()
+        print("[OK] Agent 底座已初始化")
+    except Exception as e:
+        print(f"[WARN] Agent 底座初始化失败: {e}")
 
 
 

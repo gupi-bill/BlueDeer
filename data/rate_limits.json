@@ -1,0 +1,14 @@
+{
+  "default": {
+    "window": 60,
+    "max": 120
+  },
+  "per_user": {
+    "window": 60,
+    "max": 300
+  },
+  "per_endpoint": {
+    "window": 60,
+    "max": 60
+  }
+}

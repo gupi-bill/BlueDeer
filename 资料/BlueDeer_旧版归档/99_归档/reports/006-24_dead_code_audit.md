@@ -1,0 +1,349 @@
+# 006-24 Dead Code Audit Report
+
+- 扫描文件数: 275
+
+## 1. 未使用 import
+
+- `cli\demo_p2.py:15`  `json`
+- `cli\demo_p5.py:24`  `RiskLevel`
+- `cli\demo_p6.py:23`  `AuditLogger`
+- `cli\demo_p6.py:23`  `MCPClient`
+- `cli\demo_p6.py:24`  `Color`
+- `cli\demo_p6.py:26`  `SecurityGuard`
+- `cli\demo_p7.py:18`  `TaskStatus`
+- `cli\demo_p8.py:194`  `count_code_lines`
+- `core\crewai_style.py:22`  `TaskResult`
+- `core\digital_life\__init__.py:7`  `export_generator`
+- `core\digital_life\__init__.py:8`  `Badger`
+- `core\digital_life\__init__.py:9`  `Beaver`
+- `core\digital_life\__init__.py:10`  `Butterfly`
+- `core\digital_life\__init__.py:11`  `Deer`
+- `core\digital_life\__init__.py:12`  `ActionState`
+- `core\digital_life\__init__.py:12`  `DigitalLifeForm`
+- `core\digital_life\__init__.py:12`  `LifeStage`
+- `core\digital_life\__init__.py:12`  `SleepDepth`
+- `core\digital_life\__init__.py:13`  `Environment`
+- `core\digital_life\__init__.py:14`  `EvolutionSystem`
+- `core\digital_life\__init__.py:14`  `get_evolution_system`
+- `core\digital_life\__init__.py:15`  `EvolutionSnapshot`
+- `core\digital_life\__init__.py:15`  `EvolutionTracker`
+- `core\digital_life\__init__.py:16`  `EvolutionVisualizer`
+- `core\digital_life\__init__.py:17`  `TASK_TYPES`
+- `core\digital_life\__init__.py:17`  `ExternalTaskSystem`
+- `core\digital_life\__init__.py:17`  `Task`
+- `core\digital_life\__init__.py:18`  `Fox`
+- `core\digital_life\__init__.py:19`  `Hare`
+- `core\digital_life\__init__.py:20`  `Hedgehog`
+- `core\digital_life\__init__.py:21`  `Kite`
+- `core\digital_life\__init__.py:22`  `Lark`
+- `core\digital_life\__init__.py:23`  `MemoryArchive`
+- `core\digital_life\__init__.py:24`  `NamingSystem`
+- `core\digital_life\__init__.py:25`  `Observer`
+- `core\digital_life\__init__.py:28`  `OnboardingManager`
+- `core\digital_life\__init__.py:28`  `get_onboarding_manager`
+- `core\digital_life\__init__.py:29`  `Raven`
+- `core\digital_life\__init__.py:30`  `RecruitSystem`
+- `core\digital_life\__init__.py:30`  `SpeciesState`
+- `core\digital_life\__init__.py:31`  `ShareManager`
+- `core\digital_life\__init__.py:31`  `get_share_manager`
+- `core\digital_life\__init__.py:32`  `Squirrel`
+- `core\digital_life\__init__.py:33`  `Storyteller`
+- `core\digital_life\external\__init__.py:9`  `ApiCaller`
+- `core\digital_life\external\__init__.py:10`  `ExternalManager`
+- `core\digital_life\external\__init__.py:10`  `get_external_manager`
+- `core\digital_life\external\__init__.py:14`  `GitIntegration`
+- `core\digital_life\external\__init__.py:15`  `ShellExecutor`
+- `core\dream.py:21`  `dataclass`
+- `core\dream.py:21`  `field`
+- `core\dream.py:22`  `Enum`
+- `core\dream.py:32`  `DreamLog`
+- `core\harness.py:28`  `HarnessResult`
+- `core\lru_ttl_cache.py:8`  `LruTtlCache`
+- `core\plugin_manager.py:20`  `Callable`
+- `core\reward.py:17`  `RewardCurve`
+- `core\reward.py:17`  `_ACHIEVEMENT_DEFS`
+- `core\reward.py:17`  `_LEVEL_PERKS`
+- `core\reward.py:17`  `_ROLE_BONUSES`
+- `core\reward.py:17`  `_check_threshold`
+- `core\reward.py:17`  `_cfg`
+- `core\reward.py:17`  `compute_level`
+- `core\reward.py:17`  `decay`
+- `core\reward.py:17`  `exp_to_next_level`
+- `core\reward.py:17`  `favor_gain`
+- `core\reward.py:17`  `get_level_perks`
+- `core\reward.py:17`  `leaderboard`
+- `core\reward.py:32`  `AchievementTier`
+- `core\security.py:38`  `SecurityGuard`
+- `core\security.py:38`  `sanitize_log`
+- `core\security.py:38`  `validate_request`
+- `core\security.py:38`  `csrf_token`
+- `core\security.py:38`  `validate_csrf_token`
+- `core\security.py:42`  `SecurityThresholds`
+- `core\security.py:42`  `SecurityReportBuilder`
+- `core\security.py:42`  `SecurityAuditRecord`
+- `core\security.py:42`  `SecurityReportGenerator`
+- `core\security.py:46`  `RiskLevel`
+- `core\security.py:46`  `SecurityReport`
+- `core\security.py:46`  `SecurityScanner`
+- `core\security.py:46`  `Threat`
+- `core\token_auditor.py:19`  `RewardSystem`
+- `modules\avatars.py:19`  `Any`
+- `modules\beaver\skills.py:9`  `TestRunner`
+- `modules\deer\agent.py:9`  `Any`
+- `modules\fox\skills.py:12`  `Task`
+- `modules\glow\alert_glow.py:21`  `field`
+- `modules\glow\alert_glow.py:23`  `Any`
+- `modules\glow\color_downgrade.py:17`  `field`
+- `modules\glow\color_downgrade.py:19`  `Any`
+- `modules\scene_assets.py:147`  `_os`
+- `modules\soft_rabbit\components.py:15`  `field`
+- `modules\soft_rabbit\depth_layers.py:15`  `Any`
+- `modules\soft_rabbit\depth_layers.py:17`  `PixelRenderEngine`
+- `modules\soft_rabbit\pixel_render.py:14`  `field`
+- `modules\soft_rabbit\typography.py:12`  `Any`
+- `scripts\_audit_deadcode.py:5`  `sys`
+- `scripts\analyze_dependencies.py:18`  `os`
+- `scripts\fault_drill.py:25`  `TaskResult`
+- `scripts\fault_drill.py:25`  `TaskStatus`
+- `scripts\init_project.py:17`  `os`
+- `scripts\smoke_import.py:18`  `traceback`
+- `scripts\smoke_stability.py:21`  `traceback`
+- `tools\base_tool.py:22`  `Capability`
+- `tools\market.py:14`  `Any`
+- `tools\market.py:112`  `tempfile`
+- `tools\registry.py:16`  `Awaitable`
+- `tools\registry.py:16`  `Callable`
+- `tools\registry.py:16`  `Protocol`
+- `tools\registry.py:18`  `Capability`
+- `tools\registry.py:18`  `CapabilityViolation`
+
+未使用 import 总数: 112
+
+## 2. 疑似死代码（模块级 def/class，全项目 0 引用）
+
+- `core\agent_market.py:222`  `FunctionDef get_market`
+- `core\agent_monitor.py:45`  `ClassDef AgentMonitor`
+- `core\api_server.py:68`  `FunctionDef graceful_shutdown`
+- `core\api_server.py:89`  `FunctionDef init_api`
+- `core\auth.py:368`  `FunctionDef get_auth`
+- `core\auth.py:375`  `FunctionDef role_required`
+- `core\backup.py:176`  `FunctionDef incremental_backup`
+- `core\backup.py:237`  `ClassDef SchedulePolicy`
+- `core\bitmap.py:20`  `ClassDef Bitmap`
+- `core\bitmap.py:219`  `ClassDef SparseBitmap`
+- `core\bitmap.py:347`  `ClassDef RLEBitmap`
+- `core\canvas.py:19`  `ClassDef Canvas`
+- `core\cleanup.py:142`  `FunctionDef run_cleanup_priority`
+- `core\cleanup.py:203`  `FunctionDef run_cleanup_incremental`
+- `core\comm_log.py:197`  `ClassDef CommLogViewer`
+- `core\composite_limiter.py:37`  `ClassDef CompositeLimiter`
+- `core\config.py:311`  `FunctionDef set_config_file`
+- `core\consistent_hash.py:24`  `ClassDef ConsistentHash`
+- `core\count_min_sketch.py:18`  `ClassDef CountMinSketch`
+- `core\cuckoo_filter.py:17`  `ClassDef CuckooFilter`
+- `core\dag_templates.py:198`  `FunctionDef list_templates`
+- `core\dag_templates.py:213`  `FunctionDef list_categories`
+- `core\dag_templates.py:230`  `FunctionDef apply_template`
+- `core\debate.py:64`  `ClassDef DebateVerifier`
+- `core\digital_life\agent_function_calling.py:658`  `FunctionDef cleanup_function_callers`
+- `core\digital_life\agent_function_calling.py:725`  `FunctionDef function_registry`
+- `core\digital_life\agent_function_calling.py:730`  `FunctionDef register_function`
+- `core\digital_life\agent_function_calling.py:735`  `FunctionDef call_function`
+- `core\digital_life\atmosphere_system.py:442`  `FunctionDef update_atmosphere`
+- `core\digital_life\atmosphere_system.py:450`  `FunctionDef snapshot_atmosphere`
+- `core\digital_life\autobiographical_memory.py:693`  `FunctionDef tick_autobiography`
+- `core\digital_life\autobiographical_memory.py:739`  `FunctionDef snapshot_autobiography`
+- `core\digital_life\autobiographical_memory.py:751`  `FunctionDef get_agent_autobiography`
+- `core\digital_life\autobiographical_memory.py:756`  `FunctionDef force_weekly_reflect`
+- `core\digital_life\autobiographical_memory.py:768`  `FunctionDef force_death_autobio`
+- `core\digital_life\channels\desktop_notify.py:137`  `FunctionDef is_supported`
+- `core\digital_life\channels\email_digest.py:201`  `FunctionDef send_daily_report`
+- `core\digital_life\channels\telegram_bot.py:182`  `FunctionDef start_listener`
+- `core\digital_life\channels\telegram_bot.py:205`  `FunctionDef stop_listener`
+- `core\digital_life\desktop_pet.py:247`  `FunctionDef update_desktop_pet`
+- `core\digital_life\desktop_pet.py:252`  `FunctionDef snapshot_desktop_pet`
+- `core\digital_life\desktop_pet.py:261`  `FunctionDef pop_desktop_notifications`
+- `core\digital_life\desktop_pet.py:351`  `FunctionDef start_tray_in_thread`
+- `core\digital_life\diary_system.py:615`  `FunctionDef tick_diary`
+- `core\digital_life\diary_system.py:620`  `FunctionDef snapshot_diary`
+- `core\digital_life\diary_system.py:637`  `FunctionDef peek_agent_diary`
+- `core\digital_life\diary_system.py:642`  `FunctionDef try_discover_diary`
+- `core\digital_life\diary_system.py:647`  `FunctionDef write_special_diary`
+- `core\digital_life\diary_system.py:652`  `FunctionDef publish_diary_on_death`
+- `core\digital_life\diary_system.py:656`  `FunctionDef force_write_diary`
+- `core\digital_life\experience_library.py:312`  `FunctionDef search_experiences_by_task`
+- `core\digital_life\experience_library.py:318`  `FunctionDef format_experiences_for_prompt`
+- `core\digital_life\export_generator.py:82`  `FunctionDef generate_agent_card_svg`
+- `core\digital_life\export_generator.py:183`  `FunctionDef generate_snapshot_markdown`
+- `core\digital_life\export_generator.py:342`  `FunctionDef generate_share_text`
+- `core\digital_life\export_generator.py:405`  `FunctionDef get_export_generator`
+- `core\digital_life\illness_system.py:737`  `FunctionDef update_illness`
+- `core\digital_life\illness_system.py:750`  `FunctionDef snapshot_illness`
+- `core\digital_life\illness_system.py:755`  `FunctionDef record_core_event_sync`
+- `core\digital_life\memory_fragment.py:410`  `FunctionDef update_fragments`
+- `core\digital_life\memory_fragment.py:417`  `FunctionDef snapshot_fragments`
+- `core\digital_life\persistent_memory.py:520`  `FunctionDef tick_persistent_memory`
+- `core\digital_life\persistent_memory.py:524`  `FunctionDef snapshot_persistent_memory`
+- `core\digital_life\persistent_memory.py:537`  `FunctionDef summarize_chat_if_needed`
+- `core\digital_life\persistent_memory.py:573`  `FunctionDef detect_important_content`
+- `core\digital_life\persistent_memory.py:583`  `FunctionDef init_agent_identity`
+- `core\digital_life\retrospect.py:332`  `FunctionDef list_retrospects`
+- `core\digital_life\retrospect.py:350`  `FunctionDef get_retrospect`
+- `core\digital_life\role_evolution.py:460`  `FunctionDef get_role_evolution_engine`
+- `core\digital_life\spontaneous_social.py:589`  `FunctionDef scan_social`
+- `core\digital_life\spontaneous_social.py:596`  `FunctionDef update_social`
+- `core\digital_life\spontaneous_social.py:603`  `FunctionDef snapshot_social`
+- `core\digital_life\task_pipeline.py:985`  `FunctionDef run_pipeline`
+- `core\digital_life\task_pipeline.py:1004`  `FunctionDef retry_failed`
+- `core\digital_life\task_pipeline.py:1033`  `FunctionDef run_single_agent_task`
+- `core\digital_life\task_scout.py:586`  `FunctionDef get_task_scout`
+- `core\digital_life\work_artifacts.py:594`  `FunctionDef tick_artifacts`
+- `core\digital_life\work_artifacts.py:599`  `FunctionDef snapshot_artifacts`
+- `core\digital_life\work_artifacts.py:621`  `FunctionDef force_produce`
+- `core\exceptions.py:29`  `ClassDef NetworkError`
+- `core\exceptions.py:55`  `ClassDef ConfigurationError`
+- `core\exceptions.py:63`  `ClassDef TaskNotFoundError`
+- `core\exceptions.py:79`  `ClassDef TaskBlockedError`
+- `core\exceptions.py:87`  `ClassDef ScheduleNotFoundError`
+- `core\exceptions.py:95`  `ClassDef WebhookNotFoundError`
+- `core\exceptions.py:103`  `ClassDef AgentNotFoundError`
+- `core\exceptions.py:111`  `ClassDef ModelRoutingError`
+- `core\exceptions.py:115`  `ClassDef ModelDegradedError`
+- `core\exceptions.py:135`  `ClassDef ToolCircuitBreakerError`
+- `core\exceptions.py:147`  `ClassDef StorageQueryError`
+- `core\exceptions.py:151`  `ClassDef RAGError`
+- `core\exceptions.py:163`  `ClassDef PermissionDeniedError`
+- `core\exceptions.py:167`  `ClassDef PluginNotFoundError`
+- `core\game_router.py:33`  `FunctionDef init_biosphere`
+- `core\game_router.py:279`  `FunctionDef register_server`
+- `core\game_router.py:284`  `FunctionDef update_load`
+- `core\game_router.py:288`  `FunctionDef set_backups`
+- `core\game_router.py:293`  `FunctionDef route_to_best`
+- `core\game_router.py:313`  `FunctionDef fallback_handler`
+- `core\gantt.py:98`  `ClassDef GanttGenerator`
+- `core\gantt.py:230`  `ClassDef GanttFormatter`
+- `core\github_knowledge.py:46`  `ClassDef GitHubKnowledge`
+- `core\graceful_shutdown.py:24`  `FunctionDef drain`
+- `core\graceful_shutdown.py:38`  `FunctionDef shutdown_with_timeout`
+- `core\graceful_shutdown.py:236`  `ClassDef TaskRunner`
+- `core\graph.py:27`  `ClassDef Graph`
+- `core\hash_table.py:37`  `ClassDef HashTable`
+- `core\healer.py:566`  `FunctionDef auto_heal`
+- `core\interval_tree.py:33`  `ClassDef IntervalTree`
+- `core\jarvis.py:44`  `ClassDef JARVIS`
+- `core\kd_tree.py:33`  `ClassDef KDTree`
+- `core\lfu_cache.py:65`  `ClassDef LFUCache`
+- `core\log_viewer.py:30`  `ClassDef LogViewer`
+- `core\logger.py:84`  `FunctionDef get_logger`
+- `core\lsm_tree.py:60`  `ClassDef LsmTree`
+- `core\notifier.py:45`  `ClassDef EmailChannel`
+- `core\notifier.py:80`  `ClassDef DingTalkChannel`
+- `core\notifier.py:117`  `ClassDef FeishuChannel`
+- `core\notifier.py:144`  `ClassDef SlackChannel`
+- `core\notifier.py:178`  `ClassDef Notifier`
+- `core\object_pool.py:28`  `ClassDef ObjectPool`
+- `core\r_tree.py:69`  `ClassDef RTree`
+- `core\radix_tree.py:34`  `ClassDef RadixTree`
+- `core\rb_tree.py:27`  `ClassDef RBTree`
+- `core\retry.py:91`  `FunctionDef retry_with_backoff`
+- `core\ring_buffer.py:17`  `ClassDef RingBuffer`
+- `core\scene.py:22`  `ClassDef TransitionEffect`
+- `core\shard_hash.py:18`  `ClassDef ShardHash`
+- `core\skip_list.py:27`  `ClassDef SkipList`
+- `core\stream.py:38`  `ClassDef StreamBuffer`
+- `core\stream.py:106`  `FunctionDef throttle`
+- `core\suffix_array.py:14`  `ClassDef SuffixArray`
+- `core\t_digest.py:24`  `ClassDef TDigest`
+- `core\task_templates.py:38`  `ClassDef TaskTemplates`
+- `core\timeout_ctrl.py:155`  `ClassDef TimeoutGuard`
+- `core\timeout_ctrl.py:221`  `FunctionDef timeout_context`
+- `core\timeout_ctrl.py:226`  `FunctionDef timeout_decorator`
+- `core\timeout_ctrl.py:241`  `FunctionDef sleep_with_cancel`
+- `core\timeout_ctrl.py:248`  `FunctionDef wait_until`
+- `core\tracer.py:23`  `FunctionDef set_trace_id`
+- `core\trie.py:24`  `ClassDef Trie`
+- `core\union_find.py:15`  `ClassDef UnionFind`
+- `core\wavelet_tree.py:29`  `ClassDef WaveletTree`
+- `modules\avatars.py:250`  `FunctionDef get_avatar`
+- `modules\avatars.py:316`  `ClassDef AvatarCache`
+- `modules\beaver\agent.py:25`  `FunctionDef enqueue_build`
+- `modules\beaver\agent.py:29`  `FunctionDef dequeue_build`
+- `modules\beaver\agent.py:35`  `FunctionDef build_queue_count`
+- `modules\beaver\skills.py:59`  `FunctionDef cache_build_result`
+- `modules\beaver\skills.py:63`  `FunctionDef get_cached_build`
+- `modules\beaver\skills.py:67`  `FunctionDef clear_build_cache`
+- `modules\butterfly\agent.py:29`  `ClassDef ButterflyAgent`
+- `modules\butterfly\skills.py:88`  `FunctionDef get_skill`
+- `modules\butterfly\skills.py:92`  `FunctionDef list_skills`
+- `modules\deer\agent.py:30`  `ClassDef DeerAgent`
+- `modules\deer\skills.py:83`  `FunctionDef get_skill`
+- `modules\deer\skills.py:87`  `FunctionDef list_skills`
+- `modules\fox\agent.py:345`  `ClassDef SecurityFoxAgent`
+- `modules\fox\agent.py:401`  `ClassDef ArtFoxAgent`
+- `modules\fox\skills.py:109`  `FunctionDef get_skill`
+- `modules\fox\skills.py:113`  `FunctionDef list_skills`
+- `modules\glow\alert_glow.py:214`  `FunctionDef get_alert_rule`
+- `modules\glow\alert_glow.py:226`  `FunctionDef list_alert_rules`
+- `modules\glow\alert_glow.py:234`  `FunctionDef set_alert_level`
+- `modules\glow\alert_glow.py:240`  `FunctionDef get_alert_level`
+- `modules\glow\alert_glow.py:244`  `FunctionDef render_alert_by_current_level`
+- `modules\glow\color_downgrade.py:316`  `ClassDef PaletteManager`
+- `modules\glow\role_glow.py:165`  `FunctionDef get_role_preset`
+- `modules\glow\task_graph_glow.py:182`  `ClassDef TaskGraphGlowRenderer`
+- `modules\glow\task_graph_glow.py:340`  `FunctionDef trace_progress`
+- `modules\hedgehog\agent.py:32`  `FunctionDef enqueue_task`
+- `modules\hedgehog\agent.py:36`  `FunctionDef dequeue_task`
+- `modules\hedgehog\agent.py:42`  `FunctionDef queue_size`
+- `modules\hedgehog\agent.py:237`  `ClassDef StaticScanHedgehogAgent`
+- `modules\hedgehog\agent.py:291`  `ClassDef RuntimeAuditHedgehogAgent`
+- `modules\hedgehog\agent.py:389`  `ClassDef KeyManagementHedgehogAgent`
+- `modules\hedgehog\skills.py:49`  `FunctionDef record_scan`
+- `modules\hedgehog\skills.py:58`  `FunctionDef scan_history`
+- `modules\hedgehog\skills.py:62`  `FunctionDef scan_stats`
+- `modules\scene_assets.py:126`  `FunctionDef scene_layout`
+- `modules\scene_assets.py:171`  `FunctionDef preload`
+- `modules\scene_assets.py:180`  `FunctionDef asset_size`
+- `modules\scene_assets.py:188`  `FunctionDef register_asset`
+- `modules\scene_assets.py:194`  `FunctionDef list_assets`
+- `modules\soft_rabbit\components.py:68`  `ClassDef BubbleRenderer`
+- `modules\soft_rabbit\components.py:211`  `ClassDef PanelRegistry`
+- `modules\soft_rabbit\components.py:240`  `ClassDef PanelContainer`
+- `modules\soft_rabbit\components.py:364`  `ClassDef ShortcutHintPanel`
+- `modules\soft_rabbit\components.py:490`  `ClassDef ComponentRegistry`
+- `modules\soft_rabbit\crt_filters.py:342`  `FunctionDef register_filter_param`
+- `modules\soft_rabbit\crt_filters.py:347`  `FunctionDef get_filter_param`
+- `modules\soft_rabbit\crt_filters.py:351`  `FunctionDef apply_preset`
+- `modules\soft_rabbit\crt_filters.py:360`  `FunctionDef custom_filter`
+- `modules\soft_rabbit\crt_filters.py:389`  `ClassDef PixelDenoiser`
+- `modules\soft_rabbit\depth_layers.py:265`  `ClassDef LayeredSceneRenderer`
+- `modules\soft_rabbit\pixel_render.py:446`  `FunctionDef clear_cache`
+- `modules\soft_rabbit\pixel_render.py:451`  `FunctionDef set_cache_enabled`
+- `modules\soft_rabbit\pixel_render.py:456`  `FunctionDef batch_render`
+- `modules\soft_rabbit\pixel_render.py:461`  `FunctionDef cached_render`
+- `modules\soft_rabbit\themes.py:488`  `ClassDef ThemeManager`
+- `modules\soft_rabbit\themes.py:556`  `FunctionDef extend_theme`
+- `modules\soft_rabbit\themes.py:590`  `FunctionDef apply_theme`
+- `modules\soft_rabbit\typography.py:179`  `FunctionDef font_cache_clear`
+- `modules\soft_rabbit\typography.py:183`  `FunctionDef font_cache_put`
+- `modules\soft_rabbit\typography.py:187`  `FunctionDef font_cache_get`
+- `modules\soft_rabbit\widgets.py:233`  `ClassDef ChartRegistry`
+- `modules\soft_rabbit\widgets.py:295`  `ClassDef WidgetManager`
+- `modules\sparrow\agent.py:95`  `ClassDef VoiceSparrowAgent`
+- `modules\sparrow\agent.py:507`  `ClassDef MessageQueue`
+- `modules\sparrow\agent.py:555`  `ClassDef StatusTracker`
+- `modules\sparrow\announcer.py:113`  `ClassDef SparrowAnnouncer`
+- `modules\sparrow\status_center.py:417`  `ClassDef StatusAggregator`
+- `modules\squirrel\agent.py:28`  `FunctionDef enqueue_code_task`
+- `modules\squirrel\agent.py:32`  `FunctionDef dequeue_code_task`
+- `modules\squirrel\agent.py:38`  `FunctionDef record_task_result`
+- `modules\squirrel\agent.py:44`  `FunctionDef recent_results`
+- `modules\squirrel\skills.py:15`  `FunctionDef cache_template`
+- `modules\squirrel\skills.py:23`  `FunctionDef list_templates`
+- `modules\squirrel\skills.py:27`  `FunctionDef clear_templates`
+- `tools\base_tool.py:35`  `FunctionDef validate_input`
+- `tools\market.py:40`  `ClassDef ToolMarket`
+- `tools\market\greet_tool.py:3`  `ClassDef GreetTool`
+
+疑似死代码总数: 222
+
+> 注: 动态引用（getattr/globals()[name]/字符串调用）无法静态识别，清理前需人工复核。

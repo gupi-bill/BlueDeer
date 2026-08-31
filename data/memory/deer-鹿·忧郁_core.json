@@ -1,0 +1,21 @@
+{
+  "agent_id": "deer-鹿·忧郁",
+  "agent_name": "鹿·忧郁",
+  "species": "deer",
+  "core": [
+    {
+      "text": "周反思：调度了一周的任务。本周无显著事件。看着大家各司其职，鹿·忧郁 觉得森林公司运转得不错。...",
+      "kind": "event",
+      "important": true,
+      "tags": [
+        "weekly_reflection",
+        "autobiography"
+      ],
+      "meta": {},
+      "ts": 1787809267.4875116,
+      "time": "2026-08-27 13:41:07"
+    }
+  ],
+  "last_interact_ts": 1787809267.4875116,
+  "last_farewell_mood": "neutral"
+}

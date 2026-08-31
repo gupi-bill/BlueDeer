@@ -1,0 +1,2028 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlueDeer 控制台</title>
+<style>
+
+  :root {
+    --radius: 14px;
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    /* 默认点缀色（紫罗兰）——会被 [data-accent] 覆盖 */
+    --accent: #8b7cf6;
+    --accent-2: #54c8c2;
+    --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+    --glow-1: color-mix(in srgb, var(--accent) 12%, transparent);
+    --glow-2: color-mix(in srgb, var(--accent-2) 8%, transparent);
+  }
+  /* ===== 两套表面（光晕 + 玻璃拟态在两种模式都保留）===== */
+  :root[data-theme="light"] {
+    --bg: #f5f7fa;
+    --sidebar-bg: rgba(255,255,255,0.82);
+    --panel: rgba(255,255,255,0.72);
+    --border: rgba(16,24,40,0.08);
+    --border-strong: rgba(16,24,40,0.14);
+    --text: #1f2329;
+    --text-dim: #5b6b80;
+    --text-faint: #93a2b5;
+    --shadow-sm: 0 1px 2px rgba(16,24,40,0.05), 0 1px 3px rgba(16,24,40,0.06);
+    --shadow: 0 4px 16px rgba(16,24,40,0.07), 0 2px 6px rgba(16,24,40,0.05);
+    --shadow-lg: 0 12px 32px rgba(16,24,40,0.10), 0 4px 12px rgba(16,24,40,0.06);
+  }
+  :root[data-theme="dark"] {
+    --bg: #08090c;
+    --sidebar-bg: rgba(12,14,20,0.66);
+    --panel: rgba(255,255,255,0.035);
+    --border: rgba(255,255,255,0.08);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #e6e9ef;
+    --text-dim: #9aa4b4;
+    --text-faint: #5d6675;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
+    --shadow: 0 8px 24px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.4);
+    --shadow-lg: 0 18px 50px rgba(0,0,0,0.55), 0 4px 14px rgba(0,0,0,0.4);
+  }
+  /* ===== 点缀色预设：主色 + 渐变 + 玻璃软色 + 光晕色联动 ===== */
+  :root[data-accent="blue"]   { --accent:#1E6FFF; --accent-2:#3B82F6; }
+  :root[data-accent="violet"] { --accent:#8b7cf6; --accent-2:#54c8c2; }
+  :root[data-accent="teal"]   { --accent:#14b8a6; --accent-2:#38bdf8; }
+  :root[data-accent="amber"]  { --accent:#f59e0b; --accent-2:#fbbf24; }
+  :root[data-accent="rose"]   { --accent:#f43f6e; --accent-2:#fb7185; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background:
+      radial-gradient(1100px 620px at 14% -12%, var(--glow-1), transparent 60%),
+      radial-gradient(900px 520px at 102% -4%, var(--glow-2), transparent 55%),
+      radial-gradient(820px 820px at 50% 122%, var(--glow-1), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  #sidebar {
+    width: 236px; flex-shrink: 0;
+    background: var(--sidebar-bg);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow-y: auto;
+    padding: 14px 12px 12px;
+  }
+  #sidebar::-webkit-scrollbar { width: 6px; }
+  #sidebar::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-faint) 45%, transparent); border-radius: 999px; }
+  #sidebar .brand { display: flex; align-items: center; gap: 10px; padding: 8px 10px 16px; font-size: 17px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
+  #sidebar .brand .logo { width: 34px; height: 34px; border-radius: 9px; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.06); border: 1px solid var(--border); }
+  #sidebar .brand .logo img { width: 100%; height: 100%; object-fit: cover; }
+  #sidebar .nav-group { padding: 2px; }
+  #sidebar .nav-group-title { font-size: 10.5px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.12em; padding: 14px 10px 6px; font-weight: 700; }
+  #sidebar .nav-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; margin: 1px 0; border: 1px solid transparent; border-radius: 12px; background: transparent; color: var(--text-dim); font-size: 13.5px; font-weight: 500; cursor: pointer; text-align: left; transition: all 0.16s; }
+  #sidebar .nav-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+  #sidebar .nav-item.active { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 20%, transparent), color-mix(in srgb, var(--accent-2) 8%, transparent)); color: #fff; border-color: color-mix(in srgb, var(--accent) 34%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent), 0 6px 20px color-mix(in srgb, var(--accent) 14%, transparent); }
+  #sidebar .nav-item .ico { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: transparent; border: 1px solid rgba(255,255,255,0.10); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); transition: all 0.18s ease; }
+  #sidebar .nav-item .ico svg { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 20%, transparent)); opacity: 0.72; color: var(--text-dim); }
+  #sidebar .nav-item:hover .ico { background: color-mix(in srgb, var(--accent) 10%, transparent); border-color: color-mix(in srgb, var(--accent) 30%, transparent); box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 10%, transparent); }
+  #sidebar .nav-item:hover .ico svg { opacity: 1; color: var(--accent); }
+  #sidebar .nav-item.active .ico { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.22); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 10%, transparent), 0 4px 14px color-mix(in srgb, var(--accent) 18%, transparent); }
+  #sidebar .nav-item.active .ico svg { filter: drop-shadow(0 0 7px rgba(255,255,255,0.45)); opacity: 1; color: #fff; }
+  #sidebar .version { margin-top: auto; padding: 16px 12px 6px; font-size: 11px; color: var(--text-faint); border-top: 1px solid var(--border); font-weight: 500; }
+
+  #main { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
+  #chat-view { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--bg); }
+  #chat-view .chat-header { padding: 16px 22px; font-weight: 700; font-size: 15px; background: var(--panel); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); color: var(--text); }
+  #chat-view .messages { flex: 1; overflow-y: auto; padding: 22px 26px; display: flex; flex-direction: column; gap: 16px; }
+  .msg { max-width: 68%; padding: 12px 16px; border-radius: 18px; font-size: 13.5px; line-height: 1.65; box-shadow: var(--shadow-sm); animation: msgPop 0.24s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+  @keyframes msgPop { from { opacity: 0; transform: translateY(8px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  .msg.ai { align-self: flex-start; background: var(--panel); border: 1px solid var(--border); border-top-left-radius: 6px; color: var(--text); }
+  .msg.user { align-self: flex-end; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 92%, transparent) 0%, color-mix(in srgb, var(--accent-2) 85%, transparent) 100%); color: #fff; border-top-right-radius: 6px; box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 22%, transparent); }
+  .msg .msg-name { font-size: 11px; margin-bottom: 5px; font-weight: 700; opacity: 0.62; color: var(--text-dim); }
+  #chat-view .employee-bar { display: flex; gap: 8px; padding: 12px 22px; border-bottom: 1px solid var(--border); background: var(--panel); backdrop-filter: blur(16px); overflow-x: auto; }
+  #chat-view .employee-bar .emp-pill { display: inline-flex; align-items: center; gap: 7px; padding: 6px 13px; border: 1px solid var(--border); border-radius: 999px; font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; background: var(--panel); color: var(--text-dim); transition: all 0.15s; }
+  #chat-view .employee-bar .emp-pill:hover { border-color: var(--accent); color: var(--text); transform: translateY(-1px); }
+  #chat-view .employee-bar .emp-dot { width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: var(--accent); background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent); }
+  .chat-toolbar { display: flex; align-items: center; gap: 8px; padding: 0 22px 10px; background: var(--panel); backdrop-filter: blur(16px); }
+  .chat-toolbar .tool-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); color: var(--text-dim); font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .chat-toolbar .tool-btn:hover { border-color: var(--accent); color: var(--text); background: var(--panel); box-shadow: var(--shadow-sm); }
+  .chat-toolbar .tool-btn svg { flex-shrink: 0; opacity: 0.75; }
+  .chat-toolbar .tool-btn.primary { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 92%, transparent) 0%, color-mix(in srgb, var(--accent-2) 82%, transparent) 100%); color: #fff; border: none; box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 20%, transparent); }
+  #chat-view .chat-input { display: flex; gap: 10px; padding: 16px 22px 18px; border-top: 1px solid var(--border); background: var(--panel); backdrop-filter: blur(16px); }
+  #chat-view .chat-input textarea { flex: 1; resize: none; height: 46px; padding: 12px 16px; border: 1.5px solid var(--border); border-radius: 14px; font-family: inherit; font-size: 13.5px; outline: none; background: var(--bg); color: var(--text); transition: border-color 0.16s, box-shadow 0.16s; }
+  #chat-view .chat-input textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent); }
+  #chat-view .chat-input textarea::placeholder { color: var(--text-faint); }
+  #chat-view .chat-input button { padding: 0 22px; border: none; border-radius: 14px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 92%, transparent) 0%, color-mix(in srgb, var(--accent-2) 82%, transparent) 100%); color: #fff; font-size: 13.5px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 22%, transparent); transition: all 0.16s; }
+  #chat-view .chat-input button:hover { transform: translateY(-1px); box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 30%, transparent); }
+
+  #content-view { display: none; flex: 1; overflow-y: auto; padding: 28px 32px 48px; }
+  #content-view.visible { display: block; animation: fadeUp 0.28s cubic-bezier(0.4, 0, 0.2, 1) both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  #content-view::-webkit-scrollbar { width: 8px; }
+  #content-view::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-faint) 45%, transparent); border-radius: 999px; }
+  #content-view h2 { font-size: 22px; margin-bottom: 6px; font-weight: 800; letter-spacing: -0.02em; }
+  #content-view .view-desc { color: var(--text-faint); font-size: 13px; margin-bottom: 26px; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  .info-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow-sm); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); transition: all 0.18s; }
+  .info-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: color-mix(in srgb, var(--accent) 32%, transparent); }
+  .info-card .info-label { font-size: 11.5px; color: var(--text-faint); margin-bottom: 8px; font-weight: 600; }
+  .info-card .info-value { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; word-break: break-word; overflow-wrap: anywhere; }
+  .info-card .info-note { font-size: 12px; color: var(--text-dim); margin-top: 8px; line-height: 1.4; }
+  .overview-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  .health-card .info-value { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .health-score { font-size: 14px; font-weight: 700; color: var(--text-dim); background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 999px; }
+  .svc-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+  .svc-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; font-size: 12px; box-shadow: var(--shadow-sm); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .svc-badge .svc-name { font-weight: 600; }
+  .svc-badge .svc-stat { color: var(--text-dim); }
+  .model-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .model-chip { background: var(--panel); border: 1px solid var(--border); color: var(--text-dim); padding: 5px 11px; border-radius: 999px; font-size: 12px; font-family: monospace; }
+  .model-chip.primary { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+  .empty-hint { color: var(--text-dim); font-size: 13px; padding: 12px 16px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 18px; }
+  .module-grid { display: flex; flex-direction: column; gap: 8px; }
+  .module-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 13px 16px; box-shadow: var(--shadow-sm); transition: all 0.16s; display: flex; align-items: center; gap: 14px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .module-card:hover { border-color: color-mix(in srgb, var(--accent) 35%, transparent); box-shadow: var(--shadow); }
+  .module-card .mod-info { flex: 1; min-width: 0; }
+  .module-card .mod-name { font-weight: 600; font-size: 13.5px; letter-spacing: -0.01em; }
+  .module-card .mod-desc { font-size: 12px; color: var(--text-dim); line-height: 1.5; margin-top: 2px; }
+  .module-card .mod-file { font-size: 10.5px; color: var(--accent); font-family: "SF Mono", "JetBrains Mono", Consolas, monospace; background: var(--accent-soft); padding: 4px 10px; border-radius: 999px; flex-shrink: 0; white-space: nowrap; }
+  .module-card .mod-file.mod-link { text-decoration: none; cursor: pointer; }
+  .module-card .mod-file.mod-link:hover { background: var(--accent); color: #fff; }
+  .switch { position: relative; display: inline-block; width: 38px; height: 22px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .slider { position: absolute; cursor: pointer; inset: 0; background: rgba(255,255,255,0.14); border-radius: 999px; transition: 0.2s; }
+  .switch .slider:before { content: ""; position: absolute; height: 16px; width: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+  .switch input:checked + .slider { background: var(--accent); }
+  .switch input:checked + .slider:before { transform: translateX(16px); }
+  .doc-card { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; text-decoration: none; color: var(--text); box-shadow: var(--shadow-sm); transition: all 0.16s; gap: 5px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .doc-card:hover { border-color: color-mix(in srgb, var(--accent) 35%, transparent); box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+  .doc-card .doc-name { font-weight: 700; font-size: 13px; }
+  .doc-card .doc-file { font-size: 10.5px; color: var(--accent); font-family: monospace; background: var(--accent-soft); padding: 2px 8px; border-radius: 999px; align-self: flex-start; margin-top: 4px; }
+  .emp-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow-sm); display: flex; align-items: center; gap: 11px; transition: all 0.16s; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .emp-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  .emp-card .emp-avatar { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; color: var(--accent); font-size: 15px; display: flex; align-items: center; justify-content: center; font-weight: 800; background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent); }
+  .emp-card .emp-meta { min-width: 0; }
+  .emp-card .emp-name { font-weight: 700; font-size: 13px; color: var(--text); }
+  .emp-card .emp-role { font-size: 11.5px; color: var(--text-faint); }
+  .section-title { font-size: 13px; font-weight: 700; margin: 24px 0 12px; color: var(--text-dim); letter-spacing: 0.03em; }
+  .gw-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow-sm); margin-bottom: 16px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .gw-field { display: flex; flex-direction: column; gap: 3px; padding: 6px 12px; border-right: 1px solid var(--border); }
+  .gw-field:last-of-type { border-right: none; }
+  .gw-label { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; }
+  .gw-value { font-size: 13px; font-weight: 600; color: var(--text); }
+  .gw-actions { margin-left: auto; display: flex; gap: 8px; }
+  .gw-btn { padding: 7px 14px; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,0.04); color: var(--text-dim); font-size: 12.5px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .gw-btn:hover { border-color: var(--accent); color: var(--text); }
+  .gw-btn.primary { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 92%, transparent) 0%, color-mix(in srgb, var(--accent-2) 82%, transparent) 100%); color: #fff; border: none; box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 18%, transparent); }
+  .log-panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .log-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 12.5px; }
+  .log-row:last-child { border-bottom: none; }
+  .log-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .log-key { font-weight: 600; color: var(--text); font-family: monospace; font-size: 12px; }
+  .log-state { font-size: 10.5px; font-weight: 700; color: var(--text-faint); padding: 2px 8px; background: rgba(255,255,255,0.05); border-radius: 999px; }
+  .log-level { width: 44px; font-weight: 700; font-size: 10.5px; letter-spacing: 0.02em; flex-shrink: 0; }
+  .log-text { flex: 1; color: var(--text-dim); }
+  .log-time { color: var(--text-faint); font-size: 11px; white-space: nowrap; }
+  #workflow-frame { display: none; width: 100%; height: 100%; border: none; background: var(--bg); }
+  #floorplan-frame { display: none; width: 100%; height: 100%; border: none; background: var(--bg); }
+  /* ===== 可视化组件 ===== */
+  .muted { color: var(--text-dim); font-size: 12px; }
+  .viz-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .viz-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow-sm); transition: box-shadow .18s; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .viz-card:hover { box-shadow: var(--shadow); }
+  .viz-head { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; font-weight: 600; color: var(--text-dim); margin-bottom: 10px; }
+  .viz-tag { font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 3px 9px; border-radius: 999px; }
+  .viz-tag.warn { color: #fcd34d; background: rgba(251,191,36,0.12); }
+  .chart { width: 100%; height: 120px; display: block; }
+  .spark { width: 100%; height: 28px; display: block; }
+  .donut-card { display: flex; flex-direction: column; }
+  .donut-wrap { display: flex; align-items: center; gap: 16px; }
+  .donut { width: 96px; height: 96px; flex-shrink: 0; }
+  .donut-pct { font-size: 17px; font-weight: 800; fill: var(--text); }
+  .donut-sub { font-size: 9px; fill: var(--text-faint); font-weight: 600; }
+  .donut-side { flex: 1; min-width: 0; }
+  .donut-side b { font-size: 20px; font-weight: 800; }
+  .donut-side span { color: var(--text-faint); font-size: 12px; margin-left: 4px; }
+  .bars { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .bar-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+  .bar-name { width: 96px; color: var(--text-dim); flex-shrink: 0; }
+  .bar-track { flex: 1; height: 8px; background: rgba(255,255,255,0.07); border-radius: 999px; overflow: hidden; }
+  .bar-fill { display: block; height: 100%; border-radius: 999px; }
+  .bar-val { width: 38px; text-align: right; font-weight: 700; color: var(--text); }
+  .icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .ch-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px; display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow-sm); transition: all .16s; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .ch-card.on { border-color: rgba(52,211,153,0.4); }
+  .ch-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  .ch-ico { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 15px; flex-shrink: 0; }
+  .ch-name { font-weight: 600; font-size: 13px; flex: 1; }
+  .ch-dot { width: 9px; height: 9px; border-radius: 50%; }
+  .ch-dot.up { background: var(--green); box-shadow: 0 0 0 3px rgba(52,211,153,0.18); }
+  .ch-dot.off { background: var(--text-faint); }
+  .switch.sm { width: 32px; height: 19px; }
+  .switch.sm .slider:before { height: 13px; width: 13px; left: 3px; top: 3px; }
+  .switch.sm input:checked + .slider:before { transform: translateX(13px); }
+  .agent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .agent-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow-sm); transition: all .16s; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .agent-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  .agent-ava { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; background: var(--accent-soft); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent); }
+  .agent-ava img { width: 100%; height: 100%; object-fit: cover; }
+  .agent-ava span { font-size: 18px; font-weight: 800; letter-spacing: .5px; }
+  .agent-info { flex: 1; min-width: 0; }
+  .agent-name { font-weight: 700; font-size: 13.5px; }
+  .agent-role { font-size: 11.5px; color: var(--text-faint); }
+  .agent-load { width: 120px; flex-shrink: 0; }
+  .inst-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .inst-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px; box-shadow: var(--shadow-sm); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .inst-top { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 10px; }
+  .inst-pill { margin-left: auto; font-size: 11px; color: #6ee7b7; background: rgba(52,211,153,0.12); padding: 2px 9px; border-radius: 999px; font-weight: 600; }
+  .sched-body { display: flex; align-items: center; gap: 14px; }
+  .sched-meta .big { font-size: 22px; font-weight: 800; }
+  .skill-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .skill-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow-sm); transition: all .16s; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .skill-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  .skill-ico { width: 38px; height: 38px; border-radius: 11px; background: var(--accent-soft); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .skill-meta { flex: 1; min-width: 0; }
+  .skill-name { font-weight: 600; font-size: 13px; }
+  .skill-val { font-weight: 800; font-size: 15px; color: var(--accent); }
+  .dag { width: 100%; max-width: 480px; height: 220px; }
+  .dag-t { font-size: 11px; font-weight: 700; fill: var(--text); }
+  .cfg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .cfg-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow-sm); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .cfg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .cfg-dot.ok { background: var(--green); }
+  .cfg-dot.bad { background: var(--red); }
+  .cfg-name { font-weight: 600; font-size: 13px; flex: 1; }
+  .cfg-st { font-size: 11px; font-weight: 700; }
+  .cfg-st.ok { color: var(--green); }
+  .cfg-st.bad { color: var(--red); }
+  .swatch-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .swatch { height: 64px; border-radius: 12px; display: flex; align-items: flex-end; padding: 8px; }
+  .swatch span { font-size: 9px; color: #fff; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
+  .logo-preview { width: 120px; height: 120px; border-radius: 20px; background: var(--accent-soft); display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .logo-preview img { width: 100%; height: 100%; object-fit: contain; }
+  .chain { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
+  .chain-node { border: 2px solid; border-radius: 14px; padding: 12px 18px; background: var(--panel); text-align: center; min-width: 92px; }
+  .chain-node b { display: block; font-size: 14px; }
+  .chain-node span { font-size: 11px; color: var(--text-faint); }
+  .chain-arrow { font-size: 20px; color: var(--text-faint); font-weight: 700; }
+  .svc-name { font-weight: 700; font-size: 13px; margin-top: 8px; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .stat-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow-sm); transition: all .18s; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .stat-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+  .stat-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .stat-label { font-size: 11.5px; color: var(--text-faint); font-weight: 600; }
+  .stat-card .spark { width: 90px; height: 26px; flex-shrink: 0; }
+  .stat-value { font-size: 24px; font-weight: 800; letter-spacing: -.02em; margin-top: 8px; }
+  .stat-note { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+  .detail-wrap.collapsed { display: none; }
+  .section-title.collapsible { cursor: pointer; user-select: none; }
+  .section-title.collapsible .chev { transition: transform .2s; display: inline-block; }
+  .section-title.collapsible.active .chev { transform: rotate(-90deg); }
+
+  @media (max-width: 720px) {
+    #sidebar { width: 62px; padding: 14px 8px; }
+    #sidebar .brand .label, #sidebar .nav-item .label, #sidebar .nav-group-title, #sidebar .version { display: none; }
+    #sidebar .nav-item { justify-content: center; padding: 10px; }
+    #sidebar .brand { justify-content: center; }
+    #content-view { padding: 20px 16px 32px; }
+    .msg { max-width: 86%; }
+  }
+  .svc-badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 18px; }
+  .svc-badge .svc-dot { width: 8px; height: 8px; border-radius: 50%; background: #f87171; }
+  .svc-badge.up .svc-dot { background: #34d399; }
+  .svc-badge.down { opacity: .72; }
+  .mod-list { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 4px; }
+  .mod-chip { font-size: 12px; padding: 5px 12px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); border: 1px solid var(--border); font-family: monospace; }
+  .mod-chip.up { background: rgba(52,211,153,0.12); color: #6ee7b7; border-color: rgba(52,211,153,0.30); }
+  .cfg-list { display: flex; flex-direction: column; gap: 2px; padding: 12px 4px; }
+  .cfg-row { display: flex; justify-content: space-between; gap: 16px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,0.03); font-size: 13px; }
+  .cfg-k { color: var(--text-dim); font-weight: 600; }
+  .cfg-v { color: var(--text); text-align: right; font-family: monospace; font-size: 12.5px; }
+  .cfg-hint { font-size: 12.5px; color: var(--text-faint); line-height: 1.6; margin-top: 4px; }
+  .cfg-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .cfg-field label { font-size: 12px; color: var(--text-dim); font-weight: 600; }
+  .cfg-input { padding: 10px 13px; border: 1.5px solid var(--border); border-radius: 12px; font-family: inherit; font-size: 13px; outline: none; background: var(--bg); color: var(--text); transition: border-color 0.16s, box-shadow 0.16s; }
+  .cfg-input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent); }
+  .cfg-input::placeholder { color: var(--text-faint); }
+  .cfg-msg { font-size: 12.5px; font-weight: 600; }
+  .cfg-msg.ok { color: var(--green); }
+  .cfg-msg.err { color: var(--red); }
+  /* 后端未连接 / 渲染出错 兜底卡片 */
+  .offline-card { margin: 18px 0; padding: 26px 28px; border-radius: 16px;
+    background: linear-gradient(135deg, var(--accent-soft), transparent);
+    border: 1px solid var(--accent-soft); border-left: 3px solid var(--accent); text-align: center;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.45), 0 0 0 1px var(--accent-soft) inset; }
+  .offline-ico { font-size: 38px; margin-bottom: 8px; }
+  .offline-title { font-size: 17px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+  .offline-sub { font-size: 13px; color: var(--text-dim); line-height: 1.7; }
+  .offline-sub code { display: inline-block; margin-top: 6px; padding: 4px 10px; border-radius: 8px;
+    background: rgba(255,255,255,0.06); color: var(--accent); font-family: monospace; font-size: 12px; border: 1px solid var(--border); }
+  /* ===== 主题切换组件（外观面板 + 侧栏快捷）===== */
+  .seg { display: inline-flex; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 12px; padding: 4px; gap: 4px; }
+  .seg-btn { border: none; background: transparent; color: var(--text-dim); font-size: 13px; font-weight: 600; padding: 8px 18px; border-radius: 9px; cursor: pointer; transition: all .15s; }
+  .seg-btn:hover { color: var(--text); }
+  .seg-btn.active { background: var(--accent); color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.22); }
+  .preset-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .preset-btn { border: 1px solid var(--border); background: var(--panel); color: var(--text-dim); font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 8px; cursor: pointer; transition: all .15s; }
+  .preset-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .accent-opt { cursor: pointer; border: 2px solid transparent; color: #fff; font-weight: 700; text-shadow: 0 1px 3px rgba(0,0,0,.5); transition: transform .15s, box-shadow .15s; }
+  .accent-opt:hover { transform: translateY(-2px); }
+  .accent-opt.active { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.28), 0 6px 18px rgba(0,0,0,.35); }
+  .theme-quick { padding: 8px 12px 4px; }
+  .theme-quick-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 9px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); color: var(--text-dim); font-size: 12.5px; font-weight: 600; cursor: pointer; transition: all .15s; }
+  .theme-quick-btn:hover { border-color: var(--accent); color: var(--text); }
+  /* ===== 视觉风格（data-style）：在 theme 之上覆盖整体质感 ===== */
+  /* 扁平：去玻璃、去阴影、面板用实色 */
+  :root[data-style="flat"] {
+    --panel: var(--bg);
+    --shadow-sm: 0 1px 2px rgba(16,24,40,0.06);
+    --shadow: 0 2px 8px rgba(16,24,40,0.08);
+    --shadow-lg: 0 6px 18px rgba(16,24,40,0.10);
+  }
+  :root[data-style="flat"] .stat-card,
+  :root[data-style="flat"] .ch-card,
+  :root[data-style="flat"] .agent-card,
+  :root[data-style="flat"] .skill-card,
+  :root[data-style="flat"] .inst-card,
+  :root[data-style="flat"] .cfg-card,
+  :root[data-style="flat"] .viz-card,
+  :root[data-style="flat"] .module-card,
+  :root[data-style="flat"] .doc-card,
+  :root[data-style="flat"] .info-card,
+  :root[data-style="flat"] .emp-card { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+  /* 赛博霓虹（强制深色基底） */
+  :root[data-style="neon"][data-theme="dark"] {
+    --bg: #05060a;
+    --sidebar-bg: rgba(10,14,24,0.85);
+    --panel: rgba(10,16,28,0.62);
+    --border: rgba(56,189,248,0.38);
+    --border-strong: rgba(56,189,248,0.6);
+    --text: #d6ecff;
+    --text-dim: #7fa8d0;
+    --text-faint: #4a6580;
+    --shadow-sm: 0 0 12px rgba(56,189,248,0.18);
+    --shadow: 0 0 26px rgba(56,189,248,0.28), 0 0 2px rgba(56,189,248,0.6);
+    --shadow-lg: 0 0 40px rgba(56,189,248,0.36), 0 0 4px rgba(56,189,248,0.7);
+    --glow-1: rgba(56,189,248,0.20);
+    --glow-2: rgba(168,85,247,0.16);
+  }
+  /* 夜森林（深绿棕木质，强制深色基底） */
+  :root[data-style="forest"][data-theme="dark"] {
+    --bg: #0e1510;
+    --sidebar-bg: rgba(16,24,18,0.82);
+    --panel: rgba(20,30,22,0.6);
+    --border: rgba(120,160,110,0.30);
+    --border-strong: rgba(120,160,110,0.5);
+    --text: #d8f0d8;
+    --text-dim: #8fae8f;
+    --text-faint: #5f7a5f;
+    --accent: #4caf50;
+    --accent-2: #8bc34a;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
+    --shadow: 0 8px 24px rgba(0,0,0,0.5);
+    --shadow-lg: 0 18px 50px rgba(0,0,0,0.6);
+    --glow-1: rgba(76,175,80,0.12);
+    --glow-2: rgba(139,195,74,0.08);
+    --accent-soft: color-mix(in srgb, #4caf50 14%, transparent);
+  }
+  .style-opt {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 12px; background: var(--panel);
+    color: var(--text-dim); font-size: 12.5px; font-weight: 600; cursor: pointer;
+    transition: all .15s; width: 100%; text-align: left;
+  }
+  .style-opt:hover { border-color: var(--accent); color: var(--text); }
+  .style-opt.active { border-color: var(--accent); color: var(--text); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .style-swatch { width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0; border: 1px solid var(--border-strong); }
+  /* ===== OpenClaw 可操作控件 ===== */
+  .form-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+  .form-row .cfg-input { flex: 1; min-width: 120px; }
+  .mcp-row { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--border); }
+  .mcp-row:last-child { border-bottom: none; }
+  .mcp-info { flex: 1; min-width: 0; }
+  .mcp-name { font-weight: 700; font-size: 13px; color: var(--text); }
+  .sess-chip { padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; margin: 4px 0; background: var(--panel); font-size: 12px; font-family: monospace; }
+  .cfg-dump { font-family: monospace; font-size: 11px; line-height: 1.6; background: var(--bg-soft); border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-top: 8px; overflow: auto; max-height: 220px; white-space: pre-wrap; word-break: break-all; }
+  .gw-btn.mini { padding: 5px 10px; font-size: 11px; border-radius: 7px; }
+  .gw-btn.danger { background: transparent; color: #ef4444; border-color: #ef444466; }
+  .gw-btn.danger:hover { background: #ef44441a; }
+</style>
+<script>
+  /* 提前应用主题，避免首屏闪烁 */
+  (function() {
+    try {
+      var t = localStorage.getItem('bd-theme') || 'light';
+      var a = localStorage.getItem('bd-accent') || 'blue';
+      var s = localStorage.getItem('bd-style');
+      var d = document.documentElement;
+      d.setAttribute('data-theme', t);
+      d.setAttribute('data-accent', a);
+      if (s) d.setAttribute('data-style', s);
+    } catch (e) {}
+  })();
+</script>
+</head>
+<body>
+
+<div id="sidebar">
+  <div class="brand"><div class="logo"><img src="/static/assets/bluedeer-logo.png" alt="BlueDeer"></div><span class="label">BlueDeer</span></div>
+  <div class="nav-group">
+    <button class="nav-item active" data-view="chat"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></span><span class="label">聊天</span></button>
+    <button class="nav-item" data-view="overview"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg></span><span class="label">概览</span></button>
+    <button class="nav-item" data-view="openclaw"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg></span><span class="label">OpenClaw 控制台</span></button>
+    <button class="nav-item" data-view="floorplan"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></span><span class="label">办公室平面图</span></button>
+    <button class="nav-item" data-view="channels"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M4.93 19.07a10 10 0 0 1 0-14.14"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></span><span class="label">频道</span></button>
+    <button class="nav-item" data-view="instances"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/></svg></span><span class="label">实例</span></button>
+    <button class="nav-item" data-view="sessions"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg></span><span class="label">会话</span></button>
+    <button class="nav-item" data-view="usage"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span><span class="label">使用情况</span></button>
+    <button class="nav-item" data-view="workflow"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9"/><path d="M12 12v3"/></svg></span><span class="label">工作流</span></button>
+  </div>
+  <div class="nav-group-title">任务</div>
+  <div class="nav-group">
+    <button class="nav-item" data-view="schedule"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span><span class="label">定时任务</span></button>
+    <button class="nav-item" data-view="agents"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></span><span class="label">代理</span></button>
+    <button class="nav-item" data-view="skills"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></span><span class="label">技能</span></button>
+    <button class="nav-item" data-view="nodes"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></svg></span><span class="label">节点</span></button>
+  </div>
+  <div class="nav-group-title">系统</div>
+  <div class="nav-group">
+    <button class="nav-item" data-view="config"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="label">配置</span></button>
+    <button class="nav-item" data-view="comm"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13 1 .37 1.94.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.87.33 1.81.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span><span class="label">通信</span></button>
+    <button class="nav-item" data-view="appearance"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.65-.75 1.65-1.69 0-.44-.18-.84-.44-1.13-.29-.29-.65-.44-1.13-.44a1.66 1.66 0 0 0-1.67 1.67h1.99c3.05 0 5.56-2.5 5.56-5.55C21.97 6.01 17.46 2 12 2z"/></svg></span><span class="label">外观与设置</span></button>
+    <button class="nav-item" data-view="automation"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></span><span class="label">自动化</span></button>
+  </div>
+  <div class="nav-group-title">基础设施</div>
+  <div class="nav-group">
+    <button class="nav-item" data-view="infra"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></span><span class="label">基础设施</span></button>
+    <button class="nav-item" data-view="aiagents"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg></span><span class="label">AI与代理</span></button>
+    <button class="nav-item" data-view="debug"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3 3 0 0 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/></svg></span><span class="label">调试</span></button>
+    <button class="nav-item" data-view="logs"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span><span class="label">日志</span></button>
+    <button class="nav-item" data-view="docs"><span class="ico"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span><span class="label">文档</span></button>
+  </div>
+  <div class="theme-quick"><button id="themeQuick" class="theme-quick-btn" type="button">🌙 深色</button></div>
+  <div class="version">BlueDeer v0.8.0</div>
+</div>
+
+<div id="main">
+  <div id="chat-view">
+    <div class="chat-header">聊天</div>
+    <div class="employee-bar" id="employee-bar"></div>
+    <div class="messages" id="messages">
+      <div class="msg ai"><div class="msg-name">BlueDeer</div>你好，我是 BlueDeer 蓝鹿。这是本地优先的多智能体控制台。</div>
+    </div>
+    <div class="chat-toolbar">
+      <input type="file" id="file-input" multiple style="display:none;">
+      <input type="file" id="image-input" accept="image/*" multiple style="display:none;">
+      <button class="tool-btn" id="btn-new-chat" title="新对话"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8"/><path d="M8 13h5"/></svg><span>新对话</span></button>
+      <button class="tool-btn" id="btn-file" title="添加文件"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg><span>文件</span></button>
+      <button class="tool-btn" id="btn-image" title="添加图片"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg><span>图片</span></button>
+      <button class="tool-btn" id="btn-download" title="下载对话"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg><span>下载</span></button>
+      <div style="flex:1;"></div>
+      <span id="voice-status" style="font-size:11px; color:var(--text-faint);"></span>
+    </div>
+    <div class="chat-input">
+      <button class="tool-btn primary" id="btn-voice" title="语音输入"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="4" height="9" x="9" y="3" rx="2"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></button>
+      <textarea id="chat-textarea" placeholder="输入消息…"></textarea>
+      <button id="chat-send">发送</button>
+    </div>
+  </div>
+  <div id="content-view"></div>
+  <iframe id="workflow-frame" src="workflow.html"></iframe>
+  <iframe id="floorplan-frame" src="/floorplan"></iframe>
+</div>
+
+<script>
+(function() {
+  'use strict';
+  var DOC = '/repo/';
+  var BD = DOC + 'BlueDeer/';  // 文档/源码真实路径在 BlueDeer/ 子目录下
+  var KB = DOC + 'ObsidianPortable/Bill/';
+  var EMPLOYEES = [
+    ['忧郁鹿','调度官','忧'],['机灵鼠','前端工程师','机'],['绘羽蝶','视觉设计师','绘'],
+    ['赤谋狐','测试工程师','赤'],['针客猬','安全工程师','针'],['大坝狸','基建工程师','大'],
+    ['黑卷鸦','记忆管理员','黑'],['霜耳兔','快递员','霜'],['土工獾','矿工','土'],
+    ['清音雀','播音员','清'],['天瞰鸢','瞭望员','天']
+  ];
+  function mod(name, desc, file) { return {name:name, desc:desc, file:file}; }
+  function doc(name, file, path) { return {name:name, file:file, path:path}; }
+  // 判断 mod().file 是否是项目内真实可点击文件（core/ docs/ web_server/ 等源码或文档）
+  function isRepoFile(f) {
+    if (!f || typeof f !== 'string') return false;
+    return /^(core|docs|web_server|cli|templates|routes|static|data)\//.test(f)
+      || /\.(py|md|json|html|js|css|yml|yaml|toml)$/.test(f);
+  }
+
+  var VIEWS = {
+    overview: {
+      type: 'gateway',
+      title: '概览',
+      desc: 'BlueDeer 网关运行态总览 · 真实数据每 10 秒刷新',
+      gateway: { mode: '…', port: '…', authMode: '…', bind: '…' },
+      stats: { agentsOnline: '…', channelsConnected: '…', primaryModel: '加载中…', tokensToday: '…', health: 'unknown', healthScore: 0 },
+      services: { gatewayRunning: false, ollamaRunning: false, installedModels: [], modelReachable: false },
+      recent: [{ mainKey: 'system', state: 'IDLE', time: '刚刚' }],
+      events: [{ level: 'INFO', text: '正在连接实时数据源…', time: '刚刚' }],
+      logs: [{ level: 'INFO', text: '等待 /api/realtime-status 返回…', time: '刚刚' }]
+    },
+
+    openclaw: {
+      type: 'static',
+      title: 'OpenClaw 控制台',
+      desc: 'OpenClaw 网关原生控制台（实时聊天 / 会话 / 频道 / 定时任务 / 技能）',
+      url: 'http://127.0.0.1:18789/'
+    },
+
+    channels: {
+      title: '频道',
+      desc: 'channels.* 接入各类聊天/通讯平台',
+      sections: [
+        { title: '通用字段', modules: [
+          mod('enabled', 'boolean，必填，是否启用该频道', 'channels.<name>.enabled'),
+          mod('dmPolicy', 'pairing | allowlist | open | disabled，必填', 'channels.<name>.dmPolicy'),
+          mod('allowFrom', 'string[]，allowlist/open 时允许的对方 ID', 'channels.<name>.allowFrom'),
+          mod('accounts', 'object，多账号配置（token/dmPolicy/guilds）', 'channels.<name>.accounts')
+        ]},
+        { title: '平台必填字段', modules: [
+          mod('telegram', 'botToken（或 accounts.default.botToken）', 'botToken'),
+          mod('discord', 'token + guilds.{id}.channels', 'token'),
+          mod('feishu', 'appId + appSecret', 'appId'),
+          mod('qqbot', 'appId + clientSecret + token', 'appId'),
+          mod('slack', 'botToken + appToken', 'botToken'),
+          mod('signal', 'phoneNumber', 'phoneNumber'),
+          mod('line', 'channelSecret + channelAccessToken', 'channelSecret'),
+          mod('msteams', 'tenantId + appId + appPassword', 'tenantId'),
+          mod('googlechat', 'spaceId + serviceAccount', 'spaceId'),
+          mod('matrix', 'homeserver + accessToken + userId', 'homeserver'),
+          mod('whatsapp', '需 bluedeer channels login 完成 OAuth', 'OAuth'),
+          mod('voice-call', 'provider(twilio/telnyx/plivo) + accountSid + authToken', 'provider')
+        ]},
+        { title: '规则', modules: [
+          mod('凭据管理', '凭据走 credentials/ 或环境变量，不明文写入', 'credentials/'),
+          mod('多账号', '多账号用 accounts 嵌套，单账号可平铺字段', 'accounts'),
+          mod('扩展校验', '新增平台前确认扩展存在，未知频道名拒绝', 'bluedeer channels test')
+        ]}
+      ]
+    },
+
+    instances: {
+      title: '实例',
+      desc: '多实例、多 agent 隔离且可复现的工程化目录',
+      sections: [
+        { title: '目录结构', modules: [
+          mod('config/', '配置中心：bluedeer.json、环境变量、密钥、频道配置', '.bluedeer/config'),
+          mod('workspace/', '主工作区（data/output/skills/workflows/logs/temp/assets）', '.bluedeer/workspace'),
+          mod('models/', '本地模型缓存', '.bluedeer/models'),
+          mod('system/', '系统缓存（勿手动改）', '.bluedeer/system')
+        ]},
+        { title: '运行规则', modules: [
+          mod('固定路径', '输入 data/、输出 output/、技能 skills/、工作流 workflows/、日志 logs/', 'workspace/*'),
+          mod('多实例', '通过 BLUEDEER_HOME 环境变量切换根目录', 'BLUEDEER_HOME'),
+          mod('持久卷', '容器/云部署时 config/ 与 workspace/ 须挂载持久卷', 'volume'),
+          mod('禁止硬编码', '脚本/技能读写必须走约定路径，禁止绝对路径', 'rule'),
+          mod('工作区隔离', '实例间不共享 workspace/，跨实例交换走 output/+显式导入', 'rule')
+        ]}
+      ]
+    },
+
+    sessions: {
+      title: '会话',
+      desc: '用户与 Agent 的一次连续交互上下文',
+      sections: [
+        { title: '核心字段', modules: [
+          mod('mainKey', '每个 agent 的主会话键，直接聊天落到 agent::（如 main::）', 'session.mainKey'),
+          mod('time_updated', '最后活跃时间戳（ms），用于判定状态', 'session.time_updated'),
+          mod('state', '运行时状态 RUNNING / IDLE / STOPPED', 'session.state'),
+          mod('workspace', '会话绑定的独立工作区（与 agentId 对应）', 'session.workspace')
+        ]},
+        { title: '隔离与清理', modules: [
+          mod('独立隔离', '每个 agentId 拥有独立 workspace + session store，上下文不混', 'agentId'),
+          mod('磁盘清理', 'bluedeer sessions cleanup 按 sessionRetention 删过期', 'cleanup'),
+          mod('摘要压缩', '上下文超限自动摘要压缩，保留最近 K 轮 + 长期记忆', 'compress'),
+          mod('禁止跨读', '严格按 agentId 隔离，禁止跨 agent 读取 session', 'rule'),
+          mod('key 约定', '主会话 agent::，子会话加后缀 agent::taskId', 'rule')
+        ]}
+      ]
+    },
+
+    usage: {
+      title: '使用情况',
+      desc: 'Token / 费用 / 配额消耗（对应 bluedeer status --usage）',
+      sections: [
+        { title: '数据维度', modules: [
+          mod('provider', '模型供应商（bluedeer / openai / anthropic）', 'provider'),
+          mod('tokens', '累计 token 用量（含 input/output 拆分）', 'tokens'),
+          mod('cost', '费用（供应商返回时显示）', 'cost'),
+          mod('quota', '配额上限（套餐/自定义）', 'quota'),
+          mod('rateLimit', '限流状态（剩余额度/重置时间）', 'rateLimit')
+        ]},
+        { title: '页面能力', modules: [
+          mod('Token 审计', '按 agent / 频道 / 时间段拆分', 'audit'),
+          mod('预算', '月度/每日上限 + 超阈值告警', 'budget'),
+          mod('限流', '实时显示各 provider 速率', 'rateLimit'),
+          mod('指标采集', '埋点用量上报，可对接 Prometheus', 'metrics')
+        ]},
+        { title: '规则', modules: [
+          mod('只读展示', '用量统计只读，配置预算/告警走「配置」模块', 'rule'),
+          mod('脱敏', '用量明细按 redactSensitive 脱敏用户标识', 'redactSensitive')
+        ]}
+      ]
+    },
+
+    schedule: {
+      title: '定时任务',
+      desc: 'Agent 按计划自动执行（crons[] 或 cron/jobs.json）',
+      sections: [
+        { title: '单任务字段', modules: [
+          mod('label', 'string，必填，任务名（出现在日志）', 'crons[].label'),
+          mod('schedule', 'string，必填，标准 5 段 cron 分 时 日 月 周', 'crons[].schedule'),
+          mod('prompt', 'string，必填，触发时给 agent 的指令', 'crons[].prompt'),
+          mod('channel', 'string，可选，输出频道，默认主频道', 'crons[].channel'),
+          mod('agentId', 'string，可选，多 agent 时指定 agent', 'crons[].agentId'),
+          mod('skills', 'string[]，可选，本次任务可用技能白名单', 'crons[].skills')
+        ]},
+        { title: '全局调度器', modules: [
+          mod('enabled', 'cron.enabled 总开关', 'cron.enabled'),
+          mod('maxConcurrentRuns', '并发上限，默认 2', 'cron.maxConcurrentRuns'),
+          mod('sessionRetention', '会话保留，默认 24h', 'cron.sessionRetention'),
+          mod('runLog', 'maxBytes / keepLines 日志配置', 'cron.runLog')
+        ]},
+        { title: '规则', modules: [
+          mod('cron 校验', 'schedule 必须标准 5 段 cron，否则拒绝', 'rule'),
+          mod('并发保护', '长任务设 maxConcurrentRuns 防资源打满', 'rule'),
+          mod('频道依赖', '输出频道需在 channels.* 已启用，否则静默失败', 'rule')
+        ]}
+      ]
+    },
+
+    agents: {
+      title: '代理',
+      desc: '多 Agent 通过配置隔离与路由',
+      employees: EMPLOYEES,
+      sections: [
+        { title: 'agents.defaults', modules: [
+          mod('workspace', '默认 ~/.bluedeer/workspace', 'defaults.workspace'),
+          mod('model.primary', '主模型 bluedeer/blue-deer-7b', 'defaults.model.primary'),
+          mod('model.fallbacks', '回退模型列表', 'defaults.model.fallbacks'),
+          mod('model.params', 'context1m 等参数', 'defaults.model.params'),
+          mod('heartbeat', 'every / target 心跳配置', 'defaults.heartbeat'),
+          mod('skills', '默认技能（github、weather）', 'defaults.skills')
+        ]},
+        { title: 'agents.entries', modules: [
+          mod('id', '必填，agent 唯一标识', 'entries.id'),
+          mod('default', '是否默认 agent', 'entries.default'),
+          mod('name', '显示名', 'entries.name'),
+          mod('workspace', '独立工作区', 'entries.workspace'),
+          mod('agentDir', 'agent 专属目录', 'entries.agentDir'),
+          mod('skills', '技能白名单（非空即最终集合，不合并 defaults）', 'entries.skills')
+        ]},
+        { title: 'bindings 路由', modules: [
+          mod('agentId', '路由目标 agent', 'bindings[].agentId'),
+          mod('match', '按 channel / accountId / peer + 可选 guild/team 路由', 'bindings[].match'),
+          mod('隔离', '多 agent 一律 entries + bindings，绝不混会话', 'rule'),
+          mod('skills 覆盖', 'skills 非空时以该列表为最终集合', 'rule'),
+          mod('唯一性', 'agentId 全局唯一，重名配置校验拒绝', 'rule')
+        ]}
+      ]
+    },
+
+    skills: {
+      title: '技能',
+      desc: '可复用能力单元（SKILL.md + 配置项）',
+      sections: [
+        { title: 'SKILL.md 元数据', modules: [
+          mod('name', '必填，技能名/斜杠命令名', 'SKILL.md name'),
+          mod('description', '必填，何时使用', 'SKILL.md description'),
+          mod('user-invocable', '可选，是否可作斜杠命令（默认 true）', 'user-invocable'),
+          mod('disable-model-invocation', '可选，true 时仅显式 $name 调用', 'disable-model-invocation'),
+          mod('command-dispatch', '可选，tool 绕过模型直派工具', 'command-dispatch')
+        ]},
+        { title: 'metadata.bluedeer 门控', modules: [
+          mod('os', '平台过滤 darwin|linux|win32', 'os'),
+          mod('requires.bins/env/config', '依赖检查，不满足自动禁用并 WARN', 'requires'),
+          mod('primaryEnv', '关联 skills.entries 的环境变量', 'primaryEnv'),
+          mod('install[]', '安装器规格 brew/node/go/uv/download', 'install'),
+          mod('skillKey', '用此 key 取代技能名查 entries', 'skillKey')
+        ]},
+        { title: '启用与安装', modules: [
+          mod('entries', 'enabled / apiKey(source+provider+id) / env / config', 'skills.entries'),
+          mod('allowBundled', '允许的内置技能', 'skills.allowBundled'),
+          mod('安装', 'bluedeer skills install @owner/<slug>', 'install'),
+          mod('密钥', '走 apiKey/env，禁止明文写在 SKILL.md', 'rule'),
+          mod('加载', '技能必含 name + description，否则不加载', 'rule')
+        ]}
+      ]
+    },
+
+    nodes: {
+      title: '节点 / 工作流',
+      desc: '由节点组成的多步自动化编排（打开左侧「工作流」按钮可拖拽编辑）',
+      sections: [
+        { title: '五类节点', modules: [
+          mod('Trigger', '起点，type: manual/cron/webhook/event；webhook 配 path/method/auth', 'trigger'),
+          mod('LLM', '调模型：model/system_prompt/temperature/max_tokens/tools', 'llm'),
+          mod('Tool', '操作：web_search/read_file/execute_command/http_request/database_query', 'tool'),
+          mod('Condition', '分支：if/then/else，如 {{result.status}} == "success"', 'condition'),
+          mod('Loop', '循环：批量数据处理', 'loop'),
+          mod('Output', '终点：返回用户或发外部系统', 'output')
+        ]},
+        { title: '数据流与 FlowJob', modules: [
+          mod('字段映射', '节点间 {{input.field}}，支持上游/固定值/上下文变量', '{{}}'),
+          mod('FlowJob', 'job 级包装：flow id、owner session、waiting 状态、最小输出', 'flowjob'),
+          mod('管理命令', 'bluedeer flows list | show | cancel', 'flows')
+        ]},
+        { title: '规则', modules: [
+          mod('五类优先', '工作流优先用五类节点 + {{}} 插值，核心层不写分支逻辑', 'rule'),
+          mod('webhook auth', 'webhook 触发必须配 auth，否则拒绝启用', 'rule'),
+          mod('长流程', '用 FlowJob 包装，便于取消与状态追踪', 'rule')
+        ]}
+      ]
+    },
+
+    config: {
+      title: '配置',
+      desc: '主配置 bluedeer.json，严格 schema 校验',
+      sections: [
+        { title: '配置结构', modules: [
+          mod('gateway', 'mode / port(18789) / bind / auth(mode+token) / controlUi / http', 'gateway'),
+          mod('models', 'mode: merge / providers', 'models'),
+          mod('agents', 'defaults / entries', 'agents'),
+          mod('channels', '频道配置', 'channels'),
+          mod('commands', 'restart 等命令开关', 'commands'),
+          mod('mcp', 'servers', 'mcp'),
+          mod('skills', 'allowBundled', 'skills'),
+          mod('logging', 'level / redactSensitive: tools', 'logging'),
+          mod('update', 'channel: stable / checkOnStart', 'update')
+        ]},
+        { title: '规则', modules: [
+          mod('严格校验', '未知键/类型错误导致 Gateway 拒绝启动', 'schema'),
+          mod('热重载', '编辑后热重载，$schema 是唯一允许的额外根键', 'hot-reload'),
+          mod('生产安全', 'auth.mode 不得为 none，bind 不得为 0.0.0.0 暴露公网', 'security')
+        ]}
+      ]
+    },
+
+    comm: {
+      title: '通信',
+      desc: 'Agent 与用户/外部系统交换消息',
+      sections: [
+        { title: '通信机制', modules: [
+          mod('DM 策略', 'dmPolicy = pairing | allowlist | open | disabled', 'dmPolicy'),
+          mod('Webhook 触发', '工作流 Trigger type:webhook，配 path/method/auth:bearer_token', 'webhook'),
+          mod('Hooks', 'Gateway 级钩子，任务前后执行（发通知/写日志）', 'hooks')
+        ]},
+        { title: '规则', modules: [
+          mod('Webhook 鉴权', '对外 Webhook 一律 auth:bearer_token，禁止匿名', 'auth'),
+          mod('开放策略', 'dmPolicy=open 仅限内网/可信环境，公网必须 pairing/allowlist', 'policy'),
+          mod('Hooks 兜底', 'Hooks 失败不得阻断主任务，记 ERROR 并继续', 'rule')
+        ]}
+      ]
+    },
+
+    appearance: {
+      title: '外观与设置',
+      desc: 'identity 定义 Agent 人格与视觉锚点（蓝鹿专属）',
+      sections: [
+        { title: 'identity 字段', modules: [
+          mod('name', 'Agent 名称，默认 BlueDeer / 蓝鹿', 'identity.name'),
+          mod('logo', '品牌 LOGO 图片路径（蓝色几何鹿头 PNG/SVG），不是 emoji', 'identity.logo'),
+          mod('theme', '主题描述：蓝色系 / 几何鹿 / 科技感', 'identity.theme')
+        ]},
+        { title: '规则', modules: [
+          mod('自有品牌', '使用蓝色几何鹿头 LOGO，不引用其他产品形象/emoji', 'brand'),
+          mod('展示位置', 'logo 在侧栏/头像/加载页展示', 'ui'),
+          mod('主题影响', '主题变更仅影响 UI 风格锚点，不改变功能', 'theme'),
+          mod('多 agent', '各 agent 可覆盖自身 identity（name/logo）', 'multi-agent')
+        ]}
+      ]
+    },
+
+    automation: {
+      title: '自动化',
+      desc: '四件套实现无人值守自运行',
+      sections: [
+        { title: '四件套', modules: [
+          mod('Cron 定时任务', '周期性自动执行（crons/cron）', 'cron'),
+          mod('Heartbeat 心跳', '定期唤醒 agent 主动提醒/报告', 'agents.defaults.heartbeat'),
+          mod('Hooks', 'Gateway 钩子，任务前后自动动作', 'hooks'),
+          mod('Webhooks', '工作流 Trigger 外部事件触发', 'webhook')
+        ]},
+        { title: 'heartbeat 字段', modules: [
+          mod('every', '间隔，如 30m（<5m 会被校验警告）', 'every'),
+          mod('target', 'last', 'target'),
+          mod('model', 'bluedeer/blue-deer-7b', 'model'),
+          mod('to', '接收方，如 +8613800138000', 'to'),
+          mod('prompt', 'HEARTBEAT', 'prompt'),
+          mod('ackMaxChars', '300', 'ackMaxChars')
+        ]},
+        { title: '规则', modules: [
+          mod('可组合', 'cron 触发 → hook 前置 → 执行 → heartbeat 汇总', 'compose'),
+          mod('失败重试', '自动化任务失败自动重试，超限告警', 'retry')
+        ]}
+      ]
+    },
+
+    workflow: {
+      title: '工作流',
+      desc: '由节点组成的多步自动化编排引擎（核心模块均真实存在于 core/）',
+      sections: [
+        { title: '五类优先节点', modules: [
+          mod('trigger', '触发节点：cron / webhook / 事件 启动工作流', 'scheduler'),
+          mod('condition', '条件节点：分支判断，核心层不写硬编码分支', 'rule'),
+          mod('action', '动作节点：调用 Agent / 工具 / 脚本', 'task_orchestrator'),
+          mod('loop', '循环节点：批量 / 重试 / 并发', 'task_board'),
+          mod('end', '结束节点：汇总与 heartbeat 报告', 'heartbeat')
+        ]},
+        { title: '插值语法', modules: [
+          mod('{{input.x}}', '节点间数据流转使用 {{}} 插值，而非全局变量', 'rule'),
+          mod('{{secrets.x}}', '密钥走环境变量 / credentials，禁止明文', 'rule')
+        ]}
+      ]
+    },
+
+    infra: {
+      title: '基础设施',
+      desc: '保障数据可恢复、部署可复现、故障可诊断',
+      sections: [
+        { title: '备份', modules: [
+          mod('backup create', '本地状态归档', 'bluedeer backup create'),
+          mod('--only-config', '仅配置备份', '--only-config'),
+          mod('--no-include-workspace', '不含工作区', '--no-include-workspace'),
+          mod('backup verify', '校验备份完整性', 'bluedeer backup verify')
+        ]},
+        { title: '部署', modules: [
+          mod('本机', '桌面 App', 'desktop'),
+          mod('Docker', '容器化部署', 'docker'),
+          mod('云', '控制面端口 18789', 'cloud'),
+          mod('配置位置', '~/.bluedeer/bluedeer.json 或 BLUEDEER_HOME', 'config')
+        ]},
+        { title: '诊断', modules: [
+          mod('doctor --fix', '自动修复常见配置/环境', 'bluedeer doctor --fix'),
+          mod('health', '网关/模型/频道健康', 'bluedeer health'),
+          mod('status --deep', '深度状态快照', 'bluedeer status --deep')
+        ]},
+        { title: '规则', modules: [
+          mod('定期备份', '生产环境必须定期 backup create', 'rule'),
+          mod('升级备份', '升级前先 backup create --only-config', 'rule'),
+          mod('故障诊断', '先 doctor --fix，再 health 确认', 'rule')
+        ]}
+      ]
+    },
+
+    aiagents: {
+      title: 'AI 与代理',
+      desc: '模型路由、记忆与 Agent 框架',
+      sections: [
+        { title: 'AI 核心', modules: [
+          mod('LLMUtils', 'LLM 工具集与模型路由', 'core/llm_utils.py'),
+          mod('RAG', '检索增强生成管线', 'core/rag.py'),
+          mod('MemoryConsolidator', '长期记忆固化', 'core/memory_consolidator.py'),
+          mod('MemoryExtractor', '记忆提取', 'core/memory_extractor.py'),
+          mod('VectorBrowser', '向量数据库浏览', 'core/vector_browser.py'),
+          mod('GitHubKnowledge', 'GitHub 知识库集成', 'core/github_knowledge.py'),
+          mod('DreamEngine', '梦引擎', 'core/dream_engine.py')
+        ]},
+        { title: '文档', docs: [
+          doc('OpenCode 提示词','OPENCODE_SYSTEM_PROMPT.md',BD+'OPENCODE_SYSTEM_PROMPT.md'),
+          doc('RAG','docs/rag.md',BD+'docs/rag.md')
+        ]}
+      ]
+    },
+
+    debug: {
+      title: '调试',
+      desc: '调试与执行追踪',
+      sections: [
+        { title: '调试核心', modules: [
+          mod('Debugger', '调试器', 'core/debugger.py'),
+          mod('Tracer', '执行轨迹追踪', 'core/tracer.py'),
+          mod('Observability', '可观测性抽象', 'core/observability.py'),
+          mod('MetricsCollector', '指标采集', 'core/metrics_collector.py'),
+          mod('TestRunner', '测试运行器', 'core/test_runner.py'),
+          mod('SecurityScanner', '安全扫描器', 'core/security_scanner.py')
+        ]},
+        { title: '文档', docs: [doc('调试器','docs/debugger.md',BD+'docs/debugger.md')]}
+      ]
+    },
+
+    logs: {
+      title: '日志',
+      desc: '结构化日志与审计',
+      sections: [
+        { title: '日志与审计', modules: [
+          mod('LogViewer', '日志查看器', 'core/log_viewer.py'),
+          mod('Logger', '结构化日志记录器', 'core/logger.py'),
+          mod('Audit', '审计日志', 'core/audit.py'),
+          mod('SecurityReport', '安全报告', 'core/security_report.py'),
+          mod('Reporter', '报告生成器', 'core/reporter.py'),
+          mod('DreamReport', '梦报告', 'core/dream_report.py')
+        ]}
+      ]
+    },
+
+    docs: {
+      title: '文档',
+      desc: '项目文档索引（docs/）',
+      docs: [
+        doc('核心架构','docs/CORE_ARCHITECTURE.md',BD+'docs/CORE_ARCHITECTURE.md'),
+        doc('开发者指南','docs/DEVELOPER_GUIDE.md',BD+'docs/DEVELOPER_GUIDE.md'),
+        doc('ADR 索引','docs/adr_index.md',BD+'docs/adr_index.md'),
+        doc('启动器用法','docs/launchers_usage.md',BD+'docs/launchers_usage.md'),
+        doc('任务编排器','docs/task_orchestrator.md',BD+'docs/task_orchestrator.md'),
+        doc('调度器','docs/scheduler.md',BD+'docs/scheduler.md'),
+        doc('事件总线','docs/event_bus.md',BD+'docs/event_bus.md'),
+        doc('通知器','docs/notifier.md',BD+'docs/notifier.md'),
+        doc('监控','docs/monitor.md',BD+'docs/monitor.md'),
+        doc('调试器','docs/debugger.md',BD+'docs/debugger.md'),
+        doc('RAG','docs/rag.md',BD+'docs/rag.md'),
+        doc('像素画布','docs/pixel_canvas.md',BD+'docs/pixel_canvas.md'),
+        doc('画布','docs/canvas.md',BD+'docs/canvas.md'),
+        doc('场景','docs/scene.md',BD+'docs/scene.md'),
+        doc('梦','docs/dream.md',BD+'docs/dream.md'),
+        doc('游戏路由','docs/game_router.md',BD+'docs/game_router.md'),
+        doc('安全评审','docs/SECURITY_REVIEW.md',BD+'docs/SECURITY_REVIEW.md'),
+        doc('完成报告','docs/COMPLETION_REPORT.md',BD+'docs/COMPLETION_REPORT.md'),
+        doc('下一冲刺','docs/NEXT_SPRINT.md',BD+'docs/NEXT_SPRINT.md'),
+        doc('技术债','docs/TECH_DEBT.md',BD+'docs/TECH_DEBT.md')
+      ]
+    }
+  };
+
+  var chatView = document.getElementById('chat-view');
+  var contentView = document.getElementById('content-view');
+  var workflowFrame = document.getElementById('workflow-frame');
+  var floorplanFrame = document.getElementById('floorplan-frame');
+  var messages = document.getElementById('messages');
+  var textarea = document.getElementById('chat-textarea');
+  var sendBtn = document.getElementById('chat-send');
+  var navItems = document.querySelectorAll('#sidebar .nav-item');
+
+  var bar = document.getElementById('employee-bar');
+  var barHtml = '';
+  for (var i = 0; i < EMPLOYEES.length; i++) {
+    barHtml += '<span class="emp-pill"><span class="emp-dot">' + EMPLOYEES[i][2] + '</span>' + EMPLOYEES[i][0] + '</span>';
+  }
+  bar.innerHTML = barHtml;
+
+  function activate(btn) {
+    for (var i = 0; i < navItems.length; i++) navItems[i].classList.remove('active');
+    btn.classList.add('active');
+  }
+  function esc(s) { return String(s); }
+  // 模型名脱敏：剥掉 ollama/openai 等具体 provider 前缀，只留模型名
+  function prettyModelName(m) {
+    if (!m) return '—';
+    var s = String(m);
+    var idx = s.indexOf('/');
+    return idx > 0 ? s.slice(idx + 1) : s;
+  }
+  // 面向最终用户的模型名：不暴露具体模型ID，只显示"本地模型/云端模型/未配置"
+  function userModelName(m) {
+    if (!m || m === '加载中…' || m === '—') return '未配置';
+    var s = String(m).toLowerCase();
+    if (s.indexOf('ollama') >= 0 || s.indexOf('localhost') >= 0 || s.indexOf('127.0.0.1') >= 0) return '本地模型';
+    if (s.indexOf('openai') >= 0 || s.indexOf('deepseek') >= 0 || s.indexOf('anthropic') >= 0 || s.indexOf('claude') >= 0 || s.indexOf('gemini') >= 0 || s.indexOf('azure') >= 0 || s.indexOf('silicon') >= 0 || s.indexOf('bigmodel') >= 0 || s.indexOf('dashscope') >= 0 || s.indexOf('openrouter') >= 0) return '云端模型';
+    return '本地模型';
+  }
+  // 模型来源展示信息：以用户在「模型配置」里选的来源 + 实际探测结果为准
+  function modelSourceInfo() {
+    var ms = (DASH && DASH.modelSettings) || { source: 'local' };
+    var st = (DASH && DASH.overview && DASH.overview.stats) || {};
+    var svc = (DASH && DASH.overview && DASH.overview.services) || {};
+    if (ms.source === 'api') {
+      var provider = st.apiProvider || '云端 API';
+      var count = st.apiModelCount || 0;
+      var sub = svc.apiReachable ? ('可连，' + count + ' 个模型') : '未连通';
+      return { label: provider, sub: sub };
+    }
+    return { label: '本地模型', sub: svc.ollama ? '本地推理在线' : '本地推理未运行' };
+  }
+
+  // ===== 轻量可视化图表（零依赖，纯 SVG）=====
+  function scaleY(series, h, pad) { var max = Math.max.apply(null, series), min = Math.min.apply(null, series), r = (max - min) || 1; return series.map(function(v) { return (h - pad) - ((v - min) / r) * (h - pad * 2); }); }
+  function svgArea(series, w, h, color) {
+    var ys = scaleY(series, h, 6), n = series.length, step = w / (n - 1);
+    var d = ys.map(function(y, i) { return (i ? 'L' : 'M') + (i * step).toFixed(1) + ' ' + y.toFixed(1); }).join(' ');
+    var area = 'M0 ' + h + ' ' + d.slice(2) + ' L' + w + ' ' + h + ' Z';
+    var gid = 'ag' + Math.floor(Math.random() * 1e6);
+    var dots = ys.map(function(y, i) { return i % Math.ceil(n / 10) ? '' : '<circle cx="' + (i * step).toFixed(1) + '" cy="' + y.toFixed(1) + '" r="2.4" fill="#fff" stroke="' + color + '" stroke-width="1.4"/>'; }).join('');
+    return '<svg class="chart" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">'
+      + '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="' + color + '" stop-opacity="0.34"/><stop offset="100%" stop-color="' + color + '" stop-opacity="0.02"/></linearGradient></defs>'
+      + '<path d="' + area + '" fill="url(#' + gid + ')"/><path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' + dots
+      + '<line x1="0" y1="' + (h - 0.5) + '" x2="' + w + '" y2="' + (h - 0.5) + '" stroke="rgba(255,255,255,0.08)"/></svg>';
+  }
+  function svgDonut(pct, color, sub) {
+    var r = 32, c = 2 * Math.PI * r, off = c * (1 - pct / 100);
+    return '<svg class="donut" viewBox="0 0 80 80"><circle cx="40" cy="40" r="' + r + '" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="9"/>'
+      + '<circle cx="40" cy="40" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="9" stroke-linecap="round" stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 40 40)"/>'
+      + '<text x="40" y="38" text-anchor="middle" class="donut-pct">' + pct + '%</text>'
+      + '<text x="40" y="52" text-anchor="middle" class="donut-sub">' + (sub || '') + '</text></svg>';
+  }
+  function svgBars(items) {
+    var max = Math.max.apply(null, items.map(function(i) { return i.v; }));
+    return '<div class="bars">' + items.map(function(i) {
+      var pct = (i.v / max * 100).toFixed(0); var color = i.c || 'var(--accent)';
+      return '<div class="bar-row"><span class="bar-name">' + i.n + '</span><span class="bar-track"><span class="bar-fill" style="width:' + pct + '%;background:' + color + '"></span></span><span class="bar-val">' + i.v + '</span></div>';
+    }).join('') + '</div>';
+  }
+  function spark(series, color) {
+    var h = 28, w = 120, ys = scaleY(series, h, 4), n = series.length, step = w / (n - 1);
+    var d = ys.map(function(y, i) { return (i ? 'L' : 'M') + (i * step).toFixed(1) + ' ' + y.toFixed(1); }).join(' ');
+    return '<svg class="spark" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none"><path d="' + d + '" fill="none" stroke="' + (color || 'var(--accent)') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+  var CH = [
+    { n: 'Telegram', ic: '✈', c: '#229ED9', on: true }, { n: 'Discord', ic: '◆', c: '#5865F2', on: true },
+    { n: '飞书', ic: '飞', c: '#3370FF', on: true }, { n: 'QQ', ic: 'Q', c: '#12B7F5', on: false },
+    { n: 'Slack', ic: '#', c: '#4A154B', on: false }, { n: 'Signal', ic: '✉', c: '#3A76F0', on: true },
+    { n: 'LINE', ic: 'L', c: '#00B900', on: false }, { n: 'Teams', ic: 'T', c: '#6264A7', on: false },
+    { n: 'Google Chat', ic: 'G', c: '#0F9D58', on: false }, { n: 'Matrix', ic: '◉', c: '#0DBD8B', on: false },
+    { n: 'WhatsApp', ic: 'W', c: '#25D366', on: false }, { n: '语音通话', ic: '☏', c: '#10b981', on: false }
+  ];
+
+  function statCard(label, value, note) {
+    return '<div class="stat-card"><div class="stat-top"><span class="stat-label">' + label + '</span></div><div class="stat-value">' + value + '</div><div class="stat-note">' + note + '</div></div>';
+  }
+  function logBlock(title, arr, mapFn) {
+    var html = '<div class="section-title">' + title + '</div><div class="log-panel">';
+    for (var i = 0; i < arr.length; i++) {
+      var r = mapFn(arr[i]);
+      html += '<div class="log-row"><span class="log-dot" style="background:' + r[0] + '"></span>';
+      if (r[4]) html += '<span class="log-level" style="color:' + r[1] + '">' + r[1] + '</span><span class="log-text" style="font-family:monospace;font-size:11.5px">' + r[2] + '</span>';
+      else html += '<span class="log-level" style="color:' + r[1] + '">' + r[1] + '</span><span class="log-text">' + r[2] + '</span>';
+      html += '<span class="log-time">' + r[3] + '</span></div>';
+    }
+    return html + '</div>';
+  }
+  function renderOverview() {
+    var ov = DASH.overview, st = ov.stats, svc = ov.services, g = ov.gateway;
+    var oc = DASH.openclaw || { connected: false };
+    var html = '<div class="gw-bar">';
+    html += '<div class="gw-field"><span class="gw-label">mode</span><span class="gw-value">' + g.mode + '</span></div>';
+    html += '<div class="gw-field"><span class="gw-label">port</span><span class="gw-value">' + g.port + '</span></div>';
+    html += '<div class="gw-field"><span class="gw-label">bind</span><span class="gw-value">' + g.bind + '</span></div>';
+    html += '<div class="gw-actions"><button class="gw-btn" onclick="loadRealtimeStatus()">刷新</button>';
+    if (oc.connected) { html += '<button class="gw-btn accent" onclick="renderView(\'openclaw\')">OpenClaw 控制台 →</button>'; }
+    html += '</div></div>';
+    html += '<div class="svc-badges">';
+    [['OpenClaw 网关', oc.connected], ['多平台网关', svc.gateway], ['本地模型', svc.ollama], ['BlueDeer Web', svc.bluedeer_web], ['生物圈', svc.biosphere], ['主模型可达', svc.modelReachable]].forEach(function(s){ var up = s[1]; html += '<span class="svc-badge ' + (up ? 'up' : 'down') + '"><span class="svc-dot"></span>' + s[0] + ' ' + (up ? '在线' : '离线') + '</span>'; });
+    html += '</div>';
+    html += '<div class="stat-grid">';
+    html += statCard('在线 Agents', st.agentsOnline, oc.connected ? (st.ocAgentName || 'OpenClaw') : 'agents.entries');
+    html += statCard('已连接频道', st.channelsConnected, 'channels.enabled');
+    html += statCard('会话数', st.ocSessions, oc.connected ? 'OpenClaw 真实会话' : '—');
+    html += statCard('主模型', modelSourceInfo().label, oc.connected ? st.primaryModel : modelSourceInfo().sub);
+    html += '</div>';
+    var hc = st.health === 'healthy' ? '#10b981' : (st.health === 'degraded' ? '#f59e0b' : '#ef4444');
+    html += '<div class="viz-row"><div class="viz-card donut-card"><div class="viz-head"><span>运行健康</span></div><div class="donut-wrap">' + svgDonut(st.healthScore, hc, st.health) + '<div class="donut-side"><div><b>' + st.healthScore + '%</b><span>健康分</span></div><div class="muted">OpenClaw·本地模型·Web·模型</div></div></div></div>';
+    html += '<div class="viz-card"><div class="viz-head"><span>已安装模型</span>' + (svc.ollama ? '<span class="viz-tag">' + st.installedModels.length + '</span>' : '<span class="viz-tag warn">未运行</span>') + '</div>';
+    if (svc.ollama && st.installedModels.length) { html += '<div class="muted" style="padding:14px">本地推理在线，' + st.installedModels.length + ' 个本地模型已就绪。</div>'; }
+    else { html += '<div class="muted" style="padding:14px">本地推理未运行，无模型。启动本地推理后此处显示真实已安装模型。</div>'; }
+    html += '</div></div>';
+    var logs = [
+      { lv: oc.connected ? 'INFO' : 'WARN', tx: 'OpenClaw 网关 ' + (oc.connected ? ('已联动 · ' + (st.ocSessions) + ' 会话 · ' + (st.ocAgentName || '')) : '未连接 18789'), t: '实时' },
+      { lv: 'INFO', tx: 'gateway ' + g.mode + ' ' + g.bind + ':' + g.port + ' ' + (svc.gateway ? '在线' : '离线'), t: '实时' },
+      { lv: svc.ollama ? 'INFO' : 'WARN', tx: '本地推理 ' + (svc.ollama ? ('在线 · ' + st.installedModels.length + ' 模型') : '未响应 11434'), t: '实时' },
+      { lv: svc.modelReachable ? 'INFO' : 'WARN', tx: '主模型 ' + st.primaryModel + ' ' + (svc.modelReachable ? '就绪' : '未就绪'), t: '实时' }
+    ];
+    html += logBlock('系统日志', logs, function(l){ return [l.lv === 'INFO' ? 'var(--accent)' : (l.lv === 'WARN' ? 'var(--amber)' : 'var(--red)'), l.lv, l.tx, l.t]; });
+    return html;
+  }
+  function renderUsage() {
+    var u = DASH.usage;
+    var html = '<div class="stat-grid">';
+    html += statCard('Token 输入', u.tokens_in, 'task_results.tokens_in');
+    html += statCard('Token 输出', u.tokens_out, 'task_results.tokens_out');
+    html += statCard('已完成任务', u.tasks_done, 'task_results');
+    html += statCard('等待中任务', u.tasks_pending, 'task_pending');
+    html += '</div>';
+    html += '<div class="viz-card"><div class="viz-head"><span>用量说明</span></div><div class="muted" style="padding:14px;line-height:1.7">当前为真实运行数据：本机 BlueDeer 数据库 <b>bluedeer.db</b> 中 <b>task_results</b> 表暂无执行记录，故 Token 消耗为 0。Agent 实际运行后，此处自动汇总输入/输出 Token 与任务数。</div></div>';
+    return html;
+  }
+  function renderChannels() {
+    var oc = (DASH && DASH.openclaw) || { connected: false };
+    var chCfg = oc.channelsConfig || {};
+    var names = Object.keys(chCfg).filter(function(k){ return k !== 'mcp'; });
+    var html = '<div class="viz-card"><div class="viz-head"><span>OpenClaw 频道接入（真实配置）</span><span class="viz-tag">' + names.length + ' 已配置</span></div>';
+    if (names.length) {
+      html += '<div class="mod-list">';
+      names.forEach(function(c){
+        var v = chCfg[c] || {};
+        var en = v.enabled !== false;
+        html += '<div class="mod-chip ' + (en ? 'up' : '') + '">' + esc(c) + (en ? ' · 启用' : ' · 停用') + '</div>';
+      });
+      html += '</div>';
+    } else {
+      html += '<div class="muted" style="padding:16px;line-height:1.8">openclaw.json 的 <b>channels</b> 段暂无配置。<br>在「配置」视图的 openclaw.json 编辑器中添加频道（如 telegram / discord / feishu）后保存即生效。</div>';
+    }
+    html += '</div><div class="viz-card" style="margin-top:12px"><div class="viz-head"><span>接入说明</span></div><div class="muted" style="padding:12px;line-height:1.7">频道真实状态由 OpenClaw 网关管理。配置写入后，到「OpenClaw 控制台」视图里用官方 UI 登录/扫码激活对应平台。</div></div>';
+    return html;
+  }
+  function renderAgents() {
+    var oc = (DASH && DASH.openclaw) || { connected: false, agents: [] };
+    var ocAgents = (oc.agents || []).filter(function(a){ return a && typeof a === 'object'; });
+    if (!oc.connected) {
+      return '<div class="viz-card"><div class="muted" style="padding:16px">OpenClaw 网关未连接，无法读取真实代理。启动网关后刷新。</div></div>';
+    }
+    if (!ocAgents.length) {
+      return '<div class="viz-card"><div class="muted" style="padding:16px">网关已连接，后台正在加载代理列表（CLI 深数据 60s 内自动补齐）…</div></div>';
+    }
+    var html = '<div class="agent-grid">';
+    ocAgents.forEach(function(a){
+      var emoji = a.identityEmoji || '🤖';
+      var name = a.identityName || a.id;
+      html += '<div class="agent-card"><div class="agent-ava" style="font-size:22px">' + emoji + '</div><div class="agent-info"><div class="agent-name">' + esc(name) + '</div><div class="agent-role">id=' + esc(a.id) + ' · ' + esc(a.model) + '</div></div><div class="agent-load" style="font-size:11px;color:var(--accent)">' + (a.isDefault ? '★ 默认' : '') + '</div></div>';
+    });
+    html += '</div>';
+    var ag0 = ocAgents[0] || { identityName: '', identityEmoji: '', id: 'main' };
+    html += '<div class="viz-card" style="margin-top:14px"><div class="viz-head"><span>编辑代理身份（真实生效）</span></div>';
+    html += '<div class="form-row">';
+    html += '<input class="cfg-input" id="oc-agent-id" style="flex:1" placeholder="agent id" value="' + esc(ag0.id || 'main') + '">';
+    html += '<input class="cfg-input" id="oc-agent-name" style="flex:2" placeholder="名字（如 凯哥）" value="' + esc(ag0.identityName || '') + '">';
+    html += '<input class="cfg-input" id="oc-agent-emoji" style="flex:1" placeholder="emoji（如 🤝）" value="' + esc(ag0.identityEmoji || '') + '">';
+    html += '<button class="gw-btn" onclick="ocSaveAgentIdentity()">保存</button>';
+    html += '</div><div class="muted" style="margin-top:6px">调用 <b>openclaw agents set-identity</b> 写回 OpenClaw，改动立即生效（含桌面端）。</div></div>';
+    return html;
+  }
+  function renderInstances() {
+    var ins = DASH.instances, inf = DASH.infra.services;
+    var oc = (DASH && DASH.openclaw) || { connected: false };
+    var items = [
+      { n: 'OpenClaw 网关', up: oc.connected },
+      { n: 'BlueDeer Web', up: ins.web_running },
+      { n: '生物圈 Biosphere', up: ins.biosphere_running },
+      { n: '多平台网关', up: inf.gateway },
+      { n: '本地模型', up: inf.ollama }
+    ];
+    var html = '<div class="inst-grid">';
+    items.forEach(function(it){ html += '<div class="inst-card"><div class="inst-top"><span class="ch-dot ' + (it.up ? 'up' : 'off') + '"></span><b>' + it.n + '</b><span class="inst-pill">' + (it.up ? '运行中' : '未运行') + '</span></div><div class="muted" style="padding:10px 4px">' + (it.up ? '进程活跃' : '当前未检测到') + '</div></div>'; });
+    return html + '</div>';
+  }
+  function renderSessions() {
+    var oc = (DASH && DASH.openclaw) || { connected: false, sessions: [] };
+    var ocSess = (oc.sessions || []).slice(0, 12);
+    var html = '<div class="viz-row">';
+    if (oc.connected && ocSess.length) {
+      html += '<div class="viz-card" style="flex:1.6"><div class="viz-head"><span>OpenClaw 真实会话</span><span class="viz-tag">' + ocSess.length + '</span></div><div class="mod-list">';
+      ocSess.forEach(function(s){
+        var when = s.updatedAt ? new Date(s.updatedAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+        html += '<div class="sess-chip" title="' + esc(s.key) + '">' + esc(s.key) + '<span class="muted"> · ' + esc(s.channel || '') + ' · ' + when + '</span></div>';
+      });
+      html += '</div><div class="muted" style="margin-top:10px">共 <b>' + (oc.sessionsCount || 0) + '</b> 个会话 · 可在「OpenClaw 控制台」中查看完整对话。</div></div>';
+    } else {
+      html += '<div class="viz-card"><div class="muted" style="padding:16px">' + (oc.connected ? '暂无会话记录。' : 'OpenClaw 网关未连接。') + '</div></div>';
+    }
+    var s2 = DASH.sessions || { modules: [], active: 0 };
+    html += '<div class="viz-card"><div class="viz-head"><span>BlueDeer 会话模块</span></div><div class="mod-list">';
+    (s2.modules || []).forEach(function(m){ html += '<div class="mod-chip">' + m + '.py</div>'; });
+    html += '</div><div class="muted" style="margin-top:10px">活跃会话（task_pending）：<b>' + (s2.active || 0) + '</b></div></div>';
+    return html + '</div>';
+  }
+  function renderSchedule() {
+    var html = '<div class="viz-card"><div class="viz-head"><span>OpenClaw 定时任务（真实）</span><span class="viz-tag" id="oc-cron-count">…</span><span class="gw-btn mini" style="margin-left:auto" onclick="ocRefreshCron()">刷新</span></div><div id="oc-cron-list"><div class="muted" style="padding:16px">加载中…</div></div></div>';
+    html += '<div class="viz-card" style="margin-top:14px"><div class="viz-head"><span>新建定时任务</span></div>';
+    html += '<div class="form-row">';
+    html += '<input class="cfg-input" id="oc-cron-name" style="flex:1" placeholder="任务名（可选）">';
+    html += '<input class="cfg-input" id="oc-cron-schedule" style="flex:1.4" placeholder="调度：如 30m / 0 8 * * * / +1h">';
+    html += '<input class="cfg-input" id="oc-cron-message" style="flex:2" placeholder="Agent 任务消息">';
+    html += '<button class="gw-btn" onclick="ocAddCron()">添加</button>';
+    html += '</div><div class="muted" style="margin-top:6px">通过 <b>openclaw cron add</b> 写入网关定时调度，真实执行。</div></div>';
+    return html;
+  }
+  function renderSkills() {
+    var html = '<div class="viz-card"><div class="viz-head"><span>OpenClaw 技能（真实）</span><span class="viz-tag" id="oc-skills-count">…</span><span class="gw-btn mini" style="margin-left:auto" onclick="ocLoadSkills()">刷新</span></div><div id="oc-skills-list"><div class="muted" style="padding:16px">加载中…</div></div></div>';
+    html += '<div class="viz-card" style="margin-top:14px"><div class="viz-head"><span>技能说明</span></div><div class="muted" style="padding:12px;line-height:1.7">技能由 OpenClaw 网关管理（SKILL.md 驱动）。安装/卸载请到「OpenClaw 控制台」视图操作。</div></div>';
+    return html;
+  }
+  function renderNodes() {
+    var nodes = DASH.nodes;
+    var html = '<div class="viz-card"><div class="viz-head"><span>工作流节点模块（core/ 真实存在）</span><span class="viz-tag">' + nodes.length + '</span></div><div class="mod-list">';
+    nodes.forEach(function(n){ html += '<div class="mod-chip">' + n + '.py</div>'; });
+    html += '</div><div class="muted" style="margin-top:12px">BlueDeer 工作流引擎由以上模块构成：任务编排（task_orchestrator）、DAG（task_dag / dag_templates）、分发（task_dispatcher）、看板（task_board）、流式（stream）。</div></div>';
+    return html;
+  }
+  function renderWorkflow() {
+    var wf = (DASH && DASH.nodes) || [];
+    var crons = (DASH && DASH.crons) || [];
+    // 真实存在的编排引擎模块
+    var engineKw = ['task', 'dag', 'workflow', 'stream', 'scheduler', 'dispatcher', 'board', 'heartbeat', 'hook', 'event'];
+    var engine = wf.filter(function(n){ return engineKw.some(function(k){ return n.toLowerCase().indexOf(k) >= 0; }); });
+    // 五阶段管线
+    var stages = [
+      { n: '触发', d: 'cron / webhook / 事件', c: 'var(--accent)' },
+      { n: '编排', d: 'task_orchestrator · DAG', c: 'var(--accent-2)' },
+      { n: '分发', d: 'task_dispatcher', c: '#10b981' },
+      { n: '执行', d: 'Agent / 工具 / 脚本', c: '#f59e0b' },
+      { n: '汇总', d: 'heartbeat 报告', c: '#a855f7' }
+    ];
+    var html = '<div class="viz-card" style="text-align:center;padding:24px"><div class="chain">';
+    stages.forEach(function(s, i){
+      html += '<div class="chain-node" style="border-color:' + s.c + '"><b>' + s.n + '</b><span>' + s.d + '</span></div>';
+      if (i < stages.length - 1) html += '<div class="chain-arrow">→</div>';
+    });
+    html += '</div></div>';
+
+    html += '<div class="viz-card" style="margin-top:16px"><div class="viz-head"><span>工作流引擎模块（core/ 真实存在）</span><span class="viz-tag">' + engine.length + '</span></div><div class="mod-list">';
+    if (engine.length) {
+      engine.forEach(function(m){ html += '<div class="mod-chip">' + m + '.py</div>'; });
+    } else {
+      html += '<div class="muted">未扫描到编排模块</div>';
+    }
+    html += '</div><div class="muted" style="margin-top:12px">编排引擎由任务编排（task_orchestrator）、DAG（task_dag / dag_templates）、分发（task_dispatcher）、看板（task_board）、流式（stream）等组成。</div></div>';
+
+    // 已编排的定时任务 = 当前运行中的工作流实例
+    html += '<div class="viz-card" style="margin-top:14px"><div class="viz-head"><span>已编排任务（定时任务 / 工作流实例）</span><span class="viz-tag">' + crons.length + '</span></div>';
+    if (crons.length) {
+      html += '<div class="mod-list">';
+      crons.slice(0, 12).forEach(function(c){
+        var name = c.name || c.id || '未命名任务';
+        var when = c.cron || c.schedule || c.when || '—';
+        html += '<div class="mod-chip" title="' + esc(when) + '">' + esc(name) + '</div>';
+      });
+      html += '</div>';
+    } else {
+      html += '<div class="muted" style="padding:14px">当前没有已编排的定时任务。可在左侧「定时任务」中创建。</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+  // OpenClaw 原生控制台：iframe 内嵌网关真实 UI（浏览器侧完成设备身份握手）
+  function renderOpenclaw() {
+    var oc = (DASH && DASH.openclaw) || { connected: false, controlUrl: 'http://127.0.0.1:18789/' };
+    if (!oc.connected) {
+      var html = '<div class="viz-card"><div class="viz-head"><span>OpenClaw 网关</span><span class="viz-tag warn">未连接</span></div>';
+      html += '<div class="muted" style="padding:16px;line-height:1.8">OpenClaw 网关（127.0.0.1:18789）当前未运行，无法联动。<br>启动方式：运行 <b>run_local.py</b> 会自动拉起，或手动执行 <b>OpenClaw\\data\\gateway.cmd</b>。启动后刷新本页即可进入真实控制台。</div>';
+      html += '</div>';
+      return html;
+    }
+    return '<div style="width:100%;height:calc(100vh - 120px);border-radius:12px;overflow:hidden;border:1px solid var(--border)">'
+      + '<iframe src="' + esc(oc.controlUrl) + '" style="width:100%;height:100%;border:none" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>'
+      + '</div>'
+      + '<div class="muted" style="margin-top:8px;font-size:12px">这是 OpenClaw 网关原生控制台（内嵌），可在其中与 Agent 实时聊天、管理会话/频道/定时任务/技能。若提示需要令牌，在控制台设置里填入网关 token。</div>';
+  }
+  function renderConfig() {
+    var c = DASH.config;
+    var ms = (DASH && DASH.modelSettings) || { source: 'local', api_base: '', api_model: '', api_key: '' };
+    var html = '<div class="viz-card"><div class="viz-head"><span>模型配置（core/config.py 真实值）</span></div><div class="cfg-list">';
+    html += '<div class="cfg-row"><span class="cfg-k">默认模型</span><span class="cfg-v">' + esc(prettyModelName(c.default_model || '未配置')) + '</span></div>';
+    html += '<div class="cfg-row"><span class="cfg-k">任务模型映射</span><span class="cfg-v">' + Object.keys(c.task_model_map).map(function(k){ return k + '→' + prettyModelName(c.task_model_map[k]); }).join(' · ') + '</span></div>';
+    html += '<div class="cfg-row"><span class="cfg-k">环境</span><span class="cfg-v">' + c.environments.join(' / ') + '</span></div>';
+    html += '<div class="cfg-row"><span class="cfg-k">响应风格</span><span class="cfg-v">' + c.response_styles.join(' / ') + '</span></div>';
+    html += '<div class="cfg-row"><span class="cfg-k">积分(成功/失败)</span><span class="cfg-v">' + c.reward.coins_success + ' / ' + c.reward.coins_failed + '</span></div>';
+    html += '</div></div>';
+
+    // 模型来源配置（可编辑：本地优先 / 云端 API）
+    html += '<div class="viz-card" style="margin-top:14px"><div class="viz-head"><span>模型来源配置</span></div>';
+    html += '<div class="cfg-hint">本地优先：默认走本地 Ollama；如需接入云端 API，切换为「云端 API」并填入你的模型与密钥。</div>';
+    html += '<div class="seg" role="group" id="model-source-seg" style="margin-top:12px">'
+      + '<button type="button" class="seg-btn' + (ms.source === 'local' ? ' active' : '') + '" data-source="local">本地模型 (Ollama)</button>'
+      + '<button type="button" class="seg-btn' + (ms.source === 'api' ? ' active' : '') + '" data-source="api">云端 API</button>'
+      + '</div>';
+    html += '<div id="api-fields" style="' + (ms.source === 'api' ? '' : 'display:none;') + 'margin-top:14px">';
+    html += '<div class="cfg-field"><label>快捷预设</label><div class="preset-row">'
+      + '<button type="button" class="preset-btn" data-preset="siliconflow">硅基流动</button>'
+      + '<button type="button" class="preset-btn" data-preset="deepseek">DeepSeek</button>'
+      + '<button type="button" class="preset-btn" data-preset="github">GitHub Models</button>'
+      + '<button type="button" class="preset-btn" data-preset="zhipu">智谱</button>'
+      + '</div></div>';
+    html += '<div class="cfg-field"><label>模型名称</label><input class="cfg-input" id="cfg-api-model" placeholder="如 deepseek-chat / gpt-4o" value="' + esc(ms.api_model) + '"></div>';
+    html += '<div class="cfg-field"><label>API 地址</label><input class="cfg-input" id="cfg-api-base" placeholder="https://api.example.com/v1" value="' + esc(ms.api_base) + '"></div>';
+    html += '<div class="cfg-field"><label>API 密钥</label><input class="cfg-input" id="cfg-api-key" type="password" placeholder="sk-..." value="' + esc(ms.api_key) + '"></div>';
+    html += '</div>';
+    html += '<div style="margin-top:14px;display:flex;gap:10px;align-items:center">'
+      + '<button type="button" class="tool-btn primary" id="save-model-cfg">保存配置</button>'
+      + '<span id="model-cfg-msg" class="cfg-msg"></span></div>';
+    html += '</div>';
+
+    // MCP 管理（接入/启停其他 MCP，真实写入 openclaw.json 并热重载）
+    html += '<div class="viz-card" style="margin-top:14px"><div class="viz-head"><span>MCP 服务器管理（真实生效）</span><span class="viz-tag" id="oc-mcp-count">…</span><span class="gw-btn mini" style="margin-left:auto" onclick="ocLoadMcp()">刷新</span></div>';
+    html += '<div id="oc-mcp-list"><div class="muted" style="padding:16px">加载中…</div></div>';
+    html += '<div class="viz-head" style="margin-top:16px"><span>接入新 MCP</span></div>';
+    html += '<div class="form-row">';
+    html += '<input class="cfg-input" id="oc-mcp-name" style="flex:1" placeholder="名称（如 my-mcp）">';
+    html += '<input class="cfg-input" id="oc-mcp-command" style="flex:2" placeholder="命令（如 npx / python.exe）">';
+    html += '<input class="cfg-input" id="oc-mcp-args" style="flex:2" placeholder="参数（逗号分隔，如 -y, @foo/mcp）">';
+    html += '<button class="gw-btn" onclick="ocAddMcp()">接入</button>';
+    html += '</div><div class="muted" style="margin-top:6px">写入 openclaw.json 的 mcp.servers，OpenClaw 网关支持热重载；env 高级项可在下方 JSON 中编辑。</div></div>';
+
+    // openclaw.json 查看/编辑
+    html += '<div class="viz-card" style="margin-top:14px"><div class="viz-head"><span>openclaw.json 编辑器</span><span class="gw-btn mini" style="margin-left:auto" onclick="ocLoadConfig()">载入</span></div>';
+    html += '<textarea id="oc-config-json" spellcheck="false" style="width:100%;height:260px;font-family:monospace;font-size:11.5px;background:var(--bg-soft);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:10px;margin-top:10px" placeholder="点击「载入」后在此编辑 OpenClaw 配置，保存即写回（自动备份）"></textarea>';
+    html += '<div style="margin-top:10px;display:flex;gap:10px;align-items:center">'
+      + '<button type="button" class="tool-btn primary" onclick="ocSaveConfig()">保存配置</button>'
+      + '<button type="button" class="tool-btn" onclick="ocLoadConfig()">载入最新</button>'
+      + '<span id="oc-config-msg" class="cfg-msg"></span></div></div>';
+    return html;
+  }
+  function renderComm() {
+    var c = DASH.comm;
+    var html = '<div class="viz-row">';
+    html += '<div class="viz-card donut-card"><div class="viz-head"><span>Webhook 配置</span></div><div class="donut-wrap">' + svgDonut(c.webhooks, c.webhooks ? '#10b981' : '#94a3b8', String(c.webhooks)) + '<div class="donut-side"><div><b>' + c.webhooks + '</b><span>已注册 webhook</span></div><div class="muted">基于 webhooks 表</div></div></div></div>';
+    html += '<div class="viz-card"><div class="viz-head"><span>通信模块（core/ 真实存在）</span></div><div class="mod-list">';
+    c.modules.forEach(function(m){ html += '<div class="mod-chip">' + m + '.py</div>'; });
+    html += '</div></div></div>';
+    return html;
+  }
+  function renderAppearance() {
+    var logo = DASH.appearance ? DASH.appearance.logo : '/static/assets/bluedeer-logo.png';
+    var accents = [
+      { key: 'blue',   name: '蓝鹿蓝', a: '#1E6FFF', b: '#3B82F6' },
+      { key: 'violet', name: '紫罗兰', a: '#8b7cf6', b: '#54c8c2' },
+      { key: 'teal',   name: '青碧',   a: '#14b8a6', b: '#38bdf8' },
+      { key: 'amber',  name: '琥珀金', a: '#f59e0b', b: '#fbbf24' },
+      { key: 'rose',   name: '玫红',   a: '#f43f6e', b: '#fb7185' }
+    ];
+    var curTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+    var curAcc = document.documentElement.getAttribute('data-accent') || 'violet';
+    var html = '';
+    // 视觉风格（整体质感预设）
+    var styles = [
+      { key: 'glass',  name: '玻璃拟态', sw: 'linear-gradient(135deg,#8b7cf6,#54c8c2)' },
+      { key: 'flat',   name: '扁平极简', sw: 'linear-gradient(135deg,#94a3b8,#cbd5e1)' },
+      { key: 'neon',   name: '赛博霓虹', sw: 'linear-gradient(135deg,#38bdf8,#a855f7)' },
+      { key: 'forest', name: '夜森林',   sw: 'linear-gradient(135deg,#4caf50,#8bc34a)' }
+    ];
+    var curStyleKey = curStyle();
+    html += '<div class="viz-card"><div class="viz-head"><span>视觉风格</span></div><div style="display:flex;flex-direction:column;gap:10px">';
+    styles.forEach(function(s) {
+      html += '<button class="style-opt' + (curStyleKey === s.key ? ' active' : '') + '" data-style-set="' + s.key + '"><span class="style-swatch" style="background:' + s.sw + '"></span>' + s.name + '</button>';
+    });
+    html += '</div><div class="muted" style="margin-top:12px">点击即实时预览并自动记忆 · 霓虹与夜森林自动切换深色基底</div></div>';
+    // 品牌 LOGO
+    html += '<div class="viz-row"><div class="viz-card"><div class="viz-head"><span>品牌 LOGO</span></div><div class="logo-preview"><img src="' + logo + '" alt="BlueDeer"></div><div class="muted" style="margin-top:10px">蓝色几何鹿头 · 侧栏 / 头像 / 加载页</div></div>';
+    // 显示模式
+    html += '<div class="viz-card"><div class="viz-head"><span>显示模式</span></div>'
+      + '<div class="seg" role="group">'
+      + '<button class="seg-btn' + (curTheme === 'dark' ? ' active' : '') + '" data-theme-set="dark">🌙 深色</button>'
+      + '<button class="seg-btn' + (curTheme === 'light' ? ' active' : '') + '" data-theme-set="light">☀ 浅色</button>'
+      + '</div>'
+      + '<div class="muted" style="margin-top:12px">光晕与玻璃拟态在两种模式下均保留</div></div></div>';
+    // 点缀色（主题色）
+    html += '<div class="viz-card" style="margin-top:14px"><div class="viz-head"><span>主题色（点缀色）</span></div><div class="swatch-row">';
+    accents.forEach(function(c) {
+      html += '<button class="swatch accent-opt' + (curAcc === c.key ? ' active' : '') + '" data-accent-set="' + c.key + '" style="background:linear-gradient(135deg,' + c.a + ',' + c.b + ')"><span>' + c.name + '</span></button>';
+    });
+    html += '</div><div class="muted" style="margin-top:12px">点击即实时预览并自动记忆 · 主色与光晕随点缀色联动</div></div>';
+    return html;
+  }
+  function renderAutomation() {
+    var au = DASH.automation;
+    var html = '<div class="viz-card" style="text-align:center;padding:26px"><div class="chain">'
+      + '<div class="chain-node" style="border-color:var(--accent)"><b>Scheduler</b><span>' + DASH.crons.length + ' 任务</span></div><div class="chain-arrow">→</div>'
+      + '<div class="chain-node" style="border-color:var(--accent-2)"><b>Hook</b><span>前置动作</span></div><div class="chain-arrow">→</div>'
+      + '<div class="chain-node" style="border-color:#10b981"><b>执行</b><span>Agent 干活</span></div><div class="chain-arrow">→</div>'
+      + '<div class="chain-node" style="border-color:#a855f7"><b>Heartbeat</b><span>汇总报告</span></div></div>';
+    html += '<div class="viz-card" style="margin-top:18px"><div class="viz-head"><span>自动化模块（core/ 真实存在）</span><span class="viz-tag">' + au.length + '</span></div><div class="mod-list">';
+    au.forEach(function(m){ html += '<div class="mod-chip">' + m + '.py</div>'; });
+    html += '</div></div></div>';
+    return html;
+  }
+  function renderInfra() {
+    var inf = DASH.infra;
+    var svc = [
+      { n: '多平台网关', h: inf.services.gateway ? 100 : 0 },
+      { n: '本地模型', h: inf.services.ollama ? 100 : 0 },
+      { n: '生物圈', h: inf.services.biosphere ? 100 : 0 },
+      { n: 'BlueDeer Web', h: 100 }
+    ];
+    var html = '<div class="viz-row">';
+    svc.forEach(function(s){ var h = s.h; var c = h >= 100 ? '#10b981' : (h > 0 ? '#f59e0b' : '#ef4444'); html += '<div class="viz-card donut-card" style="text-align:center"><div class="donut-wrap" style="justify-content:center">' + svgDonut(h, c, h + '%') + '</div><div class="svc-name">' + s.n + '</div></div>'; });
+    html += '</div><div class="viz-card" style="margin-top:14px"><div class="viz-head"><span>基础设施模块（core/ 真实存在）</span><span class="viz-tag">' + inf.modules.length + '</span></div><div class="mod-list">';
+    inf.modules.forEach(function(m){ html += '<div class="mod-chip">' + m + '.py</div>'; });
+    html += '</div></div>';
+    return html;
+  }
+  // 日志视图：OpenClaw 网关真实日志
+  function renderLogs() {
+    var html = '<div class="viz-card"><div class="viz-head"><span>OpenClaw 网关日志（真实）</span><span class="gw-btn mini" style="margin-left:auto" onclick="ocLoadLogs()">刷新</span></div><div id="oc-logs-box" style="max-height:60vh;overflow:auto"><div class="muted" style="padding:16px">加载中…</div></div></div>';
+    return html;
+  }
+  // 调试视图：OpenClaw status/health/models 快照
+  function renderDebug() {
+    var oc = (DASH && DASH.openclaw) || { connected: false, status: {}, models: {} };
+    var st = oc.status || {};
+    var md = oc.models || {};
+    var html = '<div class="viz-row">';
+    html += '<div class="viz-card"><div class="viz-head"><span>网关健康</span><span class="viz-tag ' + (oc.connected ? '' : 'warn') + '">' + (oc.connected ? '已连接' : '未连接') + '</span></div><div class="cfg-dump">' + esc(JSON.stringify({ connected: oc.connected, heartbeat: st.heartbeat || null }, null, 2)) + '</div></div>';
+    html += '<div class="viz-card"><div class="viz-head"><span>模型配置</span></div><div class="cfg-dump">' + esc(JSON.stringify({ defaultModel: md.resolvedDefault || md.defaultModel, allowed: md.allowed || [], aliases: md.aliases || {} }, null, 2)) + '</div></div>';
+    html += '</div>';
+    html += '<div class="viz-card" style="margin-top:14px"><div class="viz-head"><span>任务 / 会话统计</span></div><div class="cfg-dump">' + esc(JSON.stringify({ tasks: st.tasks || null, sessions: (st.sessions || {}).count || 0, channels: st.channelSummary || [] }, null, 2)) + '</div></div>';
+    return html;
+  }
+  // ===== OpenClaw 可操作全局函数（真实写配置 / 调 CLI） =====
+  function ocPost(url, body, done) {
+    fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) })
+      .then(function(r){ return r.json(); }).then(function(j){ done && done(j); }).catch(function(e){ done && done({ ok: false, error: String(e) }); });
+  }
+  function ocDel(url, done) {
+    fetch(url, { method: 'DELETE' }).then(function(r){ return r.json(); }).then(function(j){ done && done(j); }).catch(function(e){ done && done({ ok: false, error: String(e) }); });
+  }
+  function ocGet(url, done) {
+    fetch(url).then(function(r){ return r.json(); }).then(function(j){ done && done(j); }).catch(function(e){ done && done({ ok: false, error: String(e) }); });
+  }
+  function ocToast(msg, isErr) {
+    var el = document.getElementById('oc-toast');
+    if (!el) { el = document.createElement('div'); el.id = 'oc-toast'; el.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;background:' + (isErr ? '#ef4444' : '#10b981') + ';color:#fff;padding:10px 18px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.35);font-size:13px;transition:opacity .4s'; document.body.appendChild(el); }
+    el.style.background = isErr ? '#ef4444' : '#10b981';
+    el.textContent = msg; el.style.opacity = 1;
+    clearTimeout(el._t); el._t = setTimeout(function(){ el.style.opacity = 0; }, 3600);
+  }
+  function ocSaveAgentIdentity() {
+    var id = (document.getElementById('oc-agent-id') || {}).value || 'main';
+    var name = (document.getElementById('oc-agent-name') || {}).value || '';
+    var emoji = (document.getElementById('oc-agent-emoji') || {}).value || '';
+    ocPost('/api/openclaw/agent/identity', { agent: id, name: name, emoji: emoji }, function(j){
+      if (j.ok) { ocToast('代理身份已更新 ✓'); setTimeout(function(){ loadRealtimeStatus(); }, 800); }
+      else ocToast('更新失败：' + (j.error || 'CLI 无返回'), true);
+    });
+  }
+  function ocLoadMcp() {
+    ocGet('/api/openclaw/mcp', function(j){
+      var box = document.getElementById('oc-mcp-list');
+      if (!box) return;
+      if (!j.ok) { box.innerHTML = '<div class="muted" style="padding:16px">读取失败</div>'; return; }
+      var cnt = document.getElementById('oc-mcp-count'); if (cnt) cnt.textContent = j.servers.length;
+      if (!j.servers.length) { box.innerHTML = '<div class="muted" style="padding:16px">暂无 MCP 服务器。用下方表单接入第一个。</div>'; return; }
+      var h = '';
+      j.servers.forEach(function(s){
+        h += '<div class="mcp-row"><div class="mcp-info"><div class="mcp-name">' + esc(s.name) + '</div><div class="muted" style="font-size:10.5px;font-family:monospace">' + esc(s.command) + ' ' + esc((s.args || []).join(' ')) + (s.env_keys.length ? ' · env: ' + esc(s.env_keys.join(',')) : '') + '</div></div>';
+        h += '<label class="switch"><input type="checkbox" ' + (s.enabled ? 'checked' : '') + ' onchange="ocToggleMcp(\'' + esc(s.name) + '\', this)"><span class="slider"></span></label>';
+        h += '<button class="gw-btn mini danger" onclick="ocDelMcp(\'' + esc(s.name) + '\')">删除</button></div>';
+      });
+      box.innerHTML = h;
+    });
+  }
+  function ocToggleMcp(name, el) {
+    ocPost('/api/openclaw/mcp/' + encodeURIComponent(name) + '/toggle', {}, function(j){
+      if (j.ok) ocToast('MCP「' + name + '」' + (j.enabled ? '已启用' : '已停用') + '（网关热重载）');
+      else { ocToast('操作失败：' + (j.error || ''), true); ocLoadMcp(); }
+    });
+  }
+  function ocAddMcp() {
+    var name = (document.getElementById('oc-mcp-name') || {}).value || '';
+    var cmd = (document.getElementById('oc-mcp-command') || {}).value || '';
+    var argsTxt = (document.getElementById('oc-mcp-args') || {}).value || '';
+    if (!name || !cmd) { ocToast('名称和命令必填', true); return; }
+    var args = argsTxt.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+    ocPost('/api/openclaw/mcp', { name: name, command: cmd, args: args, env: {} }, function(j){
+      if (j.ok) { ocToast('MCP「' + name + '」已接入 ✓'); document.getElementById('oc-mcp-name').value = ''; document.getElementById('oc-mcp-command').value = ''; document.getElementById('oc-mcp-args').value = ''; ocLoadMcp(); }
+      else ocToast('接入失败：' + (j.error || ''), true);
+    });
+  }
+  function ocDelMcp(name) {
+    if (!confirm('删除 MCP「' + name + '」？')) return;
+    ocDel('/api/openclaw/mcp/' + encodeURIComponent(name), function(j){
+      if (j.ok) { ocToast('已删除 ' + name); ocLoadMcp(); } else ocToast('删除失败：' + (j.error || ''), true);
+    });
+  }
+  function ocLoadConfig() {
+    ocGet('/api/openclaw/config', function(j){
+      var ta = document.getElementById('oc-config-json');
+      if (!ta) return;
+      if (j.ok) ta.value = JSON.stringify(j.config, null, 2);
+      else ocToast('载入配置失败', true);
+    });
+  }
+  function ocSaveConfig() {
+    var ta = document.getElementById('oc-config-json');
+    if (!ta) return;
+    var cfg;
+    try { cfg = JSON.parse(ta.value); } catch (e) { ocToast('JSON 语法错误：' + e.message, true); return; }
+    ocPost('/api/openclaw/config', { patch: cfg }, function(j){
+      if (j.ok) { ocToast('配置已保存（自动备份）✓'); setTimeout(function(){ loadRealtimeStatus(); }, 800); }
+      else ocToast('保存失败：' + (j.error || ''), true);
+    });
+  }
+  function ocRefreshCron() {
+    ocGet('/api/openclaw/cron', function(j){
+      var box = document.getElementById('oc-cron-list');
+      if (!box) return;
+      if (!j.ok || !j.cron) { box.innerHTML = '<div class="muted" style="padding:16px">读取失败（网关离线？）</div>'; return; }
+      var jobs = (j.cron.jobs || j.cron.list || []);
+      var cnt = document.getElementById('oc-cron-count'); if (cnt) cnt.textContent = jobs.length;
+      if (!jobs.length) { box.innerHTML = '<div class="muted" style="padding:16px">暂无定时任务。用下方表单创建第一个。</div>'; return; }
+      var h = '';
+      jobs.forEach(function(jb){
+        var jid = jb.id || jb.jobId || '';
+        var en = jb.enabled !== false;
+        h += '<div class="mcp-row"><div class="mcp-info"><div class="mcp-name">' + esc(jb.name || jid) + '</div><div class="muted" style="font-size:10.5px;font-family:monospace">' + esc(jb.schedule || jb.cron || jb.every || '') + ' · ' + esc(String(jb.message || jb.payloadText || '').slice(0, 60)) + '</div></div>';
+        h += '<button class="gw-btn mini" onclick="ocToggleCron(\'' + esc(jid) + '\', ' + (!en) + ')">' + (en ? '停用' : '启用') + '</button>';
+        h += '<button class="gw-btn mini danger" onclick="ocDelCron(\'' + esc(jid) + '\')">删除</button></div>';
+      });
+      box.innerHTML = h;
+    });
+  }
+  function ocAddCron() {
+    var name = (document.getElementById('oc-cron-name') || {}).value || '';
+    var sched = (document.getElementById('oc-cron-schedule') || {}).value || '';
+    var msg = (document.getElementById('oc-cron-message') || {}).value || '';
+    if (!sched || !msg) { ocToast('调度和消息必填', true); return; }
+    ocPost('/api/openclaw/cron', { schedule: sched, message: msg, name: name }, function(j){
+      if (j.ok) { ocToast('定时任务已创建 ✓'); document.getElementById('oc-cron-name').value = ''; document.getElementById('oc-cron-schedule').value = ''; document.getElementById('oc-cron-message').value = ''; ocRefreshCron(); }
+      else ocToast('创建失败：' + (j.error || 'CLI 无返回'), true);
+    });
+  }
+  function ocToggleCron(id, enable) {
+    ocPost('/api/openclaw/cron/' + encodeURIComponent(id) + '/toggle', { enable: enable }, function(j){
+      if (j.ok) { ocToast(enable ? '已启用' : '已停用'); ocRefreshCron(); } else ocToast('操作失败', true);
+    });
+  }
+  function ocDelCron(id) {
+    if (!confirm('删除定时任务 ' + id + '？')) return;
+    ocDel('/api/openclaw/cron/' + encodeURIComponent(id), function(j){
+      if (j.ok) { ocToast('已删除'); ocRefreshCron(); } else ocToast('删除失败', true);
+    });
+  }
+  function ocLoadSkills() {
+    ocGet('/api/openclaw/skills', function(j){
+      var box = document.getElementById('oc-skills-list');
+      if (!box) return;
+      if (!j.ok) { box.innerHTML = '<div class="muted" style="padding:16px">读取失败</div>'; return; }
+      var list = j.skills || [];
+      var cnt = document.getElementById('oc-skills-count'); if (cnt) cnt.textContent = list.length;
+      if (!list.length) { box.innerHTML = '<div class="muted" style="padding:16px">暂无技能。</div>'; return; }
+      var h = '<div class="mod-list">';
+      list.forEach(function(sk){
+        var name = sk.name || (typeof sk === 'string' ? sk : '');
+        if (!name) return;
+        var en = sk.enabled !== false;
+        h += '<div class="mod-chip ' + (en ? 'up' : '') + '">' + esc(name) + (en ? '' : ' · 停用') + '</div>';
+      });
+      box.innerHTML = h + '</div>';
+    });
+  }
+  function ocLoadLogs() {
+    ocGet('/api/openclaw/logs?limit=120', function(j){
+      var box = document.getElementById('oc-logs-box');
+      if (!box) return;
+      if (!j.ok || !j.logs) { box.innerHTML = '<div class="muted" style="padding:16px">读取失败（网关离线？）</div>'; return; }
+      var lines = j.logs;
+      var arr = Array.isArray(lines) ? lines : (lines.lines || []);
+      if (!arr.length) { box.innerHTML = '<div class="muted" style="padding:16px">暂无日志。</div>'; return; }
+      var h = '';
+      arr.forEach(function(l){
+        var txt = typeof l === 'string' ? l : (l.message || l.line || JSON.stringify(l));
+        var lv = typeof l === 'string' ? '' : (l.level || l.lv || '');
+        h += '<div style="font-family:monospace;font-size:10.5px;padding:2px 0;border-bottom:1px solid var(--border);white-space:pre-wrap;word-break:break-all"><span style="color:var(--accent)">' + esc(lv) + '</span> ' + esc(txt) + '</div>';
+      });
+      box.innerHTML = h;
+    });
+  }
+  function ocInitInteractive() {
+    // 每次切到这些视图时自动拉取真实数据
+    var v = currentView;
+    if (v === 'schedule') ocRefreshCron();
+    else if (v === 'skills') ocLoadSkills();
+    else if (v === 'logs') ocLoadLogs();
+    else if (v === 'config') { ocLoadMcp(); ocLoadConfig(); }
+  }
+var RENDERERS = { overview: renderOverview, openclaw: renderOpenclaw, usage: renderUsage, channels: renderChannels, instances: renderInstances, sessions: renderSessions, schedule: renderSchedule, agents: renderAgents, skills: renderSkills, nodes: renderNodes, workflow: renderWorkflow, config: renderConfig, comm: renderComm, appearance: renderAppearance, automation: renderAutomation, infra: renderInfra, logs: renderLogs, debug: renderDebug };
+
+  function renderGateway(v) {
+    chatView.style.display = 'none';
+    workflowFrame.style.display = 'none';
+    floorplanFrame.style.display = 'none';
+    contentView.classList.add('visible');
+    var g = v.gateway, st = v.stats, svc = v.services || {};
+    var html = '<h2>' + v.title + '</h2><div class="view-desc">' + v.desc + '</div>';
+
+    // 网关状态条
+    html += '<div class="gw-bar">';
+    html += '<div class="gw-field"><span class="gw-label">mode</span><span class="gw-value">' + esc(g.mode) + '</span></div>';
+    html += '<div class="gw-field"><span class="gw-label">port</span><span class="gw-value">' + esc(g.port) + '</span></div>';
+    html += '<div class="gw-field"><span class="gw-label">auth</span><span class="gw-value">' + esc(g.authMode) + '</span></div>';
+    html += '<div class="gw-field"><span class="gw-label">bind</span><span class="gw-value">' + esc(g.bind) + '</span></div>';
+    html += '<div class="gw-actions"><button class="gw-btn" onclick="loadRealtimeStatus()">刷新</button></div>';
+    html += '</div>';
+
+    // 真实健康分 + 服务状态
+    var healthColor = st.health === 'healthy' ? 'var(--green)' : (st.health === 'degraded' ? 'var(--amber)' : 'var(--red)');
+    var healthNote = 'score ' + (st.healthScore || 0) + '% · ' + (svc.gatewayRunning ? '网关通' : '网关断') + ' · ' + (svc.ollamaRunning ? '本地模型通' : '本地模型断');
+    html += '<div class="card-grid overview-grid">';
+    html += gwStat('在线 Agents', st.agentsOnline, 'agents.entries');
+    html += gwStat('已连接频道', st.channelsConnected, 'channels.enabled');
+    var msi = modelSourceInfo();
+    html += gwStat('主模型', msi.label, msi.sub + (svc.modelReachable ? '就绪' : '未就绪'));
+    html += gwStat('今日 Token', st.tokensToday, st.tokensNote || 'usage.tokens / 24h');
+    html += '<div class="info-card health-card"><div class="info-label">运行健康</div><div class="info-value" style="color:' + healthColor + '">' + esc(st.health) + '<span class="health-score">' + (st.healthScore || 0) + '%</span></div><div class="info-note">' + healthNote + '</div></div>';
+    html += '</div>';
+
+    // 服务状态徽章
+    html += '<div class="section-title">服务状态</div><div class="svc-row">';
+    html += svcBadge('多平台网关', svc.gatewayRunning);
+    html += svcBadge('本地模型', svc.ollamaRunning, svc.installedModels ? svc.installedModels.length + ' 模型' : '');
+    html += svcBadge('BlueDeer Web', true);
+    html += svcBadge('主模型可达', svc.modelReachable);
+    html += '</div>';
+
+    // 已安装模型（真实）
+    if (svc.installedModels && svc.installedModels.length) {
+      html += '<div class="section-title">本地已安装模型</div><div class="empty-hint">本地推理在线，' + svc.installedModels.length + ' 个本地模型已就绪。</div>';
+    } else if (svc.ollamaRunning) {
+      html += '<div class="section-title">本地已安装模型</div><div class="empty-hint">本地推理在线，但未安装任何模型。</div>';
+    }
+
+    html += '<div class="section-title">最近会话</div><div class="log-panel">';
+    for (var i = 0; i < v.recent.length; i++) {
+      var r = v.recent[i];
+      var dot = r.state === 'RUNNING' ? 'var(--green)' : (r.state === 'IDLE' ? 'var(--amber)' : 'var(--text-faint)');
+      html += '<div class="log-row"><span class="log-dot" style="background:' + dot + '"></span><span class="log-key">' + esc(r.mainKey) + '</span><span class="log-state">' + esc(r.state) + '</span><span class="log-time">' + esc(r.time) + '</span></div>';
+    }
+    html += '</div>';
+    html += '<div class="section-title">最近事件</div><div class="log-panel">';
+    for (var j = 0; j < v.events.length; j++) {
+      var ev = v.events[j];
+      var lv = ev.level === 'INFO' ? 'var(--accent)' : (ev.level === 'WARN' ? 'var(--amber)' : 'var(--red)');
+      html += '<div class="log-row"><span class="log-level" style="color:' + lv + '">' + esc(ev.level) + '</span><span class="log-text">' + esc(ev.text) + '</span><span class="log-time">' + esc(ev.time) + '</span></div>';
+    }
+    html += '</div>';
+    html += '<div class="section-title">网关日志</div><div class="log-panel">';
+    for (var k = 0; k < v.logs.length; k++) {
+      var lg = v.logs[k];
+      var lc = lg.level === 'INFO' ? 'var(--accent)' : (lg.level === 'WARN' ? 'var(--amber)' : 'var(--red)');
+      html += '<div class="log-row"><span class="log-level" style="color:' + lc + '">' + esc(lg.level) + '</span><span class="log-text" style="font-family:monospace;font-size:11.5px;">' + esc(lg.text) + '</span><span class="log-time">' + esc(lg.time) + '</span></div>';
+    }
+    html += '</div>';
+    contentView.innerHTML = html;
+    contentView.scrollTop = 0;
+  }
+
+  function gwStat(label, value, note) {
+    return '<div class="info-card"><div class="info-label">' + esc(label) + '</div><div class="info-value">' + esc(value) + '</div><div class="info-note">' + esc(note) + '</div></div>';
+  }
+
+  function svcBadge(name, ok, extra) {
+    var c = ok ? 'var(--green)' : 'var(--red)';
+    var t = ok ? '运行中' : '未运行';
+    return '<div class="svc-badge"><span class="dot" style="background:' + c + '"></span><span class="svc-name">' + esc(name) + '</span><span class="svc-stat">' + t + (extra ? ' · ' + esc(extra) : '') + '</span></div>';
+  }
+
+  var _rtTimer = null;
+  var DASH = null;            // 当前视图渲染用的数据快照（由 getDash 填充）
+  var currentView = null;     // 当前激活视图，用于异步渲染竞态隔离
+
+  // 每个视图独立加载的数据获取器（带内存缓存，避免重复请求）
+  var _dashCache = null, _dashReq = null;
+  function getDash(force) {
+    if (_dashCache && !force) return Promise.resolve(_dashCache);
+    if (_dashReq && !force) return _dashReq;
+    _dashReq = fetch('/api/dashboard')
+      .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function(d) { _dashCache = d; _dashReq = null; return d; })
+      .catch(function(e) { _dashReq = null; throw e; });
+    return _dashReq;
+  }
+
+  // 折叠配置细节 + 模块清单（静态，不依赖后端）
+  function sectionsTail(v) {
+    return '<div class="section-title collapsible" onclick="var w=this.nextElementSibling;w.classList.toggle(\'collapsed\');this.classList.toggle(\'active\')">配置细节 / 字段说明 <span class="chev">▾</span></div>'
+      + '<div class="detail-wrap collapsed">' + renderSections(v) + '</div>';
+  }
+  // 该模块独立的「未连接」卡片（后端不可达时各自显示，不拖累其他模块）
+  function offlineCardHtml() {
+    return '<div class="offline-card">'
+      + '<div class="offline-ico">⚡</div>'
+      + '<div class="offline-title">正在连接后端 / 后端未启动</div>'
+      + '<div class="offline-sub">本页仪表盘数据来自 <code>/api/dashboard</code>。若长时间停留在此提示，请确认 BlueDeer Web 服务已启动：'
+      + '<br><code>cd BlueDeer &amp;&amp; python -m uvicorn web_server:app --reload --port 8080</code>'
+      + '<br>然后访问 <code>http://127.0.0.1:8080/game/hub</code></div>'
+      + '</div>';
+  }
+
+  // 每 10 秒刷新数据缓存并重渲染当前仪表盘视图（独立、不影响其他模块）
+  function loadRealtimeStatus() {
+    getDash(true)
+      .then(function(data) { DASH = data; if (RENDERERS[currentView]) renderCustom(currentView, VIEWS[currentView]); })
+      .catch(function(e) { console.error('dashboard refresh failed', e); });
+  }
+  if (_rtTimer) clearInterval(_rtTimer);
+  _rtTimer = setInterval(loadRealtimeStatus, 10000);
+  // 启动即渲染当前视图（每个视图独立取数，未连接时各自显示离线卡而非白板）
+  (function() {
+    var av = document.querySelector('.nav-item.active');
+    if (av) renderView(av.getAttribute('data-view'));
+  })();
+
+  // ===== 主题系统：浅色/深色 + 点缀色（光晕随点缀色联动）=====
+  function curTheme() { return document.documentElement.getAttribute('data-theme') || 'dark'; }
+  function curAcc() { return document.documentElement.getAttribute('data-accent') || 'violet'; }
+  function setTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem('bd-theme', t); } catch (e) {}
+    markThemeActive(); syncQuickLabel();
+  }
+  function setAccent(a) {
+    document.documentElement.setAttribute('data-accent', a);
+    try { localStorage.setItem('bd-accent', a); } catch (e) {}
+    markAccentActive();
+  }
+  // ===== 视觉风格（data-style）=====
+  function curStyle() { return document.documentElement.getAttribute('data-style') || 'glass'; }
+  function setStyle(s) {
+    var d = document.documentElement;
+    if (s === 'glass') { d.removeAttribute('data-style'); }
+    else { d.setAttribute('data-style', s); }
+    // 霓虹 / 夜森林 强制深色基底，否则保持当前明暗
+    if (s === 'neon' || s === 'forest') setTheme('dark');
+    try { localStorage.setItem('bd-style', s); } catch (e) {}
+    markStyleActive();
+  }
+  function markStyleActive() {
+    var s = curStyle();
+    contentView.querySelectorAll('[data-style-set]').forEach(function(b) {
+      b.classList.toggle('active', b.getAttribute('data-style-set') === s);
+    });
+  }
+  function markThemeActive() {
+    var t = curTheme();
+    contentView.querySelectorAll('[data-theme-set]').forEach(function(b) {
+      b.classList.toggle('active', b.getAttribute('data-theme-set') === t);
+    });
+  }
+  function markAccentActive() {
+    var a = curAcc();
+    contentView.querySelectorAll('[data-accent-set]').forEach(function(b) {
+      b.classList.toggle('active', b.getAttribute('data-accent-set') === a);
+    });
+  }
+  contentView.addEventListener('click', function(e) {
+    var ts = e.target.closest('[data-theme-set]');
+    if (ts) { setTheme(ts.getAttribute('data-theme-set')); return; }
+    var ac = e.target.closest('[data-accent-set]');
+    if (ac) { setAccent(ac.getAttribute('data-accent-set')); return; }
+    var st = e.target.closest('[data-style-set]');
+    if (st) { setStyle(st.getAttribute('data-style-set')); return; }
+    var src = e.target.closest('[data-source]');
+    if (src) { setModelSource(src.getAttribute('data-source')); return; }
+    var preset = e.target.closest('[data-preset]');
+    if (preset) { applyApiPreset(preset.getAttribute('data-preset')); return; }
+    if (e.target.closest('#save-model-cfg')) { saveModelConfig(); return; }
+  });
+  var _API_PRESETS = {
+    siliconflow: { base: 'https://api.siliconflow.cn/v1', model: 'deepseek-ai/DeepSeek-V3' },
+    deepseek: { base: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+    github: { base: 'https://models.inference.ai.azure.com', model: 'openai/gpt-4.1' },
+    zhipu: { base: 'https://open.bigmodel.cn/api/paas/v4/', model: 'GLM-4-Plus' }
+  };
+  function applyApiPreset(key) {
+    var p = _API_PRESETS[key];
+    if (!p) return;
+    var base = document.getElementById('cfg-api-base');
+    var model = document.getElementById('cfg-api-model');
+    if (base) base.value = p.base;
+    if (model) model.value = p.model;
+  }
+  function setModelSource(src) {
+    contentView.querySelectorAll('#model-source-seg [data-source]').forEach(function(b) {
+      b.classList.toggle('active', b.getAttribute('data-source') === src);
+    });
+    var f = document.getElementById('api-fields');
+    if (f) f.style.display = (src === 'api') ? '' : 'none';
+  }
+  function saveModelConfig() {
+    var src = 'local';
+    var active = contentView.querySelector('#model-source-seg [data-source].active');
+    if (active) src = active.getAttribute('data-source');
+    var payload = {
+      source: src,
+      api_base: (document.getElementById('cfg-api-base') || {}).value || '',
+      api_model: (document.getElementById('cfg-api-model') || {}).value || '',
+      api_key: (document.getElementById('cfg-api-key') || {}).value || ''
+    };
+    var msg = document.getElementById('model-cfg-msg');
+    if (msg) { msg.textContent = '保存中…'; msg.className = 'cfg-msg'; }
+    fetch('/api/model-config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (msg) {
+          if (d.ok) { msg.textContent = '已保存 ✓'; msg.className = 'cfg-msg ok'; }
+          else { msg.textContent = '保存失败：' + (d.error || '未知错误'); msg.className = 'cfg-msg err'; }
+        }
+        if (d.ok && d.settings) {
+          DASH.modelSettings = d.settings;
+          // 概览页若正显示则同步刷新
+          if (currentView === 'overview' || currentView === 'gateway') loadRealtimeStatus();
+        }
+      })
+      .catch(function(err) {
+        if (msg) { msg.textContent = '网络错误：' + err; msg.className = 'cfg-msg err'; }
+      });
+  }
+  // 侧栏一键切换（浅色/深色互切）
+  var themeQuick = document.getElementById('themeQuick');
+  function syncQuickLabel() {
+    if (!themeQuick) return;
+    themeQuick.textContent = curTheme() === 'dark' ? '🌙 深色' : '☀ 浅色';
+  }
+  if (themeQuick) {
+    syncQuickLabel();
+    themeQuick.addEventListener('click', function() {
+      setTheme(curTheme() === 'dark' ? 'light' : 'dark');
+    });
+  }
+
+  function renderSections(v) {
+    var html = '';
+    if (!v.sections) return html;
+    for (var i = 0; i < v.sections.length; i++) {
+      var sec = v.sections[i];
+      if (sec.modules && sec.modules.length) {
+        html += '<div class="section-title">' + sec.title + '</div><div class="module-grid">';
+        for (var j = 0; j < sec.modules.length; j++) {
+          var m = sec.modules[j];
+          var isToggle = /^enabled$|^default$|^allowBundled$|^user-invocable$|^disable-model-invocation$|^checkOnStart$|^restart$/.test(m.name);
+          var isFile = !isToggle && isRepoFile(m.file);
+          var control = isToggle
+            ? '<label class="switch"><input type="checkbox" checked><span class="slider"></span></label>'
+            : (isFile
+                ? '<a class="mod-file mod-link" href="' + BD + m.file + '" target="_blank" title="打开 ' + esc(m.file) + '">' + esc(m.file) + '</a>'
+                : '<span class="mod-file">' + esc(m.file) + '</span>');
+          html += '<div class="module-card"><div class="mod-info"><div class="mod-name">' + esc(m.name) + '</div><div class="mod-desc">' + esc(m.desc) + '</div></div>' + control + '</div>';
+        }
+        html += '</div>';
+      }
+      if (sec.docs && sec.docs.length) {
+        html += '<div class="section-title">' + sec.title + '</div><div class="card-grid">';
+        for (var k = 0; k < sec.docs.length; k++) {
+          var d = sec.docs[k];
+          html += '<a class="doc-card" href="' + (d.path || '#') + '" target="_blank"><div class="doc-name">' + esc(d.name) + '</div><span class="doc-file">' + esc(d.file) + '</span></a>';
+        }
+        html += '</div>';
+      }
+    }
+    return html;
+  }
+
+  function renderView(view) {
+    var v = VIEWS[view];
+    if (!v) {
+      if (view === 'floorplan') {
+        chatView.style.display = 'none';
+        contentView.classList.remove('visible');
+        workflowFrame.style.display = 'none';
+        floorplanFrame.style.display = 'block';
+        floorplanFrame.src = '/floorplan?v=' + Date.now();
+      }
+      return;
+    }
+    currentView = view;
+    if (RENDERERS[view]) { renderCustom(view, v); return; }
+    if (v.type === 'gateway') { renderGateway(v); return; }
+    chatView.style.display = 'none';
+    workflowFrame.style.display = 'none';
+    floorplanFrame.style.display = 'none';
+    contentView.classList.add('visible');
+    var html = '<h2>' + v.title + '</h2><div class="view-desc">' + v.desc + '</div>';
+    if (v.cards && v.cards.length) {
+      html += '<div class="card-grid">';
+      for (var i = 0; i < v.cards.length; i++) {
+        var c = v.cards[i];
+        html += '<div class="info-card"><div class="info-label">' + esc(c.label) + '</div><div class="info-value">' + esc(c.value) + '</div><div class="info-note">' + esc(c.note) + '</div></div>';
+      }
+      html += '</div>';
+    }
+    if (v.docs && v.docs.length) {
+      html += '<div class="section-title">文档索引</div><div class="card-grid">';
+      for (var j = 0; j < v.docs.length; j++) {
+        var d = v.docs[j];
+        html += '<a class="doc-card" href="' + (d.path || '#') + '" target="_blank"><div class="doc-name">' + esc(d.name) + '</div><span class="doc-file">' + esc(d.file) + '</span></a>';
+      }
+      html += '</div>';
+    }
+    if (v.employees) {
+      html += '<div class="section-title">员工</div><div class="card-grid">';
+      for (var e = 0; e < v.employees.length; e++) {
+        var emp = v.employees[e];
+        html += '<div class="emp-card"><div class="emp-avatar">' + emp[2] + '</div><div class="emp-meta"><div class="emp-name">' + emp[0] + '</div><div class="emp-role">' + emp[1] + '</div></div></div>';
+      }
+      html += '</div>';
+    }
+    html += '<div class="section-title collapsible" onclick="var w=this.nextElementSibling;w.classList.toggle(\'collapsed\');this.classList.toggle(\'active\')">配置细节 / 字段说明 <span class="chev">▾</span></div>';
+    html += '<div class="detail-wrap">' + renderSections(v) + '</div>';
+    contentView.innerHTML = html;
+    contentView.scrollTop = 0;
+  }
+  function renderCustom(view, v) {
+    chatView.style.display = 'none';
+    workflowFrame.style.display = 'none';
+    floorplanFrame.style.display = 'none';
+    contentView.classList.add('visible');
+    currentView = view;
+    var head = '<h2>' + v.title + '</h2><div class="view-desc">' + v.desc + '</div>';
+    // 先画标题 + 加载占位，避免空白
+    contentView.innerHTML = head + '<div class="offline-card"><div class="offline-ico">⏳</div><div class="offline-title">正在加载「' + esc(v.title) + '」数据…</div></div>';
+    getDash().then(function(data) {
+      if (currentView !== view) return; // 已切到其他视图，丢弃本次结果（竞态隔离）
+      DASH = data;
+      var html = head;
+      try {
+        html += RENDERERS[view](v);
+      } catch (err) {
+        console.error('renderer error [' + view + ']', err);
+        html += '<div class="offline-card"><div class="offline-ico">⚠️</div>'
+          + '<div class="offline-title">该模块渲染出错</div>'
+          + '<div class="offline-sub">' + esc(String((err && err.message) || err)) + '</div></div>';
+      }
+      html += sectionsTail(v);
+      contentView.innerHTML = html;
+      contentView.scrollTop = 0;
+      try { ocInitInteractive(); } catch (e) {}
+    }).catch(function() {
+      if (currentView !== view) return;
+      var html = head + offlineCardHtml();
+      html += sectionsTail(v);
+      contentView.innerHTML = html;
+      contentView.scrollTop = 0;
+    });
+  }
+
+  for (var k = 0; k < navItems.length; k++) {
+    navItems[k].addEventListener('click', function() {
+      var view = this.getAttribute('data-view');
+      activate(this);
+      if (view === 'chat') {
+        chatView.style.display = 'flex';
+        workflowFrame.style.display = 'none';
+        floorplanFrame.style.display = 'none';
+        contentView.classList.remove('visible');
+      } else if (view === 'workflow') {
+        chatView.style.display = 'none';
+        contentView.classList.remove('visible');
+        floorplanFrame.style.display = 'none';
+        workflowFrame.style.display = 'block';
+      } else if (view === 'floorplan') {
+        chatView.style.display = 'none';
+        contentView.classList.remove('visible');
+        workflowFrame.style.display = 'none';
+        floorplanFrame.style.display = 'block';
+        floorplanFrame.src = '/floorplan?v=' + Date.now();
+      } else {
+        chatView.style.display = 'none';
+        workflowFrame.style.display = 'none';
+        floorplanFrame.style.display = 'none';
+        renderView(view);
+      }
+    });
+  }
+
+  document.getElementById('btn-new-chat').addEventListener('click', function() {
+    messages.innerHTML = '<div class="msg ai"><div class="msg-name">BlueDeer</div>新对话已开启。</div>';
+  });
+  document.getElementById('btn-file').addEventListener('click', function() { document.getElementById('file-input').click(); });
+  document.getElementById('btn-image').addEventListener('click', function() { document.getElementById('image-input').click(); });
+  document.getElementById('file-input').addEventListener('change', function() {
+    var n = this.files.length;
+    if (n) messages.innerHTML += '<div class="msg user">[已添加 ' + n + ' 个文件]</div>';
+    this.value = '';
+  });
+  document.getElementById('image-input').addEventListener('change', function() {
+    var n = this.files.length;
+    if (n) messages.innerHTML += '<div class="msg user">[已添加 ' + n + ' 张图片]</div>';
+    this.value = '';
+  });
+  document.getElementById('btn-download').addEventListener('click', function() {
+    var msgs = messages.querySelectorAll('.msg');
+    var txt = '';
+    msgs.forEach(function(m) { txt += m.innerText + '\n\n'; });
+    var blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'bluedeer-chat.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  var voiceBtn = document.getElementById('btn-voice');
+  var voiceStatus = document.getElementById('voice-status');
+  var recognizing = false;
+  var rec = null;
+  voiceBtn.addEventListener('click', function() {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { voiceStatus.textContent = '浏览器不支持语音识别'; return; }
+    if (recognizing) { rec.stop(); return; }
+    rec = new SR();
+    rec.lang = 'zh-CN';
+    rec.interimResults = false;
+    rec.onstart = function() { recognizing = true; voiceStatus.textContent = '聆听中…'; voiceBtn.style.boxShadow = '0 0 12px rgba(59,130,246,0.6)'; };
+    rec.onend = function() { recognizing = false; voiceStatus.textContent = ''; voiceBtn.style.boxShadow = ''; };
+    rec.onresult = function(e) { textarea.value = e.results[0][0].transcript; };
+    rec.start();
+  });
+  sendBtn.addEventListener('click', function() {
+    var text = textarea.value.trim();
+    if (!text) return;
+    messages.innerHTML += '<div class="msg user">' + esc(text) + '</div>';
+    textarea.value = '';
+    messages.scrollTop = messages.scrollHeight;
+    setTimeout(function() {
+      messages.innerHTML += '<div class="msg ai"><div class="msg-name">BlueDeer</div>收到。</div>';
+      messages.scrollTop = messages.scrollHeight;
+    }, 500);
+  });
+  textarea.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBtn.click(); }
+  });
+})();
+</script>
+</body>
+</html>

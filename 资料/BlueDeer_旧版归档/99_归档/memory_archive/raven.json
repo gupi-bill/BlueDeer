@@ -1,0 +1,421 @@
+[
+  {
+    "name": "鸦·黑卷",
+    "species": "raven",
+    "born_at": 1786934763.263451,
+    "died_at": 1787040764.50713,
+    "age_days": 1.2268662462825024,
+    "death_reason": "health_zero",
+    "death_zone_id": "raven",
+    "gender": "female",
+    "core_memory": [
+      {
+        "time": 1786934792.627656,
+        "text": "入职 0 周年纪念日",
+        "importance": "high"
+      },
+      {
+        "time": 1786935166.0948431,
+        "text": "与 鹿·忧郁 的关系新增标签：挚友",
+        "importance": "high"
+      },
+      {
+        "time": 1786935367.8342624,
+        "text": "感到无比喜悦（情感快照：{'joy': 0.9, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 1.0, 'loneliness': 0.0, 'curiosity': 0.58}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786935377.9864204,
+        "text": "与 鹿·忧郁 的关系新增标签：搭档",
+        "importance": "high"
+      },
+      {
+        "time": 1786935670.6217227,
+        "text": "感到无比喜悦（情感快照：{'joy': 0.97, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.95, 'loneliness': 0.0, 'curiosity': 0.52}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786935973.545362,
+        "text": "感到无比喜悦（情感快照：{'joy': 1.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.8, 'loneliness': 0.0, 'curiosity': 0.46}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786936276.2295914,
+        "text": "感到无比喜悦（情感快照：{'joy': 1.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.65, 'loneliness': 0.0, 'curiosity': 0.4}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786936579.5080242,
+        "text": "感到无比喜悦（情感快照：{'joy': 1.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.5, 'loneliness': 0.0, 'curiosity': 0.34}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786936882.449373,
+        "text": "感到无比喜悦（情感快照：{'joy': 1.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.35, 'loneliness': 0.0, 'curiosity': 0.28}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786938093.4523373,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.08, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.04}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786938396.3152573,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786938699.3340125,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786959555.6370714,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786959555.6370714,
+        "text": "入职 0 周年纪念日",
+        "importance": "high"
+      },
+      {
+        "time": 1786975705.5935514,
+        "text": "入职 0 周年纪念日",
+        "importance": "high"
+      },
+      {
+        "time": 1786976431.4897473,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.08, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786976734.0945878,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786977036.5799272,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786977339.1343248,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786977641.644481,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786977944.137743,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786978246.6931868,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786978549.2922773,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786978851.758074,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786979154.4466531,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.15, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786979456.848626,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.3, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786979759.2928674,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.45, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786980061.9302993,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.6, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786980364.4040139,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.75, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786980667.0792587,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.9, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786980970.5210273,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 1.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786981273.0839918,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 1.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786981575.5289505,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 1.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1786981878.0872636,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 1.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787028100.5356123,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.97, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787028402.5064833,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.42, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787028442.7654436,
+        "text": "与 鹿·忧郁 的关系新增标签：挚友",
+        "importance": "high"
+      },
+      {
+        "time": 1787028513.2361023,
+        "text": "与 鹿·忧郁 的关系新增标签：搭档",
+        "importance": "high"
+      },
+      {
+        "time": 1787028704.496773,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787029006.4194949,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787029308.3729813,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787029610.1629508,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787029912.3743577,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787030214.8303206,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787030517.1789305,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787030819.7149599,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787031122.2899976,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787031424.815597,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787031727.2836711,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787032029.775558,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787032332.4992027,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787032635.3372316,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.04, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787032938.1661563,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.34, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787033240.6229491,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.64, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787033543.616581,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 0.94, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787033846.232201,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787034079.4032185,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787034382.4219043,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787034685.336066,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787034988.175478,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787035290.5813527,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787035593.1077945,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787035895.70202,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787036198.4208212,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787036501.3010895,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787036804.127297,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787037106.9056427,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787037409.646728,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787037712.5593328,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787038015.1857684,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787038317.9511223,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787038621.0356288,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787038923.6249788,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787039226.0055504,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787039529.429985,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787039832.93497,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787040136.23879,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787040439.9201176,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787040742.8704247,
+        "text": "快乐几乎消失（情感快照：{'joy': 0.0, 'sadness': 0.0, 'anxiety': 1.0, 'contentment': 0.0, 'loneliness': 0.0, 'curiosity': 0.0}）",
+        "importance": "high"
+      },
+      {
+        "time": 1787040764.0880337,
+        "text": "生命终结（health_zero）",
+        "importance": "high"
+      },
+      {
+        "time": 1787040764.0880337,
+        "text": "离世时仍有未竟之愿：（无）",
+        "importance": "high"
+      }
+    ],
+    "life_summary": "鸦·黑卷（raven）活了 1.2 天，性别 female，留下 81 条核心记忆。",
+    "last_words": "鸦·黑卷 静静地离开了森林公司。"
+  }
+]

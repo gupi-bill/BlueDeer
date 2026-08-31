@@ -49,22 +49,11 @@ def _pick_python() -> str:
 
 
 # ---- OpenClaw 网关联动：若 18789 未监听则自动拉起 ----
-# 路径优先级：环境变量 > 项目相对路径 > 跳过
-OPENCLAW_STATE_DIR = os.getenv(
-    "OPENCLAW_STATE_DIR",
-    os.path.join(ROOT, "..", "OpenClaw", "data"),
-)
-_OPENCLAW_BASE = os.getenv(
-    "OPENCLAW_NODE_BASE",
-    os.path.join(ROOT, "..", ".workbuddy", "binaries", "node", "versions", "22.22.2"),
-)
-if sys.platform == "win32":
-    OPENCLAW_NODE = os.path.join(_OPENCLAW_BASE, "node.exe")
-    OPENCLAW_CLI = os.path.join(_OPENCLAW_BASE, "node_modules", "openclaw", "dist", "index.js")
-else:
-    OPENCLAW_NODE = os.path.join(_OPENCLAW_BASE, "bin", "node")
-    OPENCLAW_CLI = os.path.join(_OPENCLAW_BASE, "node_modules", "openclaw", "dist", "index.js")
-GW_PORT = int(os.getenv("OPENCLAW_GATEWAY_PORT", "18789"))
+OPENCLAW_STATE_DIR = os.getenv("OPENCLAW_STATE_DIR", r"<WORKSPACE_DIR>\OpenClaw\data")
+_OPENCLAW_NODE_DIR = os.getenv("BLUEDEER_NODE_DIR", r"<WORKSPACE_DIR>\.workbuddy\binaries\node\versions\22.22.2")
+OPENCLAW_NODE = os.path.join(_OPENCLAW_NODE_DIR, "node.exe")
+OPENCLAW_CLI = os.path.join(_OPENCLAW_NODE_DIR, "node_modules", "openclaw", "dist", "index.js")
+GW_PORT = 18789
 
 
 def _ensure_openclaw_gateway() -> None:
@@ -97,6 +86,9 @@ def main() -> None:
     python = _pick_python()
     _ensure_openclaw_gateway()
     print(f"🦌 BlueDeer 本地服务启动中 → http://{HOST}:{PORT}")
+    print(f"   ├─ 主控制台: http://{HOST}:{PORT}/")
+    print(f"   ├─ Agent 调度台: http://{HOST}:{PORT}/console/")
+    print(f"   └─ Agent API: http://{HOST}:{PORT}/agent/")
     _open_browser_when_ready()
     try:
         subprocess.run(

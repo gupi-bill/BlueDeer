@@ -1,0 +1,26 @@
+# BlueDeer 森林公司 - 核心依赖
+# 生成方式：全项目 import 扫描（scripts/smoke_import.py 验证）
+# 平台：Windows / Linux / macOS，Python >= 3.11
+
+fastapi>=0.133
+uvicorn>=0.41
+pydantic>=2.13
+jinja2>=3.1
+PyYAML>=6.0
+aiohttp>=3.14
+psutil>=7.2
+Pillow>=12.2
+packaging>=26.0
+
+# 可观测性（OpenTelemetry + OTLP）
+opentelemetry-api>=1.21
+opentelemetry-sdk>=1.21
+opentelemetry-exporter-otlp>=1.21
+
+# 测试
+pytest>=9.1
+pytest-asyncio>=1.4
+
+# ---- 可选增强（缺省自动降级，不影响主流程） ----
+# argcomplete    CLI Tab 补全（cli/main.py）
+# pystray        桌面宠物系统托盘（core/digital_life/desktop_pet.py）

@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "<WORKSPACE_DIR>\BlueDeer-Agent\bluedeer\server.py", line 989, in <module>
+    serve(host=h, port=p)
+  File "<WORKSPACE_DIR>\BlueDeer-Agent\bluedeer\server.py", line 968, in serve
+    seed_agents_from_roles(cfg)
+  File "<WORKSPACE_DIR>\BlueDeer-Agent\bluedeer\server.py", line 115, in seed_agents_from_roles
+    "agent_id": aid, "name": name, "role": role.title or name,
+                                           ^^^^^^^^^^
+AttributeError: 'Role' object has no attribute 'title'

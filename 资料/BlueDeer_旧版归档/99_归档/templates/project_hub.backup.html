@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlueDeer · 控制台</title>
+<style>
+  :root {
+    --bg: #f4f8fd; --sidebar-bg: #eaf1fb; --panel: #ffffff;
+    --border: #d8e5f4; --border-strong: #b9d0ea;
+    --text: #2b3a4f; --text-dim: #5d7188; --text-faint: #8fa0b5;
+    --accent: #4a8fdc; --accent-soft: #e3effb; --accent-ink: #fff;
+    --green: #3fb950; --amber: #d29922; --red: #f85149;
+    --shadow: 0 2px 12px rgba(45,85,140,0.08);
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; font-size: 14px; }
+
+  #sidebar { width: 220px; flex-shrink: 0; background: var(--sidebar-bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+  #sidebar .brand { padding: 18px 16px 14px; font-size: 17px; font-weight: 700; color: var(--accent); }
+  #sidebar .nav-group { padding: 4px 10px; }
+  #sidebar .nav-group-title { font-size: 10.5px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em; padding: 12px 8px 4px; }
+  #sidebar .nav-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: none; border-radius: 8px; background: transparent; color: var(--text-dim); font-size: 13px; cursor: pointer; text-align: left; transition: all 0.14s; }
+  #sidebar .nav-item:hover { background: rgba(74,143,220,0.08); color: var(--text); }
+  #sidebar .nav-item.active { background: var(--accent); color: #fff; }
+  #sidebar .version { margin-top: auto; padding: 14px 16px; font-size: 11px; color: var(--text-faint); border-top: 1px solid var(--border); }
+
+  #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  /* 聊天视图 */
+  #chat-view { flex: 1; display: flex; flex-direction: column; }
+  #chat-view .chat-header { padding: 12px 20px; border-bottom: 1px solid var(--border); font-weight: 600; background: var(--panel); }
+  #chat-view .messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .msg { max-width: 72%; padding: 10px 14px; border-radius: 12px; font-size: 13.5px; line-height: 1.6; }
+  .msg.ai { align-self: flex-start; background: var(--panel); border: 1px solid var(--border); border-top-left-radius: 4px; }
+  .msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-top-right-radius: 4px; }
+  .msg .msg-name { font-size: 11px; margin-bottom: 4px; opacity: 0.65; }
+  #chat-view .chat-input { display: flex; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); background: var(--panel); }
+  #chat-view .chat-input textarea { flex: 1; resize: none; height: 42px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 13.5px; outline: none; }
+  #chat-view .chat-input textarea:focus { border-color: var(--accent); }
+  #chat-view .chat-input button { padding: 0 18px; border: none; border-radius: 8px; background: var(--accent); color: #fff; font-size: 13.5px; cursor: pointer; }
+  #chat-view .employee-bar { display: flex; gap: 8px; padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--panel); overflow-x: auto; }
+  #chat-view .employee-bar .emp-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 16px; font-size: 11.5px; cursor: pointer; white-space: nowrap; background: var(--bg); }
+  #chat-view .employee-bar .emp-pill:hover { border-color: var(--accent); }
+  #chat-view .employee-bar .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* 内容视图 */
+  #content-view { display: none; flex: 1; overflow-y: auto; padding: 24px 28px; }
+  #content-view.visible { display: block; }
+  #content-view h2 { font-size: 19px; margin-bottom: 4px; }
+  #content-view .view-desc { color: var(--text-faint); font-size: 12.5px; margin-bottom: 20px; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .info-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .info-card .info-label { font-size: 11px; color: var(--text-faint); margin-bottom: 4px; }
+  .info-card .info-value { font-size: 20px; font-weight: 700; }
+  .info-card .info-note { font-size: 11.5px; color: var(--text-dim); margin-top: 4px; }
+  .doc-card { display: block; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; text-decoration: none; color: var(--text); transition: all 0.15s; }
+  .doc-card:hover { border-color: var(--accent); box-shadow: var(--shadow); transform: translateY(-1px); }
+  .doc-card .doc-name { font-weight: 600; font-size: 13.5px; margin-bottom: 4px; }
+  .doc-card .doc-desc { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+  .doc-card .doc-tag { display: inline-block; margin-top: 8px; font-size: 10.5px; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 10px; }
+  .placeholder-box { background: var(--panel); border: 1px dashed var(--border-strong); border-radius: var(--radius); padding: 24px; text-align: center; color: var(--text-faint); }
+  .section-title { font-size: 14px; font-weight: 600; margin: 22px 0 10px; }
+
+  #workflow-frame { display: none; width: 100%; height: 100%; border: none; }
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div class="brand">BlueDeer</div>
+  <div class="nav-group">
+    <button class="nav-item active" data-view="chat">💬 聊天</button>
+    <button class="nav-item" data-view="overview">📊 概览</button>
+    <button class="nav-item" data-view="channels">📡 频道</button>
+    <button class="nav-item" data-view="instances">🖥️ 实例</button>
+    <button class="nav-item" data-view="sessions">🗂️ 会话</button>
+    <button class="nav-item" data-view="usage">📈 使用情况</button>
+  </div>
+  <div class="nav-group-title">任务</div>
+  <div class="nav-group">
+    <button class="nav-item" data-view="schedule">⏰ 定时任务</button>
+    <button class="nav-item" data-view="agents">🤖 代理</button>
+    <button class="nav-item" data-view="skills">🎯 技能</button>
+    <button class="nav-item" data-view="nodes">🔗 节点</button>
+  </div>
+  <div class="nav-group-title">系统</div>
+  <div class="nav-group">
+    <button class="nav-item" data-view="config">⚙️ 配置</button>
+    <button class="nav-item" data-view="comm">📞 通信</button>
+    <button class="nav-item" data-view="appearance">🎨 外观与设置</button>
+    <button class="nav-item" data-view="automation">🔀 自动化</button>
+  </div>
+  <div class="nav-group-title">基础设施</div>
+  <div class="nav-group">
+    <button class="nav-item" data-view="infra">🏗️ 基础设施</button>
+    <button class="nav-item" data-view="aiagents">🧠 AI与代理</button>
+    <button class="nav-item" data-view="debug">🐛 调试</button>
+    <button class="nav-item" data-view="logs">📄 日志</button>
+    <button class="nav-item" data-view="docs">📚 文档</button>
+  </div>
+  <div class="version">BlueDeer v0.8.0</div>
+</div>
+
+<div id="main">
+  <div id="chat-view">
+    <div class="chat-header">💬 聊天</div>
+    <div class="employee-bar" id="employee-bar"></div>
+    <div class="messages" id="messages">
+      <div class="msg ai"><div class="msg-name">忧郁鹿</div>你好，我是忧郁鹿。森林公司随时为你效劳。</div>
+    </div>
+    <div class="chat-input">
+      <textarea id="chat-textarea" placeholder="输入消息…"></textarea>
+      <button id="chat-send">发送</button>
+    </div>
+  </div>
+
+  <div id="content-view"></div>
+  <iframe id="workflow-frame" src="workflow.html"></iframe>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var DOC = 'file:///<WORKSPACE_DIR>/';
+  var BD = DOC + 'BlueDeer/';
+  var KB = DOC + 'ObsidianPortable/Bill/';
+
+  var EMPLOYEES = [
+    ['#A3826E','忧郁鹿','调度官'],['#9C7B5E','机灵鼠','前端工程师'],['#A07AA5','绘羽蝶','视觉设计师'],
+    ['#B86E4E','赤谋狐','测试工程师'],['#7A5D44','针客猬','安全工程师'],['#85603F','大坝狸','基建工程师'],
+    ['#4A5560','黑卷鸦','记忆管理员'],['#C8BFB0','霜耳兔','快递员'],['#5A5550','土工獾','矿工'],
+    ['#C9925A','清音雀','播音员'],['#6B7A95','天瞰鸢','瞭望员']
+  ];
+
+  var VIEWS = {
+    overview: {
+      title: '概览', desc: 'BlueDeer 项目总览与核心指标',
+      cards: [
+        {label:'员工数量', value:'11', note:'11 种动物智能体'},
+        {label:'功能区', value:'17', note:'11 岗位 + 6 公共区'},
+        {label:'默认模型', value:'qwen2.5vl:7b', note:'本地 Ollama'},
+        {label:'测试基线', value:'450 passed', note:'pytest 全绿'}
+      ],
+      docs: [
+        {name:'项目 README', desc:'BlueDeer 项目总览', path:BD+'README.md'},
+        {name:'核心架构', desc:'架构分层与模块说明', path:BD+'docs/CORE_ARCHITECTURE.md'},
+        {name:'系统提示词', desc:'统一系统上下文', path:BD+'SYSTEM_PROMPT.md'}
+      ]
+    },
+    channels: {
+      title: '频道', desc: '内部消息频道与订阅',
+      docs: [
+        {name:'事件总线', desc:'通配符订阅与优先级', path:BD+'docs/event_bus.md'},
+        {name:'通信日志', desc:'员工间通信记录', path:''}
+      ]
+    },
+    instances: {
+      title: '实例', desc: 'BlueDeer 运行实例',
+      docs: [
+        {name:'启动器用法', desc:'各启动入口说明', path:BD+'docs/launchers_usage.md'},
+        {name:'API 服务器', desc:'FastAPI 实例', path:''}
+      ]
+    },
+    sessions: {
+      title: '会话', desc: '会话与状态存储',
+      docs: [
+        {name:'会话存储', desc:'Session Store 说明', path:''},
+        {name:'上下文管理', desc:'三层上下文', path:''}
+      ]
+    },
+    usage: {
+      title: '使用情况', desc: '资源与 token 使用统计',
+      cards: [
+        {label:'Token 审计', value:'审计器', note:'token_auditor.py'},
+        {label:'Token 预算', value:'预算器', note:'token_budget.py'},
+        {label:'限流', value:'令牌桶', note:'token_bucket.py'}
+      ],
+      docs: []
+    },
+    schedule: {
+      title: '定时任务', desc: '调度器与定时任务',
+      docs: [
+        {name:'调度器文档', desc:'Scheduler 说明', path:BD+'docs/scheduler.md'},
+        {name:'DAG 模板', desc:'任务依赖模板', path:''}
+      ]
+    },
+    agents: {
+      title: '代理', desc: '11 位动物员工与 007 Agent 矩阵',
+      docs: [
+        {name:'开发者指南', desc:'Agent 开发指南', path:BD+'docs/DEVELOPER_GUIDE.md'},
+        {name:'任务编排器', desc:'TaskOrchestrator', path:BD+'docs/task_orchestrator.md'},
+        {name:'员工设定规范', desc:'命名/颜色/性格标准', path:KB+'BlueDeer/员工设定规范.md'}
+      ]
+    },
+    skills: {
+      title: '技能', desc: '能力等级渐进与技能体系',
+      docs: [
+        {name:'进化增强提示词', desc:'能力等级渐进 v2', path:KB+'BlueDeer/智能体进化/BlueDeer智能体进化增强实施提示词_2026-08-17.md'},
+        {name:'能力沙箱', desc:'Capability-based Security', path:''}
+      ]
+    },
+    nodes: {
+      title: '节点', desc: '工作流节点与工具注册',
+      docs: [
+        {name:'员工工作流', desc:'n8n 风格节点编排', path:BD+'templates/workflow.html'},
+        {name:'工具注册', desc:'ToolRegistry 说明', path:''}
+      ]
+    },
+    config: {
+      title: '配置', desc: '系统配置与操作红线',
+      docs: [
+        {name:'操作规范', desc:'操作红线与纪律', path:KB+'BlueDeer/操作规范.md'},
+        {name:'配置说明', desc:'Config 热重载', path:''}
+      ]
+    },
+    comm: {
+      title: '通信', desc: '通信机制与协议',
+      docs: [
+        {name:'事件总线', desc:'通配符订阅', path:BD+'docs/event_bus.md'},
+        {name:'Webhook', desc:'外部事件推送', path:BD+'docs/notifier.md'}
+      ]
+    },
+    appearance: {
+      title: '外观与设置', desc: '主题与界面偏好',
+      docs: [
+        {name:'工作流编辑器风格规范', desc:'UI 风格标准', path:KB+'BlueDeer/工作流编辑器风格规范.md'}
+      ]
+    },
+    automation: {
+      title: '自动化', desc: '可视化工作流编排',
+      docs: [
+        {name:'工作流模块提示词', desc:'实施提示词', path:KB+'BlueDeer/智能体进化/BlueDeer可视化工作流模块实施提示词_2026-08-17.md'}
+      ]
+    },
+    infra: {
+      title: '基础设施', desc: '本地运行依赖',
+      cards: [
+        {label:'推理', value:'Ollama', note:'本地优先'},
+        {label:'知识库', value:'Obsidian Bill', note:'长期记忆'},
+        {label:'桌面版', value:'OpenCode', note:'Agent 主界面'},
+        {label:'视觉 Agent', value:'OpenClaw', note:'截图/桌面控制'}
+      ],
+      docs: []
+    },
+    aiagents: {
+      title: 'AI与代理', desc: '模型路由与 Agent 框架',
+      docs: [
+        {name:'进化增强提示词', desc:'渐进增强 v2', path:KB+'BlueDeer/智能体进化/BlueDeer智能体进化增强实施提示词_2026-08-17.md'},
+        {name:'OpenCode 提示词', desc:'超长系统提示词', path:BD+'OPENCODE_SYSTEM_PROMPT.md'}
+      ]
+    },
+    debug: {
+      title: '调试', desc: '调试工具与追踪',
+      docs: [
+        {name:'调试器文档', desc:'Debugger 模块', path:BD+'docs/debugger.md'},
+        {name:'追踪器', desc:'Tracer 说明', path:''}
+      ]
+    },
+    logs: {
+      title: '日志', desc: '日志查看与追踪',
+      docs: [
+        {name:'日志查看器', desc:'Log Viewer', path:''},
+        {name:'审计日志', desc:'Audit Log', path:''}
+      ]
+    },
+    docs: {
+      title: '文档', desc: '全部文档索引',
+      docs: [
+        {name:'员工设定规范', desc:'11 位员工标准', path:KB+'BlueDeer/员工设定规范.md'},
+        {name:'工作流编辑器风格规范', desc:'UI 风格标准', path:KB+'BlueDeer/工作流编辑器风格规范.md'},
+        {name:'MOC 智能体进化', desc:'进化知识索引', path:KB+'智能体进化/MOC_智能体进化.md'},
+        {name:'核心架构', desc:'架构说明', path:BD+'docs/CORE_ARCHITECTURE.md'},
+        {name:'开发者指南', desc:'开发指南', path:BD+'docs/DEVELOPER_GUIDE.md'}
+      ]
+    }
+  };
+
+  var chatView = document.getElementById('chat-view');
+  var contentView = document.getElementById('content-view');
+  var workflowFrame = document.getElementById('workflow-frame');
+  var messages = document.getElementById('messages');
+  var textarea = document.getElementById('chat-textarea');
+  var navItems = document.querySelectorAll('#sidebar .nav-item');
+
+  // 员工栏
+  var bar = document.getElementById('employee-bar');
+  var barHtml = '';
+  for (var i = 0; i < EMPLOYEES.length; i++) {
+    barHtml += '<span class="emp-pill"><span class="dot" style="background:' + EMPLOYEES[i][0] + '"></span>' + EMPLOYEES[i][1] + '</span>';
+  }
+  bar.innerHTML = barHtml;
+
+  function activate(btn) {
+    for (var i = 0; i < navItems.length; i++) navItems[i].classList.remove('active');
+    btn.classList.add('active');
+  }
+
+  function renderView(view) {
+    var v = VIEWS[view];
+    if (!v) return;
+    chatView.style.display = 'none';
+    workflowFrame.style.display = 'none';
+    contentView.classList.add('visible');
+
+    var html = '<h2>' + v.title + '</h2><div class="view-desc">' + v.desc + '</div>';
+
+    if (v.cards && v.cards.length) {
+      html += '<div class="section-title">指标</div><div class="card-grid">';
+      for (var i = 0; i < v.cards.length; i++) {
+        var c = v.cards[i];
+        html += '<div class="info-card"><div class="info-label">' + c.label + '</div><div class="info-value">' + c.value + '</div><div class="info-note">' + c.note + '</div></div>';
+      }
+      html += '</div>';
+    }
+
+    if (v.docs && v.docs.length) {
+      html += '<div class="section-title">相关文档</div><div class="card-grid">';
+      for (var j = 0; j < v.docs.length; j++) {
+        var d = v.docs[j];
+        if (d.path) {
+          html += '<a class="doc-card" href="' + d.path + '" target="_blank"><div class="doc-name">' + d.name + '</div><div class="doc-desc">' + d.desc + '</div><span class="doc-tag">打开文档</span></a>';
+        } else {
+          html += '<div class="doc-card"><div class="doc-name">' + d.name + '</div><div class="doc-desc">' + d.desc + '</div><span class="doc-tag">待接入</span></div>';
+        }
+      }
+      html += '</div>';
+    }
+
+    if ((!v.cards || !v.cards.length) && (!v.docs || !v.docs.length)) {
+      html += '<div class="placeholder-box">该模块待接入后端数据</div>';
+    }
+
+    contentView.innerHTML = html;
+  }
+
+  function showChat() {
+    contentView.classList.remove('visible');
+    workflowFrame.style.display = 'none';
+    chatView.style.display = 'flex';
+  }
+
+  function showAutomation() {
+    chatView.style.display = 'none';
+    contentView.classList.remove('visible');
+    workflowFrame.style.display = 'block';
+  }
+
+  for (var k = 0; k < navItems.length; k++) {
+    (function(btn) {
+      btn.addEventListener('click', function() {
+        activate(btn);
+        var view = btn.getAttribute('data-view');
+        if (view === 'chat') showChat();
+        else if (view === 'automation') showAutomation();
+        else renderView(view);
+      });
+    })(navItems[k]);
+  }
+
+  // 聊天
+  document.getElementById('chat-send').addEventListener('click', function() {
+    var text = textarea.value.trim();
+    if (!text) return;
+    messages.innerHTML += '<div class="msg user">' + text + '</div>';
+    textarea.value = '';
+    messages.scrollTop = messages.scrollHeight;
+    setTimeout(function() {
+      messages.innerHTML += '<div class="msg ai"><div class="msg-name">忧郁鹿</div>收到。</div>';
+      messages.scrollTop = messages.scrollHeight;
+    }, 500);
+  });
+  textarea.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('chat-send').click(); }
+  });
+})();
+</script>
+</body>
+</html>

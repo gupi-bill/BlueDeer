@@ -1,0 +1,21 @@
+{
+  "agent_id": "squirrel-鼠·栗壳",
+  "agent_name": "鼠·栗壳",
+  "species": "squirrel",
+  "core": [
+    {
+      "text": "周反思：这周我写了不少代码。本周无显著事件。joy是我这周的主导情绪。希望下周能少点 bug，多点松果。...",
+      "kind": "event",
+      "important": true,
+      "tags": [
+        "weekly_reflection",
+        "autobiography"
+      ],
+      "meta": {},
+      "ts": 1787809267.4884906,
+      "time": "2026-08-27 13:41:07"
+    }
+  ],
+  "last_interact_ts": 1787809267.4884906,
+  "last_farewell_mood": "neutral"
+}

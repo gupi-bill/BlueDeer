@@ -1,51 +1,16 @@
-# ── Python ──────────────────────────────────────────────
-__pycache__/
+# ===== 运行记忆 / 大文件（隐私，不传 GitHub）=====
+BlueDeer-Agent/data/
+
+# ===== Python 缓存 / 依赖 =====
+**/__pycache__/
 *.pyc
-*.pyo
-*.egg-info/
-.pytest_cache/
-.venv/
-venv/
+node_modules/
 
-# ── 环境与密钥 ──────────────────────────────────────────
+# ===== 环境变量 / 含明文密钥的真实配置（不传）=====
 .env
-.env.*
-!.env.example
+BlueDeer-Agent/config.json
 
-# ── BlueDeer 运行时数据（自动生成，不提交） ─────────────
-data/
-logs/
-*.log
-*.db
-*.sqlite
-*.sqlite3
-chroma/
-*.cache
-
-# ── IDE / 编辑器 ────────────────────────────────────────
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# ── OS ──────────────────────────────────────────────────
+# ===== 编辑器 / 系统 =====
 .DS_Store
 Thumbs.db
-
-# ── 开发临时脚本与产物（不公开，仅限仓库根目录） ────────
-/_*.py
-/_*.txt
-/_*/
-!__init__.py
-backups/
-biosphere_save.json*
-._trash/
-_backup_*/
-*.bak
-*.bak_*
-.coverage
-.mypy_cache/
-.ruff_cache/
-.workbuddy/
-.coverage
-*.tmp
+*.log

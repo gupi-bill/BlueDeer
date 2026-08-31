@@ -1,0 +1,21 @@
+{
+  "agent_id": "raven-鸦·黑卷",
+  "agent_name": "鸦·黑卷",
+  "species": "raven",
+  "core": [
+    {
+      "text": "周反思：又一周过去。本周无显著事件。我老了，但记忆越来越清晰。活着就是为了记住。...",
+      "kind": "event",
+      "important": true,
+      "tags": [
+        "weekly_reflection",
+        "autobiography"
+      ],
+      "meta": {},
+      "ts": 1787809267.4915113,
+      "time": "2026-08-27 13:41:07"
+    }
+  ],
+  "last_interact_ts": 1787809267.4905138,
+  "last_farewell_mood": "neutral"
+}

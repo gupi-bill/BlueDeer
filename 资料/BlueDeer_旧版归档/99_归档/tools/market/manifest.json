@@ -1,0 +1,15 @@
+{
+  "greet_tool": {
+    "name": "greet_tool",
+    "version": "0.1.0",
+    "description": "问候工具。",
+    "author": "",
+    "source_url": "C:\\Users\\a\\AppData\\Local\\Temp\\tmpwid5o0qd\\greet_tool.py",
+    "entry_point": "GreetTool",
+    "file_path": "tools/market\\greet_tool.py",
+    "category": "read",
+    "tags": [
+      "local"
+    ]
+  }
+}

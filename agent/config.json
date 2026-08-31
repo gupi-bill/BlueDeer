@@ -1,0 +1,20 @@
+{
+  "api_base": "https://apihub.agnes-ai.com/v1",
+  "api_model": "agnes-2.5-flash",
+  "api_key": "<YOUR_AGNES_API_KEY>",
+  "layers": {
+    "input": true,
+    "understanding": true,
+    "memory": true,
+    "reasoning": true,
+    "decision": true,
+    "planning": true,
+    "task_queue": true,
+    "action": true,
+    "result_check": true,
+    "output": true,
+    "safety": true,
+    "mcp": true,
+    "monitoring": true
+  }
+}

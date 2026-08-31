@@ -1,0 +1,34 @@
+{
+  "raw_input": "?? workspace/code/hello.py ?????????",
+  "cleaned_input": "?? workspace/code/hello.py ?????????",
+  "intent": "question",
+  "entities": {
+    "urls": [],
+    "emails": [],
+    "numbers": []
+  },
+  "memories": [],
+  "reasoning": "",
+  "decision": "",
+  "plan": [],
+  "tasks": [],
+  "action_result": "",
+  "result_ok": true,
+  "output": "",
+  "blocked": false,
+  "block_reason": "",
+  "flags": [],
+  "metadata": {
+    "started_at": 1787807526.461222,
+    "run_id": "20260827_131206_88441a",
+    "layer_timings": {
+      "input": 0,
+      "understanding": 0,
+      "memory": 0,
+      "reasoning": 0
+    }
+  },
+  "_layer": "reasoning",
+  "_elapsed_ms": 0,
+  "_ts": 1787807526.463223
+}

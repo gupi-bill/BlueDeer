@@ -1,0 +1,27 @@
+{
+  "raw_input": "hello forest",
+  "cleaned_input": "hello forest",
+  "intent": "chat",
+  "entities": {},
+  "memories": [],
+  "reasoning": "",
+  "decision": "",
+  "plan": [],
+  "tasks": [],
+  "action_result": "",
+  "result_ok": true,
+  "output": "",
+  "blocked": false,
+  "block_reason": "",
+  "flags": [],
+  "metadata": {
+    "started_at": 1787627151.3579051,
+    "run_id": "20260825_110551_e9bcfd",
+    "layer_timings": {
+      "input": 0
+    }
+  },
+  "_layer": "input",
+  "_elapsed_ms": 0,
+  "_ts": 1787627151.3589034
+}

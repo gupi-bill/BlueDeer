@@ -1,0 +1,21 @@
+{
+  "agent_id": "butterfly-蝶·绘羽",
+  "agent_name": "蝶·绘羽",
+  "species": "butterfly",
+  "core": [
+    {
+      "text": "周反思：这一周过得不错。本周无显著事件。我的主导情绪是 joy。期待下周。...",
+      "kind": "event",
+      "important": true,
+      "tags": [
+        "weekly_reflection",
+        "autobiography"
+      ],
+      "meta": {},
+      "ts": 1787809267.4894896,
+      "time": "2026-08-27 13:41:07"
+    }
+  ],
+  "last_interact_ts": 1787809267.4884906,
+  "last_farewell_mood": "neutral"
+}
