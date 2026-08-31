@@ -7,8 +7,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from bluedeer.agent import BlueDeerAgent  # noqa: E402
-from bluedeer.config import load_config  # noqa: E402
+from bluedeer.agent import BlueDeerAgent
+from bluedeer.config import load_config
 
 
 class SmokeTest(unittest.TestCase):

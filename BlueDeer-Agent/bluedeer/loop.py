@@ -9,9 +9,9 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
-FINAL_RE = re.compile(r"^\s*FINAL\s*[:：]\s*(.*)$", re.S | re.I)
-TOOL_RE = re.compile(r"^\s*TOOL\s*[:：]\s*([A-Za-z_][A-Za-z0-9_]*)\s*$", re.I)
-ARGS_RE = re.compile(r"^\s*ARGS\s*[:：]\s*(\{.*\})\s*$", re.S)
+FINAL_RE = re.compile(r"^\s*FINAL\s*[:：]\s*(.*)$", re.DOTALL | re.IGNORECASE)
+TOOL_RE = re.compile(r"^\s*TOOL\s*[:：]\s*([A-Za-z_][A-Za-z0-9_]*)\s*$", re.IGNORECASE)
+ARGS_RE = re.compile(r"^\s*ARGS\s*[:：]\s*(\{.*\})\s*$", re.DOTALL)
 
 
 def append_jsonl(path: Path, obj: dict) -> None:

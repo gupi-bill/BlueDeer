@@ -26,7 +26,7 @@ import threading
 import time
 from collections import deque
 
-# ruff: noqa: S110, S112
+# ruff: noqa: S110
 
 IS_WINDOWS = platform.system() == "Windows"
 

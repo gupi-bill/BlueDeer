@@ -8,8 +8,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from bluedeer.agent import BlueDeerAgent  # noqa: E402
-from bluedeer.roles import list_roles, load_role, resolve_system_prompt  # noqa: E402
+from bluedeer.agent import BlueDeerAgent
+from bluedeer.roles import list_roles, load_role, resolve_system_prompt
 
 
 def base_cfg(tmp: Path) -> dict:

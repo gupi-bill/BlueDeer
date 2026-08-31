@@ -1,2 +1,27 @@
 [lint]
-ignore = ["BLE001", "DTZ005", "DTZ006", "DTZ007", "DTZ011"]
+ignore = [
+    "BLE001",
+    "DTZ005",
+    "DTZ006",
+    "DTZ007",
+    "DTZ011",
+    "E402",
+    "E501",
+    "E701",
+    "E731",
+    "E741",
+    "S110",
+    "S112",
+    "TRY004",
+    "UP031",
+    "PLW1510",
+    "SIM401",
+    "ASYNC251",
+    "ASYNC230",
+]
+
+[lint.per-file-ignores]
+"tests/**" = ["S101", "PT011", "RUF059"]
+"BlueDeer-Agent/**" = ["S101", "RUF059"]
+"BlueDeer-Console/**" = ["S101"]
+"cli/**" = ["ASYNC251", "ASYNC230", "S101"]

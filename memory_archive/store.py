@@ -5,18 +5,17 @@ from __future__ import annotations
 import json
 import os
 import time
-from typing import Any
 
 from memory_archive.schemas import MemoryEntry, MemoryType, RetrievalResult
 
 try:
-    from vector_db.vector_store import VectorStore, SearchResult as VSResult
+    from vector_db.vector_store import SearchResult as VSResult
+    from vector_db.vector_store import VectorStore
 
     _VECTOR_DB_AVAILABLE = True
 except ImportError:  # pragma: no cover
     _VECTOR_DB_AVAILABLE = False
 
-from memory_archive.schemas import MemoryEntry, MemoryType, RetrievalResult
 
 
 class MemoryStore:

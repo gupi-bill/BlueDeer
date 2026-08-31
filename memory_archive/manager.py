@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
 from typing import Any
 
 from memory_archive.pipeline import MemoryPipeline
@@ -153,7 +152,6 @@ class MemoryManager:
                     agents = list(self._pipelines.keys())
                 for agent_id in agents:
                     pipe = self._pipelines[agent_id]
-                    before = pipe.count
                     pipe._store._save_vector_store()
                     after = pipe.count
                     logger.debug("consolidation: agent=%s, 记忆数=%d", agent_id, after)

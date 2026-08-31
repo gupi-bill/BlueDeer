@@ -9,8 +9,6 @@ from fastapi.responses import HTMLResponse
 from web_server.app import (
     app,
     debugger,
-    github,
-    scene,
 )
 
 router = APIRouter()
@@ -981,7 +979,7 @@ body {
         <!-- 资料库 -->
         <div class="room" id="library">
             <div class="room-label" style="left:15px;top:12px;">资料库</div>
-            
+
             <!-- 三面书墙 -->
             <div class="book-wall book-wall-left">
                 <div class="books" style="top:8px;left:4px;right:4px;">
@@ -1018,9 +1016,9 @@ body {
                     <div class="book-spine" style="background:#bcaaa4;"></div>
                 </div>
             </div>
-            
+
             <!-- 分类标签（已按需求移除文字） -->
-            
+
             <!-- 阅读桌 -->
             <div class="reading-table">
                 <div class="open-book"></div>
@@ -1032,17 +1030,17 @@ body {
                     <div class="steam"></div>
                 </div>
             </div>
-            
+
             <!-- 梯子 -->
             <div class="ladder"></div>
-            
+
             <!-- 知识树挂画 -->
             <div class="knowledge-tree"></div>
-            
+
             <!-- 盆栽 -->
             <div class="pot-plant" style="left:80px;bottom:8px;"></div>
             <div class="pot-plant" style="right:8px;bottom:8px;animation-delay:1s;"></div>
-            
+
             <div class="room-char" style="left:150px;top:135px;">
                 <img class="desk-photo" src="/sprites/raven.png?v=2" alt="黑卷鸦">
                 <div class="room-char-cap">黑卷鸦<br><span>记忆管理员 · 在岗</span></div>
@@ -1126,7 +1124,7 @@ body {
     }
     for (x, y, aid, name, st, role, level, items, blurb) in positions:
         accent = ACCENT.get(aid, "#1e6fff")
-        stext = STATUS_TEXT.get(st, st)
+        STATUS_TEXT.get(st, st)
         desk_svg = f'''<svg class="desk-svg" viewBox="0 0 160 128" xmlns="http://www.w3.org/2000/svg">
       <ellipse cx="80" cy="106" rx="66" ry="13" fill="rgba(15,23,42,0.08)"/>
       <path d="M80,82 L146,100 L80,118 L14,100 Z" fill="{accent}" fill-opacity="0.14"/>

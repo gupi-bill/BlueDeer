@@ -1,5 +1,4 @@
-﻿# -*- coding: utf-8 -*-
-"""BlueDeer 底座 REST API —— 纯标准库实现，给 BlueDeer-Console 前端供真实数据。
+﻿"""BlueDeer 底座 REST API —— 纯标准库实现，给 BlueDeer-Console 前端供真实数据。
 
 启动: python -m bluedeer.server   (默认 127.0.0.1:8000, config.json 可改 server_port)
 
@@ -17,10 +16,17 @@ import threading
 import time
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
-from .config import DEFAULT_CONFIG, ROOT_DIR, get_env, load_config, save_config, resolve_path
 from .agent import BlueDeerAgent
+from .config import (
+    DEFAULT_CONFIG,
+    ROOT_DIR,
+    get_env,
+    load_config,
+    resolve_path,
+    save_config,
+)
 from .roles import list_roles, load_role
 
 VERSION = "1.0.0"
